@@ -187,6 +187,12 @@ const Input = (function () {
       btn.addEventListener('pointerup', off);
       btn.addEventListener('pointerleave', off);
       btn.addEventListener('pointercancel', off);
+      touchReleasers.push(function () {
+        if (!fingers.size) return;
+        fingers.clear();
+        btn.classList.remove('on');
+        set(target, action, false);
+      });
     });
     bindDpad(root.querySelector('#dpad'));
     bindActpad(actpad, opts);
@@ -244,6 +250,11 @@ const Input = (function () {
    */
   function bindStick(el, apply) {
     let finger = null;
+    touchReleasers.push(function () {
+      if (finger === null) return;
+      finger = null;
+      apply({});
+    });
 
     function track(e) {
       const r = el.getBoundingClientRect();
@@ -264,7 +275,12 @@ const Input = (function () {
 
     el.addEventListener('pointerdown', function (e) {
       e.preventDefault();
-      if (finger !== null) return;
+      /*
+       * 已經有手指在追蹤時又按下來：直接換成新的這根。
+       * 玩家回報（v1.17.5）：進瑞士關後方向卡在左上，再怎麼按搖桿都沒用 ——
+       * 手機漏送了舊手指的放開事件，舊版在這裡 return，搖桿就永遠卡住。
+       * 一個搖桿實際上只會有一根拇指，換手指不會誤判；舊手指之後真的放開也不理它。
+       */
       finger = e.pointerId;
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* 舊瀏覽器 */ }
       track(e);
@@ -280,7 +296,26 @@ const Input = (function () {
     el.addEventListener('pointerup', release);
     el.addEventListener('pointercancel', release);
     el.addEventListener('lostpointercapture', release);
+    // pointer capture 沒抓到（舊瀏覽器、被系統搶走）時，放開事件會送到別的元素：整個視窗都聽
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
   }
+
+  /*
+   * 觸控保險：所有手指都離開螢幕了，就把觸控按住的東西全部放開。
+   * 不管手機是哪一步漏送了 pointerup，手指全放開那一下一定會歸零，不會一直往某個方向走。
+   * （觸控的 touchend 在 pointerup 之後才送，正常放開時這裡什麼都不用做。）
+   */
+  const touchReleasers = [];
+  function releaseAllTouch() { touchReleasers.forEach(function (f) { f(); }); }
+  ['touchend', 'touchcancel'].forEach(function (ev) {
+    window.addEventListener(ev, function (e) {
+      if (!e.touches || e.touches.length === 0) releaseAllTouch();
+    });
+  });
+  // 切到別的 App、拉下通知列：手指的放開事件不會回來
+  document.addEventListener('visibilitychange', function () { if (document.hidden) releaseAllTouch(); });
+  window.addEventListener('blur', releaseAllTouch);
 
   /** 畫面任意處點擊也能當 confirm（手機進標題畫面用） */
   function bindTapConfirm(el) {

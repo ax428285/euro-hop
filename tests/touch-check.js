@@ -240,6 +240,24 @@ async function runTouchCheck() {
   });
   check(!['left', 'right', 'up', 'down'].some(function (k) { return Input.isDown(k); }), '放開搖桿後方向歸零');
 
+  // 手機漏送放開事件（v1.17.5 玩家回報：進瑞士關後方向卡在左上，怎麼按都沒用）
+  {
+    const r = dpad.getBoundingClientRect();
+    const at = function (gdx, gdy) {
+      const s = dirToScreen(gdx, gdy);
+      return [r.left + r.width / 2 + s.x * r.width * 0.35, r.top + r.height / 2 + s.y * r.height * 0.35];
+    };
+    const dirsHeld = function () { return ['left', 'right', 'up', 'down'].filter(function (k) { return Input.isDown(k); }).join('+'); };
+    const a = at(-1, -1), b = at(1, 0);
+    fire(dpad, 'pointerdown', a[0], a[1], ++pid);           // 按左上，放開事件「漏送」
+    fire(dpad, 'pointerdown', b[0], b[1], ++pid);           // 再按一次往右
+    check(dirsHeld() === 'right', '漏送放開後再按搖桿：換成新方向（' + (dirsHeld() || '沒反應') + '）');
+    fire(dpad, 'pointerup', b[0], b[1], pid);
+    fire(dpad, 'pointerdown', a[0], a[1], ++pid);           // 又漏送一次
+    window.dispatchEvent(new TouchEvent('touchend', { touches: [] }));
+    check(dirsHeld() === '' && !dpad.querySelector('.on'), '漏送放開後手指全離開螢幕：方向歸零');
+  }
+
   // 關卡裡：按住搖桿右，玩家要往右走
   {
     const r = dpad.getBoundingClientRect();
