@@ -1054,11 +1054,17 @@ const Game = (function () {
       def.ground.forEach(function (s) {
         const n = Math.floor(s.w / 170);
         for (let i = 0; i < n; i++) {
+          /*
+           * ⚠️ 兩個亂數一定要先抽完才能 continue（玩家回報：有些關卡的樹會閃來閃去）。
+           * 舊版的大小（第二個 rnd）寫在「畫面外就跳過」之後 —— 樹一移出畫面就少抽一次，
+           * 後面每一棵的位置、大小整串錯位，鏡頭一動樹就跳。
+           */
           const wx = s.x + 50 + i * 170 + rnd() * 50;
+          const scale = 0.85 + rnd() * 0.3;
           if (wx > s.x + s.w - 30) continue;
           const sx = wx - camX;
           if (sx < -60 || sx > W + 60) continue;
-          deco(ctx, sx, s.y + 2, 0.85 + rnd() * 0.3);
+          deco(ctx, sx, s.y + 2, scale);
         }
       });
     }

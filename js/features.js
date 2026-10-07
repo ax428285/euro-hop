@@ -569,8 +569,28 @@ const Features = (function () {
   /**
    * 黑暗遮罩（鹽礦）：整個畫面蓋黑，只在玩家身邊與礦燈周圍挖光圈。
    * 用離屏畫布做（直接在主畫布 destination-out 會把底下的關卡一起挖掉）。
+   *
+   * ⚠️ 效能（v1.20.1 玩家回報：第 11 關手機版 lag）：
+   *   舊版每帧在全解析度（960×480）的暗幕上，對「每一盞礦燈（含畫面外的）」各建一個放射漸層、
+   *   用 destination-out 挖洞 —— 實測單是這一步就要 33ms/帧（整片塗滿一次才 1ms），手機直接掉幀。
+   *   改成：
+   *     1. 暗幕用 1/4 解析度畫，最後放大貼上（光圈本來就是柔邊，放大看不出差別；像素少 16 倍）
+   *     2. 光圈只在第一次畫成一張小圖，之後每帧直接 drawImage（不再每帧 createRadialGradient）
+   *     3. 畫面外的礦燈不挖
    */
-  let dark = null;
+  const DARK_SCALE = 0.25;
+  let dark = null, darkCtx = null, holeImg = null;
+  function makeHole() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(32, 32, 32 * 0.3, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(0,0,0,1)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    return c;
+  }
   function drawOverlay(ctx, state, camX, t, W, H) {
     const fs = state.features;
     if (!fs) return;
@@ -586,28 +606,28 @@ const Features = (function () {
       if (!dark) {
         if (typeof document === 'undefined' || !document.createElement) return;
         dark = document.createElement('canvas');
-        dark.width = W; dark.height = H;
+        dark.width = Math.ceil(W * DARK_SCALE); dark.height = Math.ceil(H * DARK_SCALE);
+        darkCtx = dark.getContext('2d');
+        holeImg = makeHole();
       }
-      const d = dark.getContext('2d');
-      if (!d || !d.createRadialGradient) return;
+      const d = darkCtx;
+      if (!d) return;
+      const S = DARK_SCALE;
       d.globalCompositeOperation = 'source-over';
-      d.clearRect(0, 0, W, H);
+      d.clearRect(0, 0, dark.width, dark.height);
       d.fillStyle = 'rgba(4, 4, 10, ' + (0.93 * k).toFixed(3) + ')';
-      d.fillRect(0, 0, W, H);
+      d.fillRect(0, 0, dark.width, dark.height);
       d.globalCompositeOperation = 'destination-out';
       function hole(x, y, r) {
-        const g = d.createRadialGradient(x, y, r * 0.3, x, y, r);
-        g.addColorStop(0, 'rgba(0,0,0,1)');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        d.fillStyle = g;
-        d.beginPath(); d.arc(x, y, r, 0, Math.PI * 2); d.fill();
+        if (x + r < 0 || x - r > W) return;          // 畫面外不挖
+        d.drawImage(holeImg, (x - r) * S, (y - r) * S, r * 2 * S, r * 2 * S);
       }
       state.players.forEach(function (q) {
         if (!q.out) hole(q.x + q.w / 2 - camX, q.y + q.h / 2, 150 + Math.sin(t * 0.1) * 4);
       });
       f.lamps.forEach(function (lx) { hole(lx - camX, 108, 110); });
       d.globalCompositeOperation = 'source-over';
-      ctx.drawImage(dark, 0, 0);
+      ctx.drawImage(dark, 0, 0, W, H);
     });
   }
 
