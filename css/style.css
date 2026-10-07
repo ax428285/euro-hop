@@ -240,9 +240,16 @@ html.touch #stage {
    */
   --ctl-l: 88px;
   --ctl-r: 122px;   /* 122 而不是 120：斜對角兩顆圓心才有 55px，放大後的可按範圍（半徑 27）不會碰到 */
-  --gl: calc(var(--pl) + var(--ctl-l) - 24px);
-  --gr: calc(var(--pr) + var(--ctl-r) - 94px);
-  --menu-top: var(--pt);
+  /*
+   * v1.17.4（玩家：畫面還是好小，先回復原本大小）：
+   * 兩側不再讓出按鈕區，遊戲畫面回到撐滿整個螢幕（跟 v1.17.0 一樣），按鈕半透明疊在畫面上。
+   * 十字鍵、離邊距離、跳的放大可按範圍、擋放大手勢都保留。
+   * 代價：搖桿又會蓋到關卡剛開始時站在最左邊的人物（之後另外處理，不靠縮小畫面）。
+   */
+  --gl: 0px;
+  --gr: 0px;
+  /* 畫面撐滿時 ☰ 放在頂端資訊列下方，不要擋到左上角的關卡名稱 */
+  --menu-top: 22%;
   position: fixed;
   left: 0;
   top: 0;
@@ -268,10 +275,10 @@ html.touch.rot #stage {
 }
 
 html.touch canvas#game {
-  /* 寬度：兩側按鈕區中間的空間；也不能高過螢幕（2:1） */
-  width: min(100%, calc((var(--sh) - 8px) * 2));
+  /* 撐滿：寬度用到底，但不能高過螢幕（畫面是 2:1） */
+  width: min(100%, calc(var(--sh) * 2));
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 html.touch #pad {
