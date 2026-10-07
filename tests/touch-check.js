@@ -59,11 +59,11 @@ async function runTouchCheck() {
   // ── 版面 ────────────────────────────────────────────
 
   const cr = canvas.getBoundingClientRect();
-  // 畫面在中間、兩側留給按鈕；以「手機橫拿時的高度」來看要佔 85% 以上
-  // （v1.17.1 只有 79%，玩家說太小）
+  // 畫面在中間、兩側留給按鈕；以「手機橫拿時的高度」來看要佔 89% 以上
+  // （v1.17.1 只有 79%、v1.17.2 是 86%，玩家都說還要再大）
   const shortSide = Math.min(vw, vh);
   const gameH = rot ? cr.width : cr.height;
-  check(gameH / shortSide >= 0.85, '遊戲畫面高度佔螢幕 ' + Math.round(gameH / shortSide * 100) + '%（要 ≥ 85%）');
+  check(gameH / shortSide >= 0.89, '遊戲畫面高度佔螢幕 ' + Math.round(gameH / shortSide * 100) + '%（要 ≥ 89%）');
   // 轉向正確：橫拿時畫布寬 > 高；直拿轉 90° 後畫布在螢幕上應該是高 > 寬
   check(rot ? cr.height > cr.width : cr.width > cr.height, '畫面方向是橫的（以玩家拿手機的方向看）');
 
@@ -74,7 +74,7 @@ async function runTouchCheck() {
     return (w > 0 && h > 0) ? Math.min(w, h) : 0;
   }
   // 左邊搖桿幾乎不能疊（人物出生在最左邊）；右邊十字鍵可以多疊一些（右下角平常沒有人物）
-  [['方向搖桿', document.getElementById('dpad'), 24], ['十字動作鍵', document.querySelector('#pad .pad-actions'), 82]].forEach(function (c) {
+  [['方向搖桿', document.getElementById('dpad'), 26], ['十字動作鍵', document.querySelector('#pad .pad-actions'), 96]].forEach(function (c) {
     const o = overlapPx(c[1].getBoundingClientRect(), cr);
     check(o <= c[2], c[0] + '疊到遊戲畫面 ' + Math.round(o) + 'px（要 ≤ ' + c[2] + 'px）');
   });
@@ -107,7 +107,7 @@ async function runTouchCheck() {
     const jb = document.querySelector('#pad [data-key="jump"]');
     const r = jb.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const off = dirToScreen(0, 23 + 12);         // 往遊戲的下方偏出按鈕外 12px
+    const off = dirToScreen(0, 22 + 12);         // 往遊戲的下方偏出按鈕外 12px
     const hit = document.elementFromPoint(cx + off.x, cy + off.y);
     check(hit === jb, '點在「跳」下方外側（靠螢幕底邊）也算按到跳');
   }
