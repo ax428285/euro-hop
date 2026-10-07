@@ -176,12 +176,21 @@ canvas#game:focus-visible {
 .btn-ok.on { background: #3d9a63; }
 
 /*
- * 觸控裝置（html.touch，main.js 判斷）：
- * 遊戲畫面橫向佔滿整個螢幕，按鈕半透明疊在畫面上。
+ * 觸控裝置（html.touch，main.js 判斷）：橫向全螢幕。
  *
  * 手機直拿（html.rot）時整個 #stage 轉 90°，玩家把手機橫過來就是正的 ——
  * 網頁沒辦法強制螢幕轉向，這是唯一不靠全螢幕 API 的做法。
  * --sw / --sh 是 #stage 轉完之後「遊戲看到的」寬高。
+ *
+ * ── v1.17.1 版面調整（玩家回饋）────────────────────────────
+ * 舊版：遊戲畫面撐滿整個螢幕，搖桿與動作鍵半透明疊在畫面上，緊貼螢幕邊緣。問題：
+ *   1. 搖桿蓋到人物 —— 關卡一開始、豎井關、往左走時，人物就在畫面左下角
+ *   2. 按鈕貼著螢幕邊，手機殼／曲面邊框附近很難按
+ *   3. 按偏一點點到旁邊的空白處，iPhone Safari 會當成「點兩下放大」，整個畫面突然放大
+ * 新版：
+ *   1. 遊戲畫面縮在中間，兩側各留一條放按鈕（--gl / --gr），按鈕最多只蓋到畫面邊緣 20px
+ *   2. 按鈕離螢幕邊至少 18px（再加上瀏海安全區）
+ *   3. 整頁 touch-action: none（瀏覽器的放大、捲動手勢全部關掉），main.js 再補擋 iOS 的雙擊與兩指縮放
  */
 html.touch {
   --vw: 100vw;
@@ -190,6 +199,16 @@ html.touch {
 @supports (height: 100dvh) {
   html.touch { --vw: 100dvw; --vh: 100dvh; }
 }
+
+/* 點兩下放大、兩指縮放、拉動彈跳全部關掉（遊戲裡沒有任何需要瀏覽器捲動的地方） */
+html.touch, html.touch body {
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+/* 連線面板內容較長時要能上下捲、輸入框要能點 */
+html.touch .np-box { touch-action: pan-y; }
+html.touch .np-box input { touch-action: manipulation; }
 
 html.touch body {
   padding: 0;
@@ -201,11 +220,22 @@ html.touch #hint { display: none; }
 html.touch #stage {
   --sw: var(--vw);
   --sh: var(--vh);
+  /* 按鈕離螢幕邊的距離（含瀏海安全區）：四邊都至少 16～18px，手機殼與曲面邊框旁邊也按得到 */
+  --pt: max(16px, env(safe-area-inset-top));
+  --pr: calc(18px + env(safe-area-inset-right));
+  --pb: max(18px, env(safe-area-inset-bottom));
+  --pl: calc(18px + env(safe-area-inset-left));
+  /* 搖桿／動作鍵區的寬度；遊戲畫面兩側讓出的寬度（按鈕最外 20px 可以疊到畫面邊緣，那裡通常只有地面） */
+  --ctl: 104px;
+  --gl: calc(var(--pl) + var(--ctl) - 20px);
+  --gr: calc(var(--pr) + var(--ctl) - 20px);
+  --menu-top: var(--pt);
   position: fixed;
   left: 0;
   top: 0;
   width: var(--sw);
   height: var(--sh);
+  padding: 0 var(--gr) 0 var(--gl);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,38 +245,56 @@ html.touch #stage {
 html.touch.rot #stage {
   --sw: var(--vh);
   --sh: var(--vw);
+  /* 轉 90° 後，遊戲的上/右/下/左 = 手機的右/下/左/上，瀏海安全區要跟著對調 */
+  --pt: max(16px, env(safe-area-inset-right));
+  --pr: calc(18px + env(safe-area-inset-bottom));
+  --pb: max(18px, env(safe-area-inset-left));
+  --pl: calc(18px + env(safe-area-inset-top));
   transform-origin: 0 0;
   transform: translateX(var(--vw)) rotate(90deg);
 }
 
 html.touch canvas#game {
-  width: min(var(--sw), calc(var(--sh) * 2));
+  /* 寬度：兩側按鈕區中間的空間；也不能高過螢幕（2:1） */
+  width: min(100%, calc((var(--sh) - 8px) * 2));
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
 }
 
 html.touch #pad {
-  --pt: max(8px, env(safe-area-inset-top));
-  --pr: max(14px, env(safe-area-inset-right));
-  --pb: max(12px, env(safe-area-inset-bottom));
-  --pl: max(14px, env(safe-area-inset-left));
   display: grid;
   position: absolute;
   inset: 0;
   margin: 0;
+  grid-template-columns: var(--ctl) 1fr var(--ctl);
   grid-template-rows: 1fr;
   grid-template-areas: "dpad . act";
   padding: var(--pt) var(--pr) var(--pb) var(--pl);
   pointer-events: none;   /* 空白處讓點擊穿到畫面（地圖可以點國家） */
 }
-/* 轉 90° 後，遊戲的上/右/下/左 = 手機的右/下/左/上，瀏海安全區要跟著對調 */
-html.touch.rot #pad {
-  --pt: max(8px, env(safe-area-inset-right));
-  --pr: max(14px, env(safe-area-inset-bottom));
-  --pb: max(12px, env(safe-area-inset-left));
-  --pl: max(14px, env(safe-area-inset-top));
-}
 html.touch #pad > * { pointer-events: auto; }
+
+/*
+ * 按得到的範圍比看得到的大一圈（::before 是按鈕的一部分，點到也算按到）。
+ * 「跳」往螢幕邊緣那一側特別加大：玩家回報一直點到邊，那些點擊現在都算跳。
+ */
+html.touch .pad-actions .btn::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+}
+/* 外側（右、下）一路延伸到螢幕邊，而且是直角：最常點偏的就是右下角那個角落 */
+html.touch .pad-actions .btn-jump::before {
+  inset: -5px calc(-1 * var(--pr)) calc(-1 * var(--pb)) -5px;
+  border-radius: 50% 0 0 50%;
+}
+html.touch .dpad::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+}
 
 /*
  * 電腦版：只留 ☰ 選單（用滑鼠點），搖桿與動作鍵不顯示 ——
@@ -273,7 +321,8 @@ html:not(.touch) #pad .sbtn { cursor: pointer; }
 #pad .sbtn-menu {
   position: absolute;
   left: var(--pl);
-  top: 22%;
+  /* 手機版在畫面左側的按鈕區頂端（--menu-top），不會疊到遊戲畫面 */
+  top: var(--menu-top, 22%);
   width: 40px;
   min-width: 0;
   height: 40px;
@@ -289,7 +338,7 @@ html:not(.touch) #pad .sbtn { cursor: pointer; }
   display: none;
   position: absolute;
   left: calc(var(--pl) + 48px);
-  top: 22%;
+  top: var(--menu-top, 22%);
   max-width: 60%;
   justify-content: flex-start;
   padding: 6px;
@@ -385,11 +434,19 @@ html.touch .dpad, html.touch .pad-actions .btn { opacity: 0.45; }
 html.touch .dpad:has(.on), html.touch .pad-actions .btn.on { opacity: 0.75; }
 html.touch .pad-actions .btn.locked { opacity: 0.85; }
 html.touch .sbtn { height: 32px; min-width: 44px; font-size: 12px; }
-html.touch .dpad { width: 132px; height: 132px; }
-html.touch .dp { width: 42px; height: 42px; font-size: 19px; }
+/* 搖桿與 2×2 動作鍵都是 --ctl（104px）寬，剛好放進兩側的按鈕區 */
+html.touch .dpad { width: var(--ctl); height: var(--ctl); }
+html.touch .dp { width: 34px; height: 34px; font-size: 16px; }
+html.touch .dp-up { top: 4px; }
+html.touch .dp-down { bottom: 4px; }
+html.touch .dp-left { left: 4px; }
+html.touch .dp-right { right: 4px; }
 html.touch .pad-actions {
-  grid-template-columns: repeat(2, 62px);
-  grid-template-rows: repeat(2, 62px);
+  grid-template-columns: repeat(2, 48px);
+  grid-template-rows: repeat(2, 48px);
+  gap: 8px;
 }
-html.touch .btn { width: 62px; height: 62px; font-size: 20px; }
-html.touch .btn-ok { font-size: 15px; }
+html.touch .btn { width: 48px; height: 48px; font-size: 17px; }
+html.touch .btn-ok { font-size: 13px; }
+html.touch #pad .btn small { font-size: 9px; }
+html.touch .btn.locked::after { background-size: 24px 24px; }

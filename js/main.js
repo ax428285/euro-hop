@@ -20,6 +20,33 @@
   layout();
   window.addEventListener('resize', layout);
   window.addEventListener('orientationchange', layout);
+
+  /*
+   * 擋掉瀏覽器的放大手勢（玩家回報：點到按鈕旁邊，畫面突然放大）。
+   *
+   * CSS 已經設了 touch-action: none，但 iPhone Safari 不完全照做：
+   *   - 兩指縮放：Safari 有自己的 gesture 事件，要直接擋
+   *   - 點兩下放大：300ms 內第二次點擊的 touchend 擋掉預設行為
+   * 按鈕、輸入框、連線面板不擋：按鈕本身已經用 CSS 關掉放大，而且很多按鈕靠 click 事件
+   * （選單、「刪除存檔」要連按兩次），擋了 touchend 會讓第二下按不到。
+   * 真正會放大的是「按鈕旁邊的空白處」，擋那裡就夠了。
+   */
+  function zoomSafe(el) {
+    return !!(el && el.closest && el.closest('button, input, textarea, .np-box'));
+  }
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false });
+  });
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', function (e) {
+    const now = Date.now();
+    if (now - lastTouchEnd < 300 && !zoomSafe(e.target)) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+  document.addEventListener('touchmove', function (e) {
+    // 兩指以上 = 縮放手勢
+    if (e.touches && e.touches.length > 1 && !zoomSafe(e.target)) e.preventDefault();
+  }, { passive: false });
   Input.bindPad(document.getElementById('pad'));
   Input.bindCanvasClick(canvas, 960, 480);
 
