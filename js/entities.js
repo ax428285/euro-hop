@@ -86,6 +86,7 @@ function makeEnemy(def) {
     // 型別專用狀態
     // 砲台射擊冷卻。def.cd 可指定第一發要等多久（開場附近的砲台要給玩家時間）
     cd: def.cd != null ? def.cd : 30 + (def.x % 40),
+    every: def.every || null,  // 砲台開火間隔（沒給 = 110 帧）
     charging: false,         // 公牛衝撞中
     stun: 0,                 // 公牛撞牆暈眩
     bump: 0                  // 盾兵被踩彈開的視覺回饋
@@ -485,7 +486,7 @@ function updateEnemies(state, t) {
         // 不移動，面向玩家，定時開火
         e.dir = pcx < e.x + e.w / 2 ? -1 : 1;
         if (--e.cd <= 0) {
-          e.cd = 110;
+          e.cd = e.every || 110;      // def.every：這座砲台多久開一次火（希臘魔王旁邊的放慢）
           const sx = e.x + e.w / 2, sy = e.y + 8;
           const dx = pcx - sx, dy = pcy - sy;
           const d = Math.max(1, Math.hypot(dx, dy));
