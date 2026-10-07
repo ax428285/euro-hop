@@ -66,8 +66,18 @@ const Encounter = (function () {
     gulls:   { name: '海鷗群',   lv: 1, exp: 70,  game: '守護午餐', goal: '海鷗頭上出現「!」在盤旋時，跳起來碰牠就嚇跑了' },
     pirates: { name: '海盜船',   lv: 2, exp: 90,  game: '艦砲對決', goal: '抓準砲口角度，命中海盜船 5 次' },
     serpent: { name: '大海蛇',   lv: 3, exp: 130, game: '打地鼠',   goal: '踩中冒出來的蛇頭 6 次' },
-    golden:  { name: '黃金海馬', lv: '★', exp: 60, game: '捕捉',     goal: '碰到牠 3 次就抓到了！', rare: true }
+    golden:  { name: '黃金海馬', lv: '★', exp: 60, game: '捕捉',     goal: '碰到牠 3 次就抓到了！', rare: true },
+    /*
+     * 海上魔王（v1.23 玩家：地中海放隻海怪當魔王）——
+     * 希臘神話的斯庫拉：住在墨西拿海峽（西西里與義大利之間）的六頭海妖，
+     * 奧德修斯的船經過時被她一口叼走六個水手。固定待在海峽北口，不會遊走也不會消失。
+     * 第一次打倒：bossExp + bossCoins；之後再打給一般的 exp。
+     */
+    scylla:  { name: '海妖斯庫拉', lv: '魔王', exp: 150, bossExp: 250, bossCoins: 200, game: '墨西拿海峽',
+               goal: '頭咬下來卡在甲板上時跳上去踩！每顆頭踩兩下，六顆都打倒就贏了', boss: true }
   };
+  /** 海上魔王的固定位置（經緯度；不能航行的話往附近找開闊海面） */
+  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }];
 
   let monsters = [];
   let spawnTimer = 120;
@@ -120,11 +130,32 @@ const Encounter = (function () {
     return d;
   }
 
+  /** 海上魔王一直待在固定位置：不在清單上就補回來（打完、clear() 之後） */
+  function ensureBosses() {
+    if (typeof EuropeWorld === 'undefined') return;
+    SEA_BOSSES.forEach(function (b) {
+      if (monsters.some(function (m) { return m.boss && m.kind === b.kind; })) return;
+      const p = EuropeWorld.project(b.lon, b.lat);
+      let at = null;
+      for (let r = 0; r <= 60 && !at; r += 4) {
+        for (let k = 0; k < 16 && !at; k++) {
+          const a = k * Math.PI / 8;
+          const x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
+          if (Voyage.isNavigable(x, y)) at = { x: x, y: y };
+          if (r === 0) break;
+        }
+      }
+      if (!at) return;
+      monsters.push({ kind: b.kind, def: KINDS[b.kind], x: at.x, y: at.y, heading: 0, life: Infinity, appear: 1, boss: true });
+    });
+  }
+
   function updateMap(ship, exp) {
     const events = [];
+    ensureBosses();
     if (--spawnTimer <= 0) {
       spawnTimer = SPAWN_EVERY;
-      if (monsters.length < MAX_ON_MAP && Math.random() < SPAWN_CHANCE) {
+      if (monsters.filter(function (m) { return !m.boss; }).length < MAX_ON_MAP && Math.random() < SPAWN_CHANCE) {
         const hasRare = monsters.some(function (m) { return m.def.rare; });
         const rare = !hasRare && Math.random() < RARE_CHANCE;
         const m = spawn(ship, exp || 0, rare ? 'golden' : null);
@@ -139,6 +170,11 @@ const Encounter = (function () {
       m.appear = Math.min(1, m.appear + 0.03);
       if (--m.life <= 0) { monsters.splice(i, 1); continue; }
       const d = Math.hypot(ship.x - m.x, ship.y - m.y);
+      if (m.boss) {
+        // 魔王不動；身體大，靠近的判定也放寬一點
+        if (d < TOUCH + 10 && d < best + 10) { best = d; nearM = m; }
+        continue;
+      }
       if (m.kind === 'pirates' && d < 140 && d > 4) {
         // 海盜船看到你會靠過來
         m.heading += U.clamp(angleDiff(Math.atan2(ship.y - m.y, ship.x - m.x), m.heading), -0.05, 0.05);
@@ -222,6 +258,23 @@ const Encounter = (function () {
     ctx.restore();
   }
 
+  /** 地圖上的斯庫拉：海面上冒出六條長脖子，輪流擺動 */
+  function drawScyllaMap(ctx, t) {
+    ctx.fillStyle = 'rgba(20, 40, 60, 0.45)';
+    ctx.beginPath(); ctx.ellipse(0, 6, 22, 6, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 6; i++) {
+      const bx = -15 + i * 6;
+      const sw = Math.sin(t * 0.07 + i * 1.1) * 5;
+      const hx = bx + sw, hy = -14 - (i % 2) * 6 + Math.cos(t * 0.06 + i) * 2;
+      ctx.strokeStyle = '#5a3f7a'; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bx, 5); ctx.quadraticCurveTo(bx - sw, -4, hx, hy); ctx.stroke();
+      ctx.fillStyle = '#7a56a0';
+      ctx.beginPath(); ctx.ellipse(hx + 1.5, hy, 3.6, 2.6, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffe070'; ctx.fillRect(hx + 2, hy - 1.4, 1.3, 1.3);
+    }
+    ctx.lineCap = 'butt';
+  }
+
   function sparkle(ctx, x, y, r, a) {
     ctx.fillStyle = 'rgba(255, 250, 210, ' + a.toFixed(2) + ')';
     ctx.beginPath();
@@ -264,6 +317,26 @@ const Encounter = (function () {
         return;
       }
 
+      if (m.boss) {
+        // 魔王：紅色雙圈 + 漩渦 + 「魔王」牌子（打倒過的牌子變灰、寫「再戰」）
+        const beaten = typeof Save !== 'undefined' && Save.seaBossDown(m.kind);
+        ctx.strokeStyle = 'rgba(160, 210, 240, 0.4)'; ctx.lineWidth = 1.2;
+        for (let k = 0; k < 3; k++) {
+          const a0 = t * 0.03 + k * 2.1;
+          ctx.beginPath(); ctx.arc(0, 4, 10 + k * 5, a0, a0 + 2.2); ctx.stroke();
+        }
+        const pulse = 24 + Math.sin(t * 0.1) * 2;
+        ctx.strokeStyle = near ? 'rgba(255, 90, 100, 1)' : 'rgba(255, 90, 100, 0.6)';
+        ctx.lineWidth = near ? 2.6 : 1.8;
+        ctx.beginPath(); ctx.arc(0, -2, pulse, 0, Math.PI * 2); ctx.stroke();
+        drawScyllaMap(ctx, t);
+        ctx.fillStyle = beaten ? 'rgba(50, 40, 60, 0.9)' : 'rgba(120, 10, 24, 0.92)';
+        U.roundRect(ctx, -20, -46, 40, 14, 4); ctx.fill();
+        U.text(ctx, beaten ? '再戰' : '魔王', 0, -39, { size: 10, color: beaten ? '#c8b8e0' : '#ffd0d6', stroke: false });
+        ctx.restore();
+        return;
+      }
+
       const pulse = 13 + Math.sin(t * 0.1) * 2;
       ctx.strokeStyle = near ? 'rgba(255, 120, 130, 0.95)' : 'rgba(255, 120, 130, 0.45)';
       ctx.lineWidth = near ? 2 : 1.4;
@@ -283,7 +356,17 @@ const Encounter = (function () {
   // ── 小遊戲：關卡定義 ───────────────────────────────────
 
   const ARENA_W = 960;
-  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60 };
+  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60 };
+  /*
+   * 斯庫拉（魔王）：六顆頭在甲板後方的海面上擺動，輪流——
+   *   aim      瞄準：頭移到玩家頭頂高處，甲板上出現紅圈（AIM 帧）
+   *   bite     咬下：一口砸到甲板（BITE 帧），紅圈裡的人受傷
+   *   stuck    卡住：牙齒卡進甲板拔不出來（STUCK 帧）← 這時跳上去踩，踩一次這顆頭就倒了
+   *   retract  沒被踩就縮回去，等下一輪
+   * 踩倒 3 顆之後她發怒：同時兩顆頭輪流咬，還會用尾巴掀起橫掃甲板的浪（跳過去）。
+   */
+  const SCY = { AIM: 58, BITE: 8, STUCK: 125, RETRACT: 22, HOME_Y: 150, AIM_Y: 170, WAVE_H: 34, WAVE_SPEED: 5.5 };
+  const SCY_HOME = [150, 280, 410, 550, 680, 810];
   const HOLES = [140, 300, 460, 620, 780];
   const BASKET = { x: 455, w: 50, h: 26 };
   const CANNON = { x: 470, angMin: 20, angMax: 70, period: 110, speed: 10.5, grav: 0.25 };
@@ -303,11 +386,17 @@ const Encounter = (function () {
       flagDir: 'h',
       landmark: null,
       fact: (function () {
+        if (k.boss) {
+          const first = !(typeof Save !== 'undefined' && Save.seaBossDown(kind));
+          return first
+            ? '傳說奧德修斯的船經過墨西拿海峽，被斯庫拉一口叼走六個水手。第一次打倒她可得 ' + k.bossExp + ' EXP 和 ' + k.bossCoins + ' 金幣！'
+            : '再戰斯庫拉：打贏可得 ' + k.exp + ' EXP。';
+        }
         const nx = nextRegion(typeof Save !== 'undefined' ? Save.get().exp : 0);
         return '打贏可得 ' + k.exp + ' EXP' + (nx ? '，累積 ' + nx.exp + ' EXP 解鎖' + nx.name + '。' : '。');
       })(),
-      sky: kind === 'golden' ? ['#6a8ad8', '#f8e0a8'] : ['#5fa8d8', '#f6dcae'],
-      hill: '#2f6f9a',
+      sky: kind === 'golden' ? ['#6a8ad8', '#f8e0a8'] : kind === 'scylla' ? ['#3a4a78', '#c89a8a'] : ['#5fa8d8', '#f6dcae'],
+      hill: kind === 'scylla' ? '#24456a' : '#2f6f9a',
       // 船的甲板：木板色
       groundTop: '#b88a58', groundBody: '#6a4a30',
       deco: null,
@@ -332,6 +421,11 @@ const Encounter = (function () {
       exp: k.exp,
       duration: DUR[kind]
     };
+    if (k.boss && !(typeof Save !== 'undefined' && Save.seaBossDown(kind))) {
+      def.exp = k.bossExp;
+      def.bossCoins = k.bossCoins;
+      def.firstBoss = true;
+    }
     return def;
   }
 
@@ -344,6 +438,12 @@ const Encounter = (function () {
     if (kind === 'pirates') { mini.hits = 0; mini.balls = []; mini.shells = []; mini.cd = 0; mini.enemyCd = 120; mini.seq = 0; mini.shipShake = 0; }
     if (kind === 'serpent') { mini.hits = 0; mini.heads = HOLES.map(function (x) { return { x: x, up: 0, t: 0, spat: false }; }); mini.next = 40; mini.seq = 0; }
     if (kind === 'golden') { mini.caught = 0; mini.px = 700; mini.py = 200; mini.cool = 0; mini.phase = 0; mini.speed = 0.022; }
+    if (kind === 'scylla') {
+      mini.hits = 0; mini.next = 90; mini.seq = 0; mini.waves = []; mini.waveCd = 200; mini.waveSeq = 0;
+      mini.heads = SCY_HOME.map(function (x, i) {
+        return { i: i, home: x, x: x, y: SCY.HOME_Y, alive: true, hp: 2, flash: 0, state: 'idle', t: 0, tx: x };
+      });
+    }
     return mini;
   }
 
@@ -561,6 +661,86 @@ const Encounter = (function () {
         if (mini.caught >= 3) win();
       }
       if (!mini.done && mini.time <= 0) fail();
+
+    } else if (mini.kind === 'scylla') {
+      const angry = mini.hits >= 3;
+      const maxActive = angry ? 2 : 1;
+      const active = mini.heads.filter(function (h) { return h.alive && h.state !== 'idle'; });
+      // 輪到下一顆頭出手
+      if (--mini.next <= 0 && active.length < maxActive) {
+        const alive = mini.heads.filter(function (h) { return h.alive && h.state === 'idle'; });
+        if (alive.length) {
+          const h = alive[mini.seq % alive.length];
+          // 第二顆頭（發怒後）瞄準玩家旁邊一點，留一條路給你閃
+          const off = active.length ? [90, -90][mini.seq % 2] : [0, 30, -30][mini.seq % 3];
+          h.tx = U.clamp(p.x + p.w / 2 + off, 60, ARENA_W - 60);
+          h.state = 'aim'; h.t = 0;
+        }
+        mini.seq++;
+        mini.next = angry ? 70 : 95;
+      }
+      mini.heads.forEach(function (h) {
+        if (!h.alive) return;
+        h.t++;
+        if (h.flash > 0) h.flash--;
+        if (h.state === 'idle') {
+          h.x += (h.home - h.x) * 0.06;
+          h.y = SCY.HOME_Y + Math.sin(mini.elapsed * 0.05 + h.i * 1.3) * 10;
+        } else if (h.state === 'aim') {
+          // 頭移到目標正上方，抬高蓄力
+          h.x += (h.tx - h.x) * 0.12;
+          h.y += (GY - SCY.AIM_Y - 60 - h.y) * 0.1;
+          if (h.t >= SCY.AIM) { h.state = 'bite'; h.t = 0; h.x = h.tx; }
+        } else if (h.state === 'bite') {
+          const k = h.t / SCY.BITE;
+          h.y = (GY - SCY.AIM_Y - 60) + ((GY - 26) - (GY - SCY.AIM_Y - 60)) * k;
+          if (h.t >= SCY.BITE - 2) {
+            players.forEach(function (q) {
+              if (Math.abs(q.x + q.w / 2 - h.x) < 40 && q.y + q.h > GY - 110) hurt(q, h.x, events);
+            });
+          }
+          if (h.t >= SCY.BITE) { h.state = 'stuck'; h.t = 0; h.y = GY - 26; events.push('boom'); burst(state, h.x, GY - 4, '#c9a070', 12); }
+        } else if (h.state === 'stuck') {
+          // 卡在甲板上掙扎：跳上去踩
+          h.box = { x: h.x - 28, y: GY - 44, w: 56, h: 44 };
+          players.forEach(function (q) {
+            if (!h.alive || h.state !== 'stuck') return;
+            const stomp = q.vy > 0 && U.overlap(q, h.box) && (q.y + q.h) - h.box.y < 24;
+            if (stomp) {
+              q.vy = PHYS.STOMP_BOUNCE;
+              events.push('hit');
+              burst(state, h.x, GY - 30, '#b48ae0', 18);
+              // 每顆頭要踩兩下：第一下痛得縮回去，第二下才倒
+              if (--h.hp > 0) { h.state = 'retract'; h.t = 0; h.flash = 30; return; }
+              h.alive = false; h.state = 'down'; mini.hits++;
+              if (mini.hits >= 6) win();
+            }
+          });
+          if (h.alive && h.t >= SCY.STUCK) { h.state = 'retract'; h.t = 0; }
+        } else if (h.state === 'retract') {
+          h.y += (SCY.HOME_Y - h.y) * 0.15;
+          h.x += (h.home - h.x) * 0.1;
+          if (h.t >= SCY.RETRACT) { h.state = 'idle'; h.t = 0; }
+        }
+      });
+      // 發怒後：尾巴掀浪，從甲板一端掃到另一端（先在起點冒水花預告）
+      if (angry && !mini.done) {
+        if (--mini.waveCd <= 0) {
+          mini.waveCd = 300;
+          const dir = mini.waveSeq++ % 2 === 0 ? -1 : 1;
+          mini.waves.push({ dir: dir, x: dir < 0 ? ARENA_W + 10 : -10, warn: 75 });
+          events.push('wave');
+        }
+        mini.waves.forEach(function (w) {
+          if (w.warn > 0) { w.warn--; return; }
+          w.x += w.dir * SCY.WAVE_SPEED;
+          players.forEach(function (q) {
+            if (q.y + q.h > GY - SCY.WAVE_H + 6 && Math.abs(q.x + q.w / 2 - w.x) < 22) hurt(q, w.x - w.dir * 30, events);
+          });
+        });
+        mini.waves = mini.waves.filter(function (w) { return w.x > -60 && w.x < ARENA_W + 60; });
+      }
+      if (!mini.done && mini.time <= 0) fail();
     }
     return events;
   }
@@ -667,6 +847,8 @@ const Encounter = (function () {
         }
         ctx.restore();
       });
+    } else if (mini.kind === 'scylla') {
+      drawScyllaArena(ctx, mini, t, GY);
     } else if (mini.kind === 'golden') {
       ctx.save();
       ctx.translate(mini.px, mini.py);
@@ -680,6 +862,111 @@ const Encounter = (function () {
     }
   }
 
+  /** 斯庫拉一顆頭：狼頭似的長吻、黃眼、尖牙；stuck 時牙齒插在甲板裡、頭上冒星星 */
+  function drawScyllaHead(ctx, h, t, GY) {
+    ctx.save();
+    ctx.translate(h.x, h.y);
+    const stuck = h.state === 'stuck';
+    if (stuck) ctx.rotate(Math.sin(t * 0.6 + h.i) * 0.06);
+    if (h.flash > 0 && Math.floor(h.flash / 4) % 2 === 0) ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#7a56a0';
+    ctx.beginPath(); ctx.ellipse(0, -6, 26, 18, 0, 0, Math.PI * 2); ctx.fill();
+    // 長吻（朝下）
+    ctx.beginPath();
+    ctx.moveTo(-18, 2); ctx.quadraticCurveTo(-14, 26, 0, 28); ctx.quadraticCurveTo(14, 26, 18, 2);
+    ctx.closePath(); ctx.fill();
+    // 鰭冠
+    ctx.fillStyle = '#c86a9a';
+    for (let k = -2; k <= 2; k++) {
+      ctx.beginPath(); ctx.moveTo(k * 8 - 4, -20); ctx.lineTo(k * 8, -34 + Math.abs(k) * 4); ctx.lineTo(k * 8 + 4, -20); ctx.fill();
+    }
+    // 牙
+    ctx.fillStyle = '#f4efe2';
+    for (let k = -2; k <= 2; k++) {
+      ctx.beginPath(); ctx.moveTo(k * 6 - 3, 20 - Math.abs(k) * 3); ctx.lineTo(k * 6, 32 - Math.abs(k) * 3); ctx.lineTo(k * 6 + 3, 20 - Math.abs(k) * 3); ctx.fill();
+    }
+    // 眼睛：瞄準時發紅光
+    ctx.fillStyle = h.state === 'aim' || h.state === 'bite' ? '#ff5a5a' : '#ffe070';
+    ctx.beginPath(); ctx.ellipse(-11, -6, 5, 3.5, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(11, -6, 5, 3.5, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1020';
+    ctx.fillRect(-12, -8, 2, 4); ctx.fillRect(10, -8, 2, 4);
+    if (h.hp < 2) {
+      // 被踩過一下：頭頂腫一個包
+      ctx.fillStyle = '#e07aa8';
+      ctx.beginPath(); ctx.arc(6, -20, 6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    if (stuck) {
+      // 頭上轉圈的星星 = 現在可以踩
+      for (let k = 0; k < 3; k++) {
+        const a = t * 0.12 + k * Math.PI * 2 / 3;
+        sparkle(ctx, h.x + Math.cos(a) * 20, h.y - 40 + Math.sin(a) * 5, 5, 0.95);
+      }
+    }
+  }
+
+  function drawScyllaArena(ctx, mini, t, GY) {
+    // 甲板後面的海：海峽的浪
+    ctx.fillStyle = '#24507a';
+    ctx.fillRect(0, GY - 70, ARENA_W, 70);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (let i = 0; i < 9; i++) ctx.fillRect((i * 117 + t * 0.6) % ARENA_W, GY - 60 + (i % 3) * 18, 34, 2);
+    // 身體：從海裡冒出來的巨大背脊
+    ctx.fillStyle = '#4a3466';
+    ctx.beginPath(); ctx.ellipse(ARENA_W / 2, GY - 64, 330, 46, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(200, 106, 154, 0.5)';
+    for (let i = 0; i < 9; i++) {
+      const x = ARENA_W / 2 - 240 + i * 60;
+      ctx.beginPath(); ctx.moveTo(x - 10, GY - 92); ctx.lineTo(x, GY - 118 + Math.abs(i - 4) * 4); ctx.lineTo(x + 10, GY - 92); ctx.fill();
+    }
+    // 脖子：從背脊連到每顆頭
+    mini.heads.forEach(function (h) {
+      if (!h.alive) return;
+      const bx = ARENA_W / 2 - 250 + h.i * 100;
+      ctx.strokeStyle = '#5a3f7a'; ctx.lineWidth = 22; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bx, GY - 80);
+      ctx.quadraticCurveTo((bx + h.x) / 2, Math.min(GY - 80, h.y) - 70, h.x, h.y - 8);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(160, 120, 200, 0.5)'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(bx - 4, GY - 82);
+      ctx.quadraticCurveTo((bx + h.x) / 2 - 4, Math.min(GY - 80, h.y) - 74, h.x - 4, h.y - 12);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    });
+    // 瞄準：甲板上的紅圈（越接近咬下越亮越小）
+    mini.heads.forEach(function (h) {
+      if (h.state !== 'aim') return;
+      const k = h.t / SCY.AIM;
+      ctx.strokeStyle = 'rgba(255, 70, 70, ' + (0.4 + k * 0.6).toFixed(2) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(h.tx, GY - 2, 54 - k * 14, 9, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 70, 70, ' + (0.1 + k * 0.2).toFixed(2) + ')';
+      ctx.beginPath(); ctx.ellipse(h.tx, GY - 2, 54 - k * 14, 9, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    mini.heads.forEach(function (h) { if (h.alive) drawScyllaHead(ctx, h, t, GY); });
+    // 浪：預告時起點冒水花，之後一道浪牆掃過甲板
+    mini.waves.forEach(function (w) {
+      if (w.warn > 0) {
+        const sx = w.dir < 0 ? ARENA_W - 30 : 30;
+        ctx.fillStyle = 'rgba(200, 235, 255, 0.85)';
+        for (let k = 0; k < 6; k++) {
+          ctx.beginPath(); ctx.arc(sx + Math.sin(t * 0.4 + k) * 14, GY - 10 - ((t * 2 + k * 9) % 46), 4, 0, Math.PI * 2); ctx.fill();
+        }
+        if (Math.floor(t / 8) % 2 === 0) U.text(ctx, '浪！', sx, GY - 70, { size: 18, color: '#bfe8ff', strokeWidth: 4 });
+        return;
+      }
+      const H = SCY.WAVE_H;
+      ctx.fillStyle = 'rgba(70, 150, 210, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(w.x - 30 * w.dir, GY);
+      ctx.quadraticCurveTo(w.x - 10 * w.dir, GY - H, w.x + 10 * w.dir, GY - H + 4);
+      ctx.quadraticCurveTo(w.x + 22 * w.dir, GY - H * 0.4, w.x + 24 * w.dir, GY);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(240, 250, 255, 0.9)';
+      ctx.beginPath(); ctx.arc(w.x + 8 * w.dir, GY - H + 4, 6, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
   /** 小遊戲的目標與倒數（畫在 HUD 下面） */
   function drawHud(ctx, state, W) {
     const mini = state.mini;
@@ -690,6 +977,7 @@ const Encounter = (function () {
     if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '踩中 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
+    else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來了）');
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';
     U.roundRect(ctx, W / 2 - 250, 52, 500, 30, 8); ctx.fill();
@@ -710,6 +998,11 @@ const Encounter = (function () {
     spawn: spawn,
     remove: remove,
     clear: function () { monsters = []; nearM = null; },
+    /** 海上魔王本人（地圖上固定那隻；還沒生成就先補上） */
+    boss: function (kind) {
+      ensureBosses();
+      return monsters.filter(function (m) { return m.boss && m.kind === kind; })[0] || null;
+    },
     makeDef: makeDef,
     updateSkirmish: updateSkirmish,
     drawWorld: drawWorld,

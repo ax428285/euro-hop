@@ -31,7 +31,8 @@ const Save = (function () {
       bosses: [],         // 已擊敗魔王的關卡 index
       exp: 0,             // 海上遭遇戰累積的經驗值（解鎖東歐篇用）
       seaWins: 0,         // 打贏幾場遭遇戰
-      costumes: [],       // 擁有的時裝 id（稀有怪掉落）
+      seaBosses: [],      // 打倒過的海上魔王 kind（v1.23 地中海海妖斯庫拉）
+      costumes: [],     // 擁有的時裝 id（稀有怪掉落）
       costume: null       // 目前穿的時裝（null = 原本的條紋衫）
     };
   }
@@ -48,6 +49,11 @@ const Save = (function () {
     out.wallet = Math.max(0, parseInt(d.wallet, 10) || 0);
     out.exp = Math.max(0, parseInt(d.exp, 10) || 0);
     out.seaWins = Math.max(0, parseInt(d.seaWins, 10) || 0);
+    if (Array.isArray(d.seaBosses)) {
+      d.seaBosses.forEach(function (k) {
+        if (typeof k === 'string' && out.seaBosses.indexOf(k) < 0) out.seaBosses.push(k);
+      });
+    }
     if (Array.isArray(d.costumes) && typeof Costumes !== 'undefined') {
       d.costumes.forEach(function (id) {
         if (Costumes.get(id) && out.costumes.indexOf(id) < 0) out.costumes.push(id);
@@ -274,6 +280,15 @@ const Save = (function () {
       persist();
       return true;
     },
+
+    /** 海上魔王：第一次打倒回 true（之後再打只給一般獎勵） */
+    markSeaBoss: function (kind) {
+      if (data.seaBosses.indexOf(kind) >= 0) return false;
+      data.seaBosses.push(kind);
+      persist();
+      return true;
+    },
+    seaBossDown: function (kind) { return data.seaBosses.indexOf(kind) >= 0; },
 
     /** 遭遇戰勝利：加 EXP，回傳加之前/之後（過關畫面要判斷是不是剛好解鎖） */
     addExp: function (n) {

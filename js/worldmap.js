@@ -242,10 +242,10 @@ const WorldMap = (function () {
    *   愛爾蘭 → 裝備
    * 國界用背景國的真實資料（EuropeBackdrop），圖釘換成功能圖示（不是國旗）。
    */
-  // 葡萄牙：酒紅色（v1.22 玩家：原本的金褐色跟背景國太像）—— 葡萄牙是波特酒的故鄉
+  // 愛爾蘭：國旗的橘色（v1.23 玩家：原本的綠色跟英國太像；葡萄牙維持金褐色）
   const SPECIAL_DEFS = [
-    { id: 'PT', name: '葡萄牙', role: '商店', scene: 'shop', seller: 'portugal', fill: '#8a2f52', edge: 'rgba(255, 190, 215, 0.8)', badge: '#e8b84a' },
-    { id: 'IE', name: '愛爾蘭', role: '裝備', scene: 'inventory', fill: '#3d6a5a', edge: 'rgba(170, 240, 200, 0.7)', badge: '#5fd08a' }
+    { id: 'PT', name: '葡萄牙', role: '商店', scene: 'shop', seller: 'portugal', fill: '#7a6438', edge: 'rgba(255, 214, 140, 0.75)', badge: '#e8b84a' },
+    { id: 'IE', name: '愛爾蘭', role: '裝備', scene: 'inventory', fill: '#c0702e', edge: 'rgba(255, 210, 160, 0.8)', badge: '#5fd08a' }
   ];
   /*
    * 神祕商人（v1.22 玩家要求）：藏在地圖不起眼的地方，賣葡萄牙商店沒有的東西（見 Shop.SELLERS）。
@@ -257,7 +257,8 @@ const WorldMap = (function () {
   const MERCHANT_DEFS = [
     { id: 'M_isle', seller: 'isle', lon: 14.2, lat: 35.4, prompt: '按 Enter 跟地中海的藥草婆婆交易' },
     { id: 'M_fjord', seller: 'fjord', lon: 3.6, lat: 62.6, prompt: '按 Enter 跟峽灣的老漁夫交易' },
-    { id: 'M_oasis', seller: 'oasis', lon: 3.5, lat: 28.6, prompt: '按 Enter 跟綠洲的駱駝商隊交易' }
+    // v1.23：阿爾及利亞變成關卡，圖釘落在國土中央 → 商隊往西南挪，不然兩個圖釘疊在一起
+    { id: 'M_oasis', seller: 'oasis', lon: -1.5, lat: 26.6, prompt: '按 Enter 跟綠洲的駱駝商隊交易' }
   ];
   const specials = [];
 

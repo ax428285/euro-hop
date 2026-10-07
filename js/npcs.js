@@ -172,6 +172,45 @@ const Npcs = (function () {
       { at: 0.78, name: '說書人 Hassan',
         look: { skin: '#b8845a', hair: '#cfcfcf', shirt: '#e8dcc0', pants: '#e8dcc0', hat: 'kerchief', hatColor: '#ffffff', item: 'book' },
         lines: ['德吉瑪廣場一到晚上，就有說書人、樂師和小吃攤。', '撒哈拉沙漠差不多跟整個美國一樣大。', '這裡的房子大多是紅土蓋的，所以馬拉喀什又叫「紅城」。'] }
+    ],
+    // ── v1.23 非洲篇補齊 ──
+    DZ: [
+      { at: 0.12, name: '嚮導 Moussa',
+        look: { skin: '#a8744e', hair: '#1e1814', shirt: '#2a3a8a', pants: '#2a3a8a', hat: 'scarf', hatColor: '#2a3a8a', item: 'map' },
+        lines: ['前面會起沙塵暴！風會把你往回推，黃沙裡只看得到身邊。', '颳風前沙子會先慢慢變濃，趁還看得到的時候多走幾步。', '我們圖阿雷格人用靛藍頭巾擋風沙，被叫做「藍色的人」。'] },
+      { at: 0.45, name: '考古學家 Leïla',
+        look: { skin: '#c8946a', hair: '#3a2a20', shirt: '#c8b080', pants: '#6a5a40', hat: 'straw', hatColor: '#d8c080', item: 'brush' },
+        lines: ['塔西利的岩畫有上萬幅，最老的超過一萬年。', '畫裡有長頸鹿、河馬和牛群 —— 撒哈拉以前是草原。', '阿爾及利亞是非洲面積最大的國家。'] },
+      { at: 0.78, name: '椰棗農 Karim',
+        look: { skin: '#b8845a', hair: '#2a2220', shirt: '#e8dcc0', pants: '#8a6a40', hat: 'kerchief', hatColor: '#ffffff', item: 'jar' },
+        lines: ['綠洲的椰棗樹要人爬上去，一朵一朵幫它授粉。', '最好吃的椰棗叫 Deglet Nour，意思是「光之椰棗」。', '沙漠白天很熱，晚上卻冷到要生火。'] }
+    ],
+    TN: [
+      { at: 0.12, name: '駱駝伕 Salah',
+        look: { skin: '#b8845a', hair: '#1e1814', shirt: '#e8dcc0', pants: '#e8dcc0', hat: 'cap', hatColor: '#c8202a', item: 'crook' },
+        lines: ['前面是鹽湖！鹽泥陷得很快，等駱駝靠岸，跳上駝峰讓牠載你過去。', '駱駝在岸邊會停一下，那就是上下的時機。', '駱駝的駝峰裡存的是脂肪，不是水喔。'] },
+      { at: 0.45, name: '磚匠 Amel',
+        look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#d8a860', pants: '#6a4a2e', hat: 'scarf', hatColor: '#3a8ad0', item: 'book' },
+        lines: ['托澤的老城用黃磚砌出上百種花紋，沒有一面牆一樣。', '夏天的杰里德湖會出現海市蜃樓，看起來像真的湖。', '突尼西亞的國旗跟土耳其很像，但中間多了一個白圓。'] },
+      { at: 0.78, name: '茉莉花小販 Hédi',
+        look: { skin: '#d8a57a', hair: '#3a2a20', shirt: '#ffffff', pants: '#2a4a8a', hat: null, item: 'rose' },
+        lines: ['突尼西亞人會把茉莉花別在耳朵上，男生別左邊、女生別右邊。', '迦太基古城就在首都突尼斯旁邊。', '哈里薩辣醬 harissa 是我們的國民醬料。'] }
+    ],
+    LY: [
+      { at: 0.12, name: '遺址守衛 Omar',
+        look: { skin: '#b8845a', hair: '#2a2220', shirt: '#6a7a4a', pants: '#3a3a30', hat: 'cap', hatColor: '#3a3a30', item: 'spear' },
+        lines: ['小心前面的老石柱，一走近就會搖、會倒！', '看到地上的紅框就是它倒下的位置 —— 衝過去，或等它倒完。', '倒下的石柱可以踩上去，當跳板也不錯。'] },
+      { at: 0.45, name: '歷史老師 Aisha',
+        look: { skin: '#c8946a', hair: '#1e1814', shirt: '#2a6a5a', pants: '#2a2a36', hat: 'scarf', hatColor: '#e8dcc0', item: 'book' },
+        lines: ['大萊普提斯是羅馬皇帝塞維魯的故鄉。', '古城被沙子埋了上千年，反而保存得很完整。', '利比亞大約九成的土地是撒哈拉沙漠。'] },
+      { at: 0.78, name: '皮匠 Yusuf',
+        look: { skin: '#a8744e', hair: '#cfcfcf', shirt: '#b8402a', pants: '#3a2a20', hat: 'kerchief', hatColor: '#f1c40f', item: 'jar' },
+        lines: ['古達米斯的皮靴又軟又輕，在沙地上走也不會陷。', '古達米斯老城的屋頂連成一片，女人以前在屋頂上走來走去。', '一千多年前，商隊從這裡出發穿越撒哈拉。'] }
+    ],
+    EG: [
+      { name: '考古學家 Nour',
+        look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#e8dcc0', pants: '#8a6a40', hat: 'straw', hatColor: '#d8c080', item: 'lamp' },
+        lines: ['人面獅身會輪流出兩招：跳起來重壓就跳過沙浪，張嘴吐沙就左右閃！', '吉薩大金字塔用了大約 230 萬塊石頭。', '人面獅身的鼻子早就不見了，原因到現在還有爭議。'] }
     ]
   };
 
@@ -198,6 +237,9 @@ const Npcs = (function () {
       })) return true;
       if ((ctx.features || []).some(function (f) {
         if (f.type === 'dark') return x > f.x0 - 40 && x < f.x1 + 40;
+        // 石柱：倒下的範圍在柱子左邊 150（站那裡會被壓到）；駱駝：整段來回走的範圍
+        if (f.type === 'column') return x > f.x - 230 && x < f.x + 100;
+        if (f.type === 'camel') return x > f.x0 - 70 && x < f.x1 + 160;
         if (f.x == null || f.w == null) return false;
         return x > f.x - 70 && x < f.x + f.w + 70;
       })) return true;

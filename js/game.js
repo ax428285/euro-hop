@@ -40,6 +40,7 @@ const Game = (function () {
   let shopMsg = null;        // 商店的提示訊息 { text, color, life }
   let shopSeller = 'portugal';   // 正在跟誰買（葡萄牙商店 / 神祕商人 id，見 Shop.SELLERS）
   let invCursor = 0;         // 裝備畫面選到第幾件（-1 = 最上面的時裝列）
+  let invCol = 0;            // 最後停在哪個子欄（從時裝列往下時回到這欄）
   let invMsg = null;         // 裝備畫面的提示 { text, color, life }
   // 海上遭遇戰：正在打哪一隻（null = 一般關卡）、開打前船的位置、這場拿到的 EXP
   let skirmish = null;
@@ -50,6 +51,8 @@ const Game = (function () {
   let pendingReveal = null;  // 洲 id
   let mysteryCursor = 0;
   let mysteryReveal = false;
+  let mysteryCont = 'europe'; // 謎畫面正在看哪個洲
+  let mysOther = -1;          // 選到下方第幾個「其他大陸」格子（-1 = 在線索格裡）
 
   // ── 場景切換 ──────────────────────────────────────────
 
@@ -149,11 +152,46 @@ const Game = (function () {
   function openMystery(contId, reveal) {
     pendingReveal = null;
     scene = 'mystery';
+    if (contId !== mysteryCont) mysteryCursor = 0;
+    mysteryCont = contId;
+    mysOther = -1;
     mysteryReveal = !!reveal && Mystery.progress(contId).complete;
     if (reveal) Sfx.fanfare();
   }
 
-  /** 謎畫面：方向鍵選線索格，Enter 看謎底（線索到齊才行） */
+  /** 謎畫面下方「其他大陸」的格子（不含正在看的這個洲） */
+  function mysOthers() {
+    return Mystery.continents.filter(function (c) { return c.id !== mysteryCont; });
+  }
+  /** 可以切換過去看的洲：有關卡（open）的才行 */
+  function mysCanOpen(c) { return !!(c && c.open); }
+
+  /**
+   * 線索格版面（畫與方向鍵共用）：
+   *   歐洲：西歐 5×2、東歐 4×2 並排；其他洲：一塊 5 欄
+   * 回傳 [{ region, x, cols, lo, hi }]（lo/hi = 這一塊在 slots 裡的 index 範圍）
+   */
+  function mysBlocks(cont, slots) {
+    const out = [];
+    let idx = 0;
+    cont.groups.forEach(function (g, gi) {
+      const n = slots.filter(function (s) { return (s.def.region || 'west') === g.region; }).length;
+      const two = cont.groups.length > 1;
+      out.push({
+        region: g.region, title: g.title,
+        x: two ? (gi === 0 ? MYS_WEST_X : MYS_EAST_X) : MYS_WEST_X,
+        cols: two && gi > 0 ? MYS_COLS_E : MYS_COLS_W,
+        lo: idx, hi: idx + n - 1
+      });
+      idx += n;
+    });
+    return out;
+  }
+
+  /**
+   * 謎畫面：方向鍵選線索格，Enter 看謎底（線索到齊才行）。
+   * v1.23 非洲之謎也能解了：最下面一列往下 = 選「其他大陸」的格子，Enter 切換過去。
+   */
   function updateMystery() {
     if (mysteryReveal) {
       if (Input.once('confirm') || Input.once('back') || Input.once('mystery') || Input.once('tomap')) {
@@ -161,24 +199,52 @@ const Game = (function () {
       }
       return;
     }
-    const slots = Mystery.slots('europe');
+    const cont = Mystery.get(mysteryCont);
+    const slots = Mystery.slots(mysteryCont);
     const n = slots.length;
-    // 西歐、東歐各自一塊，上下鍵在同一塊裡跳列
-    const westN = slots.filter(function (s) { return (s.def.region || 'west') === 'west'; }).length;
-    const inWest = mysteryCursor < westN;
-    const cols = inWest ? MYS_COLS_W : MYS_COLS_E;
-    const lo = inWest ? 0 : westN, hi = inWest ? westN - 1 : n - 1;
-    let c = mysteryCursor;
-    if (Input.once('left')) c = Math.max(0, c - 1);
-    if (Input.once('right')) c = Math.min(n - 1, c + 1);
-    if (Input.once('up') && c - cols >= lo) c -= cols;
-    if (Input.once('down') && c + cols <= hi) c += cols;
-    if (c !== mysteryCursor) { mysteryCursor = c; Sfx.select(); }
+    const others = mysOthers();
+    // 點下方的其他大陸格子（手機）：直接切換
+    const click = Input.takeClick();
+    if (click && click.y >= 372 && click.y <= 428) {
+      const boxW = (W - 80 - 16 * (others.length - 1)) / others.length;
+      const k = Math.floor((click.x - 40) / (boxW + 16));
+      if (k >= 0 && k < others.length) {
+        if (mysCanOpen(others[k])) { Sfx.select(); openMystery(others[k].id, false); }
+        else Sfx.clang();
+        return;
+      }
+    }
+    if (mysOther >= 0) {
+      // 在「其他大陸」那一列
+      let k = mysOther;
+      if (Input.once('left')) k = Math.max(0, k - 1);
+      if (Input.once('right')) k = Math.min(others.length - 1, k + 1);
+      if (k !== mysOther) { mysOther = k; Sfx.select(); }
+      if (Input.once('up')) { mysOther = -1; Sfx.select(); return; }
+      if (Input.once('confirm')) {
+        if (mysCanOpen(others[mysOther])) { Sfx.select(); openMystery(others[mysOther].id, false); }
+        else Sfx.clang();
+        return;
+      }
+    } else {
+      const blocks = mysBlocks(cont, slots);
+      const b = blocks.filter(function (q) { return mysteryCursor >= q.lo && mysteryCursor <= q.hi; })[0] || blocks[0];
+      const cols = b.cols, lo = b.lo, hi = b.hi;
+      let c = mysteryCursor;
+      if (Input.once('left')) c = Math.max(0, c - 1);
+      if (Input.once('right')) c = Math.min(n - 1, c + 1);
+      if (Input.once('up') && c - cols >= lo) c -= cols;
+      if (Input.once('down')) {
+        if (c + cols <= hi) c += cols;
+        else if (Math.floor((c - lo) / cols) === Math.floor((hi - lo) / cols)) { mysOther = 0; Sfx.select(); return; }
+      }
+      if (c !== mysteryCursor) { mysteryCursor = c; Sfx.select(); }
 
-    if (Input.once('confirm')) {
-      if (Mystery.progress('europe').complete) { Sfx.fanfare(); mysteryReveal = true; }
-      else Sfx.clang();
-      return;
+      if (Input.once('confirm')) {
+        if (Mystery.progress(mysteryCont).complete) { Sfx.fanfare(); mysteryReveal = true; }
+        else Sfx.clang();
+        return;
+      }
     }
     if (Input.once('mystery') || Input.once('back') || Input.once('tomap')) {
       Sfx.select(); scene = 'map';
@@ -320,19 +386,101 @@ const Game = (function () {
     return s;
   }
 
-  /** 裝備畫面的格子版面（畫與點擊判定共用） */
-  const INV_COLS = 5;
+  /*
+   * 裝備畫面版面（v1.23 玩家：只用文字分部位很難讀）——
+   *   每個部位一區（直欄），欄頭有部位顏色＋圖示；飾品件數多，佔兩個子欄。
+   *   vcols：畫面上的子欄（{ slot, items: [def index] }），畫與點擊判定、方向鍵都共用。
+   */
+  const SLOT_STYLE = {
+    head: { color: '#f0a83c', dark: 'rgba(110, 70, 20, 0.55)' },
+    body: { color: '#5cb0f0', dark: 'rgba(25, 70, 115, 0.55)' },
+    hand: { color: '#f06a55', dark: 'rgba(115, 35, 30, 0.55)' },
+    feet: { color: '#86d46a', dark: 'rgba(40, 95, 35, 0.55)' },
+    acc:  { color: '#c890f0', dark: 'rgba(85, 45, 120, 0.55)' }
+  };
   function invLayout() {
-    const cols = INV_COLS, gx = 12, gy = 8;
-    const rows = Math.ceil(Equipment.defs.length / cols);
-    const top = 96, bottom = H - 92;
-    const cw = Math.floor((W - 40 - (cols - 1) * gx) / cols);
-    const ch = Math.min(104, Math.floor((bottom - top - (rows - 1) * gy) / rows));
-    const sx = (W - (cols * cw + (cols - 1) * gx)) / 2;
+    const vcols = [];
+    const groups = [];
+    Equipment.SLOTS.forEach(function (s) {
+      const idx = s.items.map(function (id) { return Equipment.defs.indexOf(Equipment.get(id)); })
+        .filter(function (i) { return i >= 0; });
+      const sub = idx.length > 6 ? 2 : 1;      // 件數多的部位分兩個子欄
+      const per = Math.ceil(idx.length / sub);
+      const g = { slot: s, first: vcols.length, span: sub };
+      for (let k = 0; k < sub; k++) vcols.push({ slot: s.id, items: idx.slice(k * per, (k + 1) * per) });
+      groups.push(g);
+    });
+    const gx = 8, gGap = 14, gy = 6;
+    const top = 102, headH = 26, bottom = H - 88;   // top 避開左上角的選單鈕
+    const rows = Math.max.apply(null, vcols.map(function (c) { return c.items.length; }));
+    const cw = Math.floor((W - 24 - (vcols.length - groups.length) * gx - (groups.length - 1) * gGap) / vcols.length);
+    const ch = Math.min(64, Math.floor((bottom - top - headH - 6 - (rows - 1) * gy) / rows));
+    // 每個子欄的 x
+    let x = (W - (vcols.length * cw + (vcols.length - groups.length) * gx + (groups.length - 1) * gGap)) / 2;
+    groups.forEach(function (g, gi) {
+      if (gi) x += gGap - gx;
+      g.x = x;
+      for (let k = 0; k < g.span; k++) { vcols[g.first + k].x = x; x += cw + gx; }
+      g.w = g.span * cw + (g.span - 1) * gx;
+    });
+    const at = {};   // def index → { vc, row }
+    vcols.forEach(function (c, vc) { c.items.forEach(function (i, row) { at[i] = { vc: vc, row: row }; }); });
     return {
-      cols: cols, cw: cw, ch: ch,
-      cell: function (i) { return { x: sx + (i % cols) * (cw + gx), y: top + Math.floor(i / cols) * (ch + gy) }; }
+      vcols: vcols, groups: groups, cw: cw, ch: ch, top: top, headH: headH, at: at,
+      cell: function (i) {
+        const a = at[i];
+        return { x: vcols[a.vc].x, y: top + headH + 6 + a.row * (ch + gy) };
+      }
     };
+  }
+
+  /** 部位圖示（向量，不靠字型）：頭 = 帽子、身體 = 上衣、手 = 手套、腳 = 靴子、飾品 = 寶石 */
+  function drawSlotIcon(c, slot, x, y, r, color) {
+    c.save();
+    c.translate(x, y);
+    c.fillStyle = color;
+    c.strokeStyle = color;
+    c.lineWidth = Math.max(1.2, r * 0.18);
+    c.beginPath();
+    if (slot === 'head') {
+      c.ellipse(0, r * 0.45, r, r * 0.28, 0, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.moveTo(-r * 0.6, r * 0.45);
+      c.quadraticCurveTo(-r * 0.62, -r * 0.8, 0, -r * 0.8);
+      c.quadraticCurveTo(r * 0.62, -r * 0.8, r * 0.6, r * 0.45);
+      c.fill();
+    } else if (slot === 'body') {
+      c.moveTo(-r * 0.35, -r * 0.85);
+      c.lineTo(-r, -r * 0.45); c.lineTo(-r * 0.75, 0); c.lineTo(-r * 0.55, -r * 0.15);
+      c.lineTo(-r * 0.55, r * 0.9); c.lineTo(r * 0.55, r * 0.9); c.lineTo(r * 0.55, -r * 0.15);
+      c.lineTo(r * 0.75, 0); c.lineTo(r, -r * 0.45); c.lineTo(r * 0.35, -r * 0.85);
+      c.quadraticCurveTo(0, -r * 0.45, -r * 0.35, -r * 0.85);
+      c.fill();
+    } else if (slot === 'hand') {
+      U.roundRect(c, -r * 0.6, -r * 0.35, r * 1.2, r * 1.15, r * 0.3); c.fill();
+      for (let k = 0; k < 4; k++) {
+        U.roundRect(c, -r * 0.6 + k * r * 0.31, -r * 0.95, r * 0.26, r * 0.8, r * 0.13); c.fill();
+      }
+      c.beginPath();
+      c.ellipse(-r * 0.75, r * 0.05, r * 0.2, r * 0.4, -0.5, 0, Math.PI * 2);
+      c.fill();
+    } else if (slot === 'feet') {
+      c.moveTo(-r * 0.55, -r * 0.9); c.lineTo(r * 0.1, -r * 0.9); c.lineTo(r * 0.1, r * 0.1);
+      c.quadraticCurveTo(r, r * 0.2, r, r * 0.6); c.lineTo(r, r * 0.85); c.lineTo(-r * 0.55, r * 0.85);
+      c.closePath();
+      c.fill();
+    } else {
+      c.moveTo(0, -r); c.lineTo(r * 0.85, -r * 0.2); c.lineTo(0, r); c.lineTo(-r * 0.85, -r * 0.2);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.55)';
+      c.beginPath();
+      c.moveTo(0, -r * 0.6); c.lineTo(r * 0.4, -r * 0.2); c.lineTo(0, r * 0.05); c.lineTo(-r * 0.4, -r * 0.2);
+      c.closePath();
+      c.fill();
+    }
+    c.restore();
   }
 
   /** 裝上 / 卸下第 i 件（沒擁有的不能裝） */
@@ -366,7 +514,8 @@ const Game = (function () {
    */
   function updateInventory() {
     if (invMsg && --invMsg.life <= 0) invMsg = null;
-    const n = Equipment.defs.length, cols = INV_COLS;
+    const n = Equipment.defs.length;
+    const L = invLayout();
     if (invCursor < 0) {
       // 時裝列：←→ 換時裝（原本的條紋衫 + 擁有的時裝輪流）
       const step = Input.once('left') ? -1 : (Input.once('right') ? 1 : 0);
@@ -377,24 +526,32 @@ const Game = (function () {
         Save.wearCostume(opts[(i + step + opts.length) % opts.length]);
         Sfx.select();
       }
-      if (Input.once('down')) { invCursor = 0; Sfx.select(); }
+      if (Input.once('down')) {
+        const col = L.vcols[Math.min(invCol, L.vcols.length - 1)];
+        invCursor = col.items.length ? col.items[0] : 0;
+        Sfx.select();
+      }
     } else {
-      let c = invCursor;
-      if (Input.once('left')) c = Math.max(0, c - 1);
-      if (Input.once('right')) c = Math.min(n - 1, c + 1);
-      if (Input.once('up')) c = c - cols < 0 ? -1 : c - cols;
-      if (Input.once('down') && c + cols <= n - 1) c += cols;
-      if (c !== invCursor) { invCursor = c; Sfx.select(); }
+      // 每個部位一欄：↑↓ 在同部位裡換、←→ 換部位（換欄時盡量停在同一列）
+      const a = L.at[invCursor] || { vc: 0, row: 0 };
+      let vc = a.vc, row = a.row;
+      if (Input.once('left') && vc > 0) vc--;
+      if (Input.once('right') && vc < L.vcols.length - 1) vc++;
+      let c = L.vcols[vc].items[Math.min(row, L.vcols[vc].items.length - 1)];
+      if (Input.once('up')) c = row === 0 ? -1 : L.vcols[vc].items[row - 1];
+      if (Input.once('down') && row + 1 < L.vcols[vc].items.length) c = L.vcols[vc].items[row + 1];
+      if (c !== invCursor) { invCursor = c; invCol = vc; Sfx.select(); }
       if (invCursor >= 0 && Input.once('confirm')) toggleWear(invCursor);
     }
     // 點格子（手機／滑鼠）
     const click = Input.takeClick();
     if (click) {
-      const L = invLayout();
       for (let i = 0; i < n; i++) {
+        if (!L.at[i]) continue;
         const p = L.cell(i);
         if (click.x >= p.x && click.x <= p.x + L.cw && click.y >= p.y && click.y <= p.y + L.ch) {
           invCursor = i;
+          invCol = L.at[i].vc;
           toggleWear(i);
           break;
         }
@@ -433,7 +590,7 @@ const Game = (function () {
     if (Input.once('inventory')) { Sfx.select(); scene = 'inventory'; return; }
     if (Input.once('saveinfo')) { Sfx.select(); confirmWipe = false; scene = 'saveinfo'; return; }
     if (Input.once('shop')) { Sfx.select(); shopCursor = 0; shopSeller = 'portugal'; scene = 'shop'; return; }
-    if (Input.once('mystery')) { Sfx.select(); openMystery('europe', false); return; }
+    if (Input.once('mystery')) { Sfx.select(); openMystery(mysteryCont, false); return; }
 
     /*
      * 海上的怪：船靠過去按 Enter 開打。
@@ -534,7 +691,12 @@ const Game = (function () {
     bridge: ['河上的老木橋', '踩上去一下就會塌，別停下來'],
     thorn: ['玫瑰荊棘', '花苞抖動之後會冒出尖刺，等它縮回去再過'],
     // v1.21 非洲篇
-    sand: ['撒哈拉流沙', '踩進去會走不快、跳不高，越陷越深 —— 別停下來，趕快走出去']
+    sand: ['撒哈拉流沙', '踩進去會走不快、跳不高，越陷越深 —— 別停下來，趕快走出去'],
+    // v1.23 非洲篇補齊
+    sandstorm: ['撒哈拉沙塵暴', '沙子變濃就要颳了 —— 逆風推人、只看得到身邊，小心看不見的敵人'],
+    brine: ['杰里德鹽湖', '鹽泥陷得很快，硬走一定受傷 —— 等駱駝靠岸，跳上駝峰讓牠載你'],
+    camel: ['駱駝商隊', '紅色鞍毯可以站上去，駱駝會載著你走過鹽湖'],
+    column: ['羅馬古柱', '一靠近就會搖晃倒下，地上紅框是壓到的範圍 —— 衝過去，或等它倒完']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -889,6 +1051,15 @@ const Game = (function () {
 
   function loseLife(respawn, pid) {
     const i = pid || 0;
+    // 法蒂瑪之手（v1.23）：每關第一次被打掉最後一顆愛心時擋下來
+    const guard = state.players[i] && state.players[i].stats && state.players[i].stats.guardian;
+    if (lives[i] <= 1 && guard && !(state.guardUsed && state.guardUsed[i])) {
+      state.guardUsed = state.guardUsed || {};
+      state.guardUsed[i] = true;
+      Sfx.equip();
+      toast = { text: '法蒂瑪之手護住了你！', sub: '這一關不會再擋第二次', life: 160 };
+      lives[i]++;
+    }
     lives[i]--;
     if (lives[i] <= 0) {
       downed[i] = true;
@@ -984,6 +1155,12 @@ const Game = (function () {
       const r = Save.addExp(state.def.exp);
       expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null };
       netProgress({ t: 'exp', n: state.def.exp, gain: gain });
+      // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
+      if (skirmish.def.boss && Save.markSeaBoss(skirmish.kind)) {
+        Save.addCoins(state.def.bossCoins || 0);
+        coinsBanked += state.def.bossCoins || 0;
+        expResult.firstBoss = skirmish.def.name;
+      }
       // 稀有怪：掉一套還沒有的時裝（全部都有了就改給金幣）
       if (skirmish.def.rare) {
         const missing = Costumes.defs.filter(function (d) { return !Save.get().costumes.includes(d.id); });
@@ -1999,7 +2176,10 @@ const Game = (function () {
     const spot = Voyage.nearbySpecial();
     if (mon) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      U.text(ctx, blink ? `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）` : '　',
+      const bossTxt = mon.def.boss
+        ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
+        : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）`;
+      U.text(ctx, blink ? bossTxt : '　',
         W / 2, H - 14, { size: 15, color: '#ff9aa8' });
     } else if (spot) {
       const blink = Math.floor(t / 20) % 2 === 0;
@@ -2044,9 +2224,10 @@ const Game = (function () {
     ctx.fillStyle = 'rgba(8,12,24,0.9)';
     ctx.fillRect(0, 0, W, H);
 
-    const cont = Mystery.get('europe');
-    const slots = Mystery.slots('europe');
-    const pr = Mystery.progress('europe');
+    const cont = Mystery.get(mysteryCont);
+    const slots = Mystery.slots(mysteryCont);
+    const pr = Mystery.progress(mysteryCont);
+    const euroDone = Mystery.progress('europe').complete;
     if (mysteryCursor >= slots.length) mysteryCursor = 0;
 
     U.text(ctx, '世界之謎', W / 2, 30, { size: 26, color: '#ffd166' });
@@ -2054,21 +2235,17 @@ const Game = (function () {
     U.text(ctx, '線索 ' + pr.got + ' / ' + pr.total, W - 40, 64,
       { size: 16, color: pr.complete ? '#8fe3a0' : '#ffd166', align: 'right' });
 
-    // 兩塊線索格
-    const blocks = [
-      { region: 'west', x: MYS_WEST_X, cols: MYS_COLS_W },
-      { region: 'east', x: MYS_EAST_X, cols: MYS_COLS_E }
-    ];
+    // 線索格（歐洲兩塊、其他洲一塊，見 mysBlocks）
+    const blocks = mysBlocks(cont, slots);
     let idx = 0;
     blocks.forEach(function (b) {
-      const g = cont.groups.filter(function (q) { return q.region === b.region; })[0];
-      U.text(ctx, g.title, b.x, 92, { size: 13, color: '#9aa7c7', align: 'left' });
+      U.text(ctx, b.title, b.x, 92, { size: 13, color: '#9aa7c7', align: 'left' });
       const mine = slots.filter(function (s) { return (s.def.region || 'west') === b.region; });
       mine.forEach(function (s, k) {
         const i = idx + k;
         const x = b.x + (k % b.cols) * (MYS_SLOT_W + MYS_GAP);
         const y = 102 + Math.floor(k / b.cols) * (MYS_SLOT_H + MYS_GAP);
-        const sel = i === mysteryCursor;
+        const sel = i === mysteryCursor && mysOther < 0;
         ctx.fillStyle = s.got ? 'rgba(255,209,102,0.16)' : 'rgba(255,255,255,0.05)';
         U.roundRect(ctx, x, y, MYS_SLOT_W, MYS_SLOT_H, 7); ctx.fill();
         ctx.strokeStyle = sel ? '#ffffff' : (s.got ? '#ffd166' : '#3c4a78');
@@ -2106,31 +2283,33 @@ const Game = (function () {
         { size: 15, color: '#b9c6e2' });
     }
 
-    // 其他大陸：歐洲解開之前只看得到「？？？」—— 解開才知道彼此有關係
-    const others = Mystery.continents.filter(function (c) { return c.id !== 'europe'; });
-    const boxW = (W - 80 - 16) / others.length;
+    // 其他大陸：有關卡的洲可以切換過去看（↓ 選到這列按 Enter，或直接點）；
+    // 還沒有關卡的洲，歐洲解開之前只看得到「？？？」—— 解開才知道彼此有關係
+    const others = mysOthers();
+    const boxW = (W - 80 - 16 * (others.length - 1)) / others.length;
     others.forEach(function (c, k) {
       const x = 40 + k * (boxW + 16);
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      const sel = mysOther === k;
+      ctx.fillStyle = sel ? 'rgba(127,196,245,0.14)' : 'rgba(255,255,255,0.04)';
       U.roundRect(ctx, x, 372, boxW, 56, 8); ctx.fill();
-      ctx.strokeStyle = '#3c4a78'; ctx.lineWidth = 1;
+      ctx.strokeStyle = sel ? '#ffffff' : '#3c4a78'; ctx.lineWidth = sel ? 2.5 : 1;
       U.roundRect(ctx, x, 372, boxW, 56, 8); ctx.stroke();
       const cx = x + 14;
-      if (c.wip) {
-        // 開發中的洲（v1.21 非洲）：線索可以先收集，這裡顯示收了幾條
+      if (c.open) {
         const cp = Mystery.progress(c.id);
-        U.text(ctx, '🔍 ' + c.name + '：線索 ' + cp.got + ' / ' + cp.total, cx, 390,
-          { size: 13, color: '#7fc4f5', align: 'left' });
-        U.text(ctx, c.teaser, cx, 412, { size: 12, color: '#7d88a6', align: 'left' });
+        U.text(ctx, '🔍 ' + c.name + '：線索 ' + cp.got + ' / ' + cp.total + (cp.complete ? '（已解開）' : ''), cx, 390,
+          { size: 13, color: cp.complete ? '#8fe3a0' : '#7fc4f5', align: 'left' });
+        U.text(ctx, sel ? 'Enter 切換到這個謎' : fitText(c.question, boxW - 28, 12), cx, 412,
+          { size: 12, color: sel ? '#ffd166' : '#7d88a6', align: 'left' });
         return;
       }
-      U.text(ctx, '🔒 ' + (pr.complete ? c.name + '：' + c.question : '？？？之謎'), cx, 390,
+      U.text(ctx, '🔒 ' + (euroDone ? c.name + '：' + c.question : '？？？之謎'), cx, 390,
         { size: 13, color: '#c6d2e8', align: 'left' });
-      U.text(ctx, pr.complete ? c.teaser : '先解開歐洲之謎', cx, 412,
+      U.text(ctx, fitText(euroDone ? c.teaser : '先解開歐洲之謎', boxW - 28, 12), cx, 412,
         { size: 12, color: '#7d88a6', align: 'left' });
     });
 
-    U.text(ctx, '方向鍵 選線索　Enter 解開謎底　N、Q 或 Esc 返回地圖', W / 2, H - 18,
+    U.text(ctx, '方向鍵 選線索（↓ 到底可換別的洲）　Enter 解開謎底　N、Q 或 Esc 返回地圖', W / 2, H - 18,
       { size: 13, color: '#9aa7c7' });
 
     if (mysteryReveal) drawMysteryAnswer(cont);
@@ -2237,37 +2416,54 @@ const Game = (function () {
     const cw = L.cw, ch = L.ch;
     const slotName = {};
     Equipment.SLOTS.forEach(function (s) { slotName[s.id] = s.name; });
+    const wornMap = sv.worn || {};
+
+    // 部位區：底色＋欄頭（顏色、圖示、部位名、目前裝了什麼）
+    L.groups.forEach(function (g) {
+      const sty = SLOT_STYLE[g.slot.id];
+      const colH = L.headH + 6 + Math.max.apply(null, L.vcols.slice(g.first, g.first + g.span)
+        .map(function (c) { return c.items.length; })) * (ch + 6) + 2;
+      ctx.fillStyle = sty.dark;
+      U.roundRect(ctx, g.x - 4, L.top - 2, g.w + 8, colH + 2, 10); ctx.fill();
+      ctx.fillStyle = sty.color;
+      U.roundRect(ctx, g.x - 4, L.top - 2, g.w + 8, L.headH, 10); ctx.fill();
+      drawSlotIcon(ctx, g.slot.id, g.x + 11, L.top + 11, 8, '#1a1424');
+      U.text(ctx, g.slot.name, g.x + 24, L.top + 11, { size: 14, color: '#1a1424', align: 'left' });
+      if (!wornMap[g.slot.id]) {
+        U.text(ctx, '空著', g.x + g.w, L.top + 11, { size: 11, color: 'rgba(26,20,36,0.75)', align: 'right' });
+      }
+    });
 
     Equipment.defs.forEach(function (d, i) {
+      if (!L.at[i]) return;
       const pos = L.cell(i);
       const cx = pos.x, cy = pos.y;
       const got = Save.hasEquip(d.id);
       const worn = got && Save.isWorn(d.id);
       const sel = i === invCursor;
+      const sty = SLOT_STYLE[d.slot];
 
       ctx.fillStyle = worn ? 'rgba(30, 70, 50, 0.95)' : got ? 'rgba(32,46,82,0.95)' : 'rgba(22,26,40,0.9)';
-      U.roundRect(ctx, cx, cy, cw, ch, 10); ctx.fill();
-      ctx.strokeStyle = sel ? '#ffd166' : worn ? '#8fe3a0' : got ? '#7e97c9' : '#58637c';
-      ctx.lineWidth = sel ? 2.6 : worn ? 2 : 1.2;
-      U.roundRect(ctx, cx, cy, cw, ch, 10); ctx.stroke();
+      U.roundRect(ctx, cx, cy, cw, ch, 8); ctx.fill();
+      // 左邊的部位色條
+      ctx.fillStyle = sty.color;
+      ctx.globalAlpha = got ? 1 : 0.4;
+      U.roundRect(ctx, cx, cy, 5, ch, 3); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = sel ? '#ffd166' : worn ? '#8fe3a0' : got ? 'rgba(126,151,201,0.8)' : '#4a5470';
+      ctx.lineWidth = sel ? 2.6 : worn ? 2 : 1;
+      U.roundRect(ctx, cx, cy, cw, ch, 8); ctx.stroke();
 
       // 圖示：未取得時只畫剪影輪廓，不疊問號（疊起來兩個都看不清）
-      const k = Math.min(1, ch / 104);
+      const iconS = Math.min(0.8, ch / 62);
       if (!got) ctx.globalAlpha = 0.22;
-      Sprites.equipIcon(ctx, d.id, cx + 24, cy + 34 * k, 0.72);
+      Sprites.equipIcon(ctx, d.id, cx + 25, cy + ch / 2, iconS);
       ctx.globalAlpha = 1;
 
-      // 部位標籤（左上角小方框）
-      ctx.fillStyle = worn ? '#2f7a50' : 'rgba(255,255,255,0.12)';
-      U.roundRect(ctx, cx + 6, cy + 5, 30, 15, 4); ctx.fill();
-      U.text(ctx, slotName[d.slot] || '', cx + 21, cy + 12.5, { size: 10, color: worn ? '#eafff0' : '#b9c6e2' });
-
-      U.text(ctx, d.name, cx + 46, cy + 24 * k,
-        { size: 13, color: got ? '#ffffff' : '#78839c', align: 'left' });
-      U.text(ctx, worn ? '裝備中' : got ? '在背包' : d.country, cx + 46, cy + 42 * k,
-        { size: 11, color: worn ? '#8fe3a0' : got ? '#9fb4d8' : '#5f6a82', align: 'left' });
-      U.text(ctx, fitText(got ? d.desc : '在' + d.country + '關卡中尋找', cw - 16, 10.5), cx + 10, cy + ch - 12,
-        { size: 10.5, color: got ? (worn ? '#8fe3a0' : '#9fb4d8') : '#78839c', align: 'left' });
+      U.text(ctx, fitText(d.name, cw - 52, 12.5), cx + 44, cy + ch / 2 - 8,
+        { size: 12.5, color: got ? '#ffffff' : '#78839c', align: 'left' });
+      U.text(ctx, worn ? '裝備中' : got ? '在背包' : fitText(d.country, cw - 52, 10.5), cx + 44, cy + ch / 2 + 9,
+        { size: 10.5, color: worn ? '#8fe3a0' : got ? '#9fb4d8' : '#5f6a82', align: 'left' });
     });
 
     // 五個部位現在裝了什麼（一眼看出哪個部位空著）；有提示訊息時先顯示訊息
@@ -2277,15 +2473,20 @@ const Game = (function () {
     } else if (selDef) {
       // 選到的那件：完整說明（格子裡放不下會截斷）
       const got = Save.hasEquip(selDef.id);
-      U.text(ctx, '【' + slotName[selDef.slot] + '】' + selDef.name + '：' +
+      const sty = SLOT_STYLE[selDef.slot];
+      const line = fitText(selDef.name + '：' +
         (got ? selDef.desc + (Save.isWorn(selDef.id) ? '（裝備中，Enter 卸下）' : '（Enter 裝上）') : '還沒拿到，在' + selDef.country + '關卡中尋找'),
-        W / 2, H - 70, { size: 14, color: got ? '#ffffff' : '#9aa7c7' });
+        W - 140, 14);
+      ctx.font = '600 14px "Segoe UI", "Microsoft JhengHei", sans-serif';
+      const tw = ctx.measureText(line).width;
+      const tagW = 46, x0 = W / 2 - (tw + tagW + 8) / 2;
+      ctx.fillStyle = sty.color;
+      U.roundRect(ctx, x0, H - 80, tagW, 20, 5); ctx.fill();
+      drawSlotIcon(ctx, selDef.slot, x0 + 11, H - 70, 6, '#1a1424');
+      U.text(ctx, slotName[selDef.slot], x0 + 31, H - 70, { size: 11, color: '#1a1424' });
+      U.text(ctx, line, x0 + tagW + 8, H - 70, { size: 14, color: got ? '#ffffff' : '#9aa7c7', align: 'left' });
     } else {
-      const parts = Equipment.SLOTS.map(function (s) {
-        const id = (sv.worn || {})[s.id];
-        return s.name + '：' + (id ? Equipment.get(id).name : '（空）');
-      });
-      U.text(ctx, parts.join('　'), W / 2, H - 70, { size: 13, color: '#dce5f5' });
+      U.text(ctx, '↓ 選裝備：↑↓ 同部位換、←→ 換部位，Enter 裝上／卸下', W / 2, H - 70, { size: 13, color: '#dce5f5' });
     }
 
     // 目前總能力。
@@ -2465,8 +2666,9 @@ const Game = (function () {
     const tall = (justOpened ? 280 : 240) + (r.costume ? 50 : 0);
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
-    U.text(ctx, (def.monster.def.rare ? '抓到了 ' : '擊退了 ') + def.monster.def.name + '！', W / 2, top + 42,
-      { size: 32, color: def.monster.def.rare ? '#ffe070' : '#8fe3a0' });
+    const md = def.monster.def;
+    U.text(ctx, (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
+      { size: 32, color: md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
     // 稀有怪掉的時裝（已經自動穿上，到裝備畫面可以換）
     if (r.costume) {
       ctx.fillStyle = 'rgba(255, 224, 112, 0.14)';
@@ -2488,7 +2690,7 @@ const Game = (function () {
 
     let y = by + 56;
     if (coinsBanked > 0) {
-      U.text(ctx, `錢包 +€ ${coinsBanked}　餘額 € ${Save.get().wallet}`, W / 2, y,
+      U.text(ctx, `錢包 +€ ${coinsBanked}${r.firstBoss ? '（含首次擊敗獎勵）' : ''}　餘額 € ${Save.get().wallet}`, W / 2, y,
         { size: 14, color: '#ffd166' });
       y += 26;
     }
@@ -3260,7 +3462,8 @@ const Game = (function () {
       /** 直接開一場海上遭遇戰（kind = 'gulls' / 'pirates' / 'serpent'） */
       fightSea: function (kind) {
         if (scene !== 'map') toMap();
-        const m = Encounter.spawn(Voyage.shipPos(), 0, kind || 'gulls');
+        const k = Encounter.KINDS[kind || 'gulls'];
+        const m = k && k.boss ? Encounter.boss(kind) : Encounter.spawn(Voyage.shipPos(), 0, kind || 'gulls');
         if (m) startSkirmish(m);
         return !!m;
       },

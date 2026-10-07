@@ -11,6 +11,7 @@ function runFeatureCheck() {
   const issues = [];
   const seenTypes = {};
   const G = PHYS.GRAVITY;
+  const COLUMN_FAR = 400;    // 離倒下的石柱夠遠（不會卡在裡面）
 
   Levels.list.forEach(function (def, li) {
     if (def.isBoss || def.layout === 'shaft') return;
@@ -63,6 +64,63 @@ function runFeatureCheck() {
         }
       });
       if (reached < 3) issues.push(tag + '：啤酒桶只有 ' + reached + ' 個滾到玩家面前，這個機制等於不存在');
+    }
+
+    /*
+     * F) 突尼西亞駱駝（v1.23）：站在靠左岸的駝峰上不動，要被載到右岸、而且一路沒受傷、沒掉進鹽泥。
+     *    鹽泥本身：硬走過去要受傷（不然駱駝就沒意義了）。
+     */
+    if (fs.some(function (f) { return f.type === 'camel'; })) {
+      const input = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+      const st = buildLevelState(def, li, [], Equipment.resolve([]));
+      st.enemies = [];
+      const p = st.player;
+      const cam = st.features.list.filter(function (f) { return f.type === 'camel'; })[0];
+      const brine = st.features.list.filter(function (f) { return f.brine && f.x > cam.x0 && f.x < cam.x1 + 100; })[0];
+      // 找駱駝停在左岸的時刻
+      let t0 = 0;
+      while (Features.camelX(cam, t0).moving || Features.camelX(cam, t0).x !== cam.x0) t0++;
+      Features.update(st, t0);
+      p.x = cam.hump.x + 10; p.y = cam.hump.y - p.h; p.vy = 0;
+      let hurt = 0, sunk = false, maxX = 0;
+      for (let f = 1; f < 420; f++) {
+        Features.update(st, t0 + f).forEach(function (e) { if (/:hurt$/.test(e)) hurt++; });
+        updatePlayer(st, input, t0 + f);
+        if (p.inSand) sunk = true;
+        maxX = Math.max(maxX, p.x);
+      }
+      if (hurt || sunk) issues.push(tag + '：坐在駝峰上不動，還是陷進鹽泥／受傷（受傷 ' + hurt + '）');
+      if (!(maxX > brine.x + brine.w)) issues.push(tag + '：坐駱駝沒有被載到對岸（x=' + Math.round(maxX) + '，鹽泥到 ' + (brine.x + brine.w) + '）');
+      // 硬走過鹽泥
+      const st2 = buildLevelState(def, li, [], Equipment.resolve([]));
+      st2.enemies = [];
+      const p2 = st2.player;
+      const b2 = st2.features.list.filter(function (f) { return f.brine; })[0];
+      st2.features.list = st2.features.list.filter(function (f) { return f.type !== 'camel'; });
+      p2.x = b2.x - 30; p2.y = b2.y - p2.h; p2.vy = 0;
+      const walk = { isDown: function (a) { return a === 'right'; }, once: function () { return false; }, endFrame: function () {} };
+      let hurt2 = 0;
+      for (let f = 0; f < 240 && p2.x < b2.x + b2.w; f++) {
+        Features.update(st2, f).forEach(function (e) { if (/:hurt$/.test(e)) hurt2++; });
+        updatePlayer(st2, walk, f);
+      }
+      if (!hurt2) issues.push(tag + '：直接走過鹽泥也不會受傷，駱駝沒有存在的必要');
+    }
+
+    // G) 利比亞石柱（v1.23）：走近會倒、站在倒下的範圍裡會受傷、倒完變成可以踩的矮牆
+    if (fs.some(function (f) { return f.type === 'column'; })) {
+      const st = buildLevelState(def, li, [], Equipment.resolve([]));
+      st.enemies = [];
+      const p = st.player;
+      const col = st.features.list.filter(function (f) { return f.type === 'column'; })[0];
+      p.x = col.x - 80; p.y = col.y - p.h; p.vy = 0; p.invuln = 0;
+      let hurt = 0;
+      for (let f = 0; f < 120; f++) Features.update(st, f).forEach(function (e) { if (/:hurt$/.test(e)) hurt++; });
+      if (col.state !== 'down') issues.push(tag + '：玩家站在石柱旁邊，石柱沒有倒（' + col.state + '）');
+      if (!hurt) issues.push(tag + '：站在石柱倒下的範圍裡沒有受傷');
+      p.x = col.x - COLUMN_FAR; p.invuln = 0;
+      Features.update(st, 200);
+      if (Features.solids(st).indexOf(col.lying) < 0) issues.push(tag + '：倒下的石柱沒有變成可以踩的地形');
     }
   });
   return { issueCount: issues.length, issues: issues, kinds: seenTypes };

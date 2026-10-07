@@ -2959,6 +2959,58 @@ const Sprites = (function () {
       return;
     }
 
+    /*
+     * v1.23 非洲篇：新月＋星星的國旗。
+     * 新月 = 一個圓再用「底色」的圓挖掉一塊（offset 往開口方向）。
+     */
+    if (d === 'dz') {
+      // 阿爾及利亞：左綠右白，正中間紅色新月（開口朝右）＋紅星
+      ctx.fillStyle = colors[0]; ctx.fillRect(x, y, w / 2, h);
+      ctx.fillStyle = colors[1]; ctx.fillRect(x + w / 2, y, w / 2, h);
+      crescent(ctx, x + w * 0.5, y + h / 2, h * 0.25, colors[2], function (cx, cy, r) {
+        // 挖掉的那一圈橫跨綠白兩色：左半補綠、右半補白
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+        ctx.fillStyle = colors[0]; ctx.fillRect(x, y, w / 2, h);
+        ctx.fillStyle = colors[1]; ctx.fillRect(x + w / 2, y, w / 2, h);
+        ctx.restore();
+      });
+      star5(ctx, x + w * 0.56, y + h / 2, h * 0.1, colors[2], -0.3);
+      return;
+    }
+    if (d === 'tn') {
+      // 突尼西亞：紅底，中央白色圓盤，裡面紅色新月（開口朝右）＋紅星
+      ctx.fillStyle = colors[0]; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = colors[1];
+      ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.25, 0, Math.PI * 2); ctx.fill();
+      crescent(ctx, x + w / 2 - h * 0.02, y + h / 2, h * 0.19, colors[0], colors[1]);
+      star5(ctx, x + w / 2 + h * 0.07, y + h / 2, h * 0.075, colors[0], -0.3);
+      return;
+    }
+    if (d === 'ly') {
+      // 利比亞：紅黑綠橫條（1:2:1），黑色帶中央白色新月＋白星
+      ctx.fillStyle = colors[0]; ctx.fillRect(x, y, w, h / 4);
+      ctx.fillStyle = colors[1]; ctx.fillRect(x, y + h / 4, w, h / 2);
+      ctx.fillStyle = colors[2]; ctx.fillRect(x, y + h * 0.75, w, h / 4 + 0.5);
+      crescent(ctx, x + w * 0.48, y + h / 2, h * 0.17, '#FFFFFF', colors[1]);
+      star5(ctx, x + w * 0.57, y + h / 2, h * 0.07, '#FFFFFF', -0.3);
+      return;
+    }
+    if (d === 'eg') {
+      // 埃及：紅白黑橫三色，中央金色的薩拉丁之鷹（簡化成盾＋展翅）
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = colors[i];
+        ctx.fillRect(x, y + i * (h / 3), w, h / 3 + 0.5);
+      }
+      const cx = x + w / 2, cy = y + h / 2;
+      ctx.fillStyle = '#C09300';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h * 0.13);
+      ctx.lineTo(cx + h * 0.14, cy - h * 0.04); ctx.lineTo(cx + h * 0.06, cy + h * 0.12);
+      ctx.lineTo(cx - h * 0.06, cy + h * 0.12); ctx.lineTo(cx - h * 0.14, cy - h * 0.04);
+      ctx.closePath(); ctx.fill();
+      return;
+    }
+
     if (d === 'h') {
       // 橫三色
       for (let i = 0; i < 3; i++) {
@@ -2973,6 +3025,29 @@ const Sprites = (function () {
       ctx.fillStyle = colors[i];
       ctx.fillRect(x + i * (w / 3), y, w / 3 + 0.5, h);
     }
+  }
+
+  /** 新月：color 的圓，再用 bg（顏色字串，或 function(cx, cy, r) 自己補底）挖掉右邊一塊 → 開口朝右 */
+  function crescent(ctx, cx, cy, r, color, bg) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    const ox = cx + r * 0.32, orr = r * 0.8;
+    if (typeof bg === 'function') { bg(ox, cy, orr); return; }
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(ox, cy, orr, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** 實心五角星（rot = 旋轉，0 = 尖角朝上） */
+  function star5(ctx, cx, cy, r, color, rot) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (rot || 0) + i * Math.PI / 5;
+      const rr = i % 2 ? r * 0.42 : r;
+      const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
   }
 
   /** 終點旗：旗杆 + 飄動的國旗 */
@@ -5397,6 +5472,246 @@ const Sprites = (function () {
   }
 
   landmarks.koutoubia = koutoubiaLm;
+
+  // ── v1.23 非洲篇補齊：阿爾及利亞、突尼西亞、利比亞、埃及 ──
+
+  /** 阿爾及利亞：塔西利高原的砂岩石林（風蝕成蘑菇狀的石柱＋天然石拱） */
+  function tassiliLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(150, 80, 50, 0.6)';
+    // 石拱
+    ctx.beginPath();
+    ctx.moveTo(-170 * s, 0); ctx.lineTo(-160 * s, -150 * s); ctx.quadraticCurveTo(-90 * s, -190 * s, -20 * s, -150 * s);
+    ctx.lineTo(-10 * s, 0); ctx.lineTo(-45 * s, 0); ctx.quadraticCurveTo(-60 * s, -110 * s, -90 * s, -112 * s);
+    ctx.quadraticCurveTo(-125 * s, -110 * s, -135 * s, 0); ctx.closePath(); ctx.fill();
+    // 蘑菇石柱
+    [[40, 210, 26], [110, 160, 20], [170, 230, 30]].forEach(function (c) {
+      ctx.fillStyle = 'rgba(165, 92, 58, 0.62)';
+      ctx.fillRect((c[0] - c[2] * 0.45) * s, -c[1] * s, c[2] * 0.9 * s, c[1] * s);
+      ctx.beginPath(); ctx.ellipse(c[0] * s, -c[1] * s, c[2] * 1.3 * s, c[2] * 0.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    // 岩畫：一頭長頸鹿（白色線條）
+    ctx.strokeStyle = 'rgba(250, 236, 210, 0.75)'; ctx.lineWidth = 2.2 * s;
+    ctx.beginPath();
+    ctx.moveTo(-150 * s, -40 * s); ctx.lineTo(-150 * s, -60 * s); ctx.lineTo(-120 * s, -60 * s); ctx.lineTo(-120 * s, -40 * s);
+    ctx.moveTo(-122 * s, -60 * s); ctx.lineTo(-112 * s, -96 * s); ctx.lineTo(-104 * s, -96 * s);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** 突尼西亞：托澤老城的黃磚門樓（磚砌出鑽石、菱形的幾何花紋） */
+  function tozeurLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(214, 170, 104, 0.7)';
+    ctx.fillRect(-110 * s, -170 * s, 220 * s, 170 * s);
+    ctx.fillRect(-140 * s, -110 * s, 30 * s, 110 * s);
+    ctx.fillRect(110 * s, -110 * s, 30 * s, 110 * s);
+    // 門
+    ctx.fillStyle = 'rgba(70, 50, 30, 0.5)';
+    ctx.beginPath(); ctx.moveTo(-26 * s, 0); ctx.lineTo(-26 * s, -70 * s); ctx.arc(0, -70 * s, 26 * s, Math.PI, 0); ctx.lineTo(26 * s, 0); ctx.fill();
+    // 磚紋：凸出的磚排成菱形
+    ctx.fillStyle = 'rgba(150, 104, 56, 0.6)';
+    for (let r = 0; r < 3; r++) {
+      for (let k = -3; k <= 3; k++) {
+        const cx = k * 30 * s, cy = (-150 + r * 26) * s;
+        ctx.beginPath(); ctx.moveTo(cx, cy - 8 * s); ctx.lineTo(cx + 8 * s, cy); ctx.lineTo(cx, cy + 8 * s); ctx.lineTo(cx - 8 * s, cy); ctx.fill();
+      }
+    }
+    // 頂上的鋸齒
+    for (let k = 0; k < 9; k++) ctx.fillRect((-108 + k * 25) * s, -182 * s, 14 * s, 12 * s);
+    ctx.restore();
+  }
+
+  /** 利比亞：大萊普提斯的塞維魯凱旋門（四面拱門）＋旁邊一排羅馬柱 */
+  function leptisLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(226, 206, 168, 0.68)';
+    ctx.fillRect(-90 * s, -200 * s, 180 * s, 200 * s);
+    ctx.fillStyle = 'rgba(200, 180, 140, 0.7)';
+    ctx.fillRect(-100 * s, -216 * s, 200 * s, 18 * s);
+    ctx.fillStyle = 'rgba(90, 76, 60, 0.45)';
+    ctx.beginPath(); ctx.moveTo(-40 * s, 0); ctx.lineTo(-40 * s, -100 * s); ctx.arc(0, -100 * s, 40 * s, Math.PI, 0); ctx.lineTo(40 * s, 0); ctx.fill();
+    for (let k = 0; k < 6; k++) {
+      ctx.fillStyle = 'rgba(232, 214, 178, 0.6)';
+      ctx.fillRect((120 + k * 30) * s, -150 * s, 14 * s, 150 * s);
+      ctx.fillRect((115 + k * 30) * s, -158 * s, 24 * s, 8 * s);
+    }
+    ctx.fillRect(115 * s, -168 * s, 174 * s, 10 * s);
+    ctx.restore();
+  }
+
+  /** 埃及：吉薩三座金字塔 */
+  function pyramidsLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    [[-120, 120, 'rgba(214, 170, 100, 0.55)'], [60, 220, 'rgba(224, 180, 106, 0.7)'], [230, 150, 'rgba(204, 160, 92, 0.6)']].forEach(function (p) {
+      ctx.fillStyle = p[2];
+      ctx.beginPath(); ctx.moveTo((p[0] - p[1]) * s, 0); ctx.lineTo(p[0] * s, -p[1] * s); ctx.lineTo((p[0] + p[1]) * s, 0); ctx.closePath(); ctx.fill();
+      // 背光面
+      ctx.fillStyle = 'rgba(120, 80, 40, 0.25)';
+      ctx.beginPath(); ctx.moveTo(p[0] * s, -p[1] * s); ctx.lineTo((p[0] + p[1]) * s, 0); ctx.lineTo((p[0] + p[1] * 0.3) * s, 0); ctx.closePath(); ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  landmarks.tassili = tassiliLm;
+  landmarks.tozeur = tozeurLm;
+  landmarks.leptis = leptisLm;
+  landmarks.pyramids = pyramidsLm;
+
+  // 遠景
+  // 阿爾及利亞：一層層的紅色沙丘＋遠方平頂山
+  skylines.DZ = function (ctx, camX, gy, W) {
+    ridge(ctx, camX, 0.08, gy - 50, W, 'rgba(170, 96, 60, 0.45)', 120, 4, 13);
+    tiled(ctx, camX, 0.18, 640, W, function (x0) {
+      ctx.fillStyle = 'rgba(160, 84, 50, 0.5)';
+      ctx.fillRect(x0 + 120, gy - 120, 150, 120);
+      ctx.beginPath(); ctx.moveTo(x0 + 90, gy); ctx.lineTo(x0 + 120, gy - 120); ctx.lineTo(x0 + 120, gy); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x0 + 270, gy - 120); ctx.lineTo(x0 + 300, gy); ctx.lineTo(x0 + 270, gy); ctx.fill();
+    });
+    ridge(ctx, camX, 0.3, gy, W, 'rgba(220, 150, 90, 0.55)', 60, 0, 5);
+  };
+  // 突尼西亞：鹽湖的白色湖面＋海市蜃樓（倒影晃動的椰棗樹）
+  skylines.TN = function (ctx, camX, gy, W, def, t) {
+    ctx.fillStyle = 'rgba(236, 240, 236, 0.6)';
+    ctx.fillRect(0, gy - 40, W, 40);
+    tiled(ctx, camX, 0.15, 420, W, function (x0) {
+      for (let k = 0; k < 3; k++) {
+        const px = x0 + 80 + k * 46, wob = Math.sin(t * 0.05 + k) * 2;
+        ctx.fillStyle = 'rgba(70, 110, 70, 0.45)';
+        ctx.fillRect(px + wob, gy - 96, 4, 56);
+        ctx.beginPath(); ctx.ellipse(px + 2 + wob, gy - 98, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
+        // 倒影
+        ctx.fillStyle = 'rgba(70, 110, 70, 0.18)';
+        ctx.fillRect(px - wob, gy - 40, 4, 26);
+      }
+    });
+  };
+  // 利比亞：地中海＋沙丘上露出的古城牆
+  skylines.LY = function (ctx, camX, gy, W, def, t) {
+    seaBand(ctx, gy, W, gy - 70, 'rgba(50, 130, 190, 0.55)', t);
+    tiled(ctx, camX, 0.25, 520, W, function (x0) {
+      ctx.fillStyle = 'rgba(214, 196, 160, 0.6)';
+      ctx.fillRect(x0 + 40, gy - 50, 260, 50);
+      for (let k = 0; k < 8; k++) ctx.fillRect(x0 + 60 + k * 30, gy - 100, 10, 50);
+      ctx.fillRect(x0 + 52, gy - 108, 240, 8);
+    });
+  };
+  // 埃及：尼羅河與三角帆船
+  skylines.EG = function (ctx, camX, gy, W, def, t) {
+    seaBand(ctx, gy, W, gy - 34, 'rgba(60, 120, 150, 0.55)', t);
+    tiled(ctx, camX, 0.2, 480, W, function (x0) {
+      const bx = x0 + 200 + Math.sin(t * 0.01) * 20;
+      ctx.fillStyle = 'rgba(90, 60, 40, 0.5)';
+      ctx.fillRect(bx - 20, gy - 30, 40, 6);
+      ctx.fillStyle = 'rgba(250, 244, 230, 0.7)';
+      ctx.beginPath(); ctx.moveTo(bx, gy - 30); ctx.lineTo(bx, gy - 90); ctx.lineTo(bx + 34, gy - 34); ctx.closePath(); ctx.fill();
+    });
+  };
+
+  // 裝備圖示
+  /** 圖阿雷格頭巾 tagelmust：靛藍色的纏頭布，只露出眼睛 */
+  icons.tagelmust = function (ctx, s) {
+    ctx.fillStyle = '#2a3a8a';
+    ctx.beginPath(); ctx.ellipse(0, -4 * s, 13 * s, 11 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(-11 * s, -2 * s, 22 * s, 12 * s);
+    ctx.fillStyle = '#4a5ab0';
+    ctx.fillRect(-13 * s, -8 * s, 26 * s, 3 * s);
+    ctx.fillStyle = '#c89a6a';
+    ctx.fillRect(-8 * s, 0, 16 * s, 4 * s);
+    ctx.fillStyle = '#1a1424';
+    ctx.fillRect(-5 * s, 1 * s, 3 * s, 2 * s); ctx.fillRect(2 * s, 1 * s, 3 * s, 2 * s);
+  };
+  /** 法蒂瑪之手 khamsa：藍色手掌、中間一顆眼睛 */
+  icons.khamsa = function (ctx, s) {
+    ctx.fillStyle = '#3a8ad0';
+    for (let k = 0; k < 3; k++) U.roundRect(ctx, (-7 + k * 5) * s, -14 * s, 4 * s, 12 * s, 2 * s), ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-10 * s, 0, 3 * s, 6 * s, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(10 * s, 0, 3 * s, 6 * s, 0.4, 0, Math.PI * 2); ctx.fill();
+    U.roundRect(ctx, -9 * s, -4 * s, 18 * s, 16 * s, 6 * s); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(0, 4 * s, 5 * s, 3 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a3a6a';
+    ctx.beginPath(); ctx.arc(0, 4 * s, 1.8 * s, 0, Math.PI * 2); ctx.fill();
+  };
+  /** 古達米斯皮靴：紅色軟皮短靴，鞋面有黃綠刺繡 */
+  icons.ghadames = function (ctx, s) {
+    ctx.fillStyle = '#b8402a';
+    ctx.beginPath();
+    ctx.moveTo(-8 * s, -12 * s); ctx.lineTo(4 * s, -12 * s); ctx.lineTo(4 * s, 0);
+    ctx.quadraticCurveTo(14 * s, 0, 15 * s, 6 * s); ctx.lineTo(-10 * s, 6 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#6a2a18'; ctx.fillRect(-10 * s, 6 * s, 25 * s, 3 * s);
+    ctx.fillStyle = '#f1c40f'; ctx.fillRect(-6 * s, -9 * s, 8 * s, 2 * s);
+    ctx.fillStyle = '#3fa04a'; ctx.fillRect(-6 * s, -5 * s, 8 * s, 2 * s);
+  };
+  /** 安卡 ankh：金色、上面一個環的十字 */
+  icons.ankh = function (ctx, s) {
+    ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 4 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, -9 * s, 5 * s, 6 * s, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -3 * s); ctx.lineTo(0, 13 * s); ctx.moveTo(-9 * s, 1 * s); ctx.lineTo(9 * s, 1 * s); ctx.stroke();
+    ctx.lineCap = 'butt';
+  };
+
+  /** 埃及：方尖碑（道具） */
+  props.obelisk = function (ctx, x, baseY) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#d8b878';
+    ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(-10, -150); ctx.lineTo(0, -166); ctx.lineTo(10, -150); ctx.lineTo(14, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(120, 80, 40, 0.5)';
+    for (let k = 0; k < 6; k++) ctx.fillRect(-4, -136 + k * 20, 8, 3);
+    ctx.fillStyle = '#e8c860';
+    ctx.beginPath(); ctx.moveTo(-10, -150); ctx.lineTo(0, -166); ctx.lineTo(10, -150); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  };
+
+  /**
+   * 埃及最終魔王：人面獅身。趴著的獅身＋戴法老藍金條紋頭巾（nemes）的人頭。
+   * 重壓前會撐起前腳、齊射時張嘴；破綻期趴平、頭巾歪掉。
+   */
+  function bossSphinx(ctx, b, t) {
+    const stunned = b.phase === 'recover';
+    const act = b.phase === 'act' || b.phase === 'telegraph';
+    ctx.save();
+    ctx.translate(b.x + b.w / 2, b.y + b.h);
+    ctx.scale(b.dir < 0 ? -1 : 1, 1);
+    // 獅身
+    ctx.fillStyle = '#d8a860';
+    U.roundRect(ctx, -48, -40, 82, 34, 14); ctx.fill();
+    // 腿（前腳伸向前方）
+    ctx.fillRect(-44, -12, 14, 12);
+    ctx.fillRect(16, -10, 34, 10);
+    // 尾巴
+    ctx.strokeStyle = '#c0904a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-46, -30); ctx.quadraticCurveTo(-60, -40 + Math.sin(t * 0.1) * 4, -54, -54); ctx.stroke();
+    // 頭（在前方偏上）＋把頭接到身體的胸口
+    const hy = stunned ? -46 : act ? -76 : -68;
+    ctx.fillStyle = '#d8a860';
+    ctx.beginPath(); ctx.moveTo(6, -36); ctx.lineTo(14, hy + 14); ctx.lineTo(40, hy + 14); ctx.lineTo(44, -30); ctx.closePath(); ctx.fill();
+    ctx.save();
+    ctx.translate(26, hy);
+    if (stunned) ctx.rotate(0.25);
+    // 頭巾 nemes：藍金條紋，兩側垂下
+    ctx.fillStyle = '#e8c040';
+    ctx.beginPath(); ctx.moveTo(-20, -8); ctx.quadraticCurveTo(0, -30, 20, -8); ctx.lineTo(22, 26); ctx.lineTo(12, 26); ctx.lineTo(10, 4); ctx.lineTo(-10, 4); ctx.lineTo(-12, 26); ctx.lineTo(-22, 26); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2a50a0';
+    for (let k = 0; k < 4; k++) {
+      ctx.fillRect(-22 + (k % 2) * 34, 0 + Math.floor(k / 2) * 12 + 4, 10, 4);
+    }
+    ctx.fillRect(-14, -14, 28, 3);
+    // 臉
+    ctx.fillStyle = '#c89050';
+    U.roundRect(ctx, -10, -8, 20, 22, 6); ctx.fill();
+    ctx.fillStyle = stunned ? '#ffd166' : '#1a1424';
+    ctx.fillRect(-6, -2, 4, 3); ctx.fillRect(3, -2, 4, 3);
+    // 嘴：齊射時張開
+    ctx.fillStyle = '#6a2a1a';
+    if (b.phase === 'act' && b.mode === 'volley') { ctx.beginPath(); ctx.ellipse(1, 8, 4, 3, 0, 0, Math.PI * 2); ctx.fill(); }
+    else ctx.fillRect(-3, 8, 7, 1.5);
+    // 法老鬍
+    ctx.fillStyle = '#2a50a0'; ctx.fillRect(-2, 14, 5, 8);
+    ctx.restore();
+    ctx.restore();
+  }
+  bossKinds.sphinx = bossSphinx;
 
   /** 保加利亞：大馬士革玫瑰花叢 */
   function roseBush(ctx, x, baseY, t) {

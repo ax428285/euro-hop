@@ -30,7 +30,12 @@ function runFlagCheck() {
     BG: { dir: 'h', order: ['white', 'green', 'red'] },      // 白綠紅 橫
     UA: { dir: 'h2', order: ['blue', 'gold'] },              // 藍黃 兩色橫
     // v1.21 非洲篇
-    MA: { dir: 'star', order: null }                         // 紅底，中央綠色五角星（空心線條）
+    MA: { dir: 'star', order: null },                        // 紅底，中央綠色五角星（空心線條）
+    // v1.23
+    DZ: { dir: 'dz', order: null },                          // 左綠右白，中央紅新月＋紅星
+    TN: { dir: 'tn', order: null },                          // 紅底，中央白圓盤裡紅新月＋紅星
+    LY: { dir: 'ly', order: null },                          // 紅黑綠（1:2:1），黑帶裡白新月＋白星
+    EG: { dir: 'eg', order: null }                           // 紅白黑橫三色，中央金鷹
   };
 
   const cv = document.createElement('canvas');
@@ -185,6 +190,39 @@ function runFlagCheck() {
       let green = false;
       for (let y = H * 0.18; y < H * 0.5 && !green; y += 1) green = name(px(W / 2, y)) === 'green';
       if (!green) issues.push(lv.country + ' 中央應有綠色五角星，量不到綠色線條');
+    } else if (exp.dir === 'dz') {
+      // 阿爾及利亞：左上綠、右上白（左右兩半，不是上下）；中央附近有紅
+      const tl = name(px(W * 0.1, H * 0.1)), tr = name(px(W * 0.9, H * 0.1));
+      const bl = name(px(W * 0.1, H * 0.9));
+      if (tl !== 'green' || bl !== 'green') issues.push(lv.country + ' 左半應為綠，量到 ' + tl + ' / ' + bl);
+      if (tr !== 'white') issues.push(lv.country + ' 右半應為白，量到 ' + tr);
+      let red = false;
+      for (let x = W * 0.3; x < W * 0.7 && !red; x += 1) red = name(px(x, H / 2)) === 'red';
+      if (!red) issues.push(lv.country + ' 中央應有紅色新月');
+    } else if (exp.dir === 'tn') {
+      // 突尼西亞：四角紅；中央橫線上有白（圓盤）也有紅（新月）
+      if (name(px(4, 4)) !== 'red') issues.push(lv.country + ' 底色應為紅');
+      let white = false, red = false;
+      for (let x = W * 0.35; x < W * 0.65; x += 1) {
+        const n = name(px(x, H / 2));
+        if (n === 'white') white = true;
+        if (n === 'red') red = true;
+      }
+      if (!white) issues.push(lv.country + ' 中央應有白色圓盤');
+      if (!red) issues.push(lv.country + ' 白圓盤裡應有紅色新月');
+    } else if (exp.dir === 'ly') {
+      // 利比亞：上紅、中黑、下綠（橫條）；黑帶中央有白新月
+      const t1 = name(px(W * 0.1, H * 0.1)), t2 = name(px(W * 0.1, H * 0.5)), t3 = name(px(W * 0.1, H * 0.9));
+      if (t1 !== 'red' || t2 !== 'black' || t3 !== 'green') issues.push(lv.country + ' 橫條應為紅/黑/綠，量到 ' + [t1, t2, t3].join('/'));
+      if (name(px(W * 0.9, H * 0.1)) !== 'red') issues.push(lv.country + ' 宣告橫條，但同一列左右色不同');
+      let white = false;
+      for (let x = W * 0.35; x < W * 0.65 && !white; x += 1) white = name(px(x, H / 2)) === 'white';
+      if (!white) issues.push(lv.country + ' 黑帶中央應有白色新月');
+    } else if (exp.dir === 'eg') {
+      // 埃及：紅白黑橫三色（取樣避開中央的金鷹），中央是金色
+      const got = [px(W * 0.15, H / 6), px(W * 0.15, H / 2), px(W * 0.15, H * 5 / 6)].map(name);
+      if (got.join(',') !== 'red,white,black') issues.push(lv.country + ' 橫三色應為 紅,白,黑，量到 ' + got.join(','));
+      if (name(px(W / 2, H / 2)) !== 'gold') issues.push(lv.country + ' 中央應有金色的鷹');
     }
   });
 
@@ -218,7 +256,7 @@ function runFlagCheck() {
   Object.keys(fingerprints.v || {}).forEach(function (id) {
     plainV.push(fingerprints.v[id]);
   });
-  ['uk', 'esp', 'cze', 'cross', 'greek', 'h', 'star'].forEach(function (dirKey) {
+  ['uk', 'esp', 'cze', 'cross', 'greek', 'h', 'star', 'dz', 'tn', 'ly', 'eg'].forEach(function (dirKey) {
     const group = fingerprints[dirKey];
     if (!group) return;
     Object.keys(group).forEach(function (id) {

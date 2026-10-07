@@ -170,6 +170,35 @@ const Equipment = (function () {
       desc: '踩空邊緣後還來得及跳（寬限時間加倍）',
       note: '摩洛哥的 babouche 是不分左右腳的尖頭皮拖鞋，馬拉喀什的市集一整條街都在賣。',
       apply: function (s) { s.coyoteX = 2; }
+    },
+    // ── v1.23 非洲篇補齊 ──
+    {
+      id: 'tagelmust', level: 19, country: '阿爾及利亞', icon: 'tagelmust',
+      name: '圖阿雷格頭巾',
+      desc: '不怕風沙：逆風、沙塵暴推不動你，黃沙裡也看得比較遠',
+      note: '撒哈拉的圖阿雷格男子用好幾公尺長的靛藍布纏頭遮臉，被稱為「藍色的人」。',
+      apply: function (s) { s.stormProof = true; }
+    },
+    {
+      id: 'khamsa', level: 20, country: '突尼西亞', icon: 'khamsa',
+      name: '法蒂瑪之手',
+      desc: '護身符：每一關第一次「最後一顆愛心」被打掉時，替你擋下來',
+      note: '五指張開的手形護身符 khamsa 在北非到處都是，掛在門上、戴在身上，傳說能擋住「邪眼」。',
+      apply: function (s) { s.guardian = true; }
+    },
+    {
+      id: 'ghadames', level: 21, country: '利比亞', icon: 'ghadames',
+      name: '古達米斯皮靴',
+      desc: '走沙地不會陷：流沙、鹽泥都照常跑跳',
+      note: '利比亞的古達米斯是「沙漠中的珍珠」，當地的皮革手工很有名，歐洲人以前就叫這種軟皮 gadamesi。',
+      apply: function (s) { s.sandWalk = true; }
+    },
+    {
+      id: 'ankh', level: 22, country: '埃及', icon: 'ankh',
+      name: '安卡生命之符',
+      desc: '愛心上限 +1',
+      note: '上端是圓環的十字 ankh 在古埃及象形文字裡就是「生命」，法老和眾神的畫像常拿著它。',
+      apply: function (s) { s.maxLives += 1; }
     }
   ];
 
@@ -180,11 +209,11 @@ const Equipment = (function () {
    *    之後英國的板球「部位不空、不自動裝」→ 新玩家整個西歐篇都沒有遠程攻擊（touch-check 抓到的）。
    */
   const SLOTS = [
-    { id: 'head', name: '頭',   items: ['beret', 'laurel'] },
+    { id: 'head', name: '頭',   items: ['beret', 'laurel', 'tagelmust'] },
     { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat'] },
     { id: 'hand', name: '手',   items: ['paprika', 'brolly', 'valaska'] },
-    { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche'] },
-    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan'] }
+    { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche', 'ghadames'] },
+    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan', 'ankh', 'khamsa'] }
   ];
 
   const byId = {};
@@ -224,6 +253,10 @@ const Equipment = (function () {
       highStomp: false,   // 踩敵人彈得更高（奧地利指揮棒）
       stompAll: false,    // 踩不死的敵人也踩得倒（斯洛伐克斧杖）
       coyoteX: 1,         // 踩空邊緣後還能跳的寬限帧數倍率（v1.21 摩洛哥尖頭拖鞋）
+      // v1.23 非洲篇
+      stormProof: false,  // 風沙推不動、沙塵暴看得遠（阿爾及利亞頭巾）
+      guardian: false,    // 每關擋一次致命傷（突尼西亞法蒂瑪之手）
+      sandWalk: false,    // 流沙／鹽泥不會陷（利比亞皮靴）
       // 以下由商店強化提供（Shop.resolve）
       magnet: 0,          // 金幣吸取半徑，0 = 沒有
       jumpBoost: 0,       // 跳躍力加成

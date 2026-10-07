@@ -47,14 +47,31 @@ const Features = (function () {
   }
 
   /** 從偏好位置往兩側找第一個合格點 */
-  function findSpot(ctx, prefer, w, headroom) {
+  function findSpot(ctx, prefer, w, headroom, force) {
     for (let d = 0; d < 1600; d += 20) {
       for (const sgn of [1, -1]) {
-        const sp = clearSpot(ctx, Math.round(prefer + sgn * d), w, headroom);
+        const sp = (force ? forceSpot : clearSpot)(ctx, Math.round(prefer + sgn * d), w, headroom);
         if (sp) return sp;
       }
     }
     return null;
+  }
+
+  /**
+   * 跟 clearSpot 一樣，但頭上的浮空平台不算阻擋 —— 找到後把那一欄的平台拿掉。
+   * 駱駝、石柱要一大片平地（380~460 寬），平地關卡兩層平台幾乎蓋滿，照 clearSpot 的規則一整關只放得下 1 隻。
+   * 駝峰上的人頭頂 ≈ 地面上 100px，剛好撞到第一層平台（92），所以那一欄的平台本來就得拿掉。
+   * （平台上的金幣會留在空中，玩家跳起來一樣吃得到）
+   */
+  function forceSpot(ctx, x, w, headroom) {
+    const s = ctx.segs.filter(function (g) { return x >= g.x + 40 && x + w <= g.x + g.w - 40; })[0];
+    if (!s) return null;
+    const col = { x: x - 20, y: s.y - headroom, w: w + 40, h: headroom };
+    const hit = function (b) { return col.x < b.x + b.w && col.x + col.w > b.x && col.y < b.y + b.h && col.y + col.h > b.y; };
+    if (ctx.avoid.some(hit)) return null;
+    if (Math.abs(x - ctx.goal) < 260 || x + w > ctx.goal - 200) return null;
+    for (let i = ctx.platforms.length - 1; i >= 0; i--) if (hit(ctx.platforms[i])) ctx.platforms.splice(i, 1);
+    return { x: x, y: s.y, seg: s };
   }
 
   /** 一串往上排的金幣（彈跳／間歇泉的獎勵） */
@@ -129,6 +146,33 @@ const Features = (function () {
           list.push({ type: 'sand', x: sp.x, y: sp.y, w: SAND_W });
           ctx.avoid.push({ x: sp.x - 100, y: 0, w: SAND_W + 200, h: 600 });
         }
+      } else if (c.type === 'sandstorm') {
+        // 阿爾及利亞：撒哈拉沙塵暴。一段區間內週期性起逆風＋黃沙蓋住畫面
+        list.push({ type: 'sandstorm', x0: Math.round(W * (c.from || 0.25)), x1: Math.round(W * (c.to || 0.85)) });
+      } else if (c.type === 'camels') {
+        /*
+         * 突尼西亞：杰里德鹽湖。平地上幾大片鹽泥（比摩洛哥流沙寬、陷得快），
+         * 每片配一隻駱駝在湖兩岸之間來回走，駝峰是會移動的平台（站上去會被載著走）。
+         */
+        const n = c.count || 4;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.14 + 0.72 * i / Math.max(1, n - 1)), BRINE_W + 2 * CAMEL_MARGIN, 120, true);
+          if (!sp || sp.x < 700) continue;
+          const sx = sp.x + CAMEL_MARGIN;
+          // 駱駝先放（feature-check 用第一個的 type 判斷各國招牌不重複；鹽泥跟摩洛哥同是 sand）
+          list.push({ type: 'camel', x0: sp.x - 10, x1: sp.x + BRINE_W + 2 * CAMEL_MARGIN - CAMEL_W + 10, y: sp.y, phase: i * 97 });
+          list.push({ type: 'sand', x: sx, y: sp.y, w: BRINE_W, brine: true, limit: BRINE_LIMIT });
+          ctx.avoid.push({ x: sp.x - 100, y: 0, w: BRINE_W + 2 * CAMEL_MARGIN + 200, h: 600 });
+        }
+      } else if (c.type === 'columns') {
+        // 利比亞：羅馬古城的石柱，靠近就倒（倒向玩家走來的方向 = 左邊）
+        const n = c.count || 6;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.12 + 0.76 * i / Math.max(1, n - 1)), COL_FALL + 40, COL_H + 30, true);
+          if (!sp || sp.x < 700) continue;
+          list.push({ type: 'column', x: sp.x + COL_FALL + 20, y: sp.y });
+          ctx.avoid.push({ x: sp.x - 80, y: 0, w: COL_FALL + 200, h: 600 });
+        }
       } else if (c.type === 'thorns') {
         // 保加利亞：玫瑰荊棘，定時從地裡冒出來
         const n = c.count || 8;
@@ -152,6 +196,51 @@ const Features = (function () {
   const SAND_LIMIT = 150;
   const SAND_MAX_RUN = 2.3;
 
+  /*
+   * 鹽湖（突尼西亞）：鹽泥比流沙寬、陷得快一倍 —— 硬走過去一定受傷一次，
+   * 正解是等駱駝靠岸、跳上駝峰讓牠載過去（或用二段跳飛過去）。
+   */
+  const BRINE_W = 200;
+  const BRINE_LIMIT = 70;
+  const CAMEL_W = 84;
+  const CAMEL_MARGIN = 60;    // 湖兩岸各留多少乾地給駱駝停
+  const CAMEL_SPEED = 1.3;
+  const CAMEL_PAUSE = 80;     // 靠岸停多久（給玩家上下駱駝）
+  const HUMP_Y = 58;          // 駝峰頂離地多高
+  /*
+   * 石柱（利比亞）：玩家走到柱子左邊 COL_TRIGGER 內 → 搖晃 COL_SHAKE 帧 → 往左倒（COL_DROP 帧）。
+   * 倒下時壓在左邊 COL_FALL 寬的地上；倒完變成一道矮牆（可以踩、要跳過）。
+   * 全速跑過 200px 約 43 帧 < 45：反應快可以衝過去，不然就停下來等它倒。
+   */
+  const COL_H = 150;
+  const COL_FALL = 150;
+  const COL_TRIGGER = 200;
+  const COL_SHAKE = 45;
+  const COL_DROP = 22;
+  const COL_LYING_H = 22;
+  // 沙塵暴（阿爾及利亞）
+  const STORM_CYCLE = 440;    // 安靜 220 → 預告 60 → 颳 160
+  const STORM_PUSH = 0.8;
+
+  /** 阿爾及利亞沙塵暴：這一帧的狀態，以及黃沙濃度 0~1（預告時慢慢變濃、颳完慢慢散） */
+  function stormState(t) {
+    const k = t % STORM_CYCLE;
+    if (k < 220) return { state: 'calm', haze: k < 30 ? 1 - k / 30 : 0 };
+    if (k < 280) return { state: 'warn', haze: (k - 220) / 60 * 0.6 };
+    return { state: 'blow', haze: Math.min(1, 0.6 + (k - 280) / 30 * 0.4) };
+  }
+
+  /** 突尼西亞駱駝：用時間直接算位置（停左岸 → 走到右岸 → 停 → 走回來），結果可重現 */
+  function camelX(f, t) {
+    const walk = (f.x1 - f.x0) / CAMEL_SPEED;
+    const period = 2 * (CAMEL_PAUSE + walk);
+    const k = (t + f.phase) % period;
+    if (k < CAMEL_PAUSE) return { x: f.x0, dir: 1, moving: false };
+    if (k < CAMEL_PAUSE + walk) return { x: f.x0 + (k - CAMEL_PAUSE) * CAMEL_SPEED, dir: 1, moving: true };
+    if (k < 2 * CAMEL_PAUSE + walk) return { x: f.x1, dir: -1, moving: false };
+    return { x: f.x1 - (k - 2 * CAMEL_PAUSE - walk) * CAMEL_SPEED, dir: -1, moving: true };
+  }
+
   const GUST_CYCLE = 320;     // 一輪：安靜 → 預告 → 颳風
   const GUST_PUSH = 1.5;      // 逆風時每帧把地面上的玩家往回推幾 px（空中不推：跳躍距離不受影響）
   const THORN_CYCLE = 150;
@@ -170,7 +259,14 @@ const Features = (function () {
   function solids(state) {
     const fs = state.features;
     if (!fs) return [];
-    return fs.list.filter(function (f) { return f.type === 'bridge' && bridgeSolid(f); });
+    const out = fs.list.filter(function (f) { return f.type === 'bridge' && bridgeSolid(f); });
+    fs.list.forEach(function (f) {
+      // 駝峰：會動的平台（有 dx → entities.js 會讓站在上面的人跟著走）
+      if (f.type === 'camel' && f.hump) out.push(f.hump);
+      // 倒下的石柱：沒有人卡在裡面時才是實心（剛倒下壓到人時先不算，免得把人卡進牆裡）
+      if (f.type === 'column' && f.state === 'down' && f.lying && !f.blocked) out.push(f.lying);
+    });
+    return out;
   }
 
   // ── 執行期 ─────────────────────────────────────────────
@@ -183,6 +279,12 @@ const Features = (function () {
         if (f.type === 'barrels') { o.items = []; o.cd = 60; }
         if (f.type === 'cannons') { o.shells = []; o.cd = 60; o.seq = 0; }
         if (f.type === 'bridge') { o.state = 'ok'; o.timer = 0; }
+        if (f.type === 'column') { o.state = 'stand'; o.timer = 0; o.angle = 0; }
+        if (f.type === 'camel') {
+          const c0 = camelX(o, 0);
+          o.cx = c0.x; o.dir = c0.dir;
+          o.hump = { x: o.cx + 16, y: o.y - HUMP_Y, w: 52, h: 10, dx: 0, dy: 0, camel: true };
+        }
         return o;
       }),
       seen: {}
@@ -228,7 +330,8 @@ const Features = (function () {
     fs.list.forEach(function (f) {
       // 第一次接近時發一個事件，game.js 顯示提示
       const near = f.x0 != null ? lead.x > f.x0 - 300 && lead.x < (f.x1 || f.x0) : Math.abs(lead.x - f.x) < 420;
-      if (near && !fs.seen[f.type]) { fs.seen[f.type] = true; events.push('feature:' + f.type); }
+      const tipKey = f.brine ? 'brine' : f.type;      // 鹽湖跟流沙同一套機制，提示分開
+      if (near && !fs.seen[tipKey]) { fs.seen[tipKey] = true; events.push('feature:' + tipKey); }
 
       if (f.type === 'stampede') {
         if (!f.active && !f.done && lead.x > f.x0) {
@@ -274,8 +377,51 @@ const Features = (function () {
              * 改成纜車廂跟著風晃（畫面上，Sprites.gondola），在車站月台上才會被吹。
              */
             if (p.ridingMover) return;
+            if (p.stats && p.stats.stormProof) return;     // 圖阿雷格頭巾：風沙不怕
             if (p.onGround && p.x > f.x0 && p.x < f.x1) p.x -= GUST_PUSH;
           });
+        }
+      } else if (f.type === 'sandstorm') {
+        const ss = stormState(t);
+        f.state = ss.state;
+        // 只在區間內才算（離開區間黃沙慢慢散）
+        const inside = lead.x > f.x0 && lead.x < f.x1;
+        f.haze = inside ? ss.haze : Math.max(0, (f.haze || 0) - 0.03);
+        if (f.state === 'blow') {
+          players.forEach(function (p) {
+            if (p.ridingMover || (p.stats && p.stats.stormProof)) return;
+            if (p.onGround && p.x > f.x0 && p.x < f.x1) p.x -= STORM_PUSH;
+          });
+        }
+      } else if (f.type === 'camel') {
+        const c = camelX(f, t);
+        const dx = c.x - f.cx;
+        f.cx = c.x; f.dir = c.dir; f.moving = c.moving;
+        f.hump.dx = dx;
+        f.hump.x = f.cx + 16;
+      } else if (f.type === 'column') {
+        if (f.state === 'stand') {
+          const trig = players.some(function (p) { return p.x + p.w > f.x - COL_TRIGGER && p.x < f.x + 10; });
+          if (trig) { f.state = 'shake'; f.timer = COL_SHAKE; events.push('creak'); }
+        } else if (f.state === 'shake') {
+          if (--f.timer <= 0) { f.state = 'fall'; f.timer = 0; }
+        } else if (f.state === 'fall') {
+          f.timer++;
+          const k = f.timer / COL_DROP;
+          f.angle = k * k * Math.PI / 2;           // 越倒越快
+          if (k >= 0.6) {
+            // 快倒到地上了：底下的人被壓到
+            const zone = { x: f.x - COL_FALL, y: f.y - 40, w: COL_FALL - 6, h: 40 };
+            players.forEach(function (p, i) { if (U.overlap(p, zone)) hurt(p, f.x - COL_FALL / 2, events, pidOf(p, i)); });
+          }
+          if (f.timer >= COL_DROP) {
+            f.state = 'down'; f.angle = Math.PI / 2;
+            f.lying = { x: f.x - COL_FALL, y: f.y - COL_LYING_H, w: COL_FALL - 6, h: COL_LYING_H };
+            events.push('collapse');
+          }
+        }
+        if (f.state === 'down') {
+          f.blocked = players.some(function (p) { return U.overlap(p, f.lying); });
         }
       } else if (f.type === 'cannons') {
         if (lead.x > f.x0 && lead.x < f.x1 && --f.cd <= 0) {
@@ -310,8 +456,12 @@ const Features = (function () {
         }
       } else if (f.type === 'sand') {
         players.forEach(function (p) {
+          if (p.stats && p.stats.sandWalk) return;       // 古達米斯皮靴：沙地、鹽泥都不會陷
           const feet = p.y + p.h;
-          if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 6 && p.x < f.x + f.w - 6) p.inSand = true;
+          if (p.onGround && !p.ridingMover && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 6 && p.x < f.x + f.w - 6) {
+            p.inSand = true;
+            p.sandLimit = f.limit || SAND_LIMIT;
+          }
         });
       } else if (f.type === 'thorn') {
         const k = (t + f.phase) % THORN_CYCLE;
@@ -397,7 +547,7 @@ const Features = (function () {
          * 走完一片沙坑要 158 帧 > SAND_LIMIT，等於「一定受傷」。
          */
         p.vx = U.clamp(p.vx, -SAND_MAX_RUN, SAND_MAX_RUN);
-        if (p.sandT > SAND_LIMIT) {
+        if (p.sandT > (p.sandLimit || SAND_LIMIT)) {
           // 陷太深：受傷，順勢被彈出沙坑
           p.sandT = 0;
           hurt(p, p.x + p.w / 2 + (p.facing || 1) * -10, events, pidOf(p, i));
@@ -431,6 +581,75 @@ const Features = (function () {
     ctx.fillStyle = '#ff6b5a';
     ctx.fillRect(28, -24, 3, 2);
     ctx.restore();
+  }
+
+  /** 駱駝（側面）：x = 身體左緣、gy = 地面；dir 1 = 面向右。背上一塊紅色鞍毯（就是可以站的駝峰） */
+  function drawCamel(ctx, x, gy, dir, t) {
+    ctx.save();
+    ctx.translate(x + CAMEL_W / 2, gy);
+    ctx.scale(dir, 1);
+    const leg = t ? Math.sin(t * 0.18) * 6 : 0;
+    ctx.fillStyle = '#b8864e';
+    // 腿
+    [[-26, leg], [-14, -leg], [14, leg], [24, -leg]].forEach(function (l) {
+      ctx.fillRect(l[0] + l[1] * 0.3, -30, 6, 30);
+    });
+    // 身體 + 駝峰
+    ctx.beginPath(); ctx.ellipse(0, -36, 34, 14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-2, -46, 20, 12, 0, Math.PI, 0); ctx.fill();
+    // 脖子 + 頭
+    ctx.beginPath();
+    ctx.moveTo(26, -42); ctx.quadraticCurveTo(44, -48, 40, -66); ctx.lineTo(48, -70);
+    ctx.quadraticCurveTo(58, -68, 56, -62); ctx.lineTo(46, -60); ctx.quadraticCurveTo(48, -40, 32, -30);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3a2414';
+    ctx.fillRect(48, -68, 2, 2);
+    // 鞍毯（站的地方）
+    ctx.fillStyle = '#c0392b';
+    U.roundRect(ctx, -26, -HUMP_Y, 52, 8, 3); ctx.fill();
+    ctx.fillStyle = '#f1c40f';
+    for (let k = 0; k < 5; k++) ctx.fillRect(-22 + k * 10, -HUMP_Y + 6, 6, 4);
+    // 尾巴
+    ctx.strokeStyle = '#8a5a30'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-33, -38); ctx.quadraticCurveTo(-40, -30, -37, -22); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** 羅馬石柱：立著（搖晃時左右抖）→ 以底部右端為軸往左倒 → 躺在地上 */
+  function drawColumn(ctx, sx, gy, f, t) {
+    ctx.save();
+    let shake = 0;
+    if (f.state === 'shake') shake = Math.sin(t * 1.3) * 0.04;
+    ctx.translate(sx, gy);
+    ctx.rotate(-(f.angle || 0) - shake);
+    // 柱身：以 (0,0) 為左下角（倒下的轉軸）往上長，寬 0~28
+    ctx.fillStyle = '#e6d6b4';
+    ctx.fillRect(5, -COL_H + 12, 18, COL_H - 22);
+    ctx.fillStyle = 'rgba(150, 120, 80, 0.35)';
+    for (let k = 0; k < 3; k++) ctx.fillRect(9 + k * 5, -COL_H + 14, 2, COL_H - 26);
+    // 柱頭、柱基
+    ctx.fillStyle = '#d4c09a';
+    ctx.fillRect(0, -COL_H, 28, 12);
+    ctx.fillRect(1, -10, 26, 10);
+    // 裂縫
+    ctx.strokeStyle = 'rgba(90, 70, 50, 0.6)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(6, -70); ctx.lineTo(13, -76); ctx.lineTo(20, -68); ctx.stroke();
+    ctx.restore();
+    // 要倒了：地上預告它會壓到的範圍（紅色虛線框）
+    if (f.state === 'shake' || f.state === 'fall') {
+      ctx.strokeStyle = 'rgba(255, 80, 70, ' + (f.state === 'fall' ? 0.9 : 0.5 + Math.sin(t * 0.5) * 0.3).toFixed(2) + ')';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.strokeRect(sx - COL_FALL, gy - 6, COL_FALL - 6, 5);
+      ctx.setLineDash([]);
+      if (f.state === 'shake') {
+        // 柱頭掉下來的灰塵
+        ctx.fillStyle = 'rgba(220, 200, 160, 0.7)';
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath(); ctx.arc(sx + 8 + k * 6, gy - COL_H + 20 + ((t * 2 + k * 13) % 40), 2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
   }
 
   /**
@@ -553,6 +772,41 @@ const Features = (function () {
             ctx.beginPath(); ctx.arc(sx, s.y - 12, 40 - s.boom, 0, Math.PI * 2); ctx.fill();
           }
         });
+      } else if (f.type === 'sand' && f.brine) {
+        // 鹽湖：白色鹽殼裂成一塊一塊，縫裡是藍綠色的鹵水（跟摩洛哥的黃沙流沙一眼分得出來）
+        const sx = f.x - camX;
+        if (sx > 1000 || sx + f.w < -40) return;
+        ctx.fillStyle = '#5a9a98';
+        ctx.beginPath(); ctx.ellipse(sx + f.w / 2, f.y + 3, f.w / 2 + 4, 9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#eef2ea';
+        for (let k = 0; k < 8; k++) {
+          const x = sx + 12 + k * (f.w - 24) / 8;
+          ctx.beginPath(); ctx.ellipse(x + 12, f.y + 1, 11, 3.5, (k % 3 - 1) * 0.2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(200, 240, 235, 0.8)';
+        for (let b = 0; b < 4; b++) {
+          const ph = (t * 0.04 + b * 1.3) % 3;
+          if (ph < 1) { ctx.beginPath(); ctx.arc(sx + 30 + b * 56, f.y - ph * 4, 1.5 + ph * 2, 0, Math.PI * 2); ctx.fill(); }
+        }
+      } else if (f.type === 'camel') {
+        const sx = f.cx - camX;
+        if (sx > 1040 || sx + CAMEL_W < -80) return;
+        drawCamel(ctx, sx, f.y, f.dir, f.moving ? t : 0);
+      } else if (f.type === 'column') {
+        const sx = f.x - camX;
+        if (sx > 1060 || sx < -200) return;
+        drawColumn(ctx, sx, f.y, f, t);
+      } else if (f.type === 'sandstorm') {
+        if (!(f.haze > 0)) return;
+        // 颳風時一條條飛過的沙線（往左）
+        const n = f.state === 'blow' ? 30 : 10;
+        for (let i = 0; i < n; i++) {
+          const sx = 960 - ((t * (f.state === 'blow' ? 16 : 6) + i * 157) % 1100);
+          const sy = 60 + (i * 53) % 360;
+          ctx.strokeStyle = 'rgba(240, 200, 140, ' + (0.5 * f.haze).toFixed(2) + ')';
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + 60, sy - 4); ctx.stroke();
+        }
       } else if (f.type === 'sand') {
         // 流沙：比地面深一點的沙色、表面有慢慢轉的漩渦和冒泡（一眼看得出「這片不一樣」）
         const sx = f.x - camX;
@@ -662,6 +916,31 @@ const Features = (function () {
     g.fillRect(0, 0, 64, 64);
     return c;
   }
+  /** 低解析度遮罩：整片塗 color，再用 holes(hole) 挖出柔邊的圓（hole(x, y, r)） */
+  function maskWithHoles(ctx, W, H, color, holes) {
+    if (!dark) {
+      if (typeof document === 'undefined' || !document.createElement) return;
+      dark = document.createElement('canvas');
+      dark.width = Math.ceil(W * DARK_SCALE); dark.height = Math.ceil(H * DARK_SCALE);
+      darkCtx = dark.getContext('2d');
+      holeImg = makeHole();
+    }
+    const d = darkCtx;
+    if (!d) return;
+    const S = DARK_SCALE;
+    d.globalCompositeOperation = 'source-over';
+    d.clearRect(0, 0, dark.width, dark.height);
+    d.fillStyle = color;
+    d.fillRect(0, 0, dark.width, dark.height);
+    d.globalCompositeOperation = 'destination-out';
+    holes(function (x, y, r) {
+      if (x + r < 0 || x - r > W) return;
+      d.drawImage(holeImg, (x - r) * S, (y - r) * S, r * 2 * S, r * 2 * S);
+    });
+    d.globalCompositeOperation = 'source-over';
+    ctx.drawImage(dark, 0, 0, W, H);
+  }
+
   function drawOverlay(ctx, state, camX, t, W, H) {
     const fs = state.features;
     if (!fs) return;
@@ -671,7 +950,7 @@ const Features = (function () {
      */
     (state.players || []).forEach(function (p) {
       if (p.out || !(p.sandT > 0)) return;
-      const k = U.clamp(p.sandT / SAND_LIMIT, 0, 1);
+      const k = U.clamp(p.sandT / (p.sandLimit || SAND_LIMIT), 0, 1);
       const sx = p.x + p.w / 2 - camX, gy = p.y + p.h;
       const hgt = 6 + k * 22;
       const warn = k > 0.7 && Math.floor(t / 6) % 2 === 0;
@@ -681,6 +960,20 @@ const Features = (function () {
       ctx.fillRect(sx - 20, gy, 40, 3);
     });
     fs.list.forEach(function (f) {
+      if (f.type === 'sandstorm' && f.haze > 0) {
+        /*
+         * 沙塵暴：整個畫面蓋一層黃沙，玩家身邊挖一個看得見的圈。
+         * 戴圖阿雷格頭巾（stormProof）沙比較淡、圈比較大。共用鹽礦的 1/4 解析度遮罩（效能見下面說明）。
+         */
+        const proof = state.players.some(function (q) { return !q.out && q.stats && q.stats.stormProof; });
+        const a = (proof ? 0.5 : 0.82) * f.haze;
+        maskWithHoles(ctx, W, H, 'rgba(196, 140, 80, ' + a.toFixed(3) + ')', function (hole) {
+          state.players.forEach(function (q) {
+            if (!q.out) hole(q.x + q.w / 2 - camX, q.y + q.h / 2, proof ? 260 : 165);
+          });
+        });
+        return;
+      }
       if (f.type !== 'dark') return;
       const p = state.player;
       const pcx = p.x + p.w / 2;
@@ -726,6 +1019,9 @@ const Features = (function () {
     update: update,
     drawWorld: drawWorld,
     drawOverlay: drawOverlay,
+    stormState: stormState,
+    camelX: camelX,
+    BRINE_LIMIT: BRINE_LIMIT,
     BULL_SPEED: BULL_SPEED,
     PAD_V: PAD_V,
     GEYSER_V: GEYSER_V

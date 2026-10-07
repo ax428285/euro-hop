@@ -648,7 +648,9 @@ function updateBoss(state, t) {
       if (b.timer <= 0) {
         b.phase = 'act';
         events.push('act');
-        switch (b.pattern) {
+        // 人面獅身：重壓、齊射輪流出
+        if (b.pattern === 'sphinx') { b.cycle = (b.cycle || 0) + 1; b.mode = b.cycle % 2 ? 'slam' : 'volley'; }
+        switch (bossPatternOf(b)) {
           case 'charge':
             b.timer = 70;
             b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
@@ -738,7 +740,7 @@ function updateBoss(state, t) {
     }
 
     case 'act': {
-      switch (b.pattern) {
+      switch (bossPatternOf(b)) {
         case 'charge': {
           if (b.throwing) {
             // 擲槍：站定，朝玩家目前位置連丟三發（每發之間玩家都還能移動閃）
@@ -1024,6 +1026,16 @@ function updateBoss(state, t) {
  * 魔王是否可被傷害。
  * invuln 是「剛被打到的短暫硬直」，避免一次攻擊連續扣好幾滴血。
  */
+/** 這一輪實際用的招式（'sphinx' 這種會換招的魔王，看它這輪選了哪招） */
+function bossPatternOf(b) {
+  return b.pattern === 'sphinx' ? (b.mode || 'slam') : b.pattern;
+}
+
+/** 這一輪實際用的招式（'sphinx' 這種會換招的魔王，看它這輪選了哪招） */
+function bossPatternOf(b) {
+  return b.pattern === 'sphinx' ? (b.mode || 'slam') : b.pattern;
+}
+
 function bossVulnerable(b) {
   return !!b && !b.defeated && b.phase === 'recover' && b.invuln <= 0;
 }

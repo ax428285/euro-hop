@@ -100,6 +100,26 @@ function runEncounterCheck() {
       if (p.onGround && Math.abs(h.x - (p.x + p.w / 2)) < 40) { press.jump = true; held.jump = true; }
       if (!p.onGround && p.vy < 0) held.jump = true;
     },
+    // 斯庫拉（魔王）：浪來了就跳、紅圈罩著自己就閃開、頭卡在甲板上就跑過去踩
+    scylla: function (st, held, press) {
+      const p = st.player, mini = st.mini;
+      if (!mini) return;
+      const cx = p.x + p.w / 2;
+      if (!p.onGround && p.vy < 0) held.jump = true;
+      const wave = mini.waves.filter(function (w) { return w.warn <= 0 && (w.x - cx) * w.dir < 0 && Math.abs(w.x - cx) < 70; })[0];
+      if (wave) { if (p.onGround) { press.jump = true; held.jump = true; } return; }
+      const aim = mini.heads.filter(function (h) { return h.alive && h.state === 'aim' && Math.abs(h.tx - cx) < 95; })[0];
+      if (aim) {
+        const away = aim.tx + (cx < aim.tx ? -140 : 140);
+        moveTo(p, held, away < 40 ? aim.tx + 140 : away > 920 ? aim.tx - 140 : away, 4);
+        return;
+      }
+      const stuck = mini.heads.filter(function (h) { return h.alive && h.state === 'stuck' && h.t < 105; })[0];
+      if (stuck) {
+        moveTo(p, held, stuck.x, 6);
+        if (p.onGround && Math.abs(stuck.x - cx) < 46) { press.jump = true; held.jump = true; }
+      }
+    },
     // 捕捉：追著黃金海馬跑，牠在上面就跳
     golden: function (st, held, press) {
       const p = st.player, mini = st.mini;

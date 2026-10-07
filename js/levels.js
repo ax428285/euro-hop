@@ -1053,7 +1053,7 @@ const Levels = (function () {
   // 非洲篇（v1.21，海上 EXP 解鎖，見 Encounter.REGIONS）
   // 一定要接在最後面：存檔的通關紀錄、裝備是照關卡順序記的，插在中間會讓舊存檔整個錯位。
   // 只做地中海沿岸（v1.21.1 玩家：不要開發太南邊）：摩洛哥 → 阿爾及利亞 → 突尼西亞 → 利比亞 → 埃及
-  // 第一階段先做摩洛哥。（中間試做過肯亞，拿掉了）
+  // v1.21 先做摩洛哥，v1.23 補齊其餘四國（埃及是最終魔王）。（中間試做過肯亞，拿掉了）
   // ════════════════════════════════════════════════════════════
 
   // ────────────────────────────────────────────────────────────
@@ -1079,6 +1079,126 @@ const Levels = (function () {
     props: [
       { type: 'paprikaStall', x: 900 },    // 香料攤（借用匈牙利紅椒攤的造型）
       { type: 'paprikaStall', x: 4300 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 20. 阿爾及利亞 · 塔西利高原 —— 撒哈拉的沙塵暴（v1.23）
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1036,
+    id: 'DZ', country: '阿爾及利亞', city: '塔西利高原', region: 'africa',
+    flag: ['#006633', '#FFFFFF', '#D21034'], flagDir: 'dz',
+    landmark: 'tassili',
+    fact: '塔西利高原的岩壁上有上萬幅史前岩畫，畫著長頸鹿和河馬 —— 撒哈拉以前是一片草原。',
+    sky: ['#e0a868', '#f6e0b8'], hill: '#a8603a',
+    groundTop: '#d8a060', groundBody: '#7a4428',
+    deco: 'palm',
+    layout: 'hills',
+    groundTypes: ['walker', 'spiker', 'charger', 'guard'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.1,
+    // 招牌：沙塵暴 —— 一陣一陣颳過來，逆風推人、整個畫面被黃沙蓋住只看得到身邊
+    features: [{ type: 'sandstorm', from: 0.25, to: 0.85 }],
+    secretHint: '岩畫洞窟最深處，畫著一頭長頸鹿的那面牆',
+    secretNear: 0.5,
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 21. 突尼西亞 · 托澤 —— 杰里德鹽湖：騎駱駝過湖（v1.23）
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1033,
+    id: 'TN', country: '突尼西亞', city: '托澤', region: 'africa',
+    flag: ['#E70013', '#FFFFFF'], flagDir: 'tn',
+    landmark: 'tozeur',
+    fact: '托澤老城用黃磚砌出幾何花紋；旁邊的杰里德湖是撒哈拉最大的鹽湖，夏天常出現海市蜃樓。',
+    sky: ['#9ac0e0', '#f8ead0'], hill: '#c8a878',
+    groundTop: '#e0c890', groundBody: '#8a6a40',
+    deco: 'palm',
+    layout: 'flat',
+    groundTypes: ['walker', 'spiker', 'charger', 'guard'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    // 招牌：鹽湖沼澤 —— 一大片陷得很快的鹽泥，駱駝商隊來回走，騎在駝峰上過去最安全
+    features: [{ type: 'camels', count: 4 }],
+    secretHint: '黃磚牆上少了一塊花紋的地方',
+    secretNear: 0.55,
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 22. 利比亞 · 大萊普提斯 —— 羅馬古城的石柱會倒下來（v1.23）
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1034,
+    id: 'LY', country: '利比亞', city: '大萊普提斯', region: 'africa',
+    flag: ['#E70013', '#000000', '#239E46'], flagDir: 'ly',
+    landmark: 'leptis',
+    fact: '大萊普提斯是羅馬皇帝塞維魯的故鄉，被沙子埋了上千年，所以保存得比羅馬城裡的遺跡還完整。',
+    sky: ['#78b0e0', '#f4e4c4'], hill: '#b89868',
+    groundTop: '#d8c098', groundBody: '#7a6448',
+    deco: 'olive',
+    layout: 'flat',
+    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.1,
+    // 招牌：老石柱 —— 人一靠近就搖晃、倒下來（被壓到會痛），倒下後變成可以踩的矮牆
+    features: [{ type: 'columns', count: 7 }],
+    secretHint: '凱旋門柱基的石縫裡，有風吹出來',
+    secretNear: 0.5,
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 23. 埃及 · 吉薩 —— ⚔ 非洲篇最終魔王：人面獅身
+  // ────────────────────────────────────────────────────────────
+  list.push(bossLevel({
+    id: 'EG', country: '埃及', city: '吉薩', region: 'africa',
+    finale: true,     // 非洲篇最後一關
+    flag: ['#CE1126', '#FFFFFF', '#000000'], flagDir: 'eg',
+    landmark: 'pyramids',
+    fact: '吉薩大金字塔建於約 4500 年前，在將近 4000 年的時間裡都是世界上最高的建築。',
+    sky: ['#e8b070', '#f8e4c0'], hill: '#c8964e',
+    groundTop: '#e0b878', groundBody: '#8a6234',
+    deco: 'palm',
+    boss: {
+      name: '人面獅身 Sphinx',
+      kind: 'sphinx',
+      /*
+       * 輪流兩招（pattern 'sphinx'，見 entities.js bossPatternOf）：
+       *   跳躍重壓：撲起來砸地，兩側掀起貼地沙浪（跳起來閃），狂暴時天上掉金字塔石塊
+       *   沙暴齊射：坐定，從口中吐出扇形沙彈（左右走位閃）
+       * 跟前面的魔王比：要同時會「跳閃」和「走位」。
+       */
+      pattern: 'sphinx',
+      x: 760, w: 96, h: 84,
+      hp: 6,
+      jumps: 1,
+      rageAt: 3,
+      rageJumps: 2,
+      homing: 1.6,
+      waveSpeed: 2.8,
+      recoverTime: 140,
+      idleTime: 70,
+      debris: 3,
+      left: 300, right: 900,
+      speed: 1.3
+    },
+    equipAt: { x: 620, y: 380 },
+    props: [
+      { type: 'obelisk', x: 220 },
+      { type: 'obelisk', x: 1060 }
+    ],
+    platforms: [
+      { x: 70, y: 290, w: 160, h: 20 },
+      { x: 1050, y: 290, w: 160, h: 20 }
+    ],
+    coins: [
+      { x: 100, y: 248 }, { x: 134, y: 248 }, { x: 168, y: 248 }, { x: 202, y: 248 },
+      { x: 1080, y: 248 }, { x: 1114, y: 248 }, { x: 1148, y: 248 }, { x: 1182, y: 248 },
+      { x: 520, y: 330 }, { x: 554, y: 330 }, { x: 588, y: 330 }, { x: 622, y: 330 }
     ]
   }));
 

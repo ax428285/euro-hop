@@ -45,14 +45,18 @@ function runMysteryCheck() {
     // 過關畫面那一行（面板寬 540）
     if (width('🔍 歐洲之謎・新線索：' + cl.item + '（18/18）', 15) > 530) issues.push(def.country + ' 過關畫面的線索行太長');
   });
-  let answerH = 0;
-  cont.answer.forEach(function (p, i) {
-    const last = i === cont.answer.length - 1;
-    answerH += linesOf(p, W - 260, 16) * (last ? 30 : 26) + 4;
+  // 每個有謎底的洲（v1.23 非洲之謎也解得開了）
+  Mystery.continents.filter(function (c) { return c.answer; }).forEach(function (c) {
+    let answerH = 0;
+    c.answer.forEach(function (p, i) {
+      const last = i === c.answer.length - 1;
+      answerH += linesOf(p, W - 260, 16) * (last ? 30 : 26) + 4;
+    });
+    report['answerHeight_' + c.id] = answerH;
+    if (138 + answerH > 480 - 90) issues.push(c.name + '：謎底文字太長，會壓到下方的提示（高 ' + answerH + '）');
+    if (width(c.name + '：' + c.question, 16) + width('線索 18 / 18', 16) > W - 100) issues.push(c.name + '：謎題標題太長');
+    if (!c.answerTitle || !c.next) issues.push(c.name + '：缺謎底標題或下一個謎的預告');
   });
-  report.answerHeight = answerH;
-  if (138 + answerH > 480 - 90) issues.push('謎底文字太長，會壓到下方的提示（高 ' + answerH + '）');
-  if (width(cont.name + '：' + cont.question, 16) + width('線索 18 / 18', 16) > W - 100) issues.push('謎題標題太長');
 
   // ── 流程 ───────────────────────────────────────
   const SAVE_KEY = 'eurohop.save.v2';
