@@ -156,8 +156,8 @@ const Input = (function () {
 
   /**
    * 觸控按鈕綁定（手機只支援 P1）。
-   * opts.mainAction()：動作搖桿「上」那顆現在代表什麼動作（關卡裡是 jump，其他畫面是 confirm…），
-   *                    按下的那一刻問一次
+   * opts.actionFor(key)：動作搖桿上的某顆（'jump' / 'throw'）現在代表什麼動作 ——
+   *                    例如跳在關卡外是 confirm、放棄確認框裡丟是「回大地圖」。按下的那一刻問一次
    * opts.onPress(key, el)：動作搖桿某顆被按下（main.js 用來跳「武器未解鎖」提示）
    */
   function bindPad(root, opts) {
@@ -246,7 +246,7 @@ const Input = (function () {
         const want = !!dirs[s.dir];
         if (want === !!s.held) return;
         if (want) {
-          s.held = (s.key === 'jump' && opts.mainAction && opts.mainAction()) || s.key;
+          s.held = (opts.actionFor && opts.actionFor(s.key)) || s.key;
           set(targetOf(s.held), s.held, true);
           if (opts.onPress) opts.onPress(s.key, s.el);
         } else {

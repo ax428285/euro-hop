@@ -121,12 +121,14 @@ async function runTouchCheck() {
     check(!document.querySelector('#pad [data-key="attack"]'), '沒有揮的按鈕（v1.18 拿掉）');
   }
   // 按鈕離螢幕邊至少 16px（玩家回報：貼著邊框很難按）
+  // ☰ 例外：v1.20.2 玩家要它再往上、靠邊一點（6px），只要求不貼死在邊上（≥ 4px）
   ['dpad', 'actpad', 'btn-menu'].map(function (id) { return document.getElementById(id); })
     .concat(Array.prototype.slice.call(document.querySelectorAll('#pad .pad-actions .btn')))
     .forEach(function (el) {
       const r = el.getBoundingClientRect();
       const gap = Math.min(r.left, r.top, vw - r.right, vh - r.bottom);
-      check(gap >= 16, '離螢幕邊 ' + Math.round(gap) + 'px：' + (el.getAttribute('aria-label') || el.id) + '（要 ≥ 16px）');
+      const need = el.id === 'btn-menu' ? 4 : 16;
+      check(gap >= need, '離螢幕邊 ' + Math.round(gap) + 'px：' + (el.getAttribute('aria-label') || el.id) + '（要 ≥ ' + need + 'px）');
     });
   // 整頁關掉瀏覽器的放大手勢（玩家回報：點到旁邊畫面突然放大）
   check(getComputedStyle(document.documentElement).touchAction === 'none' &&
@@ -329,7 +331,17 @@ async function runTouchCheck() {
   tap('pause');
   tap('tomap');
   check(Game.debug.getScene() === 'quitconfirm', '暫停中按地圖鍵 → 也要確認');
-  tap('tomap');
+  // 確認框裡「丟」那顆變成「地圖」：按它回大地圖（v1.20.2 玩家要求）
+  Game.debug.step(1);
+  await new Promise(function (r) { setTimeout(r, 400); });   // 按鈕字每 200ms 同步一次
+  const thrBtn = document.querySelector('#pad [data-key="throw"]');
+  check(/地圖/.test(thrBtn.textContent) && !thrBtn.classList.contains('locked'),
+        '確認框裡丟的按鈕顯示「地圖」、沒有上鎖（' + thrBtn.textContent + '）');
+  tap('throw');
+  check(Game.debug.getScene() === 'map', '確認框按 丟（地圖）→ 回大地圖');
+  // 再按一次選單裡的地圖也還是可以離開
+  Game.debug.enter(0); Game.debug.step(5);
+  tap('tomap'); tap('tomap');
   check(Game.debug.getScene() === 'map', '確認框再按一次地圖 → 回大地圖');
   Game.debug.setScene('title');
   tap('confirm');

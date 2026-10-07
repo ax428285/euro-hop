@@ -2490,7 +2490,7 @@ const Game = (function () {
                          : '回大地圖後，這一關的金幣和分數不會保留',
       W / 2, 230, { size: 14, color: '#b9c6e2' });
     const touch = document.documentElement.classList.contains('touch');
-    U.text(ctx, touch ? '再按一次「地圖」回大地圖' : 'Enter／Q 回大地圖', W / 2, 270, { size: 18, color: '#ff9aa8' });
+    U.text(ctx, touch ? '按「地圖」（丟的那顆）回大地圖' : 'Enter／Q 回大地圖', W / 2, 270, { size: 18, color: '#ff9aa8' });
     U.text(ctx, touch ? '按「繼續」回到關卡' : 'Esc／P／空白（跳）繼續遊戲', W / 2, 304, { size: 16, color: '#ffffff' });
   }
 

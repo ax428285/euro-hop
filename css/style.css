@@ -248,8 +248,13 @@ html.touch #stage {
    */
   --gl: 0px;
   --gr: 0px;
-  /* 畫面撐滿時 ☰ 放在頂端資訊列下方，不要擋到左上角的關卡名稱 */
-  --menu-top: 22%;
+  /*
+   * 畫面撐滿時 ☰ 放在頂端資訊列下方，不要擋到左上角的關卡名稱。
+   * v1.20.2 玩家：再往上、靠邊一點 → 高度 22% → 13%（資訊列與進度條在 12% 以內），
+   * 離左邊 16 → 6px（--ml，只給 ☰ 用；搖桿等其他按鈕維持 16px）
+   */
+  --menu-top: 13%;
+  --ml: calc(6px + env(safe-area-inset-left));
   position: fixed;
   left: 0;
   top: 0;
@@ -270,6 +275,7 @@ html.touch.rot #stage {
   --pr: calc(16px + env(safe-area-inset-bottom));
   --pb: max(16px, env(safe-area-inset-left));
   --pl: calc(16px + env(safe-area-inset-top));
+  --ml: calc(6px + env(safe-area-inset-top));
   transform-origin: 0 0;
   transform: translateX(var(--vw)) rotate(90deg);
 }
@@ -331,9 +337,9 @@ html:not(.touch) #pad .sbtn { cursor: pointer; }
 /* #pad 提高權重：不然會被後面通用的 html.touch .sbtn 尺寸蓋掉 */
 #pad .sbtn-menu {
   position: absolute;
-  left: var(--pl);
-  /* 手機版在畫面左側的按鈕區頂端（--menu-top），不會疊到遊戲畫面 */
-  top: var(--menu-top, 22%);
+  left: var(--ml, var(--pl));
+  /* 頂端資訊列正下方（--menu-top；電腦版沒有設定，用同樣的 13%） */
+  top: var(--menu-top, 13%);
   width: 40px;
   min-width: 0;
   height: 40px;
@@ -348,8 +354,8 @@ html:not(.touch) #pad .sbtn { cursor: pointer; }
 #pad .pad-top {
   display: none;
   position: absolute;
-  left: calc(var(--pl) + 48px);
-  top: var(--menu-top, 22%);
+  left: calc(var(--ml, var(--pl)) + 48px);
+  top: var(--menu-top, 13%);
   max-width: 60%;
   justify-content: flex-start;
   padding: 6px;

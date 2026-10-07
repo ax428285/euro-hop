@@ -50,8 +50,11 @@
   /*
    * 「跳」與「確定」合成一顆（手機按鈕太多）。兩個動作用在不同畫面，不會搶：
    *   關卡裡           跳（關卡裡沒有任何東西吃 Enter）
-   *   暫停／放棄確認框  繼續（= 取消，最好按的鍵永遠是安全的那個；要放棄就再按一次「地圖」）
+   *   暫停／放棄確認框  繼續（= 取消，最好按的鍵永遠是安全的那個）
    *   其他畫面          確定（地圖進城、商店購買、過關畫面…）
+   *
+   * 「丟」那顆在放棄確認框裡變成「地圖」= 確定回大地圖（v1.20.2 玩家：按繼續回關卡、按丟回大地圖）。
+   * 舊版要再打開 ☰ 選單按一次地圖，太麻煩。
    */
   const MAIN_KEY = {
     play: { action: 'jump', label: '跳', sub: '空白', cls: 'btn-jump' },
@@ -60,8 +63,17 @@
   };
   const MAIN_CONFIRM = { action: 'confirm', label: '確定', sub: 'Enter', cls: 'btn-ok' };
   function mainKey() { return MAIN_KEY[Game.scene()] || MAIN_CONFIRM; }
+  const THROW_KEY = {
+    quitconfirm: { action: 'confirm', label: '地圖', sub: 'Q' }
+  };
+  const THROW_NORMAL = { action: 'throw', label: '丟', sub: 'K' };
+  function throwKey() { return THROW_KEY[Game.scene()] || THROW_NORMAL; }
   Input.bindPad(document.getElementById('pad'), {
-    mainAction: function () { return mainKey().action; },
+    actionFor: function (key) {
+      if (key === 'jump') return mainKey().action;
+      if (key === 'throw') return throwKey().action;
+      return key;
+    },
     onPress: function (key, el) {
       if (el.classList.contains('locked')) Game.lockedHint(key);
     }
@@ -137,7 +149,8 @@
   function syncLocks() {
     const ab = Game.abilities();
     weaponBtns.forEach(function (w) {
-      const locked = !ab[w.action];
+      // 放棄確認框裡這顆是「地圖」，跟有沒有武器無關，不上鎖
+      const locked = !ab[w.action] && throwKey() === THROW_NORMAL;
       if (w.el.classList.contains('locked') !== locked) {
         w.el.classList.toggle('locked', locked);
         w.el.setAttribute('aria-label', w.el.getAttribute('aria-label').replace(/（未解鎖）$/, '') +
@@ -146,17 +159,26 @@
     });
   }
 
-  /** 合併鍵的字跟顏色跟著畫面換（跳／確定／繼續） */
+  /** 合併鍵的字跟顏色跟著畫面換（跳／確定／繼續）；丟那顆在放棄確認框裡換成「地圖」 */
   const mainBtn = pad.querySelector('#actpad [data-key="jump"]');
-  let mainShown = null;
+  const throwBtn = pad.querySelector('#actpad [data-key="throw"]');
+  let mainShown = null, throwShown = null;
   function syncMainKey() {
     const k = mainKey();
-    if (k === mainShown) return;
-    mainShown = k;
-    mainBtn.innerHTML = k.label + '<small>' + k.sub + '</small>';
-    mainBtn.classList.toggle('btn-jump', k.cls === 'btn-jump');
-    mainBtn.classList.toggle('btn-ok', k.cls === 'btn-ok');
-    mainBtn.setAttribute('aria-label', k.label);
+    if (k !== mainShown) {
+      mainShown = k;
+      mainBtn.innerHTML = k.label + '<small>' + k.sub + '</small>';
+      mainBtn.classList.toggle('btn-jump', k.cls === 'btn-jump');
+      mainBtn.classList.toggle('btn-ok', k.cls === 'btn-ok');
+      mainBtn.setAttribute('aria-label', k.label);
+    }
+    const tk = throwKey();
+    if (tk !== throwShown) {
+      throwShown = tk;
+      throwBtn.innerHTML = tk.label + '<small>' + tk.sub + '</small>';
+      throwBtn.setAttribute('aria-label', (tk === THROW_NORMAL ? '遠程攻擊' : '回大地圖') +
+                            (throwBtn.classList.contains('locked') ? '（未解鎖）' : ''));
+    }
   }
   /*
    * 刪除存檔（☰ 選單裡，電腦與手機共用）。

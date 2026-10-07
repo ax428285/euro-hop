@@ -624,14 +624,19 @@ const Levels = (function () {
      *   notes  飛行音符：在樓層之間左右來回飛，往下掉時要抓空檔
      *   chime  漸強：每 10 秒樂團加速一次，捲動跟著變快
      */
-    floors: 32,
+    /*
+     * v1.20.2 玩家：奧地利太難 → 每一項都調鬆：
+     *   層數 32→26、平台寬 100→116、捲速 0.95~1.85 → 0.85~1.5、音符 5→3、
+     *   漸強 每 10 秒 ×1.4 → 每 12 秒 ×1.25、節拍台比例約 24~36% → 14~22%（'beat-lite'）
+     */
+    floors: 26,
     gapY: 106,
-    platW: 100,
+    platW: 116,
     shaftW: 520,
-    scroll: [0.95, 1.85],
-    extras: ['beat'],
-    notes: [7, 12, 17, 22, 27],
-    chime: { every: 600, dur: 110, boost: 1.4, label: '漸強！', sub: '樂團加速，捲動變快', sound: 'fanfare' },
+    scroll: [0.85, 1.5],
+    extras: ['beat-lite'],
+    notes: [8, 15, 21],
+    chime: { every: 720, dur: 100, boost: 1.25, label: '漸強！', sub: '樂團加速，捲動變快', sound: 'fanfare' },
     equipAt: 'goal'
   }));
 

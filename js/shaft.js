@@ -176,8 +176,10 @@ const Shaft = (function () {
       if (r() < 0.2 + prog * 0.12) return 'slide';
     }
     // 節拍台也不連續出現：兩層一起消失的話會直接掉兩層，太懲罰
-    if (extras && extras.indexOf('beat') >= 0 && floor >= 5 && prevType !== 'beat') {
-      if (r() < 0.24 + prog * 0.12) return 'beat';
+    // 'beat-lite'：比例調低（v1.20.2 奧地利太難）
+    const beatLite = !!(extras && extras.indexOf('beat-lite') >= 0);
+    if (extras && (beatLite || extras.indexOf('beat') >= 0) && floor >= 5 && prevType !== 'beat') {
+      if (r() < (beatLite ? 0.14 + prog * 0.08 : 0.24 + prog * 0.12)) return 'beat';
     }
     // 冰面不連續出現：兩層都滑的話，滑下去又落在冰上，玩家會覺得完全控制不了
     if (extras && extras.indexOf('ice') >= 0 && floor >= 4 && prevType !== 'ice') {

@@ -2,8 +2,8 @@
  * 魔王規則檢查。在瀏覽器執行 runBossRuleCheck()。
  *
  *   A) 一次破綻只能打一下：被打中後立刻起身（不再是 recover）
- *   B) 捷克魔王：玩家一直站在平台上，魔王不能癱倒（否則「站上去等它撞牆」穩贏），
- *      而且要真的有攻擊打向平台上的玩家
+ *   B) 捷克魔王：玩家一直站在平台上時，每次癱倒前都要先丟完 3 支長槍（平台不是安全區），
+ *      而且癱倒時間要比衝刺撞牆短（v1.20.2 起丟完槍會短暫癱倒；舊版完全不倒，玩家以為打不到是 bug）
  */
 function runBossRuleCheck() {
   const issues = [];
@@ -30,19 +30,28 @@ function runBossRuleCheck() {
   const st = buildLevelState(def, li, [], Equipment.resolve([]));
   const p = st.player;
   const pf = def.platforms[0];
-  let recovered = 0, spears = 0;
+  let spears = 0, spearsSince = 0, episodes = 0, run = 0, longest = 0;
   const idle = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
   for (let f = 0; f < 1500; f++) {
     // 玩家一直站在左平台上不動
     p.x = pf.x + 40; p.y = pf.y - p.h; p.vy = 0; p.invuln = 999;
+    const wasRecover = st.boss.phase === 'recover';
     updateBoss(st, f);
     updateShots(st);
     updatePlayer(st, idle, f);
-    if (st.boss.phase === 'recover') recovered++;
-    st.shots.forEach(function (s) { if (s.spear && !s.counted) { s.counted = true; spears++; } });
+    st.shots.forEach(function (s) { if (s.spear && !s.counted) { s.counted = true; spears++; spearsSince++; } });
+    const nowRecover = st.boss.phase === 'recover';
+    if (nowRecover && !wasRecover) {
+      episodes++;
+      if (spearsSince < 3) issues.push('捷克：玩家躲在平台上，魔王只丟了 ' + spearsSince + ' 支槍就癱倒（平台太安全）');
+      spearsSince = 0;
+    }
+    run = nowRecover ? run + 1 : 0;
+    longest = Math.max(longest, run);
   }
-  if (recovered > 0) issues.push('捷克：玩家躲在平台上，魔王還是會癱倒 ' + recovered + ' 帧（平台蹲點穩贏）');
   if (spears < 3) issues.push('捷克：玩家躲在平台上，魔王只丟了 ' + spears + ' 支槍，平台太安全');
+  if (episodes === 0) issues.push('捷克：玩家躲在平台上，魔王丟完槍都不會癱倒（站平台的玩家打不到它）');
+  if (longest >= 170) issues.push('捷克：丟完槍的癱倒（' + longest + ' 帧）不能跟衝刺撞牆（170）一樣長');
 
   return { issueCount: issues.length, issues: issues };
 }

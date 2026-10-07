@@ -754,10 +754,15 @@ function updateBoss(state, t) {
               events.push('shoot');
             }
             if (b.shotsLeft <= 0 && b.shotCd <= 0) {
-              // 沒有破綻期：直接回到走動，逼玩家下來
+              /*
+               * 丟完三支槍也會癱倒，但比撞牆短（100 vs 170 帧）。
+               * v1.20.2 玩家：射完箭為何不會癱瘓 —— 舊版丟完直接回去走動、完全沒破綻，
+               * 站平台的玩家打不到它，以為是 bug。躲平台還是得先閃三支槍，只是不再「打不到」。
+               */
               b.throwing = false;
-              b.phase = 'idle';
-              b.timer = 50;
+              b.phase = 'recover';
+              b.timer = SPEAR_RECOVER;
+              events.push('slam');
             }
             break;
           }
@@ -1044,6 +1049,8 @@ function bossHarmless(b) {
  * 20 實測最好：頭頂降到 334，玩家跳起來自然會落在它身上。
  */
 const BOSS_SLUMP = 20;
+// 捷克騎士丟完長槍後的破綻期（比衝刺撞牆的 170 短：躲平台可以打，但比較難打）
+const SPEAR_RECOVER = 100;
 
 /** 魔王當前的碰撞盒（癱倒期間會變矮，跟繪製一致） */
 function bossBox(b) {
