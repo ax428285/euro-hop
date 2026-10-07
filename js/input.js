@@ -202,6 +202,18 @@ const Input = (function () {
 
   const DIRS = ['left', 'right', 'up', 'down'];
 
+  /** 八方向：中間 12% 不算，每個斜向各佔 45°（tan 67.5° ≈ 2.414） */
+  function eightWay(dx, dy, size) {
+    const dead = size * 0.12;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    return {
+      left: dx < -dead && ay < ax * 2.414,
+      right: dx > dead && ay < ax * 2.414,
+      up: dy < -dead && ax < ay * 2.414,
+      down: dy > dead && ax < ay * 2.414
+    };
+  }
+
   /** 方向搖桿：搖桿的方向直接就是方向鍵 */
   function bindDpad(el) {
     if (!el) return;
@@ -216,7 +228,10 @@ const Input = (function () {
 
   /**
    * 動作搖桿：跟方向搖桿一樣的拖曳操作，每個方向對應一顆鍵（data-dir）。
-   * 手指不抬起來就能從 跳 滑到 丟；斜上方同時按兩顆（跳＋丟）。
+   * 只有兩顆（上跳、下丟），整塊上下對半分：上半部 = 跳、下半部 = 丟，一次只會按到一顆。
+   * 玩家回報（v1.18.0）：按跳一直按到發射 —— 原本八方向、跳在上丟在右，
+   * 拇指偏右一點就變成「斜上 = 跳＋丟」。改成上下相對、不分斜向就不會誤觸。
+   * 手指不抬起來往下滑，一樣能從 跳 換到 丟。
    * 每顆鍵按下時才決定送出哪個動作，放開時放掉同一個動作 ——
    * 按住期間畫面切換（例如跳著過關），也不會留下卡住的鍵。
    */
@@ -240,6 +255,10 @@ const Input = (function () {
         }
         s.el.classList.toggle('on', want);
       });
+    }, function (dx, dy, size) {
+      // 正中間一條細縫不算（手指剛好按在正中央時不要亂跳），其他地方只看上下
+      if (Math.abs(dy) < size * 0.05) return {};
+      return dy < 0 ? { up: true } : { down: true };
     });
   }
 
@@ -249,8 +268,10 @@ const Input = (function () {
    * 比分開的按鈕好用 —— 手指不必抬起來就能從 ← 滑到 →，
    * 也能按斜向（航海地圖要用）。用 pointer capture，手指滑出搖桿範圍也繼續追蹤。
    * apply(dirs) 收到 { left, right, up, down }，放開時收到 {}。
+   * classify(dx, dy, size)：手指相對中心的位移 → 方向；不給就用八方向（方向搖桿）。
    */
-  function bindStick(el, apply) {
+  function bindStick(el, apply, classify) {
+    classify = classify || eightWay;
     let finger = null;
     touchReleasers.push(function () {
       if (finger === null) return;
@@ -264,15 +285,7 @@ const Input = (function () {
       let dy = e.clientY - (r.top + r.height / 2);
       // 畫面被轉了 90°（手機直拿）：螢幕上的「往下」才是遊戲裡的「往右」
       if (rotated()) { const t = dx; dx = dy; dy = -t; }
-      const dead = r.width * 0.12;
-      // tan(67.5°) ≈ 2.414：八方向，每個斜向各佔 45°
-      const ax = Math.abs(dx), ay = Math.abs(dy);
-      apply({
-        left: dx < -dead && ay < ax * 2.414,
-        right: dx > dead && ay < ax * 2.414,
-        up: dy < -dead && ax < ay * 2.414,
-        down: dy > dead && ax < ay * 2.414
-      });
+      apply(classify(dx, dy, r.width));
     }
 
     el.addEventListener('pointerdown', function (e) {

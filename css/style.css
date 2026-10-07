@@ -455,8 +455,8 @@ html.touch .dp-right { right: 3px; }
 
 /*
  * 右邊動作搖桿：跟左邊方向搖桿一樣，手指按住滑動換鍵（玩家建議：手機按鈕太多）。
- *   上＝跳（關卡外是「確定」，跳與確定合成一顆）　右＝揮　左＝丟　下面空著
- *   斜上方同時按兩顆：右上＝跳＋揮、左上＝跳＋丟
+ *   v1.18.1 只剩兩顆：上＝跳（大顆，關卡外是「確定」）、下＝丟。上下對半分，不分斜向 ——
+ *   玩家回報按跳一直按到發射（v1.18.0 丟在跳的右邊，斜上會兩顆一起按）。
  * 圓底只畫淡淡一圈：每顆鍵自己有透明度，整塊再設 opacity 會疊成看不見。
  */
 html.touch .pad-actions {
@@ -477,5 +477,8 @@ html.touch .pad-actions .pos-left   { left: 0;   top: calc(50% - 22px); }
 html.touch .pad-actions .pos-right  { right: 0;  top: calc(50% - 22px); }
 html.touch .btn { width: 44px; height: 44px; font-size: 16px; }
 html.touch .btn-ok { font-size: 13px; }
+/* 跳（最常按）放大一號：52px，往上貼齊搖桿頂端 */
+html.touch .pad-actions .pos-top { width: 52px; height: 52px; left: calc(50% - 26px); font-size: 19px; }
+html.touch .pad-actions .pos-top.btn-ok { font-size: 15px; }
 html.touch #pad .btn small { font-size: 9px; }
 html.touch .btn.locked::after { background-size: 24px 24px; }

@@ -61,7 +61,7 @@ async function runTouchCheck() {
   }
   function actUp(id) { fire(actpad, 'pointerup', 0, 0, id); }
   // 動作搖桿上的鍵：跳／確定是同一顆（上）
-  const ACT_DIR = { jump: [0, -1], confirm: [0, -1], throw: [1, 0] };
+  const ACT_DIR = { jump: [0, -1], confirm: [0, -1], throw: [0, 1] };
 
   /** 按一下按鈕，推進一帧讓遊戲讀到 */
   function tap(key) {
@@ -105,16 +105,18 @@ async function runTouchCheck() {
     const op = parseFloat(getComputedStyle(c[1]).opacity);
     check(op <= 0.6, c[0] + '是半透明的（不透明度 ' + op + '，要 ≤ 0.6）');
   });
-  // 動作搖桿：跳（兼確定）在上、丟在右（以玩家拿手機的方向看）；v1.18 拿掉揮
+  // 動作搖桿：跳（兼確定）在上、丟在下（以玩家拿手機的方向看）；v1.18 拿掉揮
   {
-    const pos = {};
+    const pos = {}, size = {};
     ['jump', 'throw'].forEach(function (k) {
       const r = document.querySelector('#pad [data-key="' + k + '"]').getBoundingClientRect();
       // 螢幕座標轉回遊戲方向（直拿轉 90° 時：遊戲 x = 螢幕 y，遊戲 y = -螢幕 x）
       const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
       pos[k] = rot ? { x: sy, y: -sx } : { x: sx, y: sy };
+      size[k] = r.width;
     });
-    check(pos.jump.y < pos.throw.y && pos.throw.x > pos.jump.x, '動作鍵排列：上跳、右丟');
+    check(pos.jump.y < pos.throw.y && Math.abs(pos.jump.x - pos.throw.x) < 2, '動作鍵排列：上跳、下丟（上下對齊）');
+    check(size.jump > size.throw, '跳比丟大顆（' + Math.round(size.jump) + ' > ' + Math.round(size.throw) + '）');
     check(!document.querySelector('#pad [data-key="confirm"]'), '確定沒有獨立一顆（跟跳合併）');
     check(!document.querySelector('#pad [data-key="attack"]'), '沒有揮的按鈕（v1.18 拿掉）');
   }
@@ -271,19 +273,23 @@ async function runTouchCheck() {
   }
 
   // 動作搖桿：各方向對應的動作（關卡裡上＝跳）
-  [['jump', 0, -1], ['throw', 1, 0]].forEach(function (d) {
+  [['jump', 0, -1], ['throw', 0, 1]].forEach(function (d) {
     const id = actDown(d[1], d[2]);
     const held = ['jump', 'throw', 'confirm'].filter(function (k) { return Input.isDown(k); });
     actUp(id);
     check(held.length === 1 && held[0] === d[0], '關卡裡動作搖桿往' + d[0] + ' → ' + (held.join('+') || '沒反應'));
   });
-  // 斜上：跳＋丟；按住不放從跳滑到丟：跳放開、丟按下
-  {
-    const id = actDown(1, -1);
-    check(Input.isDown('jump') && Input.isDown('throw'), '動作搖桿右上 → 跳＋丟');
+  // 按跳偏左、偏右都只會跳，不會誤發射（v1.18.0 玩家回報：按跳一直按到發射）
+  [[1, -1], [-1, -1], [1, -0.3], [-1, -0.3]].forEach(function (d) {
+    const id = actDown(d[0], d[1]);
+    const held = ['jump', 'throw'].filter(function (k) { return Input.isDown(k); });
     actUp(id);
+    check(held.join('+') === 'jump', '動作搖桿上半部偏 (' + d + ') → 只有跳（' + (held.join('+') || '沒反應') + '）');
+  });
+  // 按住不放從跳滑到丟：跳放開、丟按下
+  {
     const id2 = actDown(0, -1);
-    actMove(id2, 1, 0);
+    actMove(id2, 0, 1);
     check(!Input.isDown('jump') && Input.isDown('throw'), '從跳滑到丟：跳放開、丟按下');
     actUp(id2);
     check(!['jump', 'throw', 'confirm'].some(function (k) { return Input.isDown(k); }), '放開動作搖桿後全部歸零');
