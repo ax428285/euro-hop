@@ -204,14 +204,14 @@ function runBossFightTest() {
 
     let lives = stats.maxLives;
     let frame = 0, hurts = 0, hits = 0;
-    let jE = false, hJ = false, hR = false, hL = false, atk = false;
+    let jE = false, hJ = false, hR = false, hL = false;
     let dodging = false, stompJump = false;
     const inp = {
       isDown: function (a) {
         return (a === 'right' && hR) || (a === 'left' && hL) || (a === 'jump' && hJ);
       },
       once: function (a) {
-        return (a === 'jump' && jE) || (a === 'attack' && atk);
+        return a === 'jump' && jE;
       },
       endFrame: function () {}
     };
@@ -224,7 +224,7 @@ function runBossFightTest() {
       updateBoss(st, frame);
       updateShots(st);
 
-      jE = false; atk = false; hR = false; hL = false; hJ = false;
+      jE = false; hR = false; hL = false; hJ = false;
 
       const bx = bossBox(b);
       const slumped = b.phase === 'recover';
@@ -269,19 +269,9 @@ function runBossFightTest() {
       else if ((incoming || dodging) && p.vy < 0) hJ = true;
 
       if (slumped) {
-        if (stats.attack) {
-          // 有武器：走進揮擊距離（實測有效 25px）再打
-          const gapL = bx.x - (p.x + p.w);
-          const gapR = p.x - (bx.x + bx.w);
-          if (gapL > 16 && pcx < bcx) { hR = true; p.facing = 1; }
-          else if (gapR > 16 && pcx > bcx) { hL = true; p.facing = -1; }
-          else {
-            p.facing = pcx < bcx ? 1 : -1;
-            if (p.attackCd === 0) atk = true;
-          }
-        } else if (!incoming) {
+        if (!incoming) {
           /*
-           * 沒武器：退到 70~160px 的甜蜜區再跳過去踩頭。
+           * 退到 70~160px 的甜蜜區再跳過去踩頭（v1.18 拿掉揮擊後，近身只能踩頭）。
            *
            * ⚠️ 起跳區正上方不能有平台。原本只會從左邊跳，
            * 魔王被逼到左牆（x=300）時，左側甜蜜區剛好在左平台
@@ -351,7 +341,6 @@ function runBossFightTest() {
       country: def.country,
       bossName: b.name,
       hpMax: b.hpMax,
-      hadAttack: stats.attack,
       won: b.defeated,
       hitsLanded: hits,
       timesHurt: hurts,
@@ -371,7 +360,7 @@ function runBossFightTest() {
  *   2. 破綻期之外打不動（否則魔王等於沒有機制）
  *   3. 打完魔王 → 掉落裝備可以撿到 → 才過關
  *
- * 機器人策略：站在魔王旁邊，只在 recover（破綻期）揮擊。
+ * 機器人策略：站在魔王旁邊，只在 recover（破綻期）從頭頂踩下去。
  */
 function runBossTest() {
   const out = [];
@@ -379,7 +368,7 @@ function runBossTest() {
   Levels.list.forEach(function (def, li) {
     if (!def.isBoss) return;
 
-    // 進魔王關時，玩家應該已經有前面關卡的裝備（含揮擊用的啤酒杯）
+    // 進魔王關時，玩家應該已經有前面關卡的裝備
     const owned = Equipment.defs
       .filter(function (d) { return d.level < li; })
       .map(function (d) { return d.id; });
@@ -392,9 +381,7 @@ function runBossTest() {
       name: def.country,
       bossName: b.name,
       hpMax: b.hpMax,
-      hasAttack: stats.attack,
       hitsLanded: 0,
-      blockedAttempts: 0,
       defeated: false,
       equipTaken: false,
       cleared: false,
@@ -402,20 +389,22 @@ function runBossTest() {
       playerHurt: 0
     };
 
-    // 無敵期外揮擊應該無效 —— 先在 idle 階段試打一次
+    // 破綻期外踩頭應該無效 —— 先在 idle 階段試踩一次
     b.phase = 'idle'; b.timer = 90;
-    const probe = makeAttackBot();
-    state.player.x = b.x - 26;
-    state.player.y = Levels.GROUND_Y - state.player.h;
-    probe.wantAttack = true;
-    const ev0 = updatePlayer(state, probe.input, 1);
+    const idleInput = makeIdleInput();
+    {
+      const bb = bossBox(b);
+      state.player.x = bb.x + bb.w / 2 - state.player.w / 2;
+      state.player.y = bb.y - state.player.h + 4;
+      state.player.vy = 6;
+      state.player.invuln = 999;
+    }
+    const ev0 = updatePlayer(state, idleInput, 1);
     if (ev0.indexOf('bosshit') >= 0) {
       log.bugNonVulnerableDamage = true;
     }
-    if (ev0.indexOf('blocked') >= 0) log.blockedAttempts++;
 
     // 正式開打
-    const bot = makeAttackBot();
     const LIMIT = 40000;
     let t = 1;
     while (t < LIMIT) {
@@ -440,11 +429,9 @@ function runBossTest() {
       p.invuln = 999;          // 排除受傷擊退干擾，專心驗魔王機制
       p.facing = state.boss.x >= p.x ? 1 : -1;
 
-      // 有武器就在破綻期揮擊；沒武器就改用踩頭（模擬玩家從上方落下）
+      // 破綻期踩頭（模擬玩家從上方落下）
       const windowOpen = state.boss.phase === 'recover' && !state.boss.defeated;
-      if (stats.attack) {
-        bot.wantAttack = windowOpen;
-      } else if (windowOpen) {
+      if (windowOpen) {
         // 擺在魔王頭頂往下掉，觸發踩擊判定。
         // 用 bossBox 而不是 boss.y —— 破綻期魔王會癱矮，頭頂位置不同。
         const bb = bossBox(state.boss);
@@ -452,11 +439,10 @@ function runBossTest() {
         p.y = bb.y - p.h + 4;
         p.vy = 6;
       }
-      const events = updatePlayer(state, bot.input, t);
+      const events = updatePlayer(state, idleInput, t);
 
       if (events.indexOf('bosshit') >= 0) log.hitsLanded++;
       if (events.indexOf('bossdown') >= 0) { log.defeated = true; log.hitsLanded++; }
-      if (events.indexOf('blocked') >= 0) log.blockedAttempts++;
       if (events.indexOf('equip') >= 0) log.equipTaken = true;
       if (events.indexOf('clear') >= 0) { log.cleared = true; break; }
     }
@@ -467,13 +453,11 @@ function runBossTest() {
   return out;
 }
 
-/** 只會揮擊的機器人，攻擊時機由外部控制 */
-function makeAttackBot() {
-  const bot = { wantAttack: false };
-  bot.input = {
+/** 什麼鍵都不按的輸入（位置由測試直接擺，踩頭靠從上方落下） */
+function makeIdleInput() {
+  return {
     isDown: function () { return false; },
-    once: function (a) { return a === 'attack' && bot.wantAttack; },
+    once: function () { return false; },
     endFrame: function () {}
   };
-  return bot;
 }

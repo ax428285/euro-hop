@@ -498,7 +498,6 @@ const Game = (function () {
         case 'doublejump': Sfx.doubleJump(); break;
         case 'walljump': Sfx.jump(); break;
         case 'land': Sfx.land(); break;
-        case 'swing': Sfx.swing(); break;
         case 'hitkill': runScore += 50; break;
         // 金幣同時給分數與錢包。
         // 分數是成績，錢包是商店可花用的餘額 —— 兩者分開記。
@@ -1170,7 +1169,7 @@ const Game = (function () {
       Sprites.player(ctx, {
         x: p.x, y: p.y, w: p.w, h: p.h,
         facing: p.facing, onGround: p.onGround, vx: p.vx,
-        invuln: p.invuln, attackTimer: p.attackTimer, equipped: p.equipped,
+        invuln: p.invuln, equipped: p.equipped,
         pid: i, costume: Save.get().costume   // 時裝（只換外觀）
       }, t);
     });
@@ -1415,7 +1414,7 @@ const Game = (function () {
       Sprites.player(ctx, {
         x: p.x - camX, y: p.y, w: p.w, h: p.h,
         facing: p.facing, onGround: p.onGround, vx: p.vx,
-        invuln: p.invuln, attackTimer: p.attackTimer, equipped: p.equipped,
+        invuln: p.invuln, equipped: p.equipped,
         pid: i, costume: Save.get().costume   // 時裝（只換外觀）
       }, t);
     });
@@ -1664,7 +1663,7 @@ const Game = (function () {
       });
     }
 
-    U.text(ctx, '←→ 移動　空白 跳躍　J 揮擊　Q 回大地圖　I 裝備　P 暫停',
+    U.text(ctx, '←→ 移動　空白 跳躍　K 遠程攻擊　Q 回大地圖　I 裝備　P 暫停',
       W / 2, 440, { size: 13, color: '#7f8db0' });
     // 兩人同機的開關說明（放在標題，讓玩家一開始就知道有這功能）
     U.text(ctx, coop ? 'C 兩人同機：開（2P 用 WASD + G）' : 'C 兩人同機：關',
@@ -2070,7 +2069,7 @@ const Game = (function () {
       { label: '跑速', val: 'x' + st.speed.toFixed(2), on: st.speed > 1 },
       { label: '二段跳', val: st.doubleJump ? '開' : '關', on: st.doubleJump },
       { label: '蹬牆跳', val: st.wallJump ? '開' : '關', on: st.wallJump },
-      { label: '揮擊', val: st.attack ? '開' : '關', on: st.attack },
+      { label: '遠程', val: st.ranged === 'fire' ? '火球' : (st.ranged ? '板球' : '關'), on: !!st.ranged },
       { label: '金幣', val: 'x' + st.coinMul, on: st.coinMul > 1 }
     ];
 
@@ -2206,7 +2205,6 @@ const Game = (function () {
       const bits = [];
       if (b.bonusLives) bits.push('愛心 +' + b.bonusLives);
       if (b.magnet) bits.push('磁鐵 ' + b.magnet + 'px');
-      if (b.reachBonus) bits.push('揮擊 +' + b.reachBonus);
       if (b.invulnBonus) bits.push('無敵 +' + b.invulnBonus);
       if (b.jumpBoost) bits.push('跳躍 +' + b.jumpBoost.toFixed(1));
       if (b.coinBonus) bits.push('金幣 +' + Math.round(b.coinBonus * 100) + '%');
@@ -2860,7 +2858,7 @@ const Game = (function () {
     U.text(ctx, w && w.inLevel ? '房主正在關卡中，下一關就一起玩' + dots : '等房主選關卡' + dots,
       W / 2, 232, { size: 18, color: '#ffffff' });
     if (w && w.country) U.text(ctx, '房主目前在：' + w.country, W / 2, 266, { size: 15, color: '#ffd166' });
-    U.text(ctx, '你是 2P（' + (document.documentElement.classList.contains('touch') ? '用畫面上的按鈕' : '用方向鍵／空白／J／K') + '）', W / 2, 298,
+    U.text(ctx, '你是 2P（' + (document.documentElement.classList.contains('touch') ? '用畫面上的按鈕' : '用方向鍵／空白／K') + '）', W / 2, 298,
       { size: 13, color: '#9aa7c7' });
   }
 
@@ -2927,13 +2925,13 @@ const Game = (function () {
   }
 
   /**
-   * 揮擊／遠程攻擊現在能不能用（手機按鈕要顯示鎖頭）。
-   * 兩者都要先拿到裝備才解鎖；海上「艦砲對決」例外 —— 那裡揮擊鍵是拿來開砲的，沒裝備也能按。
+   * 遠程攻擊現在能不能用（手機按鈕要顯示鎖頭）。
+   * 要先拿到裝備才解鎖；海上「艦砲對決」例外 —— 那裡丟的鍵是拿來開砲的，沒裝備也能按。
    */
   function abilities() {
     const s = stats || {};
     const cannon = scene === 'play' && !!(state && state.mini && state.mini.kind === 'pirates');
-    return { attack: !!s.attack || cannon, throw: !!s.ranged };
+    return { throw: !!s.ranged || cannon };
   }
 
   /**
@@ -2961,7 +2959,6 @@ const Game = (function () {
 
   /** 按了還沒解鎖的武器鍵：告訴玩家去哪裡拿 */
   const LOCK_HINTS = {
-    attack: { id: 'stein', title: '揮擊還沒解鎖' },
     throw: { id: 'brolly', title: '遠程攻擊還沒解鎖' }
   };
   function lockedHint(action) {

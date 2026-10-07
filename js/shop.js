@@ -8,7 +8,7 @@
  *   收集就變成實際的投資行為。
  *
  *   跟裝備（Equipment）的差別：
- *     裝備  = 關卡裡找到的，解鎖「新能力」（二段跳、揮擊⋯⋯），不可逆
+ *     裝備  = 關卡裡找到的，解鎖「新能力」（二段跳、遠程攻擊⋯⋯），不可逆
  *     強化  = 用金幣買的，是「數值加成」，可以分階段買
  *
  *   金幣是跨關卡累積的「錢包」（Save.wallet），跟單關的收集數分開記。
@@ -50,15 +50,7 @@ const Shop = (function () {
       cost: [80, 180],
       apply: function (b, lv) { b.magnet = lv * 46; }
     },
-    {
-      id: 'reach',
-      name: '加長揮擊',
-      icon: 'reach',
-      desc: '揮擊的攻擊範圍變大',
-      maxLevel: 2,
-      cost: [70, 160],
-      apply: function (b, lv) { b.reachBonus = lv * 14; }
-    },
+    // v1.18 拿掉「加長揮擊」（遊戲不再有近戰揮擊）；買過的不退費，存檔裡的紀錄留著但不再有作用
     {
       id: 'shield',
       name: '旅人護符',
@@ -124,7 +116,6 @@ const Shop = (function () {
     const b = {
       bonusLives: 0,
       magnet: 0,
-      reachBonus: 0,
       invulnBonus: 0,
       jumpBoost: 0,
       coinBonus: 0

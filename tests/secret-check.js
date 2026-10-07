@@ -410,13 +410,13 @@ function runSecretCheck() {
     });
   });
 
-  // ── 踩不死的敵人需要揮擊，而揮擊來自德國關；之前的關卡不該放 ──
-  const steinLevel = Equipment.defs.filter(function (d) { return d.id === 'stein'; })[0].level;
+  // ── 踩不死的敵人要用遠程攻擊打（v1.18 拿掉揮擊），遠程攻擊來自英國關的板球 ──
+  const rangedLevel = Equipment.defs.filter(function (d) { return d.id === 'brolly'; })[0].level;
   Levels.list.forEach(function (def, li) {
-    if (li > steinLevel) return;
+    if (li > rangedLevel) return;
     (def.enemies || []).forEach(function (e) {
       const k = ENEMY_KINDS[e.type];
-      if (k && !k.stompable && li < steinLevel) {
+      if (k && !k.stompable && li < rangedLevel) {
         // 踩不死又還沒有武器 → 只能繞過，必須確認不是擋路的唯一通道
         // 這裡只提示，不當錯誤（繞過是合理設計）
       }

@@ -46,8 +46,10 @@ const Input = (function () {
     ArrowUp: ['jump', 'up'],
     ArrowDown: 'down',
     Space: 'jump',
-    KeyJ: 'attack',
-    KeyK: 'throw'        // 遠程攻擊（板球／辣椒火球，要有裝備）
+    // 遠程攻擊（板球／辣椒火球，要有裝備）。
+    // J 原本是近戰揮擊（v1.18 拿掉），改成跟 K 一樣是丟 —— 習慣按 J 的玩家不會按了沒反應
+    KeyJ: 'throw',
+    KeyK: 'throw'
   };
 
   // 玩家 2：WASD + G
@@ -56,13 +58,13 @@ const Input = (function () {
     KeyD: 'right',
     KeyW: ['jump', 'up'],
     KeyS: 'down',
-    KeyG: 'attack',
-    KeyF: 'attack',
+    KeyG: 'throw',
+    KeyF: 'throw',
     KeyH: 'throw'
   };
 
   /** 連線時朋友能操作的動作（只有關卡內的角色操作；選關、暫停由房主決定） */
-  const REMOTE_ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'attack', 'throw'];
+  const REMOTE_ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'throw'];
 
   /** 建一組 held/pressed 狀態 */
   function makeState() {
@@ -148,7 +150,7 @@ const Input = (function () {
   /** 方向與跳躍攻擊給 P1，其餘（如回地圖、確定）算 UI */
   function targetOf(action) {
     return (action === 'left' || action === 'right' ||
-            action === 'jump' || action === 'attack' || action === 'throw' ||
+            action === 'jump' || action === 'throw' ||
             action === 'up' || action === 'down') ? pads[0] : ui;
   }
 
@@ -214,7 +216,7 @@ const Input = (function () {
 
   /**
    * 動作搖桿：跟方向搖桿一樣的拖曳操作，每個方向對應一顆鍵（data-dir）。
-   * 手指不抬起來就能從 跳 滑到 揮；斜上方同時按兩顆（跳＋揮）。
+   * 手指不抬起來就能從 跳 滑到 丟；斜上方同時按兩顆（跳＋丟）。
    * 每顆鍵按下時才決定送出哪個動作，放開時放掉同一個動作 ——
    * 按住期間畫面切換（例如跳著過關），也不會留下卡住的鍵。
    */

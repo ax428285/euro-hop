@@ -744,7 +744,7 @@ const Levels = (function () {
     groundTop: '#7a9a5a', groundBody: '#5a4836',
     deco: 'pine',
     layout: 'hills',
-    // 東歐篇的玩家已經有揮擊，所以可以放踩不死的盾兵與刺蝟
+    // 東歐篇的玩家已經有遠程攻擊（英國板球），所以可以放踩不死的盾兵與刺蝟
     groundTypes: ['walker', 'guard', 'charger', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 1.15,

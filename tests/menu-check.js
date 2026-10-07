@@ -40,7 +40,7 @@ async function runWipeMenuCheck(wait) {
   wipe.click();
   wipe.click();
   check(Save.get().equipment.length === 0 && Save.get().exp === 0, '連按兩次：真的刪掉');
-  check(!Game.abilities().attack, '刪掉後能力重算（武器重新上鎖）');
+  check(!Game.abilities().throw, '刪掉後能力重算（武器重新上鎖）');
   check(Game.debug.getScene() === 'map' && Game.debug.getCursor() === 0, '在地圖刪除：留在地圖、回到第一國');
   check(!pad.classList.contains('menu'), '刪完選單自動收起');
 

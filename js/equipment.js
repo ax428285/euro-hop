@@ -17,7 +17,6 @@
  *   speed         跑速倍率
  *   doubleJump    二段跳
  *   wallJump      蹬牆跳
- *   attack        可揮擊
  *   coinMul       金幣分數倍率
  *   invulnBonus   受傷後無敵帧數加成
  */
@@ -53,12 +52,16 @@ const Equipment = (function () {
       note: '木鞋是荷蘭工人的工作鞋，防水也防重物砸腳。',
       apply: function (s) { s.stompWave = true; }
     },
+    /*
+     * v1.18 拿掉近戰揮擊：原本的啤酒杯（解鎖揮擊）、指揮棒（揮擊冷卻）、斧杖（揮擊範圍）換成新效果。
+     * id 不變，已經拿到的玩家存檔直接套用新效果。
+     */
     {
       id: 'stein', level: 4, country: '德國', icon: 'stein',
       name: '啤酒節大啤酒杯',
-      desc: '解鎖揮擊（J 鍵）：打掉前方敵人',
+      desc: '連丟更快：遠程攻擊的冷卻縮短 40%',
       note: '慕尼黑啤酒節從 1810 年一場皇室婚禮延續至今。',
-      apply: function (s) { s.attack = true; }
+      apply: function (s) { s.fastThrow = true; }
     },
     {
       id: 'puppet', level: 5, country: '捷克', icon: 'puppet',
@@ -70,9 +73,9 @@ const Equipment = (function () {
     {
       id: 'baton', level: 6, country: '奧地利', icon: 'baton',
       name: '指揮棒',
-      desc: '揮擊冷卻變短，連打更順',
+      desc: '踩敵人彈得更高，連踩更順',
       note: '維也納愛樂的新年音樂會，指揮每年換人，是樂界的榮譽。',
-      apply: function (s) { s.fastAttack = true; }
+      apply: function (s) { s.highStomp = true; }
     },
     {
       id: 'rope', level: 7, country: '瑞士', icon: 'rope',
@@ -120,9 +123,9 @@ const Equipment = (function () {
     {
       id: 'valaska', level: 13, country: '斯洛伐克', icon: 'valaska',
       name: '牧羊人斧杖',
-      desc: '揮擊範圍變長',
+      desc: '破甲：戴鋼盔的衛兵、刺蝟也踩得倒',
       note: 'valaška 是斯洛伐克山區牧羊人的長柄小斧，也是傳說中俠盜 Jánošík 的武器。',
-      apply: function (s) { s.reachBonus += 12; }
+      apply: function (s) { s.stompAll = true; }
     },
     {
       id: 'cravat', level: 14, country: '克羅埃西亞', icon: 'cravat',
@@ -168,14 +171,15 @@ const Equipment = (function () {
       speed: 1,
       doubleJump: false,
       wallJump: false,
-      attack: false,
       coinMul: 1,
       invulnBonus: 0,
       glide: false,       // 滑翔（西班牙扇）
-      fastAttack: false,  // 揮擊冷卻減半（奧地利指揮棒）
+      // v1.18 新能力（取代揮擊相關的三件）
+      fastThrow: false,   // 遠程攻擊冷卻縮短（德國啤酒杯）
+      highStomp: false,   // 踩敵人彈得更高（奧地利指揮棒）
+      stompAll: false,    // 踩不死的敵人也踩得倒（斯洛伐克斧杖）
       // 以下由商店強化提供（Shop.resolve）
       magnet: 0,          // 金幣吸取半徑，0 = 沒有
-      reachBonus: 0,      // 揮擊範圍加成
       jumpBoost: 0,       // 跳躍力加成
       // v1.9 新能力
       ranged: null,       // 遠程攻擊：'ball'（板球）/ 'fire'（辣椒火球）
@@ -206,7 +210,6 @@ const Equipment = (function () {
        * 裝備給的加成（東歐篇的領巾、斧杖、皮鞋）會被商店的 0 蓋掉，等於沒效果。
        */
       s.magnet = Math.max(s.magnet, b.magnet);
-      s.reachBonus += b.reachBonus;
       s.jumpBoost += b.jumpBoost;
       s.coinMul += b.coinBonus;
     }

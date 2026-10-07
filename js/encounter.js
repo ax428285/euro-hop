@@ -12,8 +12,8 @@
  * 規則完全不同的小遊戲：
  *
  *   海鷗群   守護午餐   海鷗從兩邊俯衝搶麵包籃，碰到就把牠嚇跑，撐到時間到
- *   海盜船   艦砲對決   砲口自己上下擺，抓準時機按 J／Enter 開砲，命中 3 次；同時閃對方的砲彈
- *   大海蛇   打地鼠     蛇頭從甲板的洞輪流冒出來，踩中（或揮中）6 次；蛇頭會吐口水
+ *   海盜船   艦砲對決   砲口自己上下擺，抓準時機按 K（丟）／Enter 開砲，命中 3 次；同時閃對方的砲彈
+ *   大海蛇   打地鼠     蛇頭從甲板的洞輪流冒出來，踩中 6 次；蛇頭會吐口水
  *   黃金海馬 捕捉       稀有怪：在場上亂竄、越來越快，碰到牠 3 次就抓到，掉落時裝
  *
  * 角色的跑跳物理完全沿用關卡那一套（updatePlayer），只換「目標」與場上的東西 ——
@@ -447,7 +447,8 @@ const Encounter = (function () {
     } else if (mini.kind === 'pirates') {
       if (mini.cd > 0) mini.cd--;
       const atCannon = Math.abs(p.x + p.w / 2 - CANNON.x) < 50 && p.onGround;
-      const fire = input && (input.once('attack') || input.once('confirm'));
+      // 開砲用「丟」的鍵（v1.18 拿掉揮擊前是揮擊鍵）；鍵盤也可以按 Enter
+      const fire = input && (input.once('throw') || input.once('confirm'));
       if (fire && atCannon && mini.cd === 0) {
         const a = cannonAngle(mini.elapsed) * Math.PI / 180;
         mini.balls.push({ x: CANNON.x + 30, y: GY - 44, vx: Math.cos(a) * CANNON.speed, vy: -Math.sin(a) * CANNON.speed });
@@ -518,11 +519,8 @@ const Encounter = (function () {
         players.forEach(function (q) {
           if (!h.up || !h.box || h.box.h < 20) return;
           const stomp = q.vy > 0 && U.overlap(q, h.box) && (q.y + q.h) - h.box.y < 20;
-          const swat = q.attackTimer > 10 && U.overlap({
-            x: q.facing > 0 ? q.x + q.w : q.x - 34, y: q.y + 4, w: 34, h: q.h - 8
-          }, h.box);
-          if (stomp || swat) {
-            if (stomp) q.vy = PHYS.STOMP_BOUNCE;
+          if (stomp) {
+            q.vy = PHYS.STOMP_BOUNCE;
             h.up = 0; mini.hits++; events.push('hit');
             burst(state, h.x, GY - 30, '#7fd0a0', 12);
             if (mini.hits >= 6) win();
@@ -674,7 +672,7 @@ const Encounter = (function () {
     const sec = Math.max(0, Math.ceil(mini.time / 60));
     let goal;
     if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
-    else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 J 開砲，綠燈 = 會打中）';
+    else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '踩中 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';

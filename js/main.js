@@ -127,11 +127,11 @@
   Game.init(canvas);
 
   /*
-   * 武器鍵上鎖：還沒拿到裝備時，揮／丟兩顆按鈕蓋一個鎖頭。
+   * 武器鍵上鎖：還沒拿到裝備時，丟的按鈕蓋一個鎖頭。
    * 朋友回報「按了沒反應」—— 他不知道要先去拿武器。按下上鎖的鍵會跳提示告訴他去哪一關拿。
    * 裝備隨時可能拿到（關卡裡撿到、讀存檔、清除存檔），所以定時對一次，只在有變時才改 DOM。
    */
-  const weaponBtns = ['attack', 'throw'].map(function (a) {
+  const weaponBtns = ['throw'].map(function (a) {
     return { action: a, el: pad.querySelector('[data-key="' + a + '"]') };
   });
   function syncLocks() {

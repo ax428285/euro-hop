@@ -17,9 +17,7 @@ const PHYS = {
   GLIDE_FALL: 2.6,      // 滑翔時的最大下墜速度
   WALL_JUMP_X: 5.6,
   WALL_JUMP_Y: -11.4,
-  ATTACK_TIME: 14,      // 揮擊動作帧數
-  ATTACK_CD: 20,
-  ATTACK_REACH: 30
+  STOMP_BOUNCE_HIGH: -10.2   // 指揮棒：踩敵人彈得更高
 };
 
 function makePlayer(x, y, stats) {
@@ -33,8 +31,6 @@ function makePlayer(x, y, stats) {
     airJumps: 0,          // 剩餘空中跳次數
     wallDir: 0,           // 貼著哪一邊的牆（-1 左 / 1 右 / 0 無）
     wallSliding: false,
-    attackTimer: 0,
-    attackCd: 0,
     invuln: 0,
     gliding: false,
     launched: false,      // 被外力彈起（彈簧平台）—— 不套用可變跳躍截斷
@@ -47,7 +43,7 @@ function makePlayer(x, y, stats) {
 /**
  * 敵人型別表。
  *
- * stompable  能不能踩死（false = 踩上去反而受傷，要用揮擊）
+ * stompable  能不能踩死（false = 踩上去反而受傷，要用遠程攻擊；有斯洛伐克斧杖就踩得死）
  * hp         需要幾次攻擊
  * air        是不是空中單位（y 由 baseY + 擺動決定）
  */
@@ -56,7 +52,7 @@ const ENEMY_KINDS = {
   walker:  { w: 30, h: 26, speed: 1.0, stompable: true,  hp: 1, air: false },
   // 海鷗：空中來回飛
   flyer:   { w: 36, h: 24, speed: 1.5, stompable: true,  hp: 1, air: true },
-  // 衛兵：戴鋼盔，踩不死（會彈開），要用啤酒杯揮
+  // 衛兵：戴鋼盔，踩不死（會彈開），要用丟的
   guard:   { w: 32, h: 34, speed: 0.85, stompable: false, hp: 1, air: false },
   // 刺蝟：背上有刺，踩不死，走得快
   spiker:  { w: 30, h: 24, speed: 1.6, stompable: false, hp: 1, air: false },
@@ -1216,48 +1212,12 @@ function updatePlayer(state, input, t, who) {
     p.gliding = true;
   }
 
-  // ── 揮擊（啤酒杯） ──
-  if (p.attackTimer > 0) p.attackTimer--;
-  if (p.attackCd > 0) p.attackCd--;
-  if (st.attack && input.once('attack') && p.attackCd === 0) {
-    p.attackTimer = PHYS.ATTACK_TIME;
-    // 指揮棒讓冷卻減半
-    p.attackCd = st.fastAttack ? Math.round(PHYS.ATTACK_CD * 0.5) : PHYS.ATTACK_CD;
-    events.push('swing');
-    // 揮擊範圍：基礎值 + 商店「加長揮擊」強化
-    const reach = PHYS.ATTACK_REACH + (st.reachBonus || 0);
-    const box = {
-      x: p.facing > 0 ? p.x + p.w : p.x - reach,
-      y: p.y + 4,
-      w: reach,
-      h: p.h - 8
-    };
-    state.enemies.forEach(function (e) {
-      if (!e.alive || !U.overlap(box, e)) return;
-      // 揮擊可以打死任何小怪，包含踩不死的那些
-      if (--e.hp <= 0) {
-        killEnemy(state, e);
-        events.push('hitkill');
-      }
-    });
-    // 揮擊打魔王（只在破綻期有效）
-    if (state.boss && U.overlap(box, bossBox(state.boss))) {
-      if (bossVulnerable(state.boss)) {
-        events.push(damageBoss(state, state.boss));
-      } else if (!state.boss.defeated) {
-        events.push('blocked');
-      }
-    }
-    // 揮擊也能打掉彈射物
-    for (let i = state.shots.length - 1; i >= 0; i--) {
-      if (U.overlap(box, state.shots[i])) state.shots.splice(i, 1);
-    }
-  }
-
   /*
    * ── 遠程攻擊（K 鍵）──
    * 板球：拋物線、落地彈一次，冷卻較長；辣椒火球：直線、穿透、冷卻減半。
+   * 德國啤酒杯：冷卻再縮短 40%。
    * 飛行物的移動與命中在 updatePlayerShots（每帧呼叫一次，所有玩家共用）。
+   * （v1.18 拿掉近戰揮擊：按鍵太多，遠程攻擊已經能打所有敵人與魔王）
    */
   if (p.throwCd > 0) p.throwCd--;
   if (st.ranged && input.once('throw') && !(p.throwCd > 0)) {
@@ -1266,7 +1226,7 @@ function updatePlayer(state, input, t, who) {
     (state.pshots || (state.pshots = [])).push(fire
       ? { kind: 'fire', x: sx - 7, y: sy - 7, w: 14, h: 14, vx: p.facing * 7.5, vy: 0, life: 75, hitSet: [] }
       : { kind: 'ball', x: sx - 6, y: sy - 6, w: 12, h: 12, vx: p.facing * 6.2 + p.vx * 0.3, vy: -4.5, life: 120, bounces: 0 });
-    p.throwCd = fire ? 16 : 34;
+    p.throwCd = Math.round((fire ? 16 : 34) * (st.fastThrow ? 0.6 : 1));
     events.push('throw');
   }
 
@@ -1580,7 +1540,8 @@ function updatePlayer(state, input, t, who) {
   state.enemies.forEach(function (e) {
     if (!e.alive || !U.overlap(p, e)) return;
     const stomping = p.vy > 0 && (p.y + p.h) - e.y < e.h * 0.7;
-    if (stomping && e.kind.stompable) {
+    // 斯洛伐克斧杖：破甲，連鋼盔衛兵、刺蝟都踩得死
+    if (stomping && (e.kind.stompable || st.stompAll)) {
       killEnemy(state, e);
       // 荷蘭木鞋：重踩震波，附近地上的敵人一起震倒（空中的不算）
       if (st.stompWave) {
@@ -1596,12 +1557,12 @@ function updatePlayer(state, input, t, who) {
         }
         events.push('quake');
       }
-      p.vy = PHYS.STOMP_BOUNCE;
+      p.vy = st.highStomp ? PHYS.STOMP_BOUNCE_HIGH : PHYS.STOMP_BOUNCE;
       // 踩中後恢復二段跳，連續踩敵人很順
       p.airJumps = st.doubleJump ? 1 : 0;
       events.push('stomp');
-    } else if (stomping && !e.kind.stompable) {
-      // 踩到鋼盔/尖刺：被彈開並受傷，提示「這隻要用揮擊」
+    } else if (stomping) {
+      // 踩到鋼盔/尖刺：被彈開並受傷（這隻要用丟的，或拿到斧杖再來踩）
       e.bump = 10;
       p.vy = -6.5;
       hurtPlayer(e.x + e.w / 2);
@@ -1633,7 +1594,7 @@ function updatePlayer(state, input, t, who) {
       const stomping = p.vy > 0 && (p.y + p.h) - box.y < box.h * 0.9;
       if (bossVulnerable(b) && stomping) {
         events.push(damageBoss(state, b));
-        p.vy = PHYS.STOMP_BOUNCE;
+        p.vy = st.highStomp ? PHYS.STOMP_BOUNCE_HIGH : PHYS.STOMP_BOUNCE;
         p.airJumps = st.doubleJump ? 1 : 0;
       } else if (!bossHarmless(b)) {
         hurtPlayer(b.x + b.w / 2);

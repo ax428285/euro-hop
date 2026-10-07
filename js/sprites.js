@@ -1373,11 +1373,10 @@ const Sprites = (function () {
     ctx.fillStyle = '#f0c49a';
     ctx.fillRect(cx + dir * 9 - 2, y + 16 + (walking ? -swing : 0), 5, 11);
 
-    // 啤酒杯（持在手上；揮擊時往前伸）
+    // 啤酒杯（持在手上）
     if (eq.stein) {
-      const sw = p.attackTimer > 0 ? 10 : 0;
       ctx.save();
-      ctx.translate(cx + dir * (13 + sw), y + 20);
+      ctx.translate(cx + dir * 13, y + 20);
       ctx.scale(dir, 1);
       ctx.fillStyle = '#e8e4da';
       U.roundRect(ctx, -4, -6, 9, 13, 2); ctx.fill();
@@ -1425,15 +1424,6 @@ const Sprites = (function () {
     ctx.fillStyle = '#2a2a33';
     ctx.fillRect(cx + dir * 2 - 1, y + 8, 2, 3);
     ctx.fillRect(cx + dir * 6 - 1, y + 8, 2, 3);
-
-    // 揮擊特效
-    if (p.attackTimer > 0) {
-      ctx.strokeStyle = 'rgba(255, 228, 160, ' + (p.attackTimer / 14) + ')';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(cx + dir * 16, y + 20, 18, -0.9, 0.9);
-      ctx.stroke();
-    }
 
     /*
      * 兩人同機的頭頂標記。

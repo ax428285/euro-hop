@@ -84,7 +84,7 @@ function runEncounterCheck() {
         .some(function (s) { return Math.abs(s.x - (p.x + p.w / 2)) < 50; });
       if (danger) { moveTo(p, held, Encounter.CANNON.x - 140, 4); return; }
       moveTo(p, held, Encounter.CANNON.x, 10);
-      if (Encounter.shotHits(Encounter.cannonAngle(mini.elapsed + 1), Encounter.shipX(mini.elapsed + 60))) press.attack = true;
+      if (Encounter.shotHits(Encounter.cannonAngle(mini.elapsed + 1), Encounter.shipX(mini.elapsed + 60))) press.throw = true;
     },
     // 打地鼠：跑到冒出來的蛇頭旁邊跳起來踩
     serpent: function (st, held, press) {

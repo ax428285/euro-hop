@@ -61,7 +61,7 @@ async function runTouchCheck() {
   }
   function actUp(id) { fire(actpad, 'pointerup', 0, 0, id); }
   // 動作搖桿上的鍵：跳／確定是同一顆（上）
-  const ACT_DIR = { jump: [0, -1], confirm: [0, -1], throw: [-1, 0], attack: [1, 0] };
+  const ACT_DIR = { jump: [0, -1], confirm: [0, -1], throw: [1, 0] };
 
   /** 按一下按鈕，推進一帧讓遊戲讀到 */
   function tap(key) {
@@ -105,19 +105,18 @@ async function runTouchCheck() {
     const op = parseFloat(getComputedStyle(c[1]).opacity);
     check(op <= 0.6, c[0] + '是半透明的（不透明度 ' + op + '，要 ≤ 0.6）');
   });
-  // 動作搖桿：跳（兼確定）在上、揮在右、丟在左（以玩家拿手機的方向看）
+  // 動作搖桿：跳（兼確定）在上、丟在右（以玩家拿手機的方向看）；v1.18 拿掉揮
   {
     const pos = {};
-    ['jump', 'attack', 'throw'].forEach(function (k) {
+    ['jump', 'throw'].forEach(function (k) {
       const r = document.querySelector('#pad [data-key="' + k + '"]').getBoundingClientRect();
       // 螢幕座標轉回遊戲方向（直拿轉 90° 時：遊戲 x = 螢幕 y，遊戲 y = -螢幕 x）
       const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
       pos[k] = rot ? { x: sy, y: -sx } : { x: sx, y: sy };
     });
-    check(pos.jump.y < pos.attack.y && pos.jump.y < pos.throw.y &&
-          pos.attack.x > pos.jump.x && pos.throw.x < pos.jump.x,
-          '動作鍵排列：上跳、右揮、左丟');
+    check(pos.jump.y < pos.throw.y && pos.throw.x > pos.jump.x, '動作鍵排列：上跳、右丟');
     check(!document.querySelector('#pad [data-key="confirm"]'), '確定沒有獨立一顆（跟跳合併）');
+    check(!document.querySelector('#pad [data-key="attack"]'), '沒有揮的按鈕（v1.18 拿掉）');
   }
   // 按鈕離螢幕邊至少 16px（玩家回報：貼著邊框很難按）
   ['dpad', 'actpad', 'btn-menu'].map(function (id) { return document.getElementById(id); })
@@ -272,22 +271,22 @@ async function runTouchCheck() {
   }
 
   // 動作搖桿：各方向對應的動作（關卡裡上＝跳）
-  [['jump', 0, -1], ['attack', 1, 0], ['throw', -1, 0]].forEach(function (d) {
+  [['jump', 0, -1], ['throw', 1, 0]].forEach(function (d) {
     const id = actDown(d[1], d[2]);
-    const held = ['jump', 'attack', 'throw', 'confirm'].filter(function (k) { return Input.isDown(k); });
+    const held = ['jump', 'throw', 'confirm'].filter(function (k) { return Input.isDown(k); });
     actUp(id);
     check(held.length === 1 && held[0] === d[0], '關卡裡動作搖桿往' + d[0] + ' → ' + (held.join('+') || '沒反應'));
   });
-  // 斜上：跳＋揮；按住不放從跳滑到揮：跳放開、揮按下
+  // 斜上：跳＋丟；按住不放從跳滑到丟：跳放開、丟按下
   {
     const id = actDown(1, -1);
-    check(Input.isDown('jump') && Input.isDown('attack'), '動作搖桿右上 → 跳＋揮');
+    check(Input.isDown('jump') && Input.isDown('throw'), '動作搖桿右上 → 跳＋丟');
     actUp(id);
     const id2 = actDown(0, -1);
     actMove(id2, 1, 0);
-    check(!Input.isDown('jump') && Input.isDown('attack'), '從跳滑到揮：跳放開、揮按下');
+    check(!Input.isDown('jump') && Input.isDown('throw'), '從跳滑到丟：跳放開、丟按下');
     actUp(id2);
-    check(!['jump', 'attack', 'throw', 'confirm'].some(function (k) { return Input.isDown(k); }), '放開動作搖桿後全部歸零');
+    check(!['jump', 'throw', 'confirm'].some(function (k) { return Input.isDown(k); }), '放開動作搖桿後全部歸零');
   }
 
   // 跳躍鍵
@@ -354,20 +353,17 @@ async function runTouchCheck() {
   // 會動到存檔，先備份、測完還原（這台瀏覽器的進度不能被測試洗掉）
   const SAVE_KEY = 'eurohop.save.v2';
   const backup = localStorage.getItem(SAVE_KEY);
-  const atk = document.querySelector('#pad [data-key="attack"]');
   const thr = document.querySelector('#pad [data-key="throw"]');
-  function lockedNow() { return [atk.classList.contains('locked'), thr.classList.contains('locked')]; }
+  function lockedNow() { return thr.classList.contains('locked'); }
   try {
     Game.debug.resetSave();
     await new Promise(function (r) { setTimeout(r, 1200); });   // 鎖頭每 200ms 同步一次（背景分頁會被放慢）
-    const fresh = lockedNow();
-    check(fresh[0] && fresh[1], '新存檔：揮、丟都顯示鎖頭');
-    check(getComputedStyle(atk, '::after').backgroundImage.indexOf('svg') >= 0, '鎖頭圖案有畫出來');
+    check(lockedNow(), '新存檔：丟顯示鎖頭');
+    check(getComputedStyle(thr, '::after').backgroundImage.indexOf('svg') >= 0, '鎖頭圖案有畫出來');
 
     Game.debug.grantAll();
     await new Promise(function (r) { setTimeout(r, 1200); });
-    const owned = lockedNow();
-    check(!owned[0] && !owned[1], '拿到裝備後：鎖頭消失');
+    check(!lockedNow(), '拿到裝備後：鎖頭消失');
 
     // 密技：裝備畫面用搖桿輸入 ↑↑↓↓←→←→
     Game.debug.resetSave();
@@ -391,7 +387,7 @@ async function runTouchCheck() {
     push('R');
     check(Save.get().equipment.length === Equipment.count,
           '密技 ↑↑↓↓←→←→：裝備全開（' + Save.get().equipment.length + '/' + Equipment.count + '）');
-    check(Game.abilities().attack && Game.abilities().throw, '密技後揮、丟都能用');
+    check(Game.abilities().throw, '密技後丟能用');
     check(Save.get().costume === costumeBefore, '密技輸入完時裝沒被換掉');
     check(Game.debug.getScene() === 'inventory', '密技後還停在裝備畫面');
 

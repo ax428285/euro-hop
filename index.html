@@ -40,13 +40,12 @@
         <span class="dp dp-down" data-dir="down">▼</span>
       </div>
       <!--
-        動作搖桿：跟左邊一樣，手指按住後滑動換鍵（斜上 = 跳＋揮／跳＋丟）。
-        上＝跳（關卡外自動變成「確定」，main.js 換字），左＝丟，右＝揮
+        動作搖桿：跟左邊一樣，手指按住後滑動換鍵（右上 = 跳＋丟）。
+        上＝跳（關卡外自動變成「確定」，main.js 換字），右＝丟（拇指從跳往右滾就是邊跳邊丟）
       -->
       <div class="pad-actions" id="actpad" aria-label="動作">
         <button class="btn btn-jump pos-top" data-key="jump" data-dir="up" aria-label="跳躍">跳<small>空白</small></button>
-        <button class="btn btn-atk pos-left" data-key="throw" data-dir="left" aria-label="遠程攻擊">丟<small>K</small></button>
-        <button class="btn btn-atk pos-right" data-key="attack" data-dir="right" aria-label="攻擊">揮<small>J</small></button>
+        <button class="btn btn-atk pos-right" data-key="throw" data-dir="right" aria-label="遠程攻擊">丟<small>K</small></button>
       </div>
     </div>
     <!--
@@ -84,7 +83,7 @@
     </div>
   </div>
   <p id="hint">
-    <strong>1P</strong> ←→ 移動・空白 跳躍・J 揮棍・K 遠程　　<strong>2P</strong> A D 移動・W 跳躍・G 揮棍・H 遠程<br />
+    <strong>1P</strong> ←→ 移動・空白 跳躍・K 遠程　　<strong>2P</strong> A D 移動・W 跳躍・H 遠程<br />
     <strong>C</strong> 兩人同機　<strong>Q</strong> 回大地圖　<strong>B</strong> 商店　<strong>I</strong> 裝備　<strong>N</strong> 世界之謎　<strong>P</strong> 暫停　<strong>M</strong> 靜音<br />
     點畫面左側的 <strong>☰</strong> 開選單：商店、裝備、世界之謎、<strong>連線</strong>（輸入邀請碼和朋友一起玩）、靜音、全螢幕、<strong>刪除存檔</strong>
   </p>
@@ -93,33 +92,33 @@
     （本機 python http.server 沒有 cache header，瀏覽器會自行快取）。
     值跟 js/branding.js 的 VERSION 一致 —— 進版時兩處一起改。
   -->
-  <script src="js/utils.js?v=1.17.6"></script>
-  <script src="js/branding.js?v=1.17.6"></script>
-  <script src="js/input.js?v=1.17.6"></script>
-  <script src="js/music.js?v=1.17.6"></script>
-  <script src="js/audio.js?v=1.17.6"></script>
-  <script src="js/shop.js?v=1.17.6"></script>
-  <script src="js/costumes.js?v=1.17.6"></script>
-  <script src="js/save.js?v=1.17.6"></script>
-  <script src="js/equipment.js?v=1.17.6"></script>
-  <script src="js/levelgen.js?v=1.17.6"></script>
-  <script src="js/npcs.js?v=1.17.6"></script>
+  <script src="js/utils.js?v=1.18.0"></script>
+  <script src="js/branding.js?v=1.18.0"></script>
+  <script src="js/input.js?v=1.18.0"></script>
+  <script src="js/music.js?v=1.18.0"></script>
+  <script src="js/audio.js?v=1.18.0"></script>
+  <script src="js/shop.js?v=1.18.0"></script>
+  <script src="js/costumes.js?v=1.18.0"></script>
+  <script src="js/save.js?v=1.18.0"></script>
+  <script src="js/equipment.js?v=1.18.0"></script>
+  <script src="js/levelgen.js?v=1.18.0"></script>
+  <script src="js/npcs.js?v=1.18.0"></script>
   <!-- features.js 要在 levels.js 之前：關卡定義時就會呼叫 Features.plan() -->
-  <script src="js/features.js?v=1.17.6"></script>
+  <script src="js/features.js?v=1.18.0"></script>
   <!-- shaft.js 要在 levels.js 之前：關卡定義時就會呼叫 Shaft.plan() -->
-  <script src="js/shaft.js?v=1.17.6"></script>
-  <script src="js/levels.js?v=1.17.6"></script>
-  <script src="js/europe-geo.js?v=1.17.6"></script>
-  <script src="js/sprites.js?v=1.17.6"></script>
-  <script src="js/entities.js?v=1.17.6"></script>
-  <script src="js/worldmap.js?v=1.17.6"></script>
-  <script src="js/voyage.js?v=1.17.6"></script>
+  <script src="js/shaft.js?v=1.18.0"></script>
+  <script src="js/levels.js?v=1.18.0"></script>
+  <script src="js/europe-geo.js?v=1.18.0"></script>
+  <script src="js/sprites.js?v=1.18.0"></script>
+  <script src="js/entities.js?v=1.18.0"></script>
+  <script src="js/worldmap.js?v=1.18.0"></script>
+  <script src="js/voyage.js?v=1.18.0"></script>
   <!-- encounter.js 要在 voyage.js 之後：生成怪物時要問海面能不能走 -->
-  <script src="js/encounter.js?v=1.17.6"></script>
-  <script src="js/mystery.js?v=1.17.6"></script>
+  <script src="js/encounter.js?v=1.18.0"></script>
+  <script src="js/mystery.js?v=1.18.0"></script>
   <!-- net.js 要在 game.js 之前：Game 初始化時就要掛上連線事件 -->
-  <script src="js/net.js?v=1.17.6"></script>
-  <script src="js/game.js?v=1.17.6"></script>
-  <script src="js/main.js?v=1.17.6"></script>
+  <script src="js/net.js?v=1.18.0"></script>
+  <script src="js/game.js?v=1.18.0"></script>
+  <script src="js/main.js?v=1.18.0"></script>
 </body>
 </html>
