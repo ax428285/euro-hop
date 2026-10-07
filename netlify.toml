@@ -1,0 +1,21 @@
+# redirect 分支 = Netlify 的「正式分支」（production branch）。
+#
+# 這個分支只做一件事：把舊的正式網址轉到 live 分支的網址。
+#   https://effervescent-cucurucho-40f89f.netlify.app/...  →  https://live--effervescent-cucurucho-40f89f.netlify.app/...
+#
+# 為什麼：正式部署每次扣 15 credits（免費方案一個月 300），分支部署不扣。
+# 遊戲改成都推到 live 分支（分支部署），但朋友手上的舊連結還是正式網址，所以要轉過去。
+# 路徑和查詢字串（例如連線邀請的 ?join=K7Q2MX）會原封不動帶過去。
+#
+# 用 302（暫時轉址）而不是 301：301 會被瀏覽器永久記住，以後想改回來就很麻煩。
+# 這個分支幾乎不用再動 —— 每動一次就是一次正式部署（15 credits）。
+
+[build]
+  publish = "public"
+  command = ""
+
+[[redirects]]
+  from = "/*"
+  to = "https://live--effervescent-cucurucho-40f89f.netlify.app/:splat"
+  status = 302
+  force = true
