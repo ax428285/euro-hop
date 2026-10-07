@@ -59,10 +59,11 @@ async function runTouchCheck() {
   // ── 版面 ────────────────────────────────────────────
 
   const cr = canvas.getBoundingClientRect();
-  // v1.17.1 起畫面縮在中間、兩側留給按鈕；以「手機橫拿時的高度」來看，畫面要佔 75% 以上才不會太小
+  // 畫面在中間、兩側留給按鈕；以「手機橫拿時的高度」來看要佔 85% 以上
+  // （v1.17.1 只有 79%，玩家說太小）
   const shortSide = Math.min(vw, vh);
   const gameH = rot ? cr.width : cr.height;
-  check(gameH / shortSide >= 0.75, '遊戲畫面高度佔螢幕 ' + Math.round(gameH / shortSide * 100) + '%（要 ≥ 75%）');
+  check(gameH / shortSide >= 0.85, '遊戲畫面高度佔螢幕 ' + Math.round(gameH / shortSide * 100) + '%（要 ≥ 85%）');
   // 轉向正確：橫拿時畫布寬 > 高；直拿轉 90° 後畫布在螢幕上應該是高 > 寬
   check(rot ? cr.height > cr.width : cr.width > cr.height, '畫面方向是橫的（以玩家拿手機的方向看）');
 
@@ -72,10 +73,24 @@ async function runTouchCheck() {
     const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
     return (w > 0 && h > 0) ? Math.min(w, h) : 0;
   }
-  [['方向搖桿', document.getElementById('dpad')], ['動作鍵', document.querySelector('#pad .pad-actions')]].forEach(function (c) {
+  // 左邊搖桿幾乎不能疊（人物出生在最左邊）；右邊十字鍵可以多疊一些（右下角平常沒有人物）
+  [['方向搖桿', document.getElementById('dpad'), 24], ['十字動作鍵', document.querySelector('#pad .pad-actions'), 82]].forEach(function (c) {
     const o = overlapPx(c[1].getBoundingClientRect(), cr);
-    check(o <= 24, c[0] + '疊到遊戲畫面 ' + Math.round(o) + 'px（要 ≤ 24px）');
+    check(o <= c[2], c[0] + '疊到遊戲畫面 ' + Math.round(o) + 'px（要 ≤ ' + c[2] + 'px）');
   });
+  // 十字排列：跳在下、揮在右、丟在左、確定在上（以玩家拿手機的方向看）
+  {
+    const pos = {};
+    ['jump', 'attack', 'throw', 'confirm'].forEach(function (k) {
+      const r = document.querySelector('#pad [data-key="' + k + '"]').getBoundingClientRect();
+      // 螢幕座標轉回遊戲方向（直拿轉 90° 時：遊戲 x = 螢幕 y，遊戲 y = -螢幕 x）
+      const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
+      pos[k] = rot ? { x: sy, y: -sx } : { x: sx, y: sy };
+    });
+    check(pos.jump.y > pos.attack.y && pos.jump.y > pos.throw.y && pos.confirm.y < pos.attack.y &&
+          pos.attack.x > pos.throw.x && Math.abs(pos.jump.x - pos.confirm.x) < 2,
+          '動作鍵是十字排列（下跳、右揮、左丟、上確定）');
+  }
   // 按鈕離螢幕邊至少 16px（玩家回報：貼著邊框很難按）
   ['dpad', 'btn-menu'].map(function (id) { return document.getElementById(id); })
     .concat(Array.prototype.slice.call(document.querySelectorAll('#pad .pad-actions .btn')))
@@ -87,14 +102,14 @@ async function runTouchCheck() {
   // 整頁關掉瀏覽器的放大手勢（玩家回報：點到旁邊畫面突然放大）
   check(getComputedStyle(document.documentElement).touchAction === 'none' &&
         getComputedStyle(document.body).touchAction === 'none', '整頁關掉點兩下放大／兩指縮放（touch-action: none）');
-  // 「跳」旁邊、往螢幕邊緣那一側點偏了也算按到跳
+  // 「跳」在十字最下面：往下點偏到螢幕底邊也算按到跳
   {
     const jb = document.querySelector('#pad [data-key="jump"]');
     const r = jb.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const off = dirToScreen(24 + 12, 24 + 10);   // 往遊戲的右下方偏出按鈕外 12px／10px
+    const off = dirToScreen(0, 23 + 12);         // 往遊戲的下方偏出按鈕外 12px
     const hit = document.elementFromPoint(cx + off.x, cy + off.y);
-    check(hit === jb, '點在「跳」右下方外側（靠螢幕邊）也算按到跳');
+    check(hit === jb, '點在「跳」下方外側（靠螢幕底邊）也算按到跳');
   }
 
   const visible = Array.prototype.filter.call(
@@ -107,10 +122,19 @@ async function runTouchCheck() {
     // 轉 90° 時寬高對調，所以看短邊／長邊
     check(Math.min(r.width, r.height) >= 32 && Math.max(r.width, r.height) >= 36,'按鈕夠大好按：' + name + '（' + Math.round(r.width) + '×' + Math.round(r.height) + '）');
   });
+  // 圓形的動作鍵用「圓」比（十字排列時斜對角兩顆的方框會在角落交疊 5px，但圓本身離得很遠）；
+  // 半徑加上 5px —— 那是 ::before 放大的可按範圍，連可按範圍都不能重疊
+  const round = function (el) { return el.classList.contains('btn'); };
   for (let i = 0; i < visible.length; i++) {
     for (let j = i + 1; j < visible.length; j++) {
       const a = visible[i].getBoundingClientRect(), b = visible[j].getBoundingClientRect();
-      const overlap = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      let overlap;
+      if (round(visible[i]) && round(visible[j])) {
+        const d = Math.hypot((a.left + a.right - b.left - b.right) / 2, (a.top + a.bottom - b.top - b.bottom) / 2);
+        overlap = d < a.width / 2 + b.width / 2 + 10;
+      } else {
+        overlap = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      }
       if (overlap) issues.push('按鈕重疊：' + (visible[i].getAttribute('aria-label') || visible[i].id) +
                                ' 與 ' + (visible[j].getAttribute('aria-label') || visible[j].id));
     }
@@ -140,15 +164,18 @@ async function runTouchCheck() {
   // 人物不能被搖桿蓋住：關卡一開始（人物在畫面最左邊）是最容易被蓋到的時候
   {
     let covered = [];
-    [0, 2, 3].forEach(function (li) {
+    // 每一個橫向關、魔王關的出生點都要看（豎井關鏡頭會上下捲，下面會跳過）
+    Levels.list.forEach(function (_, li) {
       Game.debug.enter(li);
-      Game.debug.step(30);
-      const p = Game.debug.getState().players[0];
-      const camX0 = 0;
-      // 人物四個角換成螢幕座標（豎井關相機有 y 位移，這裡只檢查橫向關與魔王關的出生點）
+      // 等鏡頭滑到定位（魔王關的鏡頭會從 0 滑到競技場）；人物不要被怪打走
+      Game.debug.getState().players.forEach(function (q) { q.invuln = 1e9; });
+      Game.debug.step(90);
+      // 豎井關的鏡頭會一直往下捲，出生點沒意義，跳過
       if (Game.debug.getState().def.layout === 'shaft') return;
-      const bossX = Game.debug.getState().def.bossArena ? Game.debug.getState().def.bossArena.x : camX0;
-      const corners = [[p.x, p.y], [p.x + p.w, p.y + p.h]].map(function (c) { return toScreen(c[0] - bossX, c[1]); });
+      const p = Game.debug.getState().players[0];
+      const cam = Game.debug.getCam();
+      // 人物的左上、右下角 → 畫面座標（用實際的鏡頭位置）
+      const corners = [[p.x, p.y], [p.x + p.w, p.y + p.h]].map(function (c) { return toScreen(c[0] - cam.x, c[1] - cam.y); });
       const pr = { left: Math.min(corners[0].x, corners[1].x), right: Math.max(corners[0].x, corners[1].x),
                    top: Math.min(corners[0].y, corners[1].y), bottom: Math.max(corners[0].y, corners[1].y) };
       ['dpad'].forEach(function (id) {

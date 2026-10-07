@@ -220,15 +220,24 @@ html.touch #hint { display: none; }
 html.touch #stage {
   --sw: var(--vw);
   --sh: var(--vh);
-  /* 按鈕離螢幕邊的距離（含瀏海安全區）：四邊都至少 16～18px，手機殼與曲面邊框旁邊也按得到 */
+  /* 按鈕離螢幕邊的距離（含瀏海安全區）：四邊都至少 16px，手機殼與曲面邊框旁邊也按得到 */
   --pt: max(16px, env(safe-area-inset-top));
-  --pr: calc(18px + env(safe-area-inset-right));
-  --pb: max(18px, env(safe-area-inset-bottom));
-  --pl: calc(18px + env(safe-area-inset-left));
-  /* 搖桿／動作鍵區的寬度；遊戲畫面兩側讓出的寬度（按鈕最外 20px 可以疊到畫面邊緣，那裡通常只有地面） */
-  --ctl: 104px;
-  --gl: calc(var(--pl) + var(--ctl) - 20px);
-  --gr: calc(var(--pr) + var(--ctl) - 20px);
+  --pr: calc(16px + env(safe-area-inset-right));
+  --pb: max(16px, env(safe-area-inset-bottom));
+  --pl: calc(16px + env(safe-area-inset-left));
+  /*
+   * 兩側按鈕區（v1.17.2：左右分開算）。
+   *   v1.17.1 兩側各讓出一大條，畫面只剩螢幕高度的 79%，玩家說太小。
+   *   左邊搖桿：最多疊到畫面 22px —— 關卡一開始人物就在畫面最左邊
+   *            （魔王關出生點離畫面左緣只有約 25px），再多就會蓋到人
+   *   右邊十字鍵：可以疊 80px —— 鏡頭讓人物停在畫面左邊 38%，右下角平常沒有人；
+   *            而且十字排列四個角是空的，實際蓋住的比方陣少
+   * 畫面高度回到螢幕的 86～88%。
+   */
+  --ctl-l: 96px;
+  --ctl-r: 128px;
+  --gl: calc(var(--pl) + var(--ctl-l) - 22px);
+  --gr: calc(var(--pr) + var(--ctl-r) - 80px);
   --menu-top: var(--pt);
   position: fixed;
   left: 0;
@@ -247,9 +256,9 @@ html.touch.rot #stage {
   --sh: var(--vw);
   /* 轉 90° 後，遊戲的上/右/下/左 = 手機的右/下/左/上，瀏海安全區要跟著對調 */
   --pt: max(16px, env(safe-area-inset-right));
-  --pr: calc(18px + env(safe-area-inset-bottom));
-  --pb: max(18px, env(safe-area-inset-left));
-  --pl: calc(18px + env(safe-area-inset-top));
+  --pr: calc(16px + env(safe-area-inset-bottom));
+  --pb: max(16px, env(safe-area-inset-left));
+  --pl: calc(16px + env(safe-area-inset-top));
   transform-origin: 0 0;
   transform: translateX(var(--vw)) rotate(90deg);
 }
@@ -266,7 +275,7 @@ html.touch #pad {
   position: absolute;
   inset: 0;
   margin: 0;
-  grid-template-columns: var(--ctl) 1fr var(--ctl);
+  grid-template-columns: var(--ctl-l) 1fr var(--ctl-r);
   grid-template-rows: 1fr;
   grid-template-areas: "dpad . act";
   padding: var(--pt) var(--pr) var(--pb) var(--pl);
@@ -284,10 +293,10 @@ html.touch .pad-actions .btn::before {
   inset: -5px;
   border-radius: 50%;
 }
-/* 外側（右、下）一路延伸到螢幕邊，而且是直角：最常點偏的就是右下角那個角落 */
+/* 「跳」在十字的最下面：往下一路延伸到螢幕邊（直角），點偏到底邊也算跳 */
 html.touch .pad-actions .btn-jump::before {
-  inset: -5px calc(-1 * var(--pr)) calc(-1 * var(--pb)) -5px;
-  border-radius: 50% 0 0 50%;
+  inset: -6px -8px calc(-1 * var(--pb)) -8px;
+  border-radius: 50% 50% 0 0;
 }
 html.touch .dpad::before {
   content: "";
@@ -434,19 +443,32 @@ html.touch .dpad, html.touch .pad-actions .btn { opacity: 0.45; }
 html.touch .dpad:has(.on), html.touch .pad-actions .btn.on { opacity: 0.75; }
 html.touch .pad-actions .btn.locked { opacity: 0.85; }
 html.touch .sbtn { height: 32px; min-width: 44px; font-size: 12px; }
-/* 搖桿與 2×2 動作鍵都是 --ctl（104px）寬，剛好放進兩側的按鈕區 */
-html.touch .dpad { width: var(--ctl); height: var(--ctl); }
-html.touch .dp { width: 34px; height: 34px; font-size: 16px; }
-html.touch .dp-up { top: 4px; }
-html.touch .dp-down { bottom: 4px; }
-html.touch .dp-left { left: 4px; }
-html.touch .dp-right { right: 4px; }
+/* 左邊搖桿 --ctl-l（96px） */
+html.touch .dpad { width: var(--ctl-l); height: var(--ctl-l); }
+html.touch .dp { width: 32px; height: 32px; font-size: 15px; }
+html.touch .dp-up { top: 3px; }
+html.touch .dp-down { bottom: 3px; }
+html.touch .dp-left { left: 3px; }
+html.touch .dp-right { right: 3px; }
+
+/*
+ * 右邊動作鍵：十字（菱形）排列，像遊戲手把（v1.17.2 玩家建議）。
+ *   下＝跳（最常按，拇指自然落點）　右＝揮（拇指往右滾就能邊跳邊打）
+ *   左＝丟　上＝確定（關卡裡最少用）
+ * 斜對角相鄰兩顆的圓心距離 58px > 按鈕 46px，不會誤觸到隔壁。
+ */
 html.touch .pad-actions {
-  grid-template-columns: repeat(2, 48px);
-  grid-template-rows: repeat(2, 48px);
-  gap: 8px;
+  display: block;
+  position: relative;
+  width: var(--ctl-r);
+  height: var(--ctl-r);
 }
-html.touch .btn { width: 48px; height: 48px; font-size: 17px; }
+html.touch .pad-actions .btn { position: absolute; }
+html.touch .pad-actions .pos-top    { top: 0;    left: calc(50% - 23px); }
+html.touch .pad-actions .pos-bottom { bottom: 0; left: calc(50% - 23px); }
+html.touch .pad-actions .pos-left   { left: 0;   top: calc(50% - 23px); }
+html.touch .pad-actions .pos-right  { right: 0;  top: calc(50% - 23px); }
+html.touch .btn { width: 46px; height: 46px; font-size: 17px; }
 html.touch .btn-ok { font-size: 13px; }
 html.touch #pad .btn small { font-size: 9px; }
 html.touch .btn.locked::after { background-size: 24px 24px; }

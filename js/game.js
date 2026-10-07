@@ -2992,6 +2992,8 @@ const Game = (function () {
         for (let k = 0; k < (n || 1); k++) tick();
       },
       getCursor: function () { return cursor; },
+      /** 鏡頭位置（測試用：把世界座標換成畫面座標） */
+      getCam: function () { return { x: camX, y: camY }; },
       /** 連線（測試用）：房主立刻把目前狀態傳出去，不等下一個「每 2 帧」的時間點 */
       netFlush: function () {
         if (!isHost() || !net.levelLive) return false;
