@@ -158,6 +158,43 @@ function makeBot(state) {
         return;
       }
 
+      /*
+       * 纜車關（v1.20）：山谷跳不過去，要搭纜車。真人的搭法：
+       *   月台邊等纜車靠站 → 走上去 → 站著不動讓它載 → 快到對岸時走下去。
+       */
+      if (state.def.vehicle === 'cable') {
+        const rm = p.ridingMover;
+        if (rm) {
+          held.right = rm.x + rm.w >= rm.ox + rm.range + rm.w - 4;   // 停到對岸那頭才下車
+          held.jump = false;
+          return;
+        }
+        if (!footingAt(state, p.x + p.w + 8, feetY)) {
+          // 前面是山谷：找這一頭的纜車，停靠中才走上去
+          const m = state.movers.filter(function (q) {
+            return Math.abs((q.ox - q.range) - (p.x + p.w)) < 60;
+          })[0];
+          held.right = !!m && m.x <= m.ox - m.range + 4;
+          held.jump = false;
+          return;
+        }
+        // 纜車已經靠站（前面的落腳處是纜車）：直接走上去，不要因為底下是海就「跳過危險」——
+        // 跳起來會越過 96 寬的車廂掉進海裡（克羅埃西亞實測掉了 49 次）
+        const probe = { x: p.x + p.w + 8, y: feetY + 2, w: 3, h: 10 };
+        if (state.movers.some(function (q) { return U.overlap(probe, q); })) {
+          held.jump = false;
+          return;
+        }
+        /*
+         * 車站是平的、站內沒有斷崖，所以「到邊緣就跳」在這裡只會壞事：
+         * 機器人跳上站上的浮空平台，再從平台尾端起跳，直接飛過整個山谷掉進海（克羅埃西亞實測）。
+         * 只在撞牆時跳。
+         */
+        jumpEdge = wallAhead(state, p);
+        held.jump = jumpEdge;
+        return;
+      }
+
       // 站到邊緣（前緣再往前 8px 就沒地板）→ 這一刻起跳
       const atEdge = !footingAt(state, p.x + p.w + 8, feetY) ||
                      hazardAt(state, p.x + p.w + 8);

@@ -166,17 +166,26 @@ const Levels = (function () {
                 : GROUND_Y;
     const worldH = tall ? 480 + climb + 80 : 480;
 
+    /*
+     * v1.20 東歐交通關（cfg.vehicle）：
+     *   'train'  東方快車 —— 地面段是車廂頂、斷崖是車廂連結處；不放浮空平台與移動平台（火車上不會有）
+     *   'cable'  纜車 —— 地面段是纜車站、斷崖是跳不過去的山谷，每個山谷一台纜車
+     */
+    const vehicle = cfg.vehicle || null;
     const g = LevelGen.buildGround(r, {
       width: width,
-      profile: layout === 'boss' ? 'flat' : layout,
+      profile: vehicle || (layout === 'boss' ? 'flat' : layout),
       baseY: baseY,
       climb: climb
     });
 
-    const platforms = LevelGen.buildPlatforms(r, g.segs, {
+    const platforms = vehicle === 'train' ? [] : LevelGen.buildPlatforms(r, g.segs, {
       tiers: cfg.tiers || [92, 162]
     });
-    const movers = LevelGen.buildMovers(r, g.segs, g.gaps, { movers: cfg.movers !== false });
+    const movers = LevelGen.buildMovers(r, g.segs, g.gaps, {
+      movers: cfg.movers !== false && vehicle !== 'train',
+      gondolas: vehicle === 'cable'
+    });
     const coins = LevelGen.buildCoins(r, g.segs, g.gaps, platforms);
     const enemies = LevelGen.buildEnemies(r, g.segs, {
       groundTypes: cfg.groundTypes,
@@ -244,6 +253,24 @@ const Levels = (function () {
         }
       }
     }
+    /*
+     * 最後的備案（v1.20 纜車關）：車站短（380~520），站上一排金幣加敵人就把 200 寬的密室擠不下了。
+     * 連金幣也先不管，找到位置後把擋到密室的金幣移走。前面幾種都放得下的關卡不會走到這裡。
+     */
+    if (!sc) {
+      sc = LevelGen.buildSecret(g.segs, g.gaps, platforms, movers, [], [], secretOpts);
+      if (sc) {
+        const rz = { x: sc.room.x - 60, w: sc.room.w + 120 };
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          if (enemies[i].left < rz.x + rz.w && enemies[i].right > rz.x) enemies.splice(i, 1);
+        }
+        for (let i = coins.length - 1; i >= 0; i--) {
+          const c = coins[i];
+          if (c.x < sc.room.x + sc.room.w + 10 && c.x + 24 > sc.room.x - 10 &&
+              c.y < sc.room.y + sc.room.h && c.y + 24 > sc.room.y - 140) coins.splice(i, 1);
+        }
+      }
+    }
     if (sc) {
       secrets.push(sc);
       /*
@@ -276,8 +303,10 @@ const Levels = (function () {
     });
     feat.coins.forEach(function (c) { coins.push(c); });
 
-    // 危險區：斷崖底部放尖刺或水
-    const hazards = g.gaps.map(function (gp) {
+    // 危險區：斷崖底部放尖刺或水。
+    // 火車的連結處、沒有海的纜車山谷不放：掉下去本來就摔出畫面（鐵軌、深谷），尖刺反而怪
+    const openPits = vehicle === 'train' || (vehicle === 'cable' && !cfg.water);
+    const hazards = openPits ? [] : g.gaps.map(function (gp) {
       const ly = LevelGen.groundAt(g.segs, gp.x - 6);
       const ry = LevelGen.groundAt(g.segs, gp.x + gp.w + 6);
       const top = Math.max(ly == null ? GROUND_Y : ly, ry == null ? GROUND_Y : ry);
@@ -321,6 +350,7 @@ const Levels = (function () {
       groundTop: cfg.groundTop,
       groundBody: cfg.groundBody,
       deco: cfg.deco,
+      vehicle: vehicle,
       width: width,
       height: worldH,
       layout: layout,
@@ -778,38 +808,27 @@ const Levels = (function () {
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 12. 匈牙利 · 布達佩斯 —— 多瑙河：斷崖底下是河水，靠船（移動平台）過河
+  // 12. 匈牙利 · 布達佩斯 —— 🚂 東方快車（v1.20）：在車廂頂上往車頭跑，間歇泉從車頂通風口噴出
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1015,
     id: 'HU', country: '匈牙利', city: '布達佩斯', region: 'east',
     flag: ['#CD2A3E', '#FFFFFF', '#436F4D'], flagDir: 'h',
     landmark: 'parliament',
-    fact: '布達佩斯原本是兩座城：多瑙河西岸的布達與東岸的佩斯，1873 年才合併。',
+    fact: '1883 年首航的東方快車從巴黎開往伊斯坦堡，沿途就經過布達佩斯。',
     sky: ['#6f9ccc', '#f4d2a4'], hill: '#5d6f80',
     groundTop: '#a8a088', groundBody: '#5a5048',
     deco: 'tree',
     layout: 'flat',
-    water: true,          // 斷崖底下是多瑙河（掉下去一樣會死，但畫成水）
+    vehicle: 'train',
     groundTypes: ['walker', 'charger', 'guard', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 1.05,
-    // 招牌：溫泉間歇泉，噴發時站上去會被衝上天（可以飛越河面）
+    // 招牌：溫泉間歇泉（火車開過溫泉區，蒸氣從車頂噴上來），噴發時站上去會被衝上天
     features: [{ type: 'geysers', count: 5 }],
-    secretHint: '溫泉澡堂地下的舊水道，水是溫的',
+    secretHint: '行李車廂的夾層，裡面暖暖的有溫泉的味道',
     secretNear: 0.85,
-    props: [
-      { type: 'paprikaStall', x: 700 },
-      { type: 'paprikaStall', x: 4500 },
-      { type: 'thermalPool', x: 2100 },
-      { type: 'thermalPool', x: 5600 },
-      { type: 'cafe', x: 1400 },
-      { type: 'cafe', x: 3800 },
-      { type: 'lamp', x: 300 },
-      { type: 'lamp', x: 3000 },
-      { type: 'lamp', x: 6200 },
-      { type: 'kiosk', x: 6700 }
-    ]
+    props: []             // 車頂上不擺街景道具
   }));
 
   // ────────────────────────────────────────────────────────────
@@ -862,18 +881,19 @@ const Levels = (function () {
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 14. 斯洛伐克 · 高塔特拉 —— 山地：逆風
+  // 14. 斯洛伐克 · 高塔特拉 —— 🚡 纜車（v1.20）：在山頭纜車站之間搭纜車，強風吹襲
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1021,
     id: 'SK', country: '斯洛伐克', city: '高塔特拉', region: 'east',
     flag: ['#FFFFFF', '#0B4EA2', '#EE1C25'], flagDir: 'h',
     landmark: 'spis',
-    fact: '斯皮什城堡占地超過 4 公頃，是中歐面積最大的城堡遺跡之一。',
+    fact: '高塔特拉的纜車可以一路坐到海拔 2634 公尺的隆尼茨峰頂。',
     sky: ['#9cc4e8', '#e8eef2'], hill: '#7a8a9a',
     groundTop: '#6f9a58', groundBody: '#4f4436',
     deco: 'pine',
-    layout: 'hills',
+    layout: 'flat',
+    vehicle: 'cable',
     groundTypes: ['walker', 'guard', 'spiker', 'charger'],
     airTypes: ['flyer', 'chaser'],
     density: 1.15,
@@ -892,19 +912,20 @@ const Levels = (function () {
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 15. 克羅埃西亞 · 杜布羅夫尼克 —— 海岸城牆：砲擊
+  // 15. 克羅埃西亞 · 杜布羅夫尼克 —— 🚡 纜車（v1.20）：海面上的纜車，岸邊砲台在打
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1022,
     id: 'HR', country: '克羅埃西亞', city: '杜布羅夫尼克', region: 'east',
     flag: ['#FF0000', '#FFFFFF', '#171796'], flagDir: 'h',
     landmark: 'dubrovnik',
-    fact: '杜布羅夫尼克的城牆全長約 2 公里，從 13 世紀蓋到 17 世紀，從來沒有被攻破過。',
+    fact: '杜布羅夫尼克的纜車 1969 年啟用，幾分鐘就能從古城外坐上山頂俯瞰整座城牆。',
     sky: ['#7ab8e8', '#f4e4c4'], hill: '#7a9a8a',
     groundTop: '#d8c8a0', groundBody: '#8a7a5a',
     deco: 'cypress',
     layout: 'flat',
-    water: true,          // 斷崖底下是亞得里亞海
+    vehicle: 'cable',
+    water: true,          // 纜車底下是亞得里亞海
     groundTypes: ['walker', 'guard', 'charger', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 1.1,
@@ -923,7 +944,7 @@ const Levels = (function () {
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 16. 塞爾維亞 · 貝爾格勒 —— 雙河交會：會塌的木橋
+  // 16. 塞爾維亞 · 貝爾格勒 —— 🚂 東方快車（v1.20）：車廂之間的連結板，踩了會塌
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1023,
@@ -935,26 +956,19 @@ const Levels = (function () {
     groundTop: '#9a9478', groundBody: '#5a5040',
     deco: 'tree',
     layout: 'flat',
-    water: true,
+    vehicle: 'train',
     groundTypes: ['walker', 'charger', 'guard', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 1.15,
+    // 招牌：會塌的木橋 → 火車上是「車廂之間的連結板」，站上去搖一搖就掉下去
     features: [{ type: 'bridges', count: 6 }],
-    secretHint: '要塞城牆底下的老地道，傳說通到河對岸',
+    secretHint: '餐車底下的儲藏格，傳說藏過國王的酒',
     secretNear: 0.6,
-    props: [
-      { type: 'cafe', x: 1000 },
-      { type: 'kiosk', x: 1800 },
-      { type: 'lamp', x: 2500 },
-      { type: 'cafe', x: 3700 },
-      { type: 'lamp', x: 4600 },
-      { type: 'kiosk', x: 5500 },
-      { type: 'lamp', x: 6300 }
-    ]
+    props: []
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 17. 保加利亞 · 玫瑰谷 —— 山谷：定時冒出的玫瑰荊棘
+  // 17. 保加利亞 · 玫瑰谷 —— 🚂 東方快車（v1.20）：載滿玫瑰的貨車廂，荊棘定時冒出
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1024,
@@ -965,23 +979,16 @@ const Levels = (function () {
     sky: ['#a8c8e8', '#f8e4e8'], hill: '#7a8a6a',
     groundTop: '#7aa85a', groundBody: '#5a4a3a',
     deco: 'tree',
-    layout: 'hills',
+    layout: 'flat',
+    vehicle: 'train',
     groundTypes: ['walker', 'spiker', 'guard', 'charger'],
     airTypes: ['flyer', 'chaser'],
     density: 1.1,
+    // 招牌：玫瑰荊棘 → 長在載玫瑰的車廂頂上，定時冒刺
     features: [{ type: 'thorns', count: 9 }],
-    secretHint: '玫瑰叢後面的蒸餾小屋，聞得到花香',
+    secretHint: '玫瑰貨車廂的木箱後面，聞得到花香',
     secretNear: 0.45,
-    props: [
-      { type: 'roseBush', x: 700 },
-      { type: 'roseBush', x: 1600 },
-      { type: 'halfTimber', x: 2400 },
-      { type: 'roseBush', x: 3200 },
-      { type: 'roseBush', x: 4100 },
-      { type: 'lamp', x: 4800 },
-      { type: 'roseBush', x: 5600 },
-      { type: 'roseBush', x: 6400 }
-    ]
+    props: []
   }));
 
   // ────────────────────────────────────────────────────────────

@@ -109,6 +109,8 @@ const LevelGen = (function () {
     const width = opts.width;
     const profile = opts.profile || 'flat';
     const baseY = opts.baseY != null ? opts.baseY : GROUND_Y;
+    if (profile === 'train') return buildTrain(r, width, baseY);
+    if (profile === 'cable') return buildCable(r, width, baseY);
     const segs = [];
     const gaps = [];
 
@@ -163,6 +165,81 @@ const LevelGen = (function () {
     return { segs: segs, gaps: gaps, endY: y };
   }
 
+  /*
+   * v1.20 東歐交通關：火車（東方快車）與纜車。地面段的意義換掉，其餘產生流程（敵人、金幣、
+   * 密道、招牌機制、居民）完全照舊 —— 它們只看「地面段＋斷崖」，不在乎那段地面是什麼。
+   */
+
+  /**
+   * 火車：每一段地面 = 一節車廂的車頂，斷崖 = 車廂之間的連結處（掉下去就摔到鐵軌上）。
+   * 整列車在世界座標裡是靜止的，「在跑」的感覺靠背景的鐵軌、電線桿往後飛（見 Sprites.trainTrack）。
+   * 車廂間距 80~104：比一般斷崖窄一點（車廂本來就靠很近），但一定要跳；
+   * ≥ 90 的有一半以上 —— 塞爾維亞的「斷橋」要放在夠寬、兩側等高的縫上（Features.plan）。
+   * 最後一段 = 車頭（至少 520 寬，終點在 62% 的位置，車頭畫在最後面）。
+   */
+  function buildTrain(r, width, baseY) {
+    const segs = [], gaps = [];
+    let x = 0;
+    // 每次都留得下「這節最長 420 + 縫 104 + 車頭 520」，車頭才不會超出關卡寬度（超出就走不到終點）
+    while (x + 420 + 104 + 520 <= width) {
+      const w = randInt(r, 300, 420);
+      segs.push({ x: x, y: baseY, w: w, car: true });
+      x += w;
+      const gw = randInt(r, 80, 104);
+      gaps.push({ x: x, w: gw });
+      x += gw;
+    }
+    segs.push({ x: x, y: baseY, w: width - x, loco: true });
+    return { segs: segs, gaps: gaps, endY: baseY };
+  }
+
+  /**
+   * 纜車：地面段 = 山上的纜車站（平台），斷崖 = 站與站之間的山谷（寬 300~380，跳不過去）。
+   * 每個山谷配一台纜車（buildMovers 的 gondolas 選項）來回接送。
+   * 站都在同一個高度：纜車只沿著纜線水平走，兩頭要剛好接得上月台。
+   */
+  function buildCable(r, width, baseY) {
+    const segs = [], gaps = [];
+    let x = 0;
+    segs.push({ x: 0, y: baseY, w: 420, station: true });
+    x = 420;
+    // 每次都留得下「這一段（谷 380 + 站 520）+ 終點（谷 360 + 站 520）」，終點站才不會超出關卡寬度
+    while (x + (380 + 520) + (360 + 520) <= width) {
+      const gw = randInt(r, 300, 380);
+      gaps.push({ x: x, w: gw, valley: true });
+      x += gw;
+      const w = randInt(r, 380, 520);
+      segs.push({ x: x, y: baseY, w: w, station: true });
+      x += w;
+    }
+    // 最後一段：終點站
+    const gw = randInt(r, 300, 360);
+    gaps.push({ x: x, w: gw, valley: true });
+    x += gw;
+    segs.push({ x: x, y: baseY, w: width - x, station: true });
+    return { segs: segs, gaps: gaps, endY: baseY };
+  }
+
+  /**
+   * 纜車：每個山谷一台，沿著纜線在兩站之間來回（x 軸、正弦擺動 —— 兩頭會自然減速停靠）。
+   * 兩頭各離月台邊 2px：不跟地面重疊（level-check 4b），玩家走過 2px 的縫完全沒感覺。
+   * 速度 0.8~1.0：最快約 3px/帧；在月台邊 10px 內停留約 40 帧，夠走上去。
+   */
+  const GONDOLA_W = 96;
+  function buildGondolas(r, segs, gaps) {
+    return gaps.map(function (g) {
+      const floor = groundAt(segs, g.x - 6);
+      return {
+        x: Math.round(g.x + g.w / 2 - GONDOLA_W / 2), y: floor,
+        w: GONDOLA_W, h: 18,
+        axis: 'x',
+        range: Math.round(g.w / 2 - GONDOLA_W / 2 - 2),
+        speed: 0.8 + r() * 0.2,
+        gondola: true
+      };
+    });
+  }
+
   /** 地面段轉成碰撞矩形。高度補到世界底部，免得側面看到空隙。 */
   function groundRects(segs, worldH) {
     return segs.map(function (s) {
@@ -213,6 +290,7 @@ const LevelGen = (function () {
    */
   function buildMovers(r, segs, gaps, opts) {
     const out = [];
+    if (opts.gondolas) return buildGondolas(r, segs, gaps);
     if (!opts.movers) return out;
     gaps.forEach(function (g, i) {
       if (i % 2 !== 0) return;           // 隔一個放，不要每個斷崖都有

@@ -37,7 +37,19 @@ function runLevelCheck() {
     }
 
     // ── 1. 每個斷崖都要有一條可行的跳躍軌跡 ──
+    // 纜車關（v1.20）的山谷本來就跳不過去，改成檢查「有一台纜車兩頭都接得上月台」
     gaps.forEach(function (g) {
+      if (def.vehicle === 'cable') {
+        const ok = (def.movers || []).some(function (m) {
+          const lo = m.x - m.range, hi = m.x + m.range + m.w;
+          const leftY = groundTopAt(def, g.x - 4), rightY = groundTopAt(def, g.x + g.w + 4);
+          // 兩頭離月台邊都在 8px 內，而且地板跟兩邊月台同高
+          return Math.abs(lo - g.x) <= 8 && Math.abs(hi - (g.x + g.w)) <= 8 &&
+                 m.y === leftY && m.y === rightY;
+        });
+        if (!ok) issues.push(tag + '：山谷 x=' + g.x + ' 寬 ' + g.w + ' 沒有兩頭都接得上月台的纜車');
+        return;
+      }
       if (!gapCrossable(g, solids, hazards, def)) {
         issues.push(tag + '：斷崖 x=' + g.x + ' 寬 ' + g.w +
           ' 找不到可行的跳躍軌跡（可能被上方平台擋住或太寬）');

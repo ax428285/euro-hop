@@ -249,6 +249,12 @@ const Features = (function () {
         f.state = gustState(t);
         if (f.state === 'blow') {
           players.forEach(function (p) {
+            /*
+             * 坐在纜車上不吹（v1.20 斯洛伐克改纜車關）：纜車廂只有 96 寬，
+             * 一陣風推 1.5px/帧 × 170 帧，一定被吹進山谷 —— 那不是挑戰是陷阱。
+             * 改成纜車廂跟著風晃（畫面上，Sprites.gondola），在車站月台上才會被吹。
+             */
+            if (p.ridingMover) return;
             if (p.onGround && p.x > f.x0 && p.x < f.x1) p.x -= GUST_PUSH;
           });
         }

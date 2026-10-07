@@ -3294,6 +3294,227 @@ const Sprites = (function () {
     ctx.restore();
   }
 
+  // ── 東歐交通關（v1.20）：東方快車、纜車 ─────────────────────────
+
+  /*
+   * 東方快車的車廂（螢幕座標 x、世界座標 y = 車頂）。
+   * 車頂 y 就是玩家站的地面；車身往下 52px、車輪再往下，底下是鐵軌（trainTrack）。
+   * 配色照東方快車的經典塗裝：深藍車身、金色腰線、亮著暖燈的窗戶。
+   * opts.loco：這節是車頭（最右邊 260px 畫成蒸汽機車頭，前面是終點）。
+   * opts.coupleTo：跟下一節之間的距離，畫連結器（不能站，只是看的）。
+   */
+  function trainCar(ctx, sx, y, w, t, opts) {
+    opts = opts || {};
+    const bodyH = 52;
+    const locoW = opts.loco ? Math.min(260, w * 0.45) : 0;
+    const carW = w - locoW;
+
+    // 連結器：車廂之間一根鐵桿 + 風擋布（在車身中段，碰不到）
+    if (opts.coupleTo > 0) {
+      ctx.fillStyle = '#2a2a30';
+      ctx.fillRect(sx + w - 2, y + 34, opts.coupleTo + 4, 6);
+      ctx.fillStyle = 'rgba(60, 50, 40, 0.8)';
+      ctx.fillRect(sx + w, y + 10, 6, 30);
+      ctx.fillRect(sx + w + opts.coupleTo - 6, y + 10, 6, 30);
+    }
+
+    // 車輪（每節兩組轉向架；轉得很快）
+    const spin = t * 0.35;
+    function wheel(cx, r) {
+      ctx.fillStyle = '#1c1c22';
+      ctx.beginPath(); ctx.arc(cx, y + bodyH + 12, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#8a8a96';
+      ctx.lineWidth = 1.6;
+      for (let k = 0; k < 3; k++) {
+        const a = spin + k * Math.PI / 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - Math.cos(a) * (r - 2), y + bodyH + 12 - Math.sin(a) * (r - 2));
+        ctx.lineTo(cx + Math.cos(a) * (r - 2), y + bodyH + 12 + Math.sin(a) * (r - 2));
+        ctx.stroke();
+      }
+    }
+    [28, 56, carW - 56, carW - 28].forEach(function (wx) { if (wx > 10 && wx < carW - 10) wheel(sx + wx, 9); });
+
+    // 車身
+    ctx.fillStyle = '#1d2a4f';
+    U.roundRect(ctx, sx, y + 4, carW, bodyH - 4, 4); ctx.fill();
+    // 車頂（玩家站的那一條）：深灰弧頂
+    ctx.fillStyle = '#4a4e5a';
+    U.roundRect(ctx, sx - 2, y, carW + 4, 8, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.fillRect(sx + 4, y + 1, carW - 8, 2);
+    // 金色腰線
+    ctx.fillStyle = '#c9a24a';
+    ctx.fillRect(sx + 2, y + 13, carW - 4, 2);
+    ctx.fillRect(sx + 2, y + bodyH - 8, carW - 4, 2);
+    // 窗戶：暖黃燈光，偶爾一扇是暗的（有人拉窗簾）
+    for (let wx = 18, k = 0; wx < carW - 30; wx += 40, k++) {
+      const lit = ((k + (opts.idx || 0) * 3) % 5) !== 2;
+      ctx.fillStyle = lit ? '#f6d68a' : '#46506e';
+      U.roundRect(ctx, sx + wx, y + 19, 24, 17, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(29, 42, 79, 0.6)';
+      ctx.fillRect(sx + wx + 11, y + 19, 2, 17);
+    }
+    // 車廂兩端的門
+    ctx.fillStyle = '#16203c';
+    ctx.fillRect(sx + 4, y + 16, 8, bodyH - 22);
+    ctx.fillRect(sx + carW - 12, y + 16, 8, bodyH - 22);
+
+    if (!locoW) return;
+
+    // ── 蒸汽車頭：鍋爐（圓筒）+ 煙囪 + 排障器，車頂一樣可以站 ──
+    const lx = sx + carW;
+    [40, 92, 150, locoW - 40].forEach(function (wx) { wheel(lx + wx, wx < 120 ? 13 : 9); });
+    ctx.fillStyle = '#23252c';
+    U.roundRect(ctx, lx, y + 4, locoW - 24, bodyH - 10, 10); ctx.fill();
+    ctx.fillStyle = '#4a4e5a';
+    U.roundRect(ctx, lx - 2, y, locoW - 20, 8, 4); ctx.fill();
+    // 紅色飾條 + 黃銅環
+    ctx.fillStyle = '#a3262e';
+    ctx.fillRect(lx, y + bodyH - 12, locoW - 24, 4);
+    ctx.fillStyle = '#d6b05c';
+    for (let bx = lx + 50; bx < lx + locoW - 40; bx += 46) ctx.fillRect(bx, y + 6, 3, bodyH - 16);
+    // 煙囪（裝飾，比車頂高；不能站）
+    const cx = lx + locoW - 60;
+    ctx.fillStyle = '#1a1b20';
+    ctx.fillRect(cx - 9, y - 30, 18, 32);
+    ctx.fillRect(cx - 13, y - 34, 26, 7);
+    // 排障器
+    ctx.fillStyle = '#a3262e';
+    ctx.beginPath();
+    ctx.moveTo(lx + locoW - 24, y + 20);
+    ctx.lineTo(lx + locoW, y + bodyH + 8);
+    ctx.lineTo(lx + locoW - 24, y + bodyH + 8);
+    ctx.closePath(); ctx.fill();
+    // 頭燈
+    ctx.fillStyle = '#fff2b0';
+    ctx.beginPath(); ctx.arc(lx + locoW - 26, y + 18, 5, 0, Math.PI * 2); ctx.fill();
+    // 煙：一顆顆往後（左上）飄、慢慢變大變淡
+    for (let k = 0; k < 7; k++) {
+      const life = ((t * 1.2 + k * 26) % 180) / 180;      // 0 → 1
+      const px = cx - life * 260, py = y - 40 - life * 90 + Math.sin(life * 6 + k) * 6;
+      ctx.fillStyle = 'rgba(235, 235, 240, ' + (0.55 * (1 - life)).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(px, py, 10 + life * 26, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  /**
+   * 火車底下的鐵軌與路邊（螢幕座標）。整列車在世界裡不動，靠這層往後飛做出速度感：
+   *   電線桿（每 420px 一根、比鏡頭快一點往後退）、枕木（飛快往後）、兩條鋼軌、碎石道床。
+   */
+  function trainTrack(ctx, camX, t, W, groundY) {
+    const RUN = 9;                       // 車速（px/帧）
+    ctx.save();
+    // 電線桿與電線（在火車後面）
+    const pole = 420;
+    const off = ((camX * 1.0 + t * RUN * 0.8) % pole + pole) % pole;
+    ctx.strokeStyle = 'rgba(40, 34, 30, 0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY - 96); ctx.lineTo(W, groundY - 92);
+    ctx.moveTo(0, groundY - 82); ctx.lineTo(W, groundY - 78);
+    ctx.stroke();
+    for (let px = -off; px < W + pole; px += pole) {
+      ctx.fillStyle = '#5a4630';
+      ctx.fillRect(px, groundY - 110, 6, 190);
+      ctx.fillRect(px - 14, groundY - 100, 34, 4);
+      ctx.fillRect(px - 10, groundY - 86, 26, 3);
+    }
+    // 碎石道床
+    ctx.fillStyle = '#6e6658';
+    ctx.fillRect(0, groundY + 70, W, 20);
+    // 枕木（飛快往後）
+    const sl = 34;
+    const so = ((camX + t * RUN) % sl + sl) % sl;
+    ctx.fillStyle = '#4a3624';
+    for (let px = -so; px < W + sl; px += sl) ctx.fillRect(px, groundY + 72, 20, 6);
+    // 鋼軌
+    ctx.fillStyle = '#b8bcc6';
+    ctx.fillRect(0, groundY + 69, W, 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, groundY + 72, W, 1);
+    ctx.restore();
+  }
+
+  /**
+   * 纜車（世界座標的 mover → 螢幕座標畫）：纜線、兩頭的塔架、吊臂、車廂。
+   * 平台本身（m.y 起 18px）是車廂地板，玩家站在上面；車廂外框、車頂只是看的。
+   * gust：斯洛伐克起風時車廂晃得比較大（風不會把坐纜車的人吹下去，見 Features gusts）。
+   * ⚠️ 名字不能叫 gondola：上面已經有義大利的貢多拉船道具（同名函式會互相蓋掉）。
+   */
+  function cableGondola(ctx, m, camX, t, gust, W, id) {
+    const left = m.ox - m.range, right = m.ox + m.range + m.w;      // 行程兩端（世界 x）
+    if (right - camX < -60 || left - camX > W + 60) return;
+    const cableY = m.oy - 84;
+    const ax = left - 26 - camX, bx = right + 26 - camX;
+    ctx.save();
+    // 塔架（站在月台上）
+    ctx.fillStyle = '#5a5e6a';
+    [ax, bx].forEach(function (x) {
+      ctx.fillRect(x - 4, cableY - 8, 8, m.oy - cableY + 8);
+      ctx.fillRect(x - 14, cableY - 10, 28, 6);
+    });
+    // 纜線（中間微微下垂）
+    ctx.strokeStyle = '#2c2c34';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ax, cableY - 6);
+    ctx.quadraticCurveTo((ax + bx) / 2, cableY + 10, bx, cableY - 6);
+    ctx.stroke();
+
+    // 車廂：掛在纜線上的點（跟纜線下垂一致），以吊點為軸心晃動
+    const sx = m.x - camX;
+    const hx = sx + m.w / 2;
+    const k = U.clamp((hx - ax) / Math.max(1, bx - ax), 0, 1);
+    const hy = cableY - 6 + 16 * 2 * k * (1 - k);      // 二次貝茲在 k 的 y
+    const sway = Math.sin(t * 0.05 + m.ox * 0.01) * (gust ? 0.07 : 0.025);
+    ctx.translate(hx, hy);
+    ctx.rotate(sway);
+    ctx.translate(-hx, -hy);
+    // 吊臂
+    ctx.fillStyle = '#3a3a44';
+    ctx.fillRect(hx - 2, hy, 4, m.y - 62 - hy);
+    ctx.beginPath(); ctx.arc(hx, hy + 2, 5, 0, Math.PI * 2); ctx.fill();
+    // 車頂
+    const body = id === 'HR' ? '#2d6fb5' : '#c8323c';    // 克羅埃西亞藍、斯洛伐克紅
+    ctx.fillStyle = body;
+    U.roundRect(ctx, sx - 4, m.y - 64, m.w + 8, 12, 6); ctx.fill();
+    // 兩側柱子 + 半截窗（中間鏤空，看得到裡面的玩家）
+    ctx.fillRect(sx, m.y - 54, 6, 54);
+    ctx.fillRect(sx + m.w - 6, m.y - 54, 6, 54);
+    ctx.fillStyle = 'rgba(200, 225, 245, 0.25)';
+    ctx.fillRect(sx + 6, m.y - 54, m.w - 12, 30);
+    // 地板（可以站的那一條）
+    ctx.fillStyle = '#2a2a32';
+    U.roundRect(ctx, sx - 2, m.y, m.w + 4, m.h, 4); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.fillRect(sx - 2, m.y, m.w + 4, 4);
+    ctx.restore();
+  }
+
+  /** 纜車關的谷底：比地面低很多的森林剪影（視差 0.6，遠一點、霧一點） */
+  function valleyFloor(ctx, camX, W, H, groundY, hill) {
+    ctx.save();
+    const top = groundY + 22;
+    const g = ctx.createLinearGradient(0, top, 0, H);
+    g.addColorStop(0, 'rgba(120, 150, 170, 0.35)');
+    g.addColorStop(1, 'rgba(50, 70, 80, 0.75)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, top, W, H - top);
+    ctx.fillStyle = hill || '#5a7060';
+    ctx.globalAlpha = 0.7;
+    const off = ((camX * 0.6) % 46 + 46) % 46;
+    for (let x = -off - 46; x < W + 46; x += 46) {
+      const h = 26 + ((Math.round((x + camX * 0.6) / 46) * 37) % 3 + 3) % 3 * 9;
+      ctx.beginPath();
+      ctx.moveTo(x, H);
+      ctx.lineTo(x + 23, H - 30 - h);
+      ctx.lineTo(x + 46, H);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   // ── 瑞士阿爾卑斯主題（theme: 'alps'） ─────────────────────────
 
   /** 一座雪峰：山體 + 山頂積雪（積雪用同一個三角形往下截一段） */
@@ -5169,6 +5390,10 @@ const Sprites = (function () {
     shaftWall: shaftWall,
     shaftCeiling: shaftCeiling,
     shaftFlood: shaftFlood,
+    trainCar: trainCar,
+    trainTrack: trainTrack,
+    cableGondola: cableGondola,
+    valleyFloor: valleyFloor,
     propWidth: propWidth,
     propLayer: propLayer,
     decos: decos,

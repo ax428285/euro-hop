@@ -68,6 +68,11 @@ const Game = (function () {
     newClue = null;
     toast = null;
     const def = Levels.list[i];
+    // 交通關一進來先講玩法（toast 在 const VEHICLE_INTRO 的說明）
+    if (def.vehicle && VEHICLE_INTRO[def.vehicle]) {
+      const vi = VEHICLE_INTRO[def.vehicle];
+      toast = { text: vi[0], sub: vi[1], life: 260 };
+    }
     state = buildLevelState(def, i, sv.equipment, stats, coop);
     camX = 0;
     /*
@@ -423,6 +428,23 @@ const Game = (function () {
     bridge: ['河上的老木橋', '踩上去一下就會塌，別停下來'],
     thorn: ['玫瑰荊棘', '花苞抖動之後會冒出尖刺，等它縮回去再過']
   };
+  // 交通關（v1.20）同一個機制換了場景，提示也要換說法
+  const VEHICLE_TIPS = {
+    train: {
+      geyser: ['溫泉區的蒸氣', '車頂通風口冒泡之後會噴發 —— 站上去能被衝上天'],
+      bridge: ['車廂連結板', '踩上去一下就會塌，別停下來'],
+      thorn: ['玫瑰貨車廂', '花苞抖動之後會冒出尖刺，等它縮回去再過']
+    },
+    cable: {
+      gusts: ['塔特拉山風', '颳風時月台上會被往後吹 —— 坐在纜車裡很安全，只是會晃'],
+      cannons: ['城牆砲擊', '月台上的紅圈是砲彈落點，看到就快離開，或趕快搭上纜車']
+    }
+  };
+  // 一進交通關先講怎麼玩（尤其纜車：要等靠站，不能跳過去）
+  const VEHICLE_INTRO = {
+    train: ['東方快車', '在車廂頂上往車頭跑・車廂之間的縫要跳過去'],
+    cable: ['搭纜車過山谷', '山谷跳不過去：在月台邊等纜車靠站再走上去，到對岸再下車']
+  };
 
   function eastUnlocked() {
     return Save.get().exp >= Encounter.EAST_EXP;
@@ -489,7 +511,8 @@ const Game = (function () {
       }
       // 第一次接近招牌機制：提示這段要注意什麼
       if (ev.indexOf && ev.indexOf('feature:') === 0) {
-        const tip = FEATURE_TIPS[ev.slice(8)];
+        const vt = state.def.vehicle && VEHICLE_TIPS[state.def.vehicle];
+        const tip = (vt && vt[ev.slice(8)]) || FEATURE_TIPS[ev.slice(8)];
         if (tip) toast = { text: tip[0], sub: tip[1], life: 170 };
         return;
       }
@@ -884,14 +907,15 @@ const Game = (function () {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    // 雲
+    // 雲（火車關：雲也慢慢往後飄，站著不動也看得出車在跑）
     const rnd = U.rng(1337);
+    const cloudDrift = def.vehicle === 'train' ? t * 0.5 : 0;
     ctx.fillStyle = def.cloud || 'rgba(255,255,255,0.55)';
     for (let i = 0; i < 14; i++) {
       const bx = rnd() * def.width;
       const by = 40 + rnd() * 110;
       const bs = 0.7 + rnd() * 0.7;
-      const x = bx - camX * 0.18;
+      const x = bx - camX * 0.18 - cloudDrift;
       const wrapped = ((x % def.width) + def.width) % def.width;
       if (wrapped > W + 120) continue;
       ctx.beginPath();
@@ -936,6 +960,11 @@ const Game = (function () {
       }
       ctx.globalAlpha = 1;
     }
+
+    // 火車關：鐵軌、枕木、電線桿往後飛（整列車在世界裡是靜止的，「在跑」全靠這一層）
+    if (def.vehicle === 'train') Sprites.trainTrack(ctx, camX, t, W, Levels.GROUND_Y);
+    // 纜車關：遠遠的谷底（一排松樹剪影），只會從山谷之間透出來 —— 看起來才夠深、夠高
+    if (def.vehicle === 'cable') Sprites.valleyFloor(ctx, camX, W, H, Levels.GROUND_Y, def.hill);
   }
 
   /**
@@ -967,10 +996,26 @@ const Game = (function () {
   function drawTerrain(def) {
     const worldH = def.height || H;
 
+    /*
+     * 交通關（v1.20）：
+     *   火車 —— 地面段畫成車廂（Sprites.trainCar），車廂之間看得到底下的鐵軌，不填黑坑、不種樹
+     *   纜車 —— 車站照一般地面畫（山頭），山谷不填黑坑：透出天空和遠山才像在高空
+     */
+    if (def.vehicle === 'train') {
+      def.groundSegs.forEach(function (s, i) {
+        const sx = s.x - camX;
+        if (sx > W + 80 || sx + s.w < -80) return;
+        const next = def.groundSegs[i + 1];
+        Sprites.trainCar(ctx, sx, s.y, s.w, t, { loco: !!s.loco, idx: i, coupleTo: next ? next.x - s.x - s.w : 0 });
+      });
+      drawTerrainExtras(def);
+      return;
+    }
+
     // 斷崖深坑先填暗色，否則會透出天空。
     // 只對「高度相同的相鄰地面」做 —— 高低差大的相鄰段是階梯地形，
     // 中間不是坑，填黑會把整片畫面糊掉。
-    for (let i = 0; i < def.ground.length - 1; i++) {
+    for (let i = 0; i < def.ground.length - 1 && def.vehicle !== 'cable'; i++) {
       const a = def.ground[i], b = def.ground[i + 1];
       const gx0 = a.x + a.w, gw = b.x - gx0;
       if (gw <= 0) continue;
@@ -1018,6 +1063,11 @@ const Game = (function () {
       });
     }
 
+    drawTerrainExtras(def);
+  }
+
+  /** 地形上的水、尖刺、平台（一般關與交通關共用） */
+  function drawTerrainExtras(def) {
     // 水
     (def.water || []).forEach(function (wt) {
       const sx = wt.x - camX;
@@ -1316,7 +1366,12 @@ const Game = (function () {
     if (def.skirmish) Encounter.drawWorld(ctx, state, t);
 
     // 移動平台
+    // 纜車關：移動平台畫成纜車（纜線、塔架、車廂）；起風時車廂跟著晃
+    const gusting = !!(state.features && state.features.list.some(function (f) {
+      return f.type === 'gusts' && f.state === 'blow';
+    }));
     state.movers.forEach(function (m) {
+      if (def.vehicle === 'cable') { Sprites.cableGondola(ctx, m, camX, t, gusting, W, def.id); return; }
       const sx = m.x - camX;
       if (sx > W || sx + m.w < 0) return;
       ctx.fillStyle = '#7c6a52';
