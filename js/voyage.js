@@ -21,6 +21,7 @@
  *   Voyage.update(input)       每帧更新，回傳事件（'dock' 進關卡、'embark' 上船、'land' 上岸）
  *   Voyage.draw(ctx, t, opts)
  *   Voyage.nearbyLevel()       目前可進入的關卡 index（沒有回 -1）
+ *   Voyage.nearbySpecial()     靠近的特殊地點（葡萄牙商店、愛爾蘭裝備；沒有回 null）
  *   Voyage.shipPos()           角色位置（世界座標）
  *   Voyage.mode()              'sea' / 'land'
  *   Voyage.isLand(x, y)        這一點是陸地嗎（真實國界多邊形）
@@ -54,6 +55,7 @@ const Voyage = (function () {
   let ports = [];
   const ship = { x: 0, y: 0, vx: 0, vy: 0, heading: 0, wake: [], mode: 'sea', step: 0, facing: 1 };
   let nearIdx = -1;
+  let nearSp = null;        // 靠近的特殊地點（WorldMap.specials 的一個：葡萄牙商店、愛爾蘭裝備）
   let built = false;
 
   function inPoly(px, py, pts) {
@@ -159,6 +161,7 @@ const Voyage = (function () {
     ship.wake = [];
     ship.mode = isLand(ship.x, ship.y) ? 'land' : 'sea';
     nearIdx = p.idx;
+    nearSp = null;
   }
 
   function placeShip(x, y) {
@@ -217,9 +220,12 @@ const Voyage = (function () {
       const d = Math.hypot(ship.x - p.x, ship.y - p.y);
       if (d < bestD) { bestD = d; nearIdx = p.idx; }
     });
+    // 特殊地點（葡萄牙商店、愛爾蘭裝備）：比最近的關卡港口還近才算它
+    nearSp = WorldMap.nearSpecial(ship.x, ship.y, bestD);
+    if (nearSp) nearIdx = -1;
 
     // 進關卡只吃 Enter（方向鍵「上」同時對應 jump，吃 jump 的話往北走會誤觸）
-    if (nearIdx >= 0 && input.once('confirm')) events.push('dock');
+    if ((nearIdx >= 0 || nearSp) && input.once('confirm')) events.push('dock');
     return events;
   }
 
@@ -275,7 +281,8 @@ const Voyage = (function () {
       cursor: nearIdx,
       t: t,
       east: opts.east,
-      regionOpen: opts.regionOpen       // v1.21：各篇章（東歐、非洲）的解鎖狀態
+      regionOpen: opts.regionOpen,      // v1.21：各篇章（東歐、非洲）的解鎖狀態
+      specialNear: nearSp ? nearSp.id : null
       // 不再隱藏固定航線：各國之間的虛線就是建議旅程
     });
 
@@ -310,6 +317,8 @@ const Voyage = (function () {
     update: update,
     draw: draw,
     nearbyLevel: function () { return nearIdx; },
+    /** 靠近的特殊地點（沒有回 null）：{ id, name, def: { role, scene } } */
+    nearbySpecial: function () { return nearSp; },
     shipPos: function () { return { x: ship.x, y: ship.y }; },
     mode: function () { return ship.mode; },
     isLand: function (x, y) { if (!built) build(); return isLand(x, y); },

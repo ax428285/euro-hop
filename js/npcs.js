@@ -172,17 +172,6 @@ const Npcs = (function () {
       { at: 0.78, name: '說書人 Hassan',
         look: { skin: '#b8845a', hair: '#cfcfcf', shirt: '#e8dcc0', pants: '#e8dcc0', hat: 'kerchief', hatColor: '#ffffff', item: 'book' },
         lines: ['德吉瑪廣場一到晚上，就有說書人、樂師和小吃攤。', '撒哈拉沙漠差不多跟整個美國一樣大。', '這裡的房子大多是紅土蓋的，所以馬拉喀什又叫「紅城」。'] }
-    ],
-    KE: [
-      { at: 0.12, name: '馬賽戰士 Lemayian',
-        look: { skin: '#6a4430', hair: '#1a1410', shirt: '#c8202a', pants: '#c8202a', hat: null, item: 'spear' },
-        lines: ['前面牛羚群要衝過來了！跳到牠們背上會彈起來喔。', '我們馬賽人披的紅格子布叫 shúkà。', '馬賽人跳舞時，會比賽誰原地跳得最高。'] },
-      { at: 0.45, name: '巡守員 Wanjiru',
-        look: { skin: '#7a4e34', hair: '#1a1410', shirt: '#6a7a3a', pants: '#4a5a2a', hat: 'cap', hatColor: '#5a6a30', item: 'map' },
-        lines: ['「五大獸」是獅子、花豹、大象、犀牛和非洲水牛。', '牛羚渡馬拉河的時候，河裡還有鱷魚在等。', '長頸鹿的舌頭有四、五十公分長，而且是深紫色的。'] },
-      { at: 0.78, name: '長跑教練 Kiprop',
-        look: { skin: '#6a4430', hair: '#1a1410', shirt: '#1e8a3a', pants: '#1e1e26', hat: null, item: null },
-        lines: ['肯亞很多長跑選手在高地長大，空氣稀薄，練起來更強。', '第一個在兩小時內跑完馬拉松的人就是肯亞人（2019 年）。', '首都奈洛比的名字，來自馬賽語的「冰涼的水」。'] }
     ]
   };
 

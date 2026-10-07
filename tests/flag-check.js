@@ -30,8 +30,7 @@ function runFlagCheck() {
     BG: { dir: 'h', order: ['white', 'green', 'red'] },      // 白綠紅 橫
     UA: { dir: 'h2', order: ['blue', 'gold'] },              // 藍黃 兩色橫
     // v1.21 非洲篇
-    MA: { dir: 'star', order: null },                        // 紅底，中央綠色五角星（空心線條）
-    KE: { dir: 'kenya', order: null }                        // 黑紅綠 橫（白色細邊）+ 中央馬賽盾牌
+    MA: { dir: 'star', order: null }                         // 紅底，中央綠色五角星（空心線條）
   };
 
   const cv = document.createElement('canvas');
@@ -186,18 +185,6 @@ function runFlagCheck() {
       let green = false;
       for (let y = H * 0.18; y < H * 0.5 && !green; y += 1) green = name(px(W / 2, y)) === 'green';
       if (!green) issues.push(lv.country + ' 中央應有綠色五角星，量不到綠色線條');
-    } else if (exp.dir === 'kenya') {
-      // 肯亞：最上黑、最下綠、中間（盾牌兩側）紅；中央是盾牌
-      const top = name(px(W * 0.1, H * 0.12));
-      const mid = name(px(W * 0.1, H * 0.5));
-      const bot = name(px(W * 0.1, H * 0.88));
-      if (top !== 'black') issues.push(lv.country + ' 最上面應為黑，量到 ' + top);
-      if (mid !== 'red') issues.push(lv.country + ' 中間應為紅，量到 ' + mid);
-      if (bot !== 'green') issues.push(lv.country + ' 最下面應為綠，量到 ' + bot);
-      // 紅黑之間有白色細邊
-      let white = false;
-      for (let y = H * 0.28; y < H * 0.4 && !white; y += 1) white = name(px(W * 0.1, y)) === 'white';
-      if (!white) issues.push(lv.country + ' 黑與紅之間應有白色細邊');
     }
   });
 
@@ -231,7 +218,7 @@ function runFlagCheck() {
   Object.keys(fingerprints.v || {}).forEach(function (id) {
     plainV.push(fingerprints.v[id]);
   });
-  ['uk', 'esp', 'cze', 'cross', 'greek', 'h', 'star', 'kenya'].forEach(function (dirKey) {
+  ['uk', 'esp', 'cze', 'cross', 'greek', 'h', 'star'].forEach(function (dirKey) {
     const group = fingerprints[dirKey];
     if (!group) return;
     Object.keys(group).forEach(function (id) {

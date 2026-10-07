@@ -38,7 +38,7 @@ const Encounter = (function () {
    */
   const REGIONS = [
     { id: 'east', name: '東歐篇', exp: EAST_EXP },
-    { id: 'africa', name: '非洲篇', exp: 700 }
+    { id: 'africa', name: '非洲篇', exp: 500 }      // v1.21.1 玩家：700 → 500
   ];
   function regionOf(id) { return REGIONS.filter(function (r) { return r.id === id; })[0] || null; }
   /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放） */

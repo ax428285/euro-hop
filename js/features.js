@@ -129,9 +129,6 @@ const Features = (function () {
           list.push({ type: 'sand', x: sp.x, y: sp.y, w: SAND_W });
           ctx.avoid.push({ x: sp.x - 100, y: 0, w: SAND_W + 200, h: 600 });
         }
-      } else if (c.type === 'migration') {
-        // 肯亞：動物大遷徙。一段區間內，牛羚群定時從前方迎面衝過來
-        list.push({ type: 'migration', x0: Math.round(W * (c.from || 0.3)), x1: Math.round(W * (c.to || 0.78)) });
       } else if (c.type === 'thorns') {
         // 保加利亞：玫瑰荊棘，定時從地裡冒出來
         const n = c.count || 8;
@@ -154,12 +151,6 @@ const Features = (function () {
   const SAND_W = 120;
   const SAND_LIMIT = 150;
   const SAND_MAX_RUN = 2.3;
-  /*
-   * 動物大遷徙（肯亞）：牛羚群從前方迎面衝來（西班牙奔牛是從後面追）。
-   * 3~4 頭一群、群長約 200px；相對速度 = 牛 3.4 + 玩家 4.6 → 跳一下（滯空約 40 帧）就飛得過去，
-   * 也可以踩在背上彈起來（比一般踩敵人高）。
-   */
-  const GNU_SPEED = 3.4, GNU_W = 56, GNU_H = 34, GNU_GAP = 64, GNU_EVERY = 280, GNU_BOUNCE = -11;
 
   const GUST_CYCLE = 320;     // 一輪：安靜 → 預告 → 颳風
   const GUST_PUSH = 1.5;      // 逆風時每帧把地面上的玩家往回推幾 px（空中不推：跳躍距離不受影響）
@@ -192,7 +183,6 @@ const Features = (function () {
         if (f.type === 'barrels') { o.items = []; o.cd = 60; }
         if (f.type === 'cannons') { o.shells = []; o.cd = 60; o.seq = 0; }
         if (f.type === 'bridge') { o.state = 'ok'; o.timer = 0; }
-        if (f.type === 'migration') { o.herd = []; o.cd = 60; o.seq = 0; }
         return o;
       }),
       seen: {}
@@ -323,36 +313,6 @@ const Features = (function () {
           const feet = p.y + p.h;
           if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 6 && p.x < f.x + f.w - 6) p.inSand = true;
         });
-      } else if (f.type === 'migration') {
-        // 牛羚群：玩家在區間內才會來；從畫面右邊外面（玩家前方 620）往左衝
-        if (lead.x > f.x0 && lead.x < f.x1 && --f.cd <= 0) {
-          f.cd = GNU_EVERY;
-          const n = 3 + (f.seq++ % 2);
-          const base = lead.x + 620;
-          for (let k = 0; k < n; k++) f.herd.push({ x: base + k * GNU_GAP, y: null, k: f.seq * 7 + k });
-          events.push('herd');
-        }
-        f.herd.forEach(function (g) {
-          g.x -= GNU_SPEED;
-          // 跟著地面高度跑；經過斷崖時維持原本高度（看起來是一躍而過）
-          const gy = groundTop(def, g.x + GNU_W / 2);
-          if (gy != null) g.y = gy;
-          if (g.y == null) return;
-          const box = { x: g.x, y: g.y - GNU_H, w: GNU_W, h: GNU_H };
-          players.forEach(function (p, i) {
-            if (!U.overlap(p, box)) return;
-            const stomping = p.vy > 0 && (p.y + p.h) - box.y < 16;
-            if (stomping) {
-              // 踩在牛羚背上：彈得比一般踩敵人高，可以一路踩過整群
-              launch(p, GNU_BOUNCE, events, pidOf(p, i));
-              g.bumped = 8;
-            } else {
-              hurt(p, g.x + GNU_W / 2, events, pidOf(p, i));
-            }
-          });
-          if (g.bumped > 0) g.bumped--;
-        });
-        f.herd = f.herd.filter(function (g) { return g.x > lead.x - 800 && g.x > f.x0 - 600; });
       } else if (f.type === 'thorn') {
         const k = (t + f.phase) % THORN_CYCLE;
         f.state = k < 80 ? 'bud' : k < 104 ? 'warn' : 'spike';
@@ -470,36 +430,6 @@ const Features = (function () {
     ctx.fillRect(-24 + leg, -6, 6, 6); ctx.fillRect(10 - leg, -6, 6, 6);
     ctx.fillStyle = '#ff6b5a';
     ctx.fillRect(28, -24, 3, 2);
-    ctx.restore();
-  }
-
-  /** 牛羚（往左跑）：深灰褐身體、黑鬃毛、彎角、會擺動的腿 */
-  function drawGnu(ctx, x, y, t, k, bumped) {
-    const bob = Math.abs(Math.sin(t * 0.4 + k)) * 3 - (bumped ? 3 : 0);
-    ctx.save();
-    ctx.translate(x, y - bob);
-    // 腿
-    ctx.fillStyle = '#3a3028';
-    const leg = Math.sin(t * 0.55 + k) * 7;
-    ctx.fillRect(10 + leg, -12, 5, 12); ctx.fillRect(40 - leg, -12, 5, 12);
-    ctx.fillRect(16 - leg, -12, 5, 12); ctx.fillRect(46 + leg, -12, 5, 12);
-    // 身體（前高後低，牛羚的招牌體型）
-    ctx.fillStyle = '#5a5048';
-    ctx.beginPath();
-    ctx.moveTo(4, -14); ctx.quadraticCurveTo(8, -34, 26, -32); ctx.lineTo(50, -26);
-    ctx.quadraticCurveTo(58, -20, 54, -12); ctx.closePath(); ctx.fill();
-    // 頭（朝左）+ 黑色長臉
-    ctx.fillStyle = '#2a241e';
-    ctx.beginPath(); ctx.ellipse(-2, -26, 9, 7, -0.5, 0, Math.PI * 2); ctx.fill();
-    // 鬃毛與鬍鬚
-    ctx.fillRect(8, -34, 14, 4);
-    ctx.fillRect(0, -20, 6, 8);
-    // 彎角
-    ctx.strokeStyle = '#d8ccb0'; ctx.lineWidth = 2.4;
-    ctx.beginPath(); ctx.moveTo(0, -31); ctx.quadraticCurveTo(-8, -40, -2, -42); ctx.stroke();
-    // 揚起的塵土
-    ctx.fillStyle = 'rgba(200, 170, 110, 0.45)';
-    ctx.beginPath(); ctx.arc(60 + (t * 2 + k * 9) % 14, -4, 6, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
@@ -646,13 +576,6 @@ const Features = (function () {
             ctx.beginPath(); ctx.arc(sx + 24 + b * 34, f.y - ph * 4, 2 + ph * 2, 0, Math.PI * 2); ctx.fill();
           }
         }
-      } else if (f.type === 'migration') {
-        f.herd.forEach(function (g) {
-          if (g.y == null) return;
-          const sx = g.x - camX;
-          if (sx < -80 || sx > 1040) return;
-          drawGnu(ctx, sx, g.y, t, g.k, g.bumped > 0);
-        });
       } else if (f.type === 'bridge') {
         if (f.state === 'fallen') return;
         const sx = f.x - camX + (f.state === 'shaking' ? Math.sin(t * 1.3) * 2 : 0);

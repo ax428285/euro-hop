@@ -221,6 +221,7 @@ const WorldMap = (function () {
           if (b.y < MAP_TOP + 2 || b.y + b.h > MAP_BOTTOM - 2) continue;
           let clash = 0;
           nations.forEach(function (o) { clash += boxOverlap(b, pinBox(o.pin)); });
+          specials.forEach(function (o) { clash += boxOverlap(b, pinBox(o.pin)); });
           placed.forEach(function (pb) { clash += boxOverlap(b, pb); });
           const base = insideFrac(b, n.shapes) * 100 - Math.hypot(x - mx, y - my) * 0.15;
           if (clash === 0 && base > bestScore) { bestScore = base; best = [x, y]; }
@@ -233,6 +234,109 @@ const WorldMap = (function () {
       n.labelAlign = 'center';
       placed.push(labelBoxAt(name, best[0], best[1], LABEL_SIZE_SEL));
     }
+  }
+
+  /*
+   * 特殊地點（v1.21.1 玩家要求）：不是關卡，走過去按 Enter 打開功能畫面。
+   *   葡萄牙 → 商店（大航海時代的貿易港，買賣東西很合理）
+   *   愛爾蘭 → 裝備
+   * 國界用背景國的真實資料（EuropeBackdrop），圖釘換成功能圖示（不是國旗）。
+   */
+  const SPECIAL_DEFS = [
+    { id: 'PT', name: '葡萄牙', role: '商店', scene: 'shop', fill: '#7a6438', edge: 'rgba(255, 214, 140, 0.75)', badge: '#e8b84a' },
+    { id: 'IE', name: '愛爾蘭', role: '裝備', scene: 'inventory', fill: '#3d6a5a', edge: 'rgba(170, 240, 200, 0.7)', badge: '#5fd08a' }
+  ];
+  const specials = [];
+
+  function buildSpecials() {
+    specials.length = 0;
+    if (typeof EuropeBackdrop === 'undefined') return;
+    SPECIAL_DEFS.forEach(function (d) {
+      const geo = EuropeBackdrop[d.id];
+      if (!geo) return;
+      const main = geo.shapes.reduce(function (a, b) { return b.length > a.length ? b : a; });
+      const pin = innerPoint(main);
+      specials.push({ id: d.id, def: d, name: d.name, shapes: geo.shapes, pin: pin, label: [pin[0], pin[1] + 16] });
+    });
+  }
+
+  /** 特殊地點的國土：自己的顏色，一眼跟關卡國、背景國分得開 */
+  function drawSpecialLand(ctx, nearId) {
+    specials.forEach(function (s) {
+      s.shapes.forEach(function (sh) {
+        poly(ctx, sh);
+        ctx.fillStyle = s.def.fill;
+        ctx.fill();
+        ctx.strokeStyle = s.id === nearId ? '#ffd166' : s.def.edge;
+        ctx.lineWidth = s.id === nearId ? 2.5 : 1.2;
+        ctx.stroke();
+      });
+    });
+  }
+
+  /** 特殊地點的圖釘：圓形徽章 + 功能圖示（商店 = 錢袋、裝備 = 寶箱），下面印「國名・功能」 */
+  function drawSpecialPins(ctx, nearId, t) {
+    specials.forEach(function (s) {
+      const x = s.pin[0], y = s.pin[1];
+      const near = s.id === nearId;
+      const bob = near ? Math.sin(t * 0.08) * 3 : 0;
+      ctx.save();
+      if (near) {
+        ctx.strokeStyle = 'rgba(255, 209, 102, 0.9)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, 15 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.fillStyle = '#d8dee8';
+      ctx.fillRect(x - 1, y - 16 + bob, 2, 16);
+      // 徽章
+      const by = y - 22 + bob;
+      ctx.fillStyle = s.def.badge;
+      ctx.beginPath(); ctx.arc(x, by, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(12,18,30,0.75)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, by, 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#2a1e10';
+      if (s.def.scene === 'shop') {
+        // 錢袋：圓袋身 + 綁口 + €
+        ctx.beginPath(); ctx.arc(x, by + 2, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(x - 2.5, by - 6, 5, 3);
+        ctx.fillStyle = s.def.badge;
+        ctx.font = '700 7px "Segoe UI", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('€', x, by + 2.5);
+      } else {
+        // 寶箱：箱身 + 箱蓋 + 鎖扣
+        ctx.fillRect(x - 6, by - 2, 12, 7);
+        ctx.fillRect(x - 6, by - 6, 12, 3);
+        ctx.fillStyle = s.def.badge;
+        ctx.fillRect(x - 1.5, by - 2, 3, 3);
+      }
+      // 底座
+      ctx.fillStyle = s.def.badge;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function drawSpecialLabels(ctx, nearId) {
+    specials.forEach(function (s) {
+      const near = s.id === nearId;
+      U.text(ctx, s.name + '・' + s.def.role, s.label[0], s.label[1], {
+        size: near ? LABEL_SIZE_SEL : 12,
+        color: near ? '#ffd166' : '#fff4dc',
+        align: 'center',
+        strokeWidth: 3,
+        strokeColor: 'rgba(16, 24, 18, 0.75)'
+      });
+    });
+  }
+
+  /** 哪個特殊地點離 (x, y) 最近、而且在 range 內（沒有回 null） */
+  function nearSpecial(x, y, range) {
+    let best = null, bestD = range;
+    specials.forEach(function (s) {
+      const d = Math.hypot(x - s.pin[0], y - (s.pin[1] + 4));
+      if (d < bestD) { bestD = d; best = s; }
+    });
+    return best;
   }
 
   /**
@@ -365,8 +469,19 @@ const WorldMap = (function () {
         labelAlign: 'center'
       });
     });
+    // 特殊地點（葡萄牙商店、愛爾蘭裝備）的圖釘也要先定位：國名標籤要避開它們
+    buildSpecials();
     // 圖釘全部定位後才擺標籤（要避開所有國家的旗子）
     placeLabels();
+    // 特殊地點的標籤（「葡萄牙・商店」比國名長，最後擺：避開關卡國已經擺好的字）
+    specials.forEach(function (s) {
+      const name = s.name + '・' + s.def.role;
+      placeOne(s, name, s.pin);
+      // 國土太小（愛爾蘭）放不下時，字會壓在自己的圖釘上 → 改放圖釘正下方
+      if (boxOverlap(labelBoxAt(name, s.label[0], s.label[1], LABEL_SIZE_SEL), pinBox(s.pin)) > 0) {
+        s.label = [s.pin[0], s.pin[1] + 16];
+      }
+    });
     // 東歐國最後擺：要避開關卡國已經擺好的字
     buildEast();
   }
@@ -522,22 +637,14 @@ const WorldMap = (function () {
     { name: '挪　威　海', lon: 1, lat: 67, size: 16 },
     { name: '巴倫支海', lon: 38, lat: 71, size: 13 },
     { name: '波的尼亞灣', lon: 20.5, lat: 62.8, size: 10, angle: -1.2 },
-    { name: '紅海', lon: 38.5, lat: 20.5, size: 11, angle: -1.0 },
-    // v1.21 非洲篇：地圖往南延伸到好望角
-    { name: '幾內亞灣', lon: 3, lat: 1.5, size: 13 },
-    { name: '印　度　洋', lon: 48, lat: -8, size: 17, vertical: true },
-    { name: '莫三比克海峽', lon: 40.5, lat: -18.5, size: 10, angle: -1.3 },
-    { name: '亞丁灣', lon: 47.5, lat: 12.6, size: 10 },
-    { name: '大　西　洋', lon: 0, lat: -18, size: 17, vertical: true }
+    { name: '紅海', lon: 38.5, lat: 20.5, size: 11, angle: -1.0 }
   ];
 
   /** 區域名稱（大而淡，像地圖上印的大字；還沒有關卡的標「篇章開發中」） */
   const REGIONS = [
     { name: '北　歐', sub: '（篇章開發中）', lon: 17, lat: 65.5, size: 26 },
-    { name: '非　洲', lon: 20, lat: 8, size: 30 },
-    { name: '撒哈拉沙漠', lon: 6, lat: 23.5, size: 16 },
-    { name: '剛果盆地', lon: 21, lat: -2.5, size: 12 },
-    { name: '喀拉哈里沙漠', lon: 22, lat: -24, size: 12 }
+    { name: '非　洲', lon: 14, lat: 25, size: 30 },
+    { name: '撒哈拉沙漠', lon: 2, lat: 22.5, size: 14 }
   ];
 
   function drawRegionNames(ctx) {
@@ -577,6 +684,8 @@ const WorldMap = (function () {
     drawSea(ctx, WORLD_W, WORLD_H, t);
     drawSeaNames(ctx);
     drawBackdrop(ctx);
+    // 特殊地點（葡萄牙商店、愛爾蘭裝備）蓋在背景國上面；opts.specialNear = 靠近的那個（高亮）
+    drawSpecialLand(ctx, opts.specialNear);
     drawRegionNames(ctx);
     // 東歐篇：opts.east = { unlocked }。不傳就不畫（商店等底圖畫面不需要）
     if (opts.east) drawEast(ctx, opts.east.unlocked, t);
@@ -643,7 +752,9 @@ const WorldMap = (function () {
       drawLabel(ctx, o.n, o.lv, o.st, o.selected);
       if (o.eastLock) lockIcon(ctx, o.n.label[0], o.n.label[1] + 14);
     });
+    drawSpecialLabels(ctx, opts.specialNear);
     info.forEach(function (o) { drawPin(ctx, o.n, o.lv, o.st, o.selected, t); });
+    drawSpecialPins(ctx, opts.specialNear, t);
   }
 
   function hitTest(mx, my) {
@@ -665,6 +776,8 @@ const WorldMap = (function () {
     nations: nations,
     east: east,
     hitTestEast: hitTestEast,
+    specials: specials,
+    nearSpecial: nearSpecial,
     pinBox: pinBox,
     LABEL_SIZE_SEL: LABEL_SIZE_SEL,
     cam: cam,

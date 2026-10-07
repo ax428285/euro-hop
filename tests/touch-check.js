@@ -262,6 +262,11 @@ async function runTouchCheck() {
   }
 
   // 關卡裡：按住搖桿右，玩家要往右走
+  // ⚠️ 固定用西班牙（第 1 關）：上面逐關檢查出生點後停在「最後一關」，
+  // 最後一關的第一個斷崖可能就在出生點前面（v1.21 摩洛哥在 x=280），往右走 40 帧會掉下去重生 → 誤判成往左
+  Game.debug.enter(0);
+  Game.debug.getState().players.forEach(function (q) { q.invuln = 1e9; });
+  Game.debug.step(30);
   {
     const r = dpad.getBoundingClientRect();
     const s = dirToScreen(1, 0);

@@ -162,13 +162,6 @@ const Equipment = (function () {
       desc: '踩空邊緣後還來得及跳（寬限時間加倍）',
       note: '摩洛哥的 babouche 是不分左右腳的尖頭皮拖鞋，馬拉喀什的市集一整條街都在賣。',
       apply: function (s) { s.coyoteX = 2; }
-    },
-    {
-      id: 'runner', level: 19, country: '肯亞', icon: 'runner',
-      name: '長跑選手的跑鞋',
-      desc: '跑速再快 10%（跟羅馬涼鞋疊加）',
-      note: '肯亞的長跑選手拿下非常多奧運與世界馬拉松金牌，很多人在海拔兩千多公尺的高地練跑。',
-      apply: function (s) { s.speed *= 1.1; }
     }
   ];
 

@@ -381,7 +381,12 @@ const Game = (function () {
       ? WorldMap.toWorld(rawClick.x, rawClick.y) : null;
     if (click) {
       const hit = WorldMap.hitTest(click.x, click.y);
-      if (hit >= 0 && hit < unlocked) {
+      // 點特殊地點（葡萄牙商店、愛爾蘭裝備）：跟點國家一樣，把人直接帶過去（手機上很需要）
+      const spHit = hit < 0 ? WorldMap.nearSpecial(click.x, click.y, 34) : null;
+      if (spHit) {
+        Voyage.placeShip(spHit.pin[0], spHit.pin[1] + 4);
+        Sfx.select();
+      } else if (hit >= 0 && hit < unlocked) {
         Voyage.reset(hit);
         cursor = hit;
         Sfx.select();
@@ -402,6 +407,15 @@ const Game = (function () {
     // 上岸／上船的小音效，讓玩家感覺到「換交通工具了」
     if (events.indexOf('land') >= 0) Sfx.land();
     if (events.indexOf('embark') >= 0) Sfx.select();
+
+    // 特殊地點（v1.21.1）：葡萄牙 = 商店、愛爾蘭 = 裝備。不是關卡，按 Enter 直接打開那個畫面
+    const spNear = Voyage.nearbySpecial();
+    if (events.indexOf('dock') >= 0 && spNear) {
+      Sfx.select();
+      if (spNear.def.scene === 'shop') shopCursor = 0;
+      scene = spNear.def.scene;
+      return;
+    }
 
     if (events.indexOf('dock') >= 0 && near >= 0 && near < unlocked) {
       // 東歐篇、非洲篇要 EXP 解鎖（門檻見 Encounter.REGIONS）
@@ -429,8 +443,7 @@ const Game = (function () {
     bridge: ['河上的老木橋', '踩上去一下就會塌，別停下來'],
     thorn: ['玫瑰荊棘', '花苞抖動之後會冒出尖刺，等它縮回去再過'],
     // v1.21 非洲篇
-    sand: ['撒哈拉流沙', '踩進去會走不快、跳不高，越陷越深 —— 別停下來，趕快走出去'],
-    migration: ['動物大遷徙', '牛羚群從前面衝過來 —— 跳過去，或踩在牠們背上彈起來']
+    sand: ['撒哈拉流沙', '踩進去會走不快、跳不高，越陷越深 —— 別停下來，趕快走出去']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -560,7 +573,6 @@ const Game = (function () {
           break;
         }
         case 'stampede': Sfx.bossRoar(); shake = 12; break;
-        case 'herd': Sfx.stomp(); shake = 4; break;          // 肯亞牛羚群：遠遠傳來的蹄聲
         case 'throw': Sfx.swing(); break;
         case 'quake': shake = 8; break;
         // 海上小遊戲
@@ -1883,10 +1895,15 @@ const Game = (function () {
     // 靠岸提示：在港口圈內才顯示「可上岸」；旁邊有怪時優先提示挑戰
     const near = Voyage.nearbyLevel();
     const mon = Encounter.nearby();
+    const spot = Voyage.nearbySpecial();
     if (mon) {
       const blink = Math.floor(t / 20) % 2 === 0;
       U.text(ctx, blink ? `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）` : '　',
         W / 2, H - 14, { size: 15, color: '#ff9aa8' });
+    } else if (spot) {
+      const blink = Math.floor(t / 20) % 2 === 0;
+      U.text(ctx, blink ? '按 Enter 進入' + spot.name + '的' + spot.def.role : '　', W / 2, H - 14,
+        { size: 15, color: '#ffd166' });
     } else if (near >= 0 && near < sv.unlocked) {
       const blink = Math.floor(t / 20) % 2 === 0;
       U.text(ctx, blink ? '按 Enter 進入' + Levels.list[near].city : '　', W / 2, H - 14,

@@ -145,16 +145,6 @@ const Music = (function () {
                0, 1, 2, null, 4, null, 5, 4, 3, 2, 1, null, 0, null, null, null],
       drum:   [1, 0, 0.5, 1, 0, 0.5, 1, 0, 1, 0, 0.5, 1, 0, 0.5, 1, 0.5]
     },
-    // 肯亞：明亮的五聲大調、輕快的切分（東非 benga 吉他流行樂的感覺）
-    KE: {
-      bpm: 132, wave: 'triangle',
-      root: -5,
-      scale: [0, 2, 4, 7, 9],
-      bass: [0, 3, 4, 3, 0, 3, 4, 0],
-      melody: [0, 2, 3, null, 4, 3, 2, null, 0, null, 2, 3, 4, null, 3, null,
-               4, null, 3, 4, 3, 2, 0, null, 2, 3, 2, null, 0, null, null, null],
-      drum:   [1, 0, 0.5, 0.5, 1, 0, 0.5, 0, 1, 0, 0.5, 0.5, 1, 0.5, 0.5, 0.5]
-    },
     // 匈牙利：查爾達什（吉普賽小調，增二度），先慢後快的感覺用跳音表現
     HU: {
       bpm: 140, wave: 'sawtooth',

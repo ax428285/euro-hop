@@ -1321,23 +1321,7 @@ const Sprites = (function () {
     ctx.beginPath(); ctx.arc(tx - 4 * s, ty + 6 * s, 3 * s, 0, Math.PI * 2); ctx.arc(tx + 3 * s, ty + 7 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
   }
 
-  /** 金合歡（肯亞）：細瘦分岔的樹幹 + 扁平的傘狀樹冠（莽原的招牌剪影） */
-  function acaciaDeco(ctx, x, y, s) {
-    ctx.strokeStyle = '#5a4430';
-    ctx.lineWidth = 4 * s;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x, y); ctx.lineTo(x, y - 26 * s);
-    ctx.moveTo(x, y - 26 * s); ctx.lineTo(x - 16 * s, y - 46 * s);
-    ctx.moveTo(x, y - 26 * s); ctx.lineTo(x + 14 * s, y - 48 * s);
-    ctx.stroke();
-    ctx.fillStyle = '#5f7a34';
-    ctx.beginPath(); ctx.ellipse(x - 2 * s, y - 52 * s, 38 * s, 9 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#6f8a3c';
-    ctx.beginPath(); ctx.ellipse(x - 8 * s, y - 56 * s, 22 * s, 6 * s, 0, 0, Math.PI * 2); ctx.fill();
-  }
-
-  const decos = { tree: tree, pine: pine, cypress: cypress, olive: olive, tulip: tulip, palm: palm, acacia: acaciaDeco };
+  const decos = { tree: tree, pine: pine, cypress: cypress, olive: olive, tulip: tulip, palm: palm };
 
   // ── 角色 ──────────────────────────────────────────────────
 
@@ -2975,39 +2959,6 @@ const Sprites = (function () {
       return;
     }
 
-    if (d === 'kenya') {
-      /*
-       * 肯亞：黑、紅、綠三條橫帶，中間的紅帶上下各有一道白色細邊，正中央一面馬賽盾牌加兩支交叉的矛。
-       * 比例照實際國旗：黑紅綠各約 3/10、白邊各約 1/20。
-       */
-      const bands = [[0, 0.3, colors[0]], [0.3, 0.35, '#FFFFFF'], [0.35, 0.65, colors[1]],
-                     [0.65, 0.7, '#FFFFFF'], [0.7, 1, colors[2]]];
-      bands.forEach(function (b) {
-        ctx.fillStyle = b[2];
-        ctx.fillRect(x, y + h * b[0], w, h * (b[1] - b[0]) + 0.5);
-      });
-      const cx = x + w / 2, cy = y + h / 2;
-      // 交叉的兩支矛（白）
-      ctx.save();
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = Math.max(1, h * 0.03);
-      ctx.beginPath();
-      ctx.moveTo(cx - h * 0.22, cy + h * 0.42); ctx.lineTo(cx + h * 0.22, cy - h * 0.42);
-      ctx.moveTo(cx + h * 0.22, cy + h * 0.42); ctx.lineTo(cx - h * 0.22, cy - h * 0.42);
-      ctx.stroke();
-      // 盾牌：紅黑紅，外圈黑、中間白色紋飾
-      ctx.fillStyle = colors[0];
-      ctx.beginPath(); ctx.ellipse(cx, cy, h * 0.13, h * 0.36, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = colors[1];
-      ctx.beginPath(); ctx.ellipse(cx, cy, h * 0.1, h * 0.33, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = colors[0];
-      ctx.beginPath(); ctx.ellipse(cx, cy, h * 0.05, h * 0.2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(cx - h * 0.015, cy - h * 0.15, h * 0.03, h * 0.3);
-      ctx.restore();
-      return;
-    }
-
     if (d === 'h') {
       // 橫三色
       for (let i = 0; i < 3; i++) {
@@ -4579,19 +4530,6 @@ const Sprites = (function () {
         ctx.fillRect(x0 + 166, gy - 18, 28, 18);
       });
     },
-    // 肯亞：一望無際的莽原 —— 遠方淡淡的山、地平線上一棵棵金合歡、整片金黃草地
-    KE: function (ctx, camX, gy, W) {
-      ridge(ctx, camX, 0.08, gy - 30, W, 'rgba(120, 110, 120, 0.35)', 90, 10, 12);
-      ctx.fillStyle = 'rgba(210, 170, 90, 0.45)';
-      ctx.fillRect(0, gy - 36, W, 36);
-      tiled(ctx, camX, 0.22, 260, W, function (x0) {
-        const x = x0 + 130;
-        ctx.strokeStyle = 'rgba(70, 56, 40, 0.5)'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(x, gy - 36); ctx.lineTo(x, gy - 62); ctx.moveTo(x, gy - 58); ctx.lineTo(x - 10, gy - 70); ctx.lineTo(x + 10, gy - 72); ctx.stroke();
-        ctx.fillStyle = 'rgba(80, 90, 50, 0.5)';
-        ctx.beginPath(); ctx.ellipse(x, gy - 74, 34, 7, 0, 0, Math.PI * 2); ctx.fill();
-      });
-    },
     // 匈牙利：多瑙河 + 塞切尼鏈橋
     HU: function (ctx, camX, gy, W, def, t) {
       seaBand(ctx, gy, W, gy - 40, 'rgba(80, 130, 170, 0.6)', t);
@@ -4837,7 +4775,6 @@ const Sprites = (function () {
   }
 
   icons.babouche = iconBabouche;
-  icons.runner = iconRunner;
 
   props.sagrada = sagradaProp;
   props.plazaFountain = plazaFountain;
@@ -4859,21 +4796,6 @@ const Sprites = (function () {
     ctx.fillRect(-14 * s, 6 * s, 26 * s, 3 * s);              // 鞋底
     ctx.strokeStyle = '#b8401e'; ctx.lineWidth = 1.4 * s;      // 刺繡
     ctx.beginPath(); ctx.moveTo(-2 * s, -1 * s); ctx.lineTo(8 * s, 0); ctx.stroke();
-  }
-
-  /** 肯亞長跑選手的跑鞋：紅色鞋身 + 綠色勾 + 白底（肯亞國旗的顏色） */
-  function iconRunner(ctx, s) {
-    ctx.fillStyle = '#c8202a';
-    ctx.beginPath();
-    ctx.moveTo(-14 * s, 4 * s); ctx.lineTo(-12 * s, -8 * s); ctx.lineTo(-2 * s, -8 * s);
-    ctx.quadraticCurveTo(4 * s, -2 * s, 15 * s, 0); ctx.quadraticCurveTo(17 * s, 4 * s, 14 * s, 5 * s);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#f4f4f4';
-    U.roundRect(ctx, -15 * s, 4 * s, 31 * s, 5 * s, 2 * s); ctx.fill();
-    ctx.strokeStyle = '#1e8a3a'; ctx.lineWidth = 2 * s;
-    ctx.beginPath(); ctx.moveTo(-8 * s, -1 * s); ctx.quadraticCurveTo(0, 3 * s, 8 * s, -3 * s); ctx.stroke();
-    ctx.fillStyle = '#1e1e22';
-    ctx.fillRect(-11 * s, -6 * s, 6 * s, 2 * s);              // 鞋帶
   }
 
   function iconFan(ctx, s) {
@@ -5474,39 +5396,7 @@ const Sprites = (function () {
     ctx.restore();
   }
 
-  /** 肯亞：莽原上的大金合歡樹 + 旁邊吃葉子的長頸鹿 */
-  function acaciaLm(ctx, x, baseY, s) {
-    ctx.save(); ctx.translate(x, baseY);
-    ctx.strokeStyle = 'rgba(70, 52, 34, 0.75)';
-    ctx.lineCap = 'round';
-    ctx.lineWidth = 12 * s;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -110 * s); ctx.stroke();
-    ctx.lineWidth = 7 * s;
-    ctx.beginPath();
-    ctx.moveTo(0, -110 * s); ctx.lineTo(-60 * s, -170 * s);
-    ctx.moveTo(0, -110 * s); ctx.lineTo(55 * s, -175 * s);
-    ctx.moveTo(-20 * s, -135 * s); ctx.lineTo(-10 * s, -180 * s);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(80, 104, 44, 0.75)';
-    ctx.beginPath(); ctx.ellipse(-4 * s, -186 * s, 130 * s, 26 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(96, 120, 52, 0.7)';
-    ctx.beginPath(); ctx.ellipse(-30 * s, -198 * s, 70 * s, 16 * s, 0, 0, Math.PI * 2); ctx.fill();
-    // 長頸鹿（剪影：身體、斜斜的長脖子、頭伸進樹冠）
-    ctx.fillStyle = 'rgba(176, 124, 60, 0.75)';
-    ctx.beginPath(); ctx.ellipse(150 * s, -86 * s, 34 * s, 18 * s, -0.15, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 11 * s;
-    ctx.strokeStyle = 'rgba(176, 124, 60, 0.75)';
-    ctx.beginPath(); ctx.moveTo(130 * s, -96 * s); ctx.lineTo(108 * s, -176 * s); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(102 * s, -182 * s, 12 * s, 6 * s, -0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 5 * s;
-    [[126, -72], [140, -72], [162, -72], [174, -72]].forEach(function (l) {
-      ctx.beginPath(); ctx.moveTo(l[0] * s, l[1] * s); ctx.lineTo(l[0] * s, 0); ctx.stroke();
-    });
-    ctx.restore();
-  }
-
   landmarks.koutoubia = koutoubiaLm;
-  landmarks.acacia = acaciaLm;
 
   /** 保加利亞：大馬士革玫瑰花叢 */
   function roseBush(ctx, x, baseY, t) {
