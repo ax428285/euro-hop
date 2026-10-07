@@ -5713,6 +5713,101 @@ const Sprites = (function () {
   }
   bossKinds.sphinx = bossSphinx;
 
+  // ── v1.23.1 亞特蘭提斯（潛水關）──
+
+  /** 海帶：幾條會隨水流擺動的長葉（植物欄位用，跟樹一樣種在海床上） */
+  decos.kelp = function (ctx, x, y, s) {
+    const t = (typeof performance !== 'undefined' ? performance.now() : 0) / 60;
+    for (let k = 0; k < 3; k++) {
+      const h = (60 + k * 22) * s, bx = x - 8 + k * 8;
+      ctx.strokeStyle = k % 2 ? '#2f8a5a' : '#3fa86a';
+      ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bx, y);
+      const sw = Math.sin(t * 0.05 + x * 0.01 + k) * 10 * s;
+      ctx.quadraticCurveTo(bx + sw, y - h * 0.5, bx - sw * 0.6, y - h);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+  };
+
+  /** 地標：沉在海底的神殿（三角山牆＋斷掉的柱子＋海克力斯之柱的拱門） */
+  landmarks.atlantis = function (ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(200, 220, 210, 0.45)';
+    ctx.fillRect(-150 * s, -20 * s, 300 * s, 20 * s);
+    for (let k = 0; k < 6; k++) {
+      const h = k === 4 ? 110 : 170;            // 一根斷了
+      ctx.fillRect((-130 + k * 50) * s, -(20 + h) * s, 22 * s, h * s);
+    }
+    ctx.beginPath(); ctx.moveTo(-160 * s, -190 * s); ctx.lineTo(0, -250 * s); ctx.lineTo(120 * s, -202 * s); ctx.lineTo(118 * s, -190 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(80, 200, 190, 0.35)';
+    ctx.beginPath(); ctx.arc(0, -210 * s, 14 * s, 0, Math.PI * 2); ctx.fill();   // 山牆上的三叉戟徽記
+    ctx.restore();
+  };
+
+  /** 遠景：一層層暗藍的海底丘陵＋遠方倒塌的城牆、珊瑚 */
+  skylines.ATL = function (ctx, camX, gy, W, def, t) {
+    ridge(ctx, camX, 0.08, gy - 40, W, 'rgba(20, 60, 100, 0.55)', 150, 10, 21);
+    tiled(ctx, camX, 0.2, 560, W, function (x0) {
+      ctx.fillStyle = 'rgba(120, 170, 180, 0.35)';
+      ctx.fillRect(x0 + 60, gy - 90, 200, 90);
+      for (let k = 0; k < 6; k++) ctx.fillRect(x0 + 60 + k * 36, gy - 112 + (k % 2) * 14, 18, 24);
+      ctx.fillStyle = 'rgba(230, 110, 130, 0.45)';
+      for (let k = 0; k < 3; k++) {
+        ctx.beginPath(); ctx.ellipse(x0 + 360 + k * 26, gy - 14 - (k % 2) * 10, 10, 18, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+    ridge(ctx, camX, 0.3, gy, W, 'rgba(30, 80, 110, 0.6)', 50, 4, 7);
+  };
+
+  /** 亞特蘭提斯的海底生物：螃蟹（地上走）、魚（游）、水母（追著你漂） */
+  COUNTRY_ENEMIES.ATL = {
+    walker: function (ctx, e, t) {
+      const cx = e.x + e.w / 2, by = e.y + e.h;
+      ctx.save(); squashed(ctx, e, cx, by);
+      ctx.fillStyle = '#e0603a';
+      ctx.beginPath(); ctx.ellipse(cx, by - 9, 13, 8, 0, Math.PI, 0); ctx.fill();
+      ctx.fillRect(cx - 13, by - 9, 26, 3);
+      const c = Math.sin(t * 0.3) * 2;
+      [-1, 1].forEach(function (d) {
+        ctx.beginPath(); ctx.arc(cx + d * 16, by - 14 + c * d, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(cx + d * 10 - 1.5, by - 6, 3, 6);
+      });
+      ctx.fillStyle = '#1a1424';
+      ctx.fillRect(cx - 5, by - 19, 3, 4); ctx.fillRect(cx + 2, by - 19, 3, 4);
+      ctx.restore();
+    },
+    flyer: function (ctx, e, t) {
+      const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+      ctx.save();
+      if (e.squash > 0) { ctx.translate(cx, cy); ctx.scale(1.3, 0.4); ctx.translate(-cx, -cy); }
+      const d = e.dir || 1;
+      ctx.fillStyle = '#f0b030';
+      ctx.beginPath(); ctx.ellipse(cx, cy, 15, 9, 0, 0, Math.PI * 2); ctx.fill();
+      const tail = Math.sin(t * 0.4) * 4;
+      ctx.beginPath(); ctx.moveTo(cx - d * 12, cy); ctx.lineTo(cx - d * 22, cy - 8 + tail); ctx.lineTo(cx - d * 22, cy + 8 + tail); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#2a6ab0';
+      ctx.fillRect(cx - 3, cy - 9, 4, 18);
+      ctx.fillStyle = '#1a1424';
+      ctx.beginPath(); ctx.arc(cx + d * 8, cy - 2, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    },
+    chaser: function (ctx, e, t) {
+      const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+      ctx.save();
+      if (e.squash > 0) { ctx.translate(cx, cy); ctx.scale(1.3, 0.4); ctx.translate(-cx, -cy); }
+      ctx.fillStyle = 'rgba(220, 150, 240, 0.8)';
+      ctx.beginPath(); ctx.ellipse(cx, cy - 4, 14, 11, 0, Math.PI, 0); ctx.fill();
+      ctx.fillRect(cx - 14, cy - 4, 28, 3);
+      ctx.strokeStyle = 'rgba(220, 150, 240, 0.7)'; ctx.lineWidth = 2;
+      for (let k = 0; k < 4; k++) {
+        const x = cx - 10 + k * 7;
+        ctx.beginPath(); ctx.moveTo(x, cy); ctx.quadraticCurveTo(x + Math.sin(t * 0.2 + k) * 4, cy + 8, x, cy + 15); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  };
+
   /** 保加利亞：大馬士革玫瑰花叢 */
   function roseBush(ctx, x, baseY, t) {
     ctx.save(); ctx.translate(x, baseY);

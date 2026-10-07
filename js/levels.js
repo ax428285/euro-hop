@@ -1073,7 +1073,7 @@ const Levels = (function () {
     airTypes: ['flyer', 'chaser'],
     density: 1.05,
     // 招牌：撒哈拉流沙 —— 踩進去會走不快、跳不高、越陷越深，站太久會受傷
-    features: [{ type: 'quicksand', count: 6 }],
+    features: [{ type: 'quicksand', count: 6 }, { type: 'mounts', at: [0.3] }],
     secretHint: '地毯店後面的暗門，掀開掛毯就看得到',
     secretNear: 0.55,
     props: [
@@ -1099,7 +1099,7 @@ const Levels = (function () {
     airTypes: ['flyer', 'chaser'],
     density: 1.1,
     // 招牌：沙塵暴 —— 一陣一陣颳過來，逆風推人、整個畫面被黃沙蓋住只看得到身邊
-    features: [{ type: 'sandstorm', from: 0.25, to: 0.85 }],
+    features: [{ type: 'sandstorm', from: 0.25, to: 0.85 }, { type: 'mounts', at: [0.2] }],
     secretHint: '岩畫洞窟最深處，畫著一頭長頸鹿的那面牆',
     secretNear: 0.5,
     props: []
@@ -1122,7 +1122,7 @@ const Levels = (function () {
     airTypes: ['flyer', 'chaser'],
     density: 1.05,
     // 招牌：鹽湖沼澤 —— 一大片陷得很快的鹽泥，駱駝商隊來回走，騎在駝峰上過去最安全
-    features: [{ type: 'camels', count: 4 }],
+    features: [{ type: 'camels', count: 4 }, { type: 'mounts', at: [0.4] }],
     secretHint: '黃磚牆上少了一塊花紋的地方',
     secretNear: 0.55,
     props: []
@@ -1145,7 +1145,7 @@ const Levels = (function () {
     airTypes: ['flyer', 'chaser'],
     density: 1.1,
     // 招牌：老石柱 —— 人一靠近就搖晃、倒下來（被壓到會痛），倒下後變成可以踩的矮牆
-    features: [{ type: 'columns', count: 7 }],
+    features: [{ type: 'columns', count: 7 }, { type: 'mounts', at: [0.3] }],
     secretHint: '凱旋門柱基的石縫裡，有風吹出來',
     secretNear: 0.5,
     props: []
@@ -1208,6 +1208,8 @@ const Levels = (function () {
     MAX_GAP: MAX_GAP,
     MAX_STEP: LevelGen.MAX_STEP,
     BASE_WIDTH: BASE_WIDTH,
+    // v1.23.1：亞特蘭提斯（潛水）不在關卡清單裡（不佔存檔的關卡編號），由 Encounter 用同一個產生器臨時做
+    make: makeLevel,
     list: list,
     count: list.length
   };

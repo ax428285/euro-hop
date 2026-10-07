@@ -107,6 +107,25 @@ function runFeatureCheck() {
       if (!hurt2) issues.push(tag + '：直接走過鹽泥也不會受傷，駱駝沒有存在的必要');
     }
 
+    // H) 駱駝坐騎（v1.23.1）：碰到就騎上去；騎著走過流沙／鹽泥不會陷
+    if (fs.some(function (f) { return f.type === 'mount'; })) {
+      const st = buildLevelState(def, li, [], Equipment.resolve([]));
+      st.enemies = [];
+      const p = st.player;
+      const mt = st.features.list.filter(function (f) { return f.type === 'mount'; })[0];
+      p.x = mt.x + 30; p.y = mt.y - p.h; p.vy = 0;
+      Features.update(st, 0);
+      if (!p.mount) issues.push(tag + '：碰到駱駝沒有騎上去');
+      const sand = st.features.list.filter(function (f) { return f.type === 'sand'; })[0];
+      if (sand && p.mount) {
+        p.x = sand.x + 20; p.y = sand.y - p.h; p.onGround = true;
+        Features.update(st, 1);
+        if (p.inSand) issues.push(tag + '：騎著駱駝還是陷進沙裡');
+      }
+    } else if (def.region === 'africa') {
+      issues.push(tag + '：非洲關沒有駱駝坐騎');
+    }
+
     // G) 利比亞石柱（v1.23）：走近會倒、站在倒下的範圍裡會受傷、倒完變成可以踩的矮牆
     if (fs.some(function (f) { return f.type === 'column'; })) {
       const st = buildLevelState(def, li, [], Equipment.resolve([]));

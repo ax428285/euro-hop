@@ -164,6 +164,29 @@ const Features = (function () {
           list.push({ type: 'sand', x: sx, y: sp.y, w: BRINE_W, brine: true, limit: BRINE_LIMIT });
           ctx.avoid.push({ x: sp.x - 100, y: 0, w: BRINE_W + 2 * CAMEL_MARGIN + 200, h: 600 });
         }
+      } else if (c.type === 'air') {
+        /*
+         * 亞特蘭提斯（潛水）：海底的氣泡噴口，每隔 VENT_EVERY 一個。
+         * 空氣滿格撐 AIR_MAX 帧（14 秒），潛水橫移約 3px/帧 → 兩個噴口之間 5 秒左右，夠用；
+         * 但在一個地方繞太久、或掉進坑裡慢慢游，就要記得回去補氣。
+         */
+        for (let x = 520; x < ctx.goal - 150; x += VENT_EVERY) {
+          const sp = findSpot(ctx, x, 40, 160);
+          if (!sp || list.some(function (f) { return f.type === 'vent' && Math.abs(f.x - sp.x) < 300; })) continue;
+          list.push({ type: 'vent', x: sp.x, y: sp.y, w: 40 });
+        }
+      } else if (c.type === 'mounts') {
+        /*
+         * 非洲關的駱駝坐騎（v1.23.1 玩家要求）：路邊趴著一隻駱駝，碰一下就騎上去。
+         * 騎著：跑快 30%、跳高 10%、不會陷進流沙／鹽泥、不怕沙塵暴；
+         * 被打到 → 駱駝嚇跑（不扣血，像耀西那樣）。駱駝跑掉一陣子後會回到原地。
+         */
+        (c.at || [0.35]).forEach(function (k) {
+          const sp = findSpot(ctx, W * k, MOUNT_W, 70);
+          if (!sp) return;
+          list.push({ type: 'mount', x: sp.x, y: sp.y, w: MOUNT_W });
+          ctx.avoid.push({ x: sp.x - 60, y: 0, w: MOUNT_W + 120, h: 600 });
+        });
       } else if (c.type === 'columns') {
         // 利比亞：羅馬古城的石柱，靠近就倒（倒向玩家走來的方向 = 左邊）
         const n = c.count || 6;
@@ -218,6 +241,13 @@ const Features = (function () {
   const COL_SHAKE = 45;
   const COL_DROP = 22;
   const COL_LYING_H = 22;
+  // 潛水的空氣
+  const AIR_MAX = 840;
+  const VENT_EVERY = 820;
+  const VENT_H = 230;          // 噴口往上冒的氣泡柱有多高（碰到就補氣）
+  // 駱駝坐騎
+  const MOUNT_W = 90;
+  const MOUNT_RESPAWN = 300;   // 駱駝跑掉後多久回到原地
   // 沙塵暴（阿爾及利亞）
   const STORM_CYCLE = 440;    // 安靜 220 → 預告 60 → 颳 160
   const STORM_PUSH = 0.8;
@@ -280,10 +310,11 @@ const Features = (function () {
         if (f.type === 'cannons') { o.shells = []; o.cd = 60; o.seq = 0; }
         if (f.type === 'bridge') { o.state = 'ok'; o.timer = 0; }
         if (f.type === 'column') { o.state = 'stand'; o.timer = 0; o.angle = 0; }
+        if (f.type === 'mount') { o.state = 'wait'; o.timer = 0; }
         if (f.type === 'camel') {
           const c0 = camelX(o, 0);
           o.cx = c0.x; o.dir = c0.dir;
-          o.hump = { x: o.cx + 16, y: o.y - HUMP_Y, w: 52, h: 10, dx: 0, dy: 0, camel: true };
+          o.hump = { x: o.cx + 16, y: o.y - HUMP_Y, w: 52, h: 10, dx: 0, dy: 0, camel: true, passThru: true };
         }
         return o;
       }),
@@ -389,10 +420,26 @@ const Features = (function () {
         f.haze = inside ? ss.haze : Math.max(0, (f.haze || 0) - 0.03);
         if (f.state === 'blow') {
           players.forEach(function (p) {
-            if (p.ridingMover || (p.stats && p.stats.stormProof)) return;
+            if (p.ridingMover || p.mount || (p.stats && p.stats.stormProof)) return;
             if (p.onGround && p.x > f.x0 && p.x < f.x1) p.x -= STORM_PUSH;
           });
         }
+      } else if (f.type === 'mount') {
+        if (f.state === 'wait') {
+          const box = { x: f.x + 10, y: f.y - 44, w: f.w - 20, h: 44 };
+          players.forEach(function (p, i) {
+            if (f.state !== 'wait' || p.mount || !U.overlap(p, box)) return;
+            p.mount = { kind: 'camel', from: f };
+            f.state = 'gone';
+            events.push('p' + pidOf(p, i) + ':mount');
+          });
+        } else if (!players.some(function (p) { return p.mount && p.mount.from === f; })) {
+          // 沒人騎了（被打到嚇跑）：等一下回到原地
+          if (++f.timer >= MOUNT_RESPAWN) { f.state = 'wait'; f.timer = 0; }
+        }
+      } else if (f.type === 'runaway') {
+        f.x += f.dir * 3.2;
+        f.life--;
       } else if (f.type === 'camel') {
         const c = camelX(f, t);
         const dx = c.x - f.cx;
@@ -456,7 +503,7 @@ const Features = (function () {
         }
       } else if (f.type === 'sand') {
         players.forEach(function (p) {
-          if (p.stats && p.stats.sandWalk) return;       // 古達米斯皮靴：沙地、鹽泥都不會陷
+          if ((p.stats && p.stats.sandWalk) || p.mount) return;   // 古達米斯皮靴／騎駱駝：沙地、鹽泥都不會陷
           const feet = p.y + p.h;
           if (p.onGround && !p.ridingMover && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 6 && p.x < f.x + f.w - 6) {
             p.inSand = true;
@@ -536,6 +583,32 @@ const Features = (function () {
         f.items = f.items.filter(function (b) { return b.alive && b.x > lead.x - 900; });
       }
     });
+
+    // 潛水：空氣每帧減少，碰到噴口的氣泡柱補回來；用完 → 嗆水（扣一顆愛心、空氣補滿）
+    if (def.underwater) {
+      const vents = fs.list.filter(function (f) { return f.type === 'vent'; });
+      players.forEach(function (p, i) {
+        if (p.air == null) p.air = AIR_MAX;
+        const inBubbles = vents.some(function (v) {
+          return p.x + p.w > v.x && p.x < v.x + v.w && p.y + p.h > v.y - VENT_H && p.y < v.y;
+        });
+        if (inBubbles) {
+          if (p.air < AIR_MAX - 30 && !p.breathing) events.push('p' + pidOf(p, i) + ':breathe');
+          p.breathing = true;
+          p.air = Math.min(AIR_MAX, p.air + 14);
+        } else {
+          p.breathing = false;
+          p.air--;
+        }
+        if (p.air <= 0) {
+          p.air = AIR_MAX;
+          events.push('p' + pidOf(p, i) + ':drown');
+        }
+      });
+    }
+
+    // 嚇跑的駱駝跑出畫面就收掉
+    fs.list = fs.list.filter(function (f) { return f.type !== 'runaway' || f.life > 0; });
 
     // 流沙的效果（所有沙坑判定完才算，避免站在兩片交界時被算兩次）
     players.forEach(function (p, i) {
@@ -788,6 +861,38 @@ const Features = (function () {
           const ph = (t * 0.04 + b * 1.3) % 3;
           if (ph < 1) { ctx.beginPath(); ctx.arc(sx + 30 + b * 56, f.y - ph * 4, 1.5 + ph * 2, 0, Math.PI * 2); ctx.fill(); }
         }
+      } else if (f.type === 'vent') {
+        // 海底的氣泡噴口：石砌的口＋一串往上冒、左右晃的氣泡
+        const sx = f.x - camX;
+        if (sx > 1000 || sx < -80) return;
+        ctx.fillStyle = '#7a8a8a';
+        ctx.fillRect(sx - 4, f.y - 10, f.w + 8, 10);
+        ctx.fillStyle = '#3a4a52';
+        ctx.fillRect(sx + 6, f.y - 8, f.w - 12, 5);
+        for (let k = 0; k < 9; k++) {
+          const ph = (t * 1.6 + k * 26) % VENT_H;
+          const bx = sx + f.w / 2 + Math.sin(t * 0.08 + k * 1.7) * 8;
+          ctx.strokeStyle = 'rgba(220, 245, 255, ' + (0.85 - ph / VENT_H * 0.6).toFixed(2) + ')';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(bx, f.y - 12 - ph, 3 + (k % 3) * 1.5, 0, Math.PI * 2); ctx.stroke();
+        }
+      } else if (f.type === 'mount') {
+        if (f.state !== 'wait') return;
+        const sx = f.x - camX;
+        if (sx > 1040 || sx < -120) return;
+        drawCamel(ctx, sx, f.y, 1, 0);
+        // 頭上一個上下飄的鞍形記號：「可以騎」
+        const by = f.y - HUMP_Y - 22 + Math.sin(t * 0.1) * 3;
+        ctx.fillStyle = 'rgba(20, 16, 30, 0.75)';
+        U.roundRect(ctx, sx + CAMEL_W / 2 - 22, by - 9, 44, 18, 6); ctx.fill();
+        U.text(ctx, '騎乘', sx + CAMEL_W / 2, by, { size: 11, color: '#ffd166', stroke: false });
+      } else if (f.type === 'runaway') {
+        const sx = f.x - camX;
+        if (sx > 1040 || sx < -120) return;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, f.life / 30);
+        drawCamel(ctx, sx, f.y, f.dir, t * 2);
+        ctx.restore();
       } else if (f.type === 'camel') {
         const sx = f.cx - camX;
         if (sx > 1040 || sx + CAMEL_W < -80) return;
@@ -916,6 +1021,50 @@ const Features = (function () {
     g.fillRect(0, 0, 64, 64);
     return c;
   }
+  /**
+   * 潛水的水面效果：整片藍色濾鏡、從水面斜射下來的光束、水面的波紋，
+   * 以及每位玩家頭上的空氣計（快用完時變紅閃爍）。
+   */
+  function drawUnderwater(ctx, state, camX, t, W, H) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(20, 90, 150, 0.22)';
+    ctx.fillRect(0, 0, W, H);
+    // 光束
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 5; k++) {
+      const x = ((k * 230 - camX * 0.3) % 1150 + 1150) % 1150 - 100;
+      const a = 0.05 + Math.sin(t * 0.02 + k) * 0.025;
+      ctx.fillStyle = 'rgba(180, 230, 255, ' + a.toFixed(3) + ')';
+      ctx.beginPath(); ctx.moveTo(x, 60); ctx.lineTo(x + 50, 60); ctx.lineTo(x + 170, H); ctx.lineTo(x + 70, H); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    // 水面
+    ctx.strokeStyle = 'rgba(220, 245, 255, 0.55)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 12) {
+      const y = 62 + Math.sin((x + camX) * 0.03 + t * 0.06) * 2.5;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // 空氣計
+    state.players.forEach(function (p) {
+      if (p.out || p.air == null) return;
+      const k = p.air / AIR_MAX;
+      if (k > 0.98) return;                    // 滿的時候不擋畫面
+      const cx = p.x + p.w / 2 - camX, y = p.y - 22;
+      const low = k < 0.3;
+      if (low && Math.floor(t / 8) % 2 === 0) return;
+      const n = 6, on = Math.ceil(k * n);
+      for (let i = 0; i < n; i++) {
+        ctx.strokeStyle = low ? '#ff8a8a' : '#d8f4ff';
+        ctx.fillStyle = i < on ? (low ? 'rgba(255,120,120,0.85)' : 'rgba(170,225,255,0.85)') : 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(cx - (n - 1) * 5 + i * 10, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+
   /** 低解析度遮罩：整片塗 color，再用 holes(hole) 挖出柔邊的圓（hole(x, y, r)） */
   function maskWithHoles(ctx, W, H, color, holes) {
     if (!dark) {
@@ -944,6 +1093,7 @@ const Features = (function () {
   function drawOverlay(ctx, state, camX, t, W, H) {
     const fs = state.features;
     if (!fs) return;
+    if (state.def.underwater) drawUnderwater(ctx, state, camX, t, W, H);
     /*
      * 流沙：陷進去的玩家，腳邊蓋一圈沙（畫在玩家之後，看起來就像身體陷進沙裡）。
      * 越久越高，快到上限時沙子變紅閃爍 —— 提醒玩家「要受傷了，快跳」。
@@ -1010,7 +1160,47 @@ const Features = (function () {
     });
   }
 
+  /** 被打到：駱駝嚇跑（往玩家面向的反方向跑出畫面），人留在原地 */
+  function dismount(state, p) {
+    if (!p.mount) return;
+    p.mount = null;
+    if (state.features) {
+      state.features.list.push({ type: 'runaway', x: p.x + p.w / 2 - CAMEL_W / 2, y: p.y + p.h, dir: -(p.facing || 1), life: 110 });
+    }
+  }
+
+  /**
+   * 騎著的駱駝：畫在玩家之後，蓋住腿 —— 看起來就是人坐在鞍上。
+   * sx = 玩家左緣的螢幕座標、gy = 玩家腳底。
+   */
+  function drawMount(ctx, p, sx, t) {
+    if (!p.mount) return;
+    ctx.save();
+    ctx.translate(sx + p.w / 2, p.y + p.h);      // 腳踩地；玩家本人在 game.js 往上畫 14px（坐在鞍上）
+    ctx.scale(p.facing < 0 ? -1 : 1, 1);
+    if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) ctx.globalAlpha = 0.5;
+    const run = p.onGround && Math.abs(p.vx) > 0.5;
+    const leg = run ? Math.sin(t * 0.4) * 5 : 0;
+    ctx.fillStyle = '#b8864e';
+    [[-20, leg], [-11, -leg], [10, leg], [18, -leg]].forEach(function (l) { ctx.fillRect(l[0] + l[1] * 0.4, -16, 5, 16); });
+    ctx.beginPath(); ctx.ellipse(0, -20, 26, 10, 0, 0, Math.PI * 2); ctx.fill();
+    // 脖子＋頭（往前）
+    ctx.beginPath();
+    ctx.moveTo(20, -24); ctx.quadraticCurveTo(32, -28, 30, -42); ctx.lineTo(37, -45);
+    ctx.quadraticCurveTo(45, -43, 43, -38); ctx.lineTo(35, -36); ctx.quadraticCurveTo(36, -22, 24, -14);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3a2414'; ctx.fillRect(37, -43, 2, 2);
+    // 鞍毯（蓋住玩家的腿）
+    ctx.fillStyle = '#c0392b';
+    U.roundRect(ctx, -16, -30, 30, 12, 4); ctx.fill();
+    ctx.fillStyle = '#f1c40f';
+    for (let k = 0; k < 3; k++) ctx.fillRect(-12 + k * 9, -20, 5, 3);
+    ctx.restore();
+  }
+
   return {
+    dismount: dismount,
+    drawMount: drawMount,
     plan: plan,
     solids: solids,
     gustState: gustState,
@@ -1022,6 +1212,7 @@ const Features = (function () {
     stormState: stormState,
     camelX: camelX,
     BRINE_LIMIT: BRINE_LIMIT,
+    AIR_MAX: AIR_MAX,
     BULL_SPEED: BULL_SPEED,
     PAD_V: PAD_V,
     GEYSER_V: GEYSER_V

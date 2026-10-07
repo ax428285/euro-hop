@@ -119,7 +119,7 @@ const Game = (function () {
     scene = 'play';
     sceneTimer = 0;
     toast = { text: m.def.name + '・' + m.def.game, sub: m.def.goal, life: 170 };
-    Music.playTrack('BATTLE');
+    Music.playTrack(m.def.dive ? 'ATL' : 'BATTLE');
     netLevelStarted();
   }
 
@@ -268,7 +268,7 @@ const Game = (function () {
       const nowMuted = Sfx.toggleMute();
       // 解除靜音時，如果還在關卡裡就把音樂接回來
       if (!nowMuted && scene === 'play') {
-        if (skirmish) Music.playTrack('BATTLE'); else Music.playForLevel(levelIndex);
+        if (skirmish) Music.playTrack(skirmish.def.dive ? 'ATL' : 'BATTLE'); else Music.playForLevel(levelIndex);
       }
       if (!nowMuted && mapLike(scene)) Music.playTrack('MAP');
     }
@@ -696,7 +696,9 @@ const Game = (function () {
     sandstorm: ['撒哈拉沙塵暴', '沙子變濃就要颳了 —— 逆風推人、只看得到身邊，小心看不見的敵人'],
     brine: ['杰里德鹽湖', '鹽泥陷得很快，硬走一定受傷 —— 等駱駝靠岸，跳上駝峰讓牠載你'],
     camel: ['駱駝商隊', '紅色鞍毯可以站上去，駱駝會載著你走過鹽湖'],
-    column: ['羅馬古柱', '一靠近就會搖晃倒下，地上紅框是壓到的範圍 —— 衝過去，或等它倒完']
+    column: ['羅馬古柱', '一靠近就會搖晃倒下，地上紅框是壓到的範圍 —— 衝過去，或等它倒完'],
+    vent: ['海底氣泡噴口', '頭上的氣泡是你的空氣 —— 游進噴口冒出來的氣泡柱就能補滿'],
+    mount: ['駱駝坐騎', '碰一下就騎上去：跑得快、跳得高、不陷沙也不怕風沙；被打到駱駝會跑掉，但你不扣血']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -805,8 +807,34 @@ const Game = (function () {
         case 'stomp': Sfx.stomp(); runScore += 50; break;
         case 'clang': Sfx.clang(); break;
         case 'shoot': Sfx.shoot(); break;
-        case 'hurt': Sfx.hurt(); shake = 10; loseLife(false, pid); break;
-        case 'fall': Sfx.hurt(); shake = 14; loseLife(true, pid); break;
+        case 'hurt': {
+          // 騎駱駝時被打到：駱駝嚇跑，人不扣血（無敵帧照樣給）
+          const rider = state.players[pid || 0];
+          if (rider && rider.mount) {
+            Features.dismount(state, rider);
+            Sfx.clang(); shake = 6;
+            toast = { text: '駱駝嚇跑了！', sub: '這一下沒有扣血 —— 牠等一下會回到原本的地方', life: 140 };
+            break;
+          }
+          Sfx.hurt(); shake = 10; loseLife(false, pid); break;
+        }
+        case 'fall': {
+          const faller = state.players[pid || 0];
+          if (faller && faller.mount) Features.dismount(state, faller);
+          Sfx.hurt(); shake = 14; loseLife(true, pid); break;
+        }
+        case 'mount': Sfx.equip(); break;
+        // 潛水（亞特蘭提斯）
+        case 'swim': break;
+        case 'breathe': Sfx.coin(); break;
+        case 'drown': {
+          Sfx.hurt(); shake = 8;
+          toast = { text: '空氣用完了！', sub: '頭上的氣泡快沒了就去找海底噴口補氣', life: 140 };
+          const dp = state.players[pid || 0];
+          if (dp) dp.invuln = 90 + stats.invulnBonus;
+          loseLife(false, pid);
+          break;
+        }
         case 'equip': onEquip(); break;
         // 豎井關
         case 'spring': Sfx.jump(); break;
@@ -984,8 +1012,9 @@ const Game = (function () {
     const sc = state.secrets[idx];
     if (!sc) return;
     Sfx.secret();
-    const first = Save.markSecret(levelIndex, idx);
-    netProgress({ t: 'secret', li: levelIndex, idx: idx });
+    // 亞特蘭提斯（levelIndex -1，不在關卡清單裡）的密道不記進存檔：存檔是照關卡編號記的
+    const first = levelIndex < 0 ? true : Save.markSecret(levelIndex, idx);
+    if (levelIndex >= 0) netProgress({ t: 'secret', li: levelIndex, idx: idx });
     runScore += 250;
     toast = {
       text: '發現密道！',
@@ -1156,7 +1185,7 @@ const Game = (function () {
       expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null };
       netProgress({ t: 'exp', n: state.def.exp, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
-      if (skirmish.def.boss && Save.markSeaBoss(skirmish.kind)) {
+      if ((skirmish.def.boss || skirmish.def.dive) && Save.markSeaBoss(skirmish.kind)) {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
@@ -1288,6 +1317,16 @@ const Game = (function () {
     });
   }
 
+  /** 兩個 #rrggbb 顏色依比例 k（0 = a、1 = b）混合，回傳 rgb() 字串（土色調暗、調亮用） */
+  const mixCache = {};
+  function mixHex(a, b, k) {
+    const key = a + b + k;
+    if (mixCache[key]) return mixCache[key];
+    const pa = parseInt((a || '#5a4a3a').slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const ch = function (sh) { return Math.round(((pa >> sh) & 255) * (1 - k) + ((pb >> sh) & 255) * k); };
+    return (mixCache[key] = 'rgb(' + ch(16) + ',' + ch(8) + ',' + ch(0) + ')');
+  }
+
   function drawTerrain(def) {
     const worldH = def.height || H;
 
@@ -1318,14 +1357,30 @@ const Game = (function () {
       const sx = gx0 - camX;
       if (sx > W || sx + gw < 0) continue;
       const top = a.y;
+      /*
+       * v1.23.1 玩家：坑跟尖刺太醜、沒融入背景 —— 原本是固定的黑褐色＋灰色三角形，
+       * 每一國都一樣，跟彩色的地面格格不入。改成用這一國的土色調暗：
+       * 坑裡是同一種土、越深越暗，兩側是凹凸的土壁，底下的尖刺是土色的尖石（見 drawTerrainExtras）。
+       */
       const g = ctx.createLinearGradient(0, top, 0, worldH);
-      g.addColorStop(0, 'rgba(38,30,24,0.92)');
-      g.addColorStop(1, 'rgba(12,10,14,0.98)');
+      g.addColorStop(0, mixHex(def.groundBody, '#000000', 0.45));
+      g.addColorStop(1, mixHex(def.groundBody, '#000000', 0.78));
       ctx.fillStyle = g;
       ctx.fillRect(sx, top, gw, worldH - top);
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(sx, top, 5, worldH - top);
-      ctx.fillRect(sx + gw - 5, top, 5, worldH - top);
+      // 凹凸的土壁（左右兩側）＋ 坑口一圈草皮色的邊
+      ctx.fillStyle = mixHex(def.groundBody, '#000000', 0.25);
+      for (let y = top; y < worldH; y += 18) {
+        const k = ((y * 7 + gx0) % 5);
+        ctx.fillRect(sx, y, 6 + k, 18);
+        ctx.fillRect(sx + gw - 6 - ((k + 2) % 5), y, 6 + ((k + 2) % 5), 18);
+      }
+      ctx.fillStyle = mixHex(def.groundTop, '#000000', 0.35);
+      ctx.fillRect(sx, top, gw, 4);
+      // 坑裡零星的小石頭
+      ctx.fillStyle = mixHex(def.groundBody, '#ffffff', 0.12);
+      for (let k = 0; k < gw / 30; k++) {
+        ctx.beginPath(); ctx.ellipse(sx + 14 + k * 30, top + 18 + (k % 3) * 9, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+      }
     }
 
     def.ground.forEach(function (s) {
@@ -1388,21 +1443,40 @@ const Game = (function () {
       ctx.stroke();
     });
 
-    // 尖刺
+    /*
+     * 尖刺：土色的尖石（v1.23.1 改，原本是灰色鐵三角）。
+     * 高低錯落、左暗右亮做出立體感，底下堆一層碎土 —— 顏色都從這一國的地面取，跟坑壁是同一種石頭。
+     * 尖端一點點偏紅提醒「這會痛」，但不搶畫面。
+     */
     (def.spikes || []).forEach(function (sp) {
       const sx = sp.x - camX;
       if (sx > W || sx + sp.w < 0) return;
-      ctx.fillStyle = '#4a4f5e';
-      ctx.fillRect(sx, sp.y + sp.h - 6, sp.w, 6);
-      ctx.fillStyle = '#8e97ad';
-      const n = Math.max(1, Math.floor(sp.w / 16));
+      const dark = mixHex(def.groundBody, '#000000', 0.35);
+      const lite = mixHex(def.groundBody, '#ffffff', 0.25);
+      const base = sp.y + sp.h;
+      const n = Math.max(2, Math.floor(sp.w / 14));
+      const bw = sp.w / n;
+      // 坑底：尖石插在實實在在的土裡（不然看起來像浮在坑中間的一層架子）
+      const fg = ctx.createLinearGradient(0, base, 0, base + 90);
+      fg.addColorStop(0, mixHex(def.groundBody, '#000000', 0.3));
+      fg.addColorStop(1, mixHex(def.groundBody, '#000000', 0.6));
+      ctx.fillStyle = fg;
+      ctx.fillRect(sx - 6, base - 2, sp.w + 12, 90);
       for (let i = 0; i < n; i++) {
-        const bx = sx + i * (sp.w / n);
-        ctx.beginPath();
-        ctx.moveTo(bx, sp.y + sp.h);
-        ctx.lineTo(bx + (sp.w / n) / 2, sp.y);
-        ctx.lineTo(bx + (sp.w / n), sp.y + sp.h);
-        ctx.closePath(); ctx.fill();
+        const bx = sx + i * bw;
+        const h = sp.h * (0.7 + ((i * 37 + Math.round(sp.x)) % 4) * 0.12);
+        const tipX = bx + bw / 2 + ((i % 3) - 1) * 1.5;
+        ctx.fillStyle = dark;
+        ctx.beginPath(); ctx.moveTo(bx - 1, base); ctx.lineTo(tipX, base - h); ctx.lineTo(tipX, base); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = lite;
+        ctx.beginPath(); ctx.moveTo(tipX, base - h); ctx.lineTo(bx + bw + 1, base); ctx.lineTo(tipX, base); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(200, 70, 60, 0.55)';
+        ctx.beginPath(); ctx.moveTo(tipX - 1.6, base - h + 5); ctx.lineTo(tipX, base - h); ctx.lineTo(tipX + 1.6, base - h + 5); ctx.closePath(); ctx.fill();
+      }
+      // 碎土堆
+      ctx.fillStyle = mixHex(def.groundBody, '#000000', 0.2);
+      for (let x = 0; x < sp.w; x += 10) {
+        ctx.beginPath(); ctx.ellipse(sx + x + 5, base, 7, 4, 0, Math.PI, 0); ctx.fill();
       }
     });
 
@@ -1771,11 +1845,13 @@ const Game = (function () {
     state.players.forEach(function (p, i) {
       if (downed[i]) return;
       Sprites.player(ctx, {
-        x: p.x - camX, y: p.y, w: p.w, h: p.h,
+        x: p.x - camX, y: p.y - (p.mount ? 14 : 0), w: p.w, h: p.h,
         facing: p.facing, onGround: p.onGround, vx: p.vx,
         invuln: p.invuln, equipped: p.equipped,
         pid: i, costume: Save.get().costume   // 時裝（只換外觀）
       }, t);
+      // 騎駱駝（非洲關坐騎）：駱駝蓋在玩家腿上
+      if (p.mount) Features.drawMount(ctx, p, p.x - camX, t);
     });
 
     ctx.restore();   // 收掉 camY 的位移
@@ -1809,7 +1885,7 @@ const Game = (function () {
     ctx.strokeRect(16, 12, 33, 20);
 
     let title;
-    if (def.skirmish) {
+    if (def.skirmish || def.dive) {
       title = def.country + '　' + def.city;
     } else {
       title = (def.isBoss ? '魔王關　' : `第 ${levelIndex + 1} / ${Levels.count} 關　`) +
@@ -2176,7 +2252,9 @@ const Game = (function () {
     const spot = Voyage.nearbySpecial();
     if (mon) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      const bossTxt = mon.def.boss
+      const bossTxt = mon.def.dive
+        ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
+        : mon.def.boss
         ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）`;
       U.text(ctx, blink ? bossTxt : '　',
@@ -2427,10 +2505,11 @@ const Game = (function () {
       U.roundRect(ctx, g.x - 4, L.top - 2, g.w + 8, colH + 2, 10); ctx.fill();
       ctx.fillStyle = sty.color;
       U.roundRect(ctx, g.x - 4, L.top - 2, g.w + 8, L.headH, 10); ctx.fill();
-      drawSlotIcon(ctx, g.slot.id, g.x + 11, L.top + 11, 8, '#1a1424');
-      U.text(ctx, g.slot.name, g.x + 24, L.top + 11, { size: 14, color: '#1a1424', align: 'left' });
+      // v1.23.1 玩家：字太黑看不清 → 白字＋細的深色描邊（原本深色字＋U.text 預設的深色粗描邊糊成一團）
+      drawSlotIcon(ctx, g.slot.id, g.x + 11, L.top + 11, 8, '#ffffff');
+      U.text(ctx, g.slot.name, g.x + 24, L.top + 11, { size: 15, weight: 800, color: '#ffffff', align: 'left', strokeWidth: 3, strokeColor: 'rgba(30,20,40,0.55)' });
       if (!wornMap[g.slot.id]) {
-        U.text(ctx, '空著', g.x + g.w, L.top + 11, { size: 11, color: 'rgba(26,20,36,0.75)', align: 'right' });
+        U.text(ctx, '空著', g.x + g.w, L.top + 11, { size: 12, color: '#ffffff', align: 'right', strokeWidth: 3, strokeColor: 'rgba(30,20,40,0.55)' });
       }
     });
 
@@ -2482,8 +2561,8 @@ const Game = (function () {
       const tagW = 46, x0 = W / 2 - (tw + tagW + 8) / 2;
       ctx.fillStyle = sty.color;
       U.roundRect(ctx, x0, H - 80, tagW, 20, 5); ctx.fill();
-      drawSlotIcon(ctx, selDef.slot, x0 + 11, H - 70, 6, '#1a1424');
-      U.text(ctx, slotName[selDef.slot], x0 + 31, H - 70, { size: 11, color: '#1a1424' });
+      drawSlotIcon(ctx, selDef.slot, x0 + 11, H - 70, 6, '#ffffff');
+      U.text(ctx, slotName[selDef.slot], x0 + 31, H - 70, { size: 12, weight: 800, color: '#ffffff', strokeWidth: 3, strokeColor: 'rgba(30,20,40,0.55)' });
       U.text(ctx, line, x0 + tagW + 8, H - 70, { size: 14, color: got ? '#ffffff' : '#9aa7c7', align: 'left' });
     } else {
       U.text(ctx, '↓ 選裝備：↑↓ 同部位換、←→ 換部位，Enter 裝上／卸下', W / 2, H - 70, { size: 13, color: '#dce5f5' });
@@ -2667,8 +2746,8 @@ const Game = (function () {
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
     const md = def.monster.def;
-    U.text(ctx, (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
-      { size: 32, color: md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
+    U.text(ctx, md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
+      { size: 32, color: md.dive ? '#8ff0e0' : md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
     // 稀有怪掉的時裝（已經自動穿上，到裝備畫面可以換）
     if (r.costume) {
       ctx.fillStyle = 'rgba(255, 224, 112, 0.14)';
@@ -2690,7 +2769,7 @@ const Game = (function () {
 
     let y = by + 56;
     if (coinsBanked > 0) {
-      U.text(ctx, `錢包 +€ ${coinsBanked}${r.firstBoss ? '（含首次擊敗獎勵）' : ''}　餘額 € ${Save.get().wallet}`, W / 2, y,
+      U.text(ctx, `錢包 +€ ${coinsBanked}${r.firstBoss ? '（含第一次的獎勵）' : ''}　餘額 € ${Save.get().wallet}`, W / 2, y,
         { size: 14, color: '#ffd166' });
       y += 26;
     }
@@ -2791,7 +2870,7 @@ const Game = (function () {
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
       W / 2, 252, { size: 13, color: '#ffd166' });
     U.text(ctx, skirmish
-        ? (skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : '怪物還在海上，準備好再去挑戰')
+        ? (skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : '怪物還在海上，準備好再去挑戰')
         : '裝備不會消失，回地圖再挑戰一次',
       W / 2, 280, { size: 14, color: '#c6d2e8' });
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
@@ -2868,7 +2947,7 @@ const Game = (function () {
     ctx.fillStyle = 'rgba(8,12,24,0.75)';
     ctx.fillRect(0, 0, W, H);
     panel(250, 150, 460, 190);
-    U.text(ctx, skirmish ? '放棄這場海戰？' : '放棄這一關？', W / 2, 192, { size: 30, color: '#ffd166' });
+    U.text(ctx, skirmish ? (skirmish.def.dive ? '放棄這次潛水？' : '放棄這場海戰？') : '放棄這一關？', W / 2, 192, { size: 30, color: '#ffd166' });
     U.text(ctx, skirmish ? '回大地圖後，這場不會拿到 EXP'
                          : '回大地圖後，這一關的金幣和分數不會保留',
       W / 2, 230, { size: 14, color: '#b9c6e2' });

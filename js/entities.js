@@ -20,6 +20,9 @@ const PHYS = {
   STOMP_BOUNCE_HIGH: -10.2   // 指揮棒：踩敵人彈得更高
 };
 
+// 潛水時划一下的往上初速（重力只剩 28%，所以一下就能游很高）
+const SWIM_V = -4.4;
+
 function makePlayer(x, y, stats) {
   return {
     x: x, y: y, w: 22, h: 40,
@@ -1135,6 +1138,8 @@ function solidsOf(state) {
   });
   // 招牌機制裡可以站的東西（塞爾維亞的木橋）
   const extra = state.features ? Features.solids(state) : [];
+  (d.platforms || []).forEach(function (pf) { pf.passThru = true; });
+  state.movers.forEach(function (m) { m.passThru = true; });
   return d.ground.concat(d.platforms || [], state.movers, blocks, extra);
 }
 
@@ -1175,7 +1180,13 @@ function updatePlayer(state, input, t, who) {
    * （試過 0.975：放開後滑 86px，幾乎每次都滑出平台，太懲罰）
    */
   const onIce = p.onIce && p.onGround;
-  const maxRun = PHYS.MAX_RUN * st.speed;
+  // 騎駱駝（v1.23.1 非洲關坐騎，見 Features 'mount'）：跑快 30%、跳高一點
+  /*
+   * 潛水（v1.23.1 亞特蘭提斯，def.underwater）：
+   *   重力只剩 28%、下沉最快 2.6；跳躍鍵 = 划水（隨時都能按，往上游一下）；橫向慢 20%。
+   */
+  const uw = !!state.def.underwater;
+  const maxRun = PHYS.MAX_RUN * st.speed * (p.mount ? 1.3 : 1) * (uw ? 0.8 : 1);
   const accel = PHYS.ACCEL * (st.speed > 1 ? 1.15 : 1) * (onIce ? 0.3 : 1);
   const friction = onIce ? 0.95 : PHYS.FRICTION;
   const left = input.isDown('left');
@@ -1192,9 +1203,18 @@ function updatePlayer(state, input, t, who) {
 
   // 彈簧鞋（商店強化）讓跳躍初速更快。
   // 乘在 JUMP_V 上，所以二段跳與蹬牆跳也一起受益。
-  const jumpMul = 1 + (st.jumpBoost || 0) * 0.055;
+  const jumpMul = (1 + (st.jumpBoost || 0) * 0.055) * (p.mount ? 1.1 : 1);
 
-  if (p.jumpBuffer > 0) {
+  if (uw) {
+    if (p.jumpBuffer > 0) {
+      p.vy = Math.min(p.vy * 0.4, 0) + SWIM_V;
+      p.onGround = false;
+      p.coyote = 0;
+      p.jumpBuffer = 0;
+      events.push('swim');
+      state.particles.push({ x: p.x + p.w / 2, y: p.y + p.h, vx: (Math.random() - 0.5), vy: 0.6, life: 20, color: '#d8f4ff' });
+    }
+  } else if (p.jumpBuffer > 0) {
     if (p.coyote > 0) {
       // 地面跳
       p.vy = PHYS.JUMP_V * jumpMul;
@@ -1236,7 +1256,7 @@ function updatePlayer(state, input, t, who) {
    * 實測玩家會黏在彈簧上原地彈，y 座標完全不動，然後被尖刺追上。
    * 所以用 launched 標記外力彈射，跳過截斷。
    */
-  if (!input.isDown('jump') && p.vy < 0 && !p.launched) p.vy *= PHYS.JUMP_CUT;
+  if (!uw && !input.isDown('jump') && p.vy < 0 && !p.launched) p.vy *= PHYS.JUMP_CUT;
   // 上升結束後解除外力標記
   if (p.launched && p.vy >= 0) p.launched = false;
 
@@ -1266,7 +1286,8 @@ function updatePlayer(state, input, t, who) {
   }
 
   // ── 重力（貼牆滑降、滑翔都會限制下墜速度） ──
-  p.vy = Math.min(p.vy + PHYS.GRAVITY, PHYS.MAX_FALL);
+  if (uw) p.vy = Math.min(p.vy + PHYS.GRAVITY * 0.28, 2.6);
+  else p.vy = Math.min(p.vy + PHYS.GRAVITY, PHYS.MAX_FALL);
   if (p.wallSliding && p.vy > PHYS.WALL_SLIDE) p.vy = PHYS.WALL_SLIDE;
   if (p.gliding && p.vy > PHYS.GLIDE_FALL) p.vy = PHYS.GLIDE_FALL;
 
@@ -1305,13 +1326,18 @@ function updatePlayer(state, input, t, who) {
    * 單向平台只該從上面接住玩家，側面與底面都應該能穿過。
    */
   const oneWayMode = !!(state.shaft && state.def.shaft.mode === 'climb');
+  /*
+   * v1.23.1 玩家：所有關卡的浮空平台（階梯）、移動平台，從下往上跳都要能穿過去站上去，
+   * 不要撞到底面上不去。這些在 solidsOf 標了 passThru；地面、牆、隱形磚、倒下的石柱照舊是實心。
+   */
+  const isOneWay = function (s) { return s.passThru || (oneWayMode && s.oneWay); };
 
   // ── 水平移動 + 側面碰撞（順便偵測貼牆） ──
   p.x += p.vx;
   let touchedWall = 0;
   solids.forEach(function (s) {
     if (!U.overlap(p, s)) return;
-    if (oneWayMode && s.oneWay) return;
+    if (isOneWay(s)) return;
     // 站在上面的那座平台不做側面推擠 —— 否則 x 軸電梯會把乘客擠開
     if (s === p.ridingMover) return;
     if (p.vx > 0) { p.x = s.x - p.w; touchedWall = 1; }
@@ -1333,6 +1359,8 @@ function updatePlayer(state, input, t, who) {
   const pFeetBefore = p.y + p.h;
   const pHeadBefore = p.y;
   p.y += p.vy;
+  // 潛水：游不出水面（畫面上方 HUD 底下是水面）
+  if (uw && p.y < 64) { p.y = 64; if (p.vy < 0) p.vy = 0; }
 
   /*
    * 頂隱形磚：往上跳、頭頂這一帧從磚的下方穿過磚底 → 磚現形。
@@ -1394,7 +1422,7 @@ function updatePlayer(state, input, t, who) {
      *   prevFeet <= s.y  且  現在的 feet >= s.y
      * 這是標準的 swept 檢查，不受容差大小影響。
      */
-    if (oneWay && s.oneWay) {
+    if (isOneWay(s)) {
       const feetNow = p.y + p.h;
       if (p.vy >= 0 && prevFeet <= s.y && feetNow >= s.y) {
         p.y = s.y - p.h;

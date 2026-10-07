@@ -170,5 +170,38 @@ function runEncounterCheck() {
 
   if (!Costumes.count) issues.push('時裝表是空的，稀有怪沒東西可以掉');
 
+  /*
+   * H) 亞特蘭提斯潛水關（v1.23.1）：
+   *   一直往右游、偶爾划水的機器人要能潛到終點、不會嗆水；
+   *   原地不動要會嗆水（空氣系統真的有作用）；地圖上的入口在開闊海面上。
+   */
+  (function () {
+    const m = Encounter.boss('atlantis');
+    if (!m) { issues.push('地圖上找不到亞特蘭提斯'); return; }
+    if (!Voyage.isNavigable(m.x, m.y)) issues.push('亞特蘭提斯的入口不在能航行的海面上');
+    const def = Encounter.makeDef(m, Equipment.resolve([]));
+    if (!def.underwater) issues.push('亞特蘭提斯不是潛水關');
+    function dive(holdRight) {
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      st.enemies = [];
+      const p = st.player;
+      let press = false, lastX = 0, stuck = 0, drown = 0, f;
+      const input = { isDown: function (a) { return (holdRight && a === 'right') || a === 'jump'; },
+                      once: function (a) { return a === 'jump' && press; }, endFrame: function () {} };
+      for (f = 0; f < 4000 && p.x < def.goal; f++) {
+        press = f % 14 === 0 && (p.y > 300 || stuck > 10);
+        updateMovers(st.movers, f);
+        updatePlayer(st, input, f).concat(Features.update(st, f)).forEach(function (e) { if (/drown$/.test(e)) drown++; });
+        stuck = Math.abs(p.x - lastX) < 0.5 ? stuck + 1 : 0; lastX = p.x;
+      }
+      return { reached: p.x >= def.goal, drown: drown, frames: f };
+    }
+    const go = dive(true), idle = dive(false);
+    report.atlantis = go;
+    if (!go.reached) issues.push('潛水關：一直往右游到不了終點');
+    if (go.drown) issues.push('潛水關：正常往前游也會嗆水 ' + go.drown + ' 次（噴口太少？）');
+    if (!idle.drown) issues.push('潛水關：原地不動也不會嗆水，空氣系統沒作用');
+  })();
+
   return { issueCount: issues.length, issues: issues, report: report };
 }

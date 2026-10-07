@@ -186,6 +186,17 @@ const Music = (function () {
                4, 5, 6, 5, 4, 3, 2, null, 1, 2, 1, 0, 0, null, null, null],
       drum:   [1, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 1, 0.5, 0.5, 1, 1, 0.5, 1, 1]
     },
+    // 亞特蘭提斯（潛水，v1.23.1）：慢、空靈的 Lydian（升四級），正弦波像水裡傳來的鐘聲
+    ATL: {
+      bpm: 88, wave: 'sine',
+      root: -3,
+      scale: [0, 2, 4, 6, 7, 9, 11],
+      bass: [0, 0, 3, 3, 4, 4, 1, 1],
+      melody: [4, null, 6, null, 7, null, 6, 4, 2, null, null, 4, 3, null, null, null,
+               7, null, 9, null, 8, 7, 6, null, 4, null, 2, 3, 0, null, null, null],
+      drum:   [0.5, 0, 0, 0, 0, 0, 0.5, 0, 0.5, 0, 0, 0, 0, 0, 0, 0],
+      soft: true
+    },
     // 匈牙利：查爾達什（吉普賽小調，增二度），先慢後快的感覺用跳音表現
     HU: {
       bpm: 140, wave: 'sawtooth',

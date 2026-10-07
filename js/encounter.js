@@ -76,8 +76,15 @@ const Encounter = (function () {
     scylla:  { name: '海妖斯庫拉', lv: '魔王', exp: 150, bossExp: 250, bossCoins: 200, game: '墨西拿海峽',
                goal: '頭咬下來卡在甲板上時跳上去踩！每顆頭踩兩下，六顆都打倒就贏了', boss: true }
   };
-  /** 海上魔王的固定位置（經緯度；不能航行的話往附近找開闊海面） */
-  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }];
+  /*
+   * 亞特蘭提斯（v1.23.1 玩家：找個海域插一個亞特蘭提斯，關卡方式是潛水）——
+   * 柏拉圖說它在「海克力斯之柱（直布羅陀海峽）之外」，所以放在海峽西邊的大西洋。
+   * 不是小遊戲，是一整段潛水的橫向關卡（Levels.make 產生，見 diveDef）；不佔關卡編號、不影響存檔順序。
+   */
+  KINDS.atlantis = { name: '亞特蘭提斯', lv: '遺跡', exp: 120, bossExp: 200, bossCoins: 250, game: '潛水探險',
+                     goal: '按跳躍往上游；頭上的氣泡用完會嗆水 —— 碰到海底噴口的氣泡就能補氣', dive: true };
+  /** 地圖上固定的地點（經緯度；不能航行的話往附近找開闊海面）：海上魔王＋亞特蘭提斯 */
+  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -10.8, lat: 33.4 }];
 
   let monsters = [];
   let spawnTimer = 120;
@@ -317,6 +324,30 @@ const Encounter = (function () {
         return;
       }
 
+      if (m.kind === 'atlantis') {
+        // 亞特蘭提斯：海面上一圈青色光、冒泡，水下隱約露出神殿的三角山牆和柱子
+        const been = typeof Save !== 'undefined' && Save.seaBossDown(m.kind);
+        const pulse = 22 + Math.sin(t * 0.08) * 2;
+        ctx.strokeStyle = near ? 'rgba(120, 240, 230, 1)' : 'rgba(120, 240, 230, 0.55)';
+        ctx.lineWidth = near ? 2.6 : 1.6;
+        ctx.beginPath(); ctx.arc(0, 0, pulse, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(40, 140, 170, 0.35)';
+        ctx.beginPath(); ctx.ellipse(0, 2, 18, 9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(230, 220, 180, 0.75)';
+        ctx.beginPath(); ctx.moveTo(-13, -4); ctx.lineTo(0, -12); ctx.lineTo(13, -4); ctx.closePath(); ctx.fill();
+        for (let k = 0; k < 4; k++) ctx.fillRect(-11 + k * 7, -3, 3, 9);
+        ctx.strokeStyle = 'rgba(220, 245, 255, 0.8)'; ctx.lineWidth = 1;
+        for (let k = 0; k < 3; k++) {
+          const ph = (t * 0.6 + k * 9) % 26;
+          ctx.beginPath(); ctx.arc(-8 + k * 8, -6 - ph, 1.6 + k * 0.4, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(10, 60, 80, 0.9)';
+        U.roundRect(ctx, -26, -44, 52, 14, 4); ctx.fill();
+        U.text(ctx, been ? '再潛一次' : '海底遺跡', 0, -37, { size: 10, color: '#a8f0e8', stroke: false });
+        ctx.restore();
+        return;
+      }
+
       if (m.boss) {
         // 魔王：紅色雙圈 + 漩渦 + 「魔王」牌子（打倒過的牌子變灰、寫「再戰」）
         const beaten = typeof Save !== 'undefined' && Save.seaBossDown(m.kind);
@@ -373,7 +404,50 @@ const Encounter = (function () {
   const SHIP = { x: 680, w: 210, h: 54 };
   const DECK_W = 560;     // 艦砲對決：玩家的甲板寬度（右邊是海）
 
+  /**
+   * 亞特蘭提斯的潛水關（第一次叫的時候才產生，之後重用同一份地形）。
+   * 用一般橫向關的產生器（Levels.make）鋪海床、斷崖、平台與敵人，再標 underwater：
+   *   entities.js 改用潛水物理（划水、慢慢下沉），features.js 管空氣與噴口，畫面加藍色水濾鏡。
+   */
+  let diveBase = null;
+  function diveDef(m) {
+    if (!diveBase) {
+      diveBase = Levels.make({
+        seed: 1050,
+        id: 'ATL', country: '亞特蘭提斯', city: '沉沒的神殿', region: 'sea',
+        flag: ['#1a5a8a', '#e8d8a0', '#1a5a8a'], flagDir: 'h',
+        landmark: 'atlantis',
+        fact: '柏拉圖寫道：海克力斯之柱外有一座強大的島國亞特蘭提斯，在一天一夜之間沉入了海底。',
+        sky: ['#0c3c6c', '#2a86b8'], hill: '#1c4c6c', cloud: 'rgba(190, 235, 255, 0.10)',
+        groundTop: '#d0c090', groundBody: '#5a6a6c',
+        deco: 'kelp',
+        layout: 'flat',
+        width: 5600,
+        groundTypes: ['walker', 'spiker', 'walker'],
+        airTypes: ['flyer', 'chaser'],
+        density: 0.9,
+        features: [{ type: 'air' }],
+        secretHint: '倒塌的神殿柱子後面，有一道微光',
+        secretNear: 0.6,
+        props: []
+      });
+      diveBase.underwater = true;
+      diveBase.dive = true;
+    }
+    const k = m.def;
+    const first = !(typeof Save !== 'undefined' && Save.seaBossDown(m.kind));
+    const def = Object.assign({}, diveBase, {
+      monster: m,
+      exp: first ? k.bossExp : k.exp,
+      bossCoins: first ? k.bossCoins : 0,
+      firstBoss: first,
+      fact: diveBase.fact + (first ? '　第一次潛到神殿：' + k.bossExp + ' EXP＋' + k.bossCoins + ' 金幣' : '　再潛一次：' + k.exp + ' EXP')
+    });
+    return def;
+  }
+
   function makeDef(m, stats) {
+    if (m.def.dive) return diveDef(m);
     const k = m.def;
     const GY = Levels.GROUND_Y;
     const kind = m.kind;
