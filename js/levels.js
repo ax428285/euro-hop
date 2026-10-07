@@ -89,7 +89,8 @@ const Levels = (function () {
       extras: cfg.extras,
       pendulums: cfg.pendulums,
       notes: cfg.notes,
-      chime: cfg.chime
+      chime: cfg.chime,
+      calm: cfg.calm
     });
 
     return {
@@ -621,12 +622,12 @@ const Levels = (function () {
     // 美術主題：阿爾卑斯山（雪山遠景、馬特洪峰、岩壁積雪、山頂十字架，見 Sprites.shaftBackdrop）
     theme: 'alps',
     /*
-     * v1.19 玩家：瑞士關有點單調（三座豎井只有這座沒有專屬機關）。加兩個：
-     *   ice      冰面：站上去會滑，要提早放開方向鍵
-     *   轟隆      每隔一段時間山上傳來轟隆聲，雪崩加速追上來（跟英國鐘聲同一套機制）
+     * v1.19 玩家：瑞士關有點單調（三座豎井只有這座沒有專屬機關）→ 加冰面：站上去會滑，要提早放開方向鍵。
+     * 玩家：有冰面就不要雪崩 → calm：沒有追擊的危險區，相機只跟著玩家；滑下去就要重爬。
+     * （中間試過「轟隆聲雪崩加速」，雪崩拿掉後一起拿掉）
      */
     extras: ['ice'],
-    chime: { every: 660, dur: 100, boost: 1.35, label: '轟隆隆——', sub: '雪崩加速追上來了！', sound: 'rumble', from: 'bottom' },
+    calm: true,
     /*
      * 往上爬的參數要比往下降保守：
      *   層距 84 —— 必須明顯小於基礎跳躍高度（約 128px），

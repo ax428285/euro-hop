@@ -349,6 +349,8 @@ const Shaft = (function () {
        * 下降模式沒這個問題：塌掉剛好幫你往下走。
        */
       const isGoal = i === floors;
+      // 沒有追擊危險區的井（cfg.calm）：最底層是整片地面，掉下去最多回到起點，不會掉出井外
+      const isBase = i === 0 && !!cfg.calm;
       const isLastStep = mode === 'climb' && i === floors - 1;
       const prevType = list.length ? list[list.length - 1].type : null;
       const type = (isGoal || isLastStep)
@@ -357,9 +359,9 @@ const Shaft = (function () {
 
       const fl = {
         floor: i,
-        x: isGoal ? shaftX + 6 : x,
+        x: (isGoal || isBase) ? shaftX + 6 : x,
         y: y,
-        w: isGoal ? shaftW - 12 : platW,
+        w: (isGoal || isBase) ? shaftW - 12 : platW,
         h: PLAT_H,
         type: type,
         goal: isGoal
@@ -471,8 +473,14 @@ const Shaft = (function () {
       pendulums: pendulums,
       // 鐘聲加速（null = 這座井沒有）：{ every 間隔帧, dur 持續帧, boost 捲速倍率 }
       chime: cfg.chime || null,
-      // 玩家出生在第一層上方
-      spawn: { x: list[0].x + list[0].w / 2 - 11, y: list[0].y - 44 },
+      /*
+       * calm：沒有追擊的危險區（瑞士 v1.19：有冰面就不要雪崩，玩家要求）。
+       * 相機不自己捲，只跟著玩家（上下都跟）；挑戰改成冰面與尖刺 —— 滑下去就要重爬。
+       */
+      calm: !!cfg.calm,
+      // 玩家出生在第一層上方（calm 的第一層是整片地面，出生在原本隨機位置的正上方，跟上一層對得上）
+      spawn: { x: (cfg.calm ? shaftX + Math.round((shaftW - platW) / 2) + platW / 2 : list[0].x + list[0].w / 2) - 11,
+               y: list[0].y - 44 },
       goalFloor: floors,
       goalY: goalY
     };
@@ -524,6 +532,8 @@ const Shaft = (function () {
    * climb  ：雪崩/水位的頂緣 —— 玩家腳底低於它就被捲進去
    */
   function hazardY(pl, camY) {
+    // calm：沒有危險區 —— 放在無限遠，碰撞判定永遠不會成立
+    if (pl.calm) return pl.mode === 'climb' ? Infinity : -Infinity;
     if (pl.mode === 'climb') return camY + VIEW_H - FLOOD_H;
     return camY + CEIL_TOP + CEIL_H;
   }
@@ -567,6 +577,16 @@ const Shaft = (function () {
     const floor = floorAtY(pl, mid);
     const step = scrollAt(pl, floor) * (boost || 1);
     const lim = camLimit(pl, viewH);
+
+    /*
+     * calm（沒有追擊的井）：相機不自己捲，只緩追玩家 —— 上下都追。
+     * 沒有雪崩，玩家滑下去要看得到自己掉到哪；下限是起始位置（再往下就是井底外面）。
+     */
+    if (pl.calm && playerY != null) {
+      const want = playerY - viewH * 0.55;
+      const lo = Math.min(lim, camStart(pl, viewH)), hi = Math.max(lim, camStart(pl, viewH));
+      return U.clamp(camY + (want - camY) * 0.12, lo, hi);
+    }
 
     if (pl.dir < 0) {
       /*

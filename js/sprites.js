@@ -3976,24 +3976,17 @@ const Sprites = (function () {
   function chimeOverlay(ctx, life, W, H, cfg) {
     const label = (cfg && cfg.label) || '噹——';
     const sub = (cfg && cfg.sub) || '鐘聲響起，捲動加速！';
-    // from: 'bottom'（瑞士雪崩轟隆）：波紋從畫面底部的雪崩往上擴散，白色；預設是鐘聲從上面擴散，金色
-    const bottom = cfg && cfg.from === 'bottom';
     const k = 1 - life / 90;          // 0 → 1
     ctx.save();
     ctx.globalAlpha = Math.min(1, life / 30);
     for (let i = 0; i < 3; i++) {
       const rr = 40 + (k + i * 0.18) * 520;
-      ctx.strokeStyle = bottom
-        ? 'rgba(235, 245, 255, ' + (0.6 * (1 - k)).toFixed(3) + ')'
-        : 'rgba(255, 214, 120, ' + (0.5 * (1 - k)).toFixed(3) + ')';
-      ctx.lineWidth = bottom ? 6 - i * 1.5 : 4 - i;
-      ctx.beginPath();
-      if (bottom) ctx.arc(W / 2, H - 30, rr, Math.PI, Math.PI * 2);
-      else ctx.arc(W / 2, 60, rr, 0, Math.PI);
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 214, 120, ' + (0.5 * (1 - k)).toFixed(3) + ')';
+      ctx.lineWidth = 4 - i;
+      ctx.beginPath(); ctx.arc(W / 2, 60, rr, 0, Math.PI); ctx.stroke();
     }
-    U.text(ctx, label, W / 2, 110 - k * 10, { size: 34, color: bottom ? '#ffffff' : '#ffd166', strokeWidth: 6 });
-    U.text(ctx, sub, W / 2, 144, { size: 14, color: bottom ? '#e3eef8' : '#f3e3c0' });
+    U.text(ctx, label, W / 2, 110 - k * 10, { size: 34, color: '#ffd166', strokeWidth: 6 });
+    U.text(ctx, sub, W / 2, 144, { size: 14, color: '#f3e3c0' });
     ctx.restore();
   }
 

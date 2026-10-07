@@ -528,10 +528,8 @@ const Game = (function () {
           break;
         case 'chime': {
           const cs = state.def.shaft && state.def.shaft.chime;
-          if (cs && cs.sound === 'fanfare') Sfx.fanfare();
-          else if (cs && cs.sound === 'rumble') Sfx.bossRoar();   // 瑞士：雪崩轟隆聲
-          else Sfx.bell();
-          shake = cs && cs.sound === 'rumble' ? 12 : 6;
+          if (cs && cs.sound === 'fanfare') Sfx.fanfare(); else Sfx.bell();
+          shake = 6;
           break;
         }
         case 'stampede': Sfx.bossRoar(); shake = 12; break;
@@ -1179,7 +1177,9 @@ const Game = (function () {
     ctx.restore();   // 收掉 camY
 
     // 追擊的危險區畫在螢幕座標：它固定在畫面的一側才讀得出剩餘空間
-    if (pl.mode === 'climb') {
+    if (pl.calm) {
+      // 沒有追擊的危險區（瑞士：有冰面就不要雪崩）
+    } else if (pl.mode === 'climb') {
       Sprites.shaftFlood(ctx, H - Shaft.FLOOD_H, Shaft.FLOOD_H, W, t, def.floodTint);
     } else {
       Sprites.shaftCeiling(ctx, Shaft.CEIL_TOP, Shaft.CEIL_H, W, t, def.theme);
@@ -1207,9 +1207,9 @@ const Game = (function () {
       const by = climb ? 92 : H - 74;
       ctx.fillStyle = 'rgba(10,14,26,0.82)';
       U.roundRect(ctx, W / 2 - 215, by, 430, 48, 8); ctx.fill();
-      U.text(ctx, climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
+      U.text(ctx, pl.calm ? '往上爬到山頂！' : climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
         W / 2, by + 18, { size: 16, color: '#ffd166' });
-      U.text(ctx, climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・冰面會滑・轟隆聲響起時雪崩加速'
+      U.text(ctx, climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・藍色冰面會滑，要提早放開方向鍵'
                                                 : '←→ 移動　空白 跳躍　平台可以從下面穿過去')
                         : def.theme === 'bigben' ? '往下掉時小心鐘擺・鐘聲響起時會加速'
                         : def.theme === 'opera' ? '鋼琴鍵平台第 3 拍會消失・小心飛來的音符'
