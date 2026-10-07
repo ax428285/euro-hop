@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>EUROPA ODYSSEY — 歐羅巴遠征</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="960" height="480" aria-label="歐羅巴遠征遊戲畫面"></canvas>
+    <!--
+      觸控操作。方向搖桿與動作鍵只在觸控裝置顯示；☰ 選單電腦版也有（用滑鼠點）。
+      按鈕下方的小字是對應的鍵盤鍵 —— 畫面上的提示都寫「按 Enter」「按 P」，
+      手機玩家看小字就知道要按哪顆。
+    -->
+    <div id="pad">
+      <!-- 功能列平常收起來（不擋住畫面頂端的關卡資訊），按 ☰ 展開 -->
+      <button class="sbtn sbtn-menu" id="btn-menu" aria-label="選單" aria-expanded="false">☰</button>
+      <div class="pad-top" id="pad-menu">
+        <button class="sbtn" data-key="pause" aria-label="暫停">暫停<small>P</small></button>
+        <button class="sbtn" data-key="tomap" aria-label="回大地圖">地圖<small>Q</small></button>
+        <button class="sbtn" data-key="shop" aria-label="商店">商店<small>B</small></button>
+        <button class="sbtn" data-key="inventory" aria-label="裝備">裝備<small>I</small></button>
+        <button class="sbtn" data-key="mystery" aria-label="世界之謎">世界之謎<small>N</small></button>
+        <button class="sbtn sbtn-net" id="btn-net" aria-label="連線一起玩">連線</button>
+        <button class="sbtn" data-key="mute" aria-label="靜音">靜音<small>M</small></button>
+        <button class="sbtn" id="btn-fullscreen" aria-label="全螢幕">全螢幕</button>
+        <!-- 刪除存檔：關卡中隱藏；要按兩次才會真的刪 -->
+        <button class="sbtn sbtn-wipe" id="btn-wipe" aria-label="刪除存檔">刪除存檔</button>
+      </div>
+      <!-- 方向搖桿：手指按住後滑動可以換方向，支援斜向 -->
+      <div class="dpad" id="dpad" aria-label="方向">
+        <span class="dp dp-up" data-dir="up">▲</span>
+        <span class="dp dp-left" data-dir="left">◀</span>
+        <span class="dp dp-right" data-dir="right">▶</span>
+        <span class="dp dp-down" data-dir="down">▼</span>
+      </div>
+      <div class="pad-actions">
+        <button class="btn btn-ok" data-key="confirm" aria-label="確定">確定<small>Enter</small></button>
+        <button class="btn btn-atk" data-key="throw" aria-label="遠程攻擊">丟<small>K</small></button>
+        <button class="btn btn-atk" data-key="attack" aria-label="攻擊">揮<small>J</small></button>
+        <button class="btn btn-jump" data-key="jump" aria-label="跳躍">跳<small>空白</small></button>
+      </div>
+    </div>
+    <!--
+      連線面板：輸入框一定要用真的 DOM（手機才叫得出鍵盤），所以不畫在 canvas 上。
+      放在 #stage 裡面，手機直拿轉 90° 時會跟著一起轉。
+    -->
+    <div id="netpanel" hidden>
+      <div class="np-box" role="dialog" aria-labelledby="np-title">
+        <h2 id="np-title">連線一起玩</h2>
+        <div id="np-start">
+          <button class="np-btn np-primary" id="np-host">建立房間（我當房主）</button>
+          <div class="np-or">或是輸入朋友給你的邀請碼</div>
+          <div class="np-join">
+            <input id="np-code" maxlength="8" placeholder="例如 K7Q2MX" autocomplete="off"
+                   autocapitalize="characters" spellcheck="false" inputmode="text" />
+            <button class="np-btn" id="np-join">加入</button>
+          </div>
+        </div>
+        <div id="np-room" hidden>
+          <div class="np-label">把邀請碼傳給朋友</div>
+          <div class="np-code" id="np-codeval">------</div>
+          <div class="np-row">
+            <button class="np-btn" id="np-copy">複製邀請碼</button>
+            <button class="np-btn" id="np-copylink">複製邀請連結</button>
+          </div>
+        </div>
+        <p class="np-status" id="np-status" aria-live="polite"></p>
+        <div class="np-row">
+          <button class="np-btn np-danger" id="np-leave" hidden>離開連線</button>
+          <button class="np-btn" id="np-close">關閉</button>
+        </div>
+        <p class="np-note">房主選關卡、朋友當 2P。過關、線索、裝備、金幣兩人都會記到自己的存檔。<br />
+          用免費的公共媒合服務，少數網路（部分行動網路、公司網路）可能連不上。</p>
+      </div>
+    </div>
+  </div>
+  <p id="hint">
+    <strong>1P</strong> ←→ 移動・空白 跳躍・J 揮棍・K 遠程　　<strong>2P</strong> A D 移動・W 跳躍・G 揮棍・H 遠程<br />
+    <strong>C</strong> 兩人同機　<strong>Q</strong> 回大地圖　<strong>B</strong> 商店　<strong>I</strong> 裝備　<strong>N</strong> 世界之謎　<strong>P</strong> 暫停　<strong>M</strong> 靜音<br />
+    點畫面左側的 <strong>☰</strong> 開選單：商店、裝備、世界之謎、<strong>連線</strong>（輸入邀請碼和朋友一起玩）、靜音、全螢幕、<strong>刪除存檔</strong>
+  </p>
+  <!--
+    開發期間用 ?v= 強制瀏覽器重抓，避免改了 js 卻跑到舊版本
+    （本機 python http.server 沒有 cache header，瀏覽器會自行快取）。
+    值跟 js/branding.js 的 VERSION 一致 —— 進版時兩處一起改。
+  -->
+  <script src="js/utils.js?v=1.17.0"></script>
+  <script src="js/branding.js?v=1.17.0"></script>
+  <script src="js/input.js?v=1.17.0"></script>
+  <script src="js/music.js?v=1.17.0"></script>
+  <script src="js/audio.js?v=1.17.0"></script>
+  <script src="js/shop.js?v=1.17.0"></script>
+  <script src="js/costumes.js?v=1.17.0"></script>
+  <script src="js/save.js?v=1.17.0"></script>
+  <script src="js/equipment.js?v=1.17.0"></script>
+  <script src="js/levelgen.js?v=1.17.0"></script>
+  <script src="js/npcs.js?v=1.17.0"></script>
+  <!-- features.js 要在 levels.js 之前：關卡定義時就會呼叫 Features.plan() -->
+  <script src="js/features.js?v=1.17.0"></script>
+  <!-- shaft.js 要在 levels.js 之前：關卡定義時就會呼叫 Shaft.plan() -->
+  <script src="js/shaft.js?v=1.17.0"></script>
+  <script src="js/levels.js?v=1.17.0"></script>
+  <script src="js/europe-geo.js?v=1.17.0"></script>
+  <script src="js/sprites.js?v=1.17.0"></script>
+  <script src="js/entities.js?v=1.17.0"></script>
+  <script src="js/worldmap.js?v=1.17.0"></script>
+  <script src="js/voyage.js?v=1.17.0"></script>
+  <!-- encounter.js 要在 voyage.js 之後：生成怪物時要問海面能不能走 -->
+  <script src="js/encounter.js?v=1.17.0"></script>
+  <script src="js/mystery.js?v=1.17.0"></script>
+  <!-- net.js 要在 game.js 之前：Game 初始化時就要掛上連線事件 -->
+  <script src="js/net.js?v=1.17.0"></script>
+  <script src="js/game.js?v=1.17.0"></script>
+  <script src="js/main.js?v=1.17.0"></script>
+</body>
+</html>

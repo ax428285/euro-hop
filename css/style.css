@@ -1,0 +1,395 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #10131c;
+  color: #e8edf7;
+  font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  min-height: 100vh;
+}
+
+#stage {
+  position: relative;
+  width: min(100%, 960px);
+}
+
+canvas#game {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  background: #1b2340;
+  border: 3px solid #3c4a78;
+  border-radius: 10px;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+
+canvas#game:focus-visible {
+  outline: 3px solid #ffd166;
+  outline-offset: 3px;
+}
+
+#hint {
+  margin: 0;
+  font-size: 14px;
+  color: #9aa7c7;
+  text-align: center;
+  line-height: 1.7;
+}
+
+#hint strong { color: #ffd166; font-weight: 600; }
+
+/* ── 觸控操作：只在觸控裝置顯示 ───────────────────────────── */
+
+#pad {
+  display: none;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "top  top  top"
+    "dpad .    act";
+  align-items: end;
+  gap: 14px 12px;
+  margin-top: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#pad button { font-family: inherit; touch-action: none; }
+
+/* 頂部功能列：小顆，避免誤觸中斷遊戲 */
+.pad-top {
+  grid-area: top;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sbtn {
+  min-width: 52px;
+  height: 40px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid #5a6db0;
+  background: rgba(40, 52, 94, 0.85);
+  color: #e8edf7;
+  font-size: 14px;
+  line-height: 1.05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.sbtn.on, .sbtn:active { background: #4a5ea8; }
+
+/* 按鈕下方的小字 = 對應的鍵盤鍵，讓「按 Enter」之類的畫面提示對得上 */
+#pad small { font-size: 10px; opacity: 0.7; margin-top: 1px; }
+
+/* 方向搖桿 */
+.dpad {
+  grid-area: dpad;
+  position: relative;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 2px solid #5a6db0;
+  background: radial-gradient(circle, rgba(60, 74, 120, 0.9) 0 22%, rgba(40, 52, 94, 0.85) 23%);
+  touch-action: none;
+}
+.dp {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #c8d3ee;
+  font-size: 22px;
+  pointer-events: none;
+}
+.dp.on { background: #4a5ea8; color: #fff; }
+.dp-up    { top: 6px;    left: 50%; transform: translateX(-50%); }
+.dp-down  { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.dp-left  { left: 6px;   top: 50%;  transform: translateY(-50%); }
+.dp-right { right: 6px;  top: 50%;  transform: translateY(-50%); }
+
+/* 動作鍵：2×2，跳躍放在拇指最順手的右下角 */
+.pad-actions {
+  grid-area: act;
+  display: grid;
+  grid-template-columns: repeat(2, 72px);
+  grid-template-rows: repeat(2, 72px);
+  gap: 10px;
+}
+
+.btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid #5a6db0;
+  background: rgba(40, 52, 94, 0.9);
+  color: #e8edf7;
+  font-size: 22px;
+  line-height: 1.05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.btn.on { background: #4a5ea8; transform: scale(0.94); }
+.btn-jump { background: rgba(190, 120, 40, 0.9); border-color: #e0a94b; }
+.btn-jump.on { background: #d4913a; }
+.btn-atk { background: rgba(150, 60, 56, 0.9); border-color: #d4746c; }
+.btn-atk.on { background: #b8524a; }
+/* 還沒拿到武器：變灰、蓋一個鎖頭（按下去會跳提示告訴玩家去哪拿） */
+.btn { position: relative; }
+.btn.locked { background: rgba(40, 43, 56, 0.75); border-color: #7a8096; color: rgba(232, 237, 247, 0.3); }
+.btn.locked.on { background: rgba(70, 74, 90, 0.85); transform: none; }
+/*
+ * 鎖頭自己畫（SVG），不用 🔒 emoji：emoji 是金棕色，疊在西班牙關的沙色背景上幾乎看不見，
+ * 而且每支手機的 emoji 長得不一樣。白鎖 + 深色描邊在任何背景都清楚。
+ */
+.btn.locked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: center / 30px 30px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='%2310131c' stroke-width='4.5' stroke-linecap='round'/%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Crect x='3.5' y='10' width='17' height='12' rx='2.5' fill='%23fff' stroke='%2310131c' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='15.4' r='1.7' fill='%2310131c'/%3E%3Crect x='11.2' y='15.6' width='1.6' height='3.6' rx='0.8' fill='%2310131c'/%3E%3C/svg%3E");
+}
+.btn-ok { background: rgba(50, 120, 80, 0.9); border-color: #6fc58f; font-size: 17px; }
+.btn-ok.on { background: #3d9a63; }
+
+/*
+ * 觸控裝置（html.touch，main.js 判斷）：
+ * 遊戲畫面橫向佔滿整個螢幕，按鈕半透明疊在畫面上。
+ *
+ * 手機直拿（html.rot）時整個 #stage 轉 90°，玩家把手機橫過來就是正的 ——
+ * 網頁沒辦法強制螢幕轉向，這是唯一不靠全螢幕 API 的做法。
+ * --sw / --sh 是 #stage 轉完之後「遊戲看到的」寬高。
+ */
+html.touch {
+  --vw: 100vw;
+  --vh: 100vh;
+}
+@supports (height: 100dvh) {
+  html.touch { --vw: 100dvw; --vh: 100dvh; }
+}
+
+html.touch body {
+  padding: 0;
+  height: var(--vh);
+  overflow: hidden;
+}
+html.touch #hint { display: none; }
+
+html.touch #stage {
+  --sw: var(--vw);
+  --sh: var(--vh);
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: var(--sw);
+  height: var(--sh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 順時針轉 90°：遊戲的上方朝螢幕右側（手機逆時針橫過來就是正的） */
+html.touch.rot #stage {
+  --sw: var(--vh);
+  --sh: var(--vw);
+  transform-origin: 0 0;
+  transform: translateX(var(--vw)) rotate(90deg);
+}
+
+html.touch canvas#game {
+  width: min(var(--sw), calc(var(--sh) * 2));
+  border: none;
+  border-radius: 0;
+}
+
+html.touch #pad {
+  --pt: max(8px, env(safe-area-inset-top));
+  --pr: max(14px, env(safe-area-inset-right));
+  --pb: max(12px, env(safe-area-inset-bottom));
+  --pl: max(14px, env(safe-area-inset-left));
+  display: grid;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  grid-template-rows: 1fr;
+  grid-template-areas: "dpad . act";
+  padding: var(--pt) var(--pr) var(--pb) var(--pl);
+  pointer-events: none;   /* 空白處讓點擊穿到畫面（地圖可以點國家） */
+}
+/* 轉 90° 後，遊戲的上/右/下/左 = 手機的右/下/左/上，瀏海安全區要跟著對調 */
+html.touch.rot #pad {
+  --pt: max(8px, env(safe-area-inset-right));
+  --pr: max(14px, env(safe-area-inset-bottom));
+  --pb: max(12px, env(safe-area-inset-left));
+  --pl: max(14px, env(safe-area-inset-top));
+}
+html.touch #pad > * { pointer-events: auto; }
+
+/*
+ * 電腦版：只留 ☰ 選單（用滑鼠點），搖桿與動作鍵不顯示 ——
+ * 鍵盤玩家原本找不到「刪除存檔」在哪，現在跟手機一樣放在選單裡。
+ */
+html:not(.touch) #pad {
+  --pl: 12px;
+  display: block;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;
+}
+html:not(.touch) #pad > * { pointer-events: auto; }
+html:not(.touch) #pad .dpad, html:not(.touch) #pad .pad-actions { display: none; }
+html:not(.touch) #pad .sbtn { cursor: pointer; }
+
+/*
+ * ☰ 選單鈕：放在左側、頂端資訊列下方 —— 畫面最上面一整條都是
+ * 關卡名稱、金幣、分數、愛心，按鈕放上去一定會擋到。
+ * （以下選單樣式電腦、手機共用）
+ */
+/* #pad 提高權重：不然會被後面通用的 html.touch .sbtn 尺寸蓋掉 */
+#pad .sbtn-menu {
+  position: absolute;
+  left: var(--pl);
+  top: 22%;
+  width: 40px;
+  min-width: 0;
+  height: 40px;
+  font-size: 18px;
+  opacity: 0.55;
+}
+#pad.menu .sbtn-menu { opacity: 1; background: #4a5ea8; }
+/* 在商店／裝備／存檔畫面：☰ 變成 ↩ 回大地圖，清楚一點讓玩家知道按它能回去 */
+#pad .sbtn-menu.back { opacity: 0.9; background: #3d5293; border-color: #9fb3e6; font-size: 20px; }
+
+/* 展開後的功能列：在 ☰ 右邊排開，不透明（選單開著代表玩家正要按它） */
+#pad .pad-top {
+  display: none;
+  position: absolute;
+  left: calc(var(--pl) + 48px);
+  top: 22%;
+  max-width: 60%;
+  justify-content: flex-start;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(16, 19, 28, 0.85);
+}
+#pad.menu .pad-top { display: flex; }
+
+/*
+ * 選單裡的「刪除存檔」：排在最後、偏紅色跟其他功能分開。關卡中隱藏（#pad.inlevel）。
+ * 第一次按變紅色「再按一次確認刪除」，3 秒內再按才刪。
+ */
+#pad .sbtn-wipe {
+  margin-left: 10px;
+  padding: 0 10px;
+  border-color: #8a6a74;
+  background: rgba(60, 36, 44, 0.9);
+}
+#pad.inlevel .sbtn-wipe { display: none; }
+#pad .sbtn-wipe.armed {
+  opacity: 1;
+  background: #b8324a;
+  border-color: #ff9aa8;
+  font-weight: 600;
+}
+
+/* 選單裡的「連線」：連線中變綠色，看一眼就知道現在有沒有連著 */
+#pad .sbtn-net.live { background: #2f7a50; border-color: #8fe3a0; }
+
+/* ── 連線面板（電腦、手機共用）─────────────────────────── */
+#netpanel {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 9, 20, 0.6);
+  padding: 10px;
+}
+#netpanel[hidden] { display: none; }
+.np-box {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 2px solid #3c4a78;
+  background: #141a2e;
+  color: #e8edf7;
+  text-align: center;
+}
+.np-box h2 { margin: 0 0 10px; font-size: 20px; color: #ffd166; }
+.np-btn {
+  font: inherit;
+  font-size: 15px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #5a6db0;
+  background: #28345e;
+  color: #e8edf7;
+  cursor: pointer;
+}
+.np-btn:active { background: #4a5ea8; }
+.np-primary { width: 100%; padding: 11px; font-size: 16px; background: #2f7a50; border-color: #8fe3a0; }
+.np-danger { background: #6a2a36; border-color: #e0526b; }
+.np-or { margin: 12px 0 6px; font-size: 13px; color: #9aa7c7; }
+.np-join { display: flex; gap: 8px; }
+.np-join input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 20px;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid #5a6db0;
+  background: #0d1222;
+  color: #ffffff;
+}
+.np-label { font-size: 13px; color: #9aa7c7; }
+.np-code { margin: 4px 0 10px; font-size: 38px; font-weight: 700; letter-spacing: 8px; color: #ffffff; user-select: all; }
+.np-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+.np-status { min-height: 1.4em; margin: 10px 0 0; font-size: 14px; color: #8fe3a0; }
+.np-status.err { color: #ff9aa8; }
+.np-note { margin: 12px 0 0; font-size: 11px; line-height: 1.6; color: #7d88a6; }
+
+/* 半透明：看得到底下的遊戲，按下去時才變實心 */
+/* 透明度設在每顆按鈕上（不是整組），上鎖的鍵才能單獨調得比較清楚 */
+html.touch .dpad, html.touch .pad-actions .btn { opacity: 0.45; }
+html.touch .dpad:has(.on), html.touch .pad-actions .btn.on { opacity: 0.75; }
+html.touch .pad-actions .btn.locked { opacity: 0.85; }
+html.touch .sbtn { height: 32px; min-width: 44px; font-size: 12px; }
+html.touch .dpad { width: 132px; height: 132px; }
+html.touch .dp { width: 42px; height: 42px; font-size: 19px; }
+html.touch .pad-actions {
+  grid-template-columns: repeat(2, 62px);
+  grid-template-rows: repeat(2, 62px);
+}
+html.touch .btn { width: 62px; height: 62px; font-size: 20px; }
+html.touch .btn-ok { font-size: 15px; }

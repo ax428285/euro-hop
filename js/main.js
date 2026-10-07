@@ -1,0 +1,273 @@
+'use strict';
+
+(function () {
+  // 分頁標題一律從 Brand 取（改名時只要改 branding.js 一處）
+  document.title = Brand.documentTitle;
+  const canvas = document.getElementById('game');
+
+  /*
+   * 觸控裝置一律用「橫向全螢幕 + 按鈕疊在畫面上」的版面。
+   * 手機直拿時網頁沒辦法強制轉向，所以用 CSS 把整個畫面轉 90°（html.rot），
+   * 玩家把手機橫過來就是正的。input.js 會依 html.rot 換算觸控座標。
+   */
+  const touchMq = window.matchMedia('(hover: none) and (pointer: coarse)');
+  function layout() {
+    const touch = touchMq.matches;
+    const cls = document.documentElement.classList;
+    cls.toggle('touch', touch);
+    cls.toggle('rot', touch && window.innerHeight > window.innerWidth);
+  }
+  layout();
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', layout);
+  Input.bindPad(document.getElementById('pad'));
+  Input.bindCanvasClick(canvas, 960, 480);
+
+  // ☰ 選單：按一下展開功能列；按了其中一顆或點遊戲畫面就收起來
+  const pad = document.getElementById('pad');
+  const menuBtn = document.getElementById('btn-menu');
+  function setMenu(open) {
+    pad.classList.toggle('menu', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  /*
+   * 子畫面（商店、裝備、存檔）是從 ☰ 選單點進去的，
+   * 這時 ☰ 變成「↩ 回大地圖」：再按一次就回去，不用再打開選單找「地圖」。
+   */
+  const SUB_SCREENS = { shop: true, inventory: true, saveinfo: true, mystery: true };
+  function onSubScreen() { return !!SUB_SCREENS[Game.scene()]; }
+  menuBtn.addEventListener('click', function () {
+    if (onSubScreen()) { setMenu(false); Input.press('tomap'); return; }
+    setMenu(!pad.classList.contains('menu'));
+  });
+  document.getElementById('pad-menu').addEventListener('click', function () { setMenu(false); });
+  // 電腦版用滑鼠點完按鈕，焦點會留在按鈕上；之後按空白/Enter 可能又「按」到它，所以點完就放掉焦點
+  pad.addEventListener('click', function () {
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  });
+  canvas.addEventListener('pointerdown', function () { setMenu(false); });
+
+  // 全螢幕（Android Chrome 可用；iPhone Safari 不支援元素全螢幕，就把按鈕藏起來）
+  const fsBtn = document.getElementById('btn-fullscreen');
+  const root = document.documentElement;
+  const requestFs = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (fsBtn && !requestFs) fsBtn.style.display = 'none';
+  if (fsBtn && requestFs) {
+    fsBtn.addEventListener('click', function () {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        return;
+      }
+      const p = requestFs.call(root);
+      // 全螢幕後順便鎖橫向，畫面最大
+      if (p && p.then) {
+        p.then(function () {
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function () {});
+          }
+        }).catch(function () {});
+      }
+    });
+  }
+
+  // 瀏覽器要求使用者互動後才允許播音效
+  function unlock() {
+    Sfx.init();
+    window.removeEventListener('keydown', unlock);
+    window.removeEventListener('pointerdown', unlock);
+  }
+  window.addEventListener('keydown', unlock);
+  window.addEventListener('pointerdown', unlock);
+
+  Game.init(canvas);
+
+  /*
+   * 武器鍵上鎖：還沒拿到裝備時，揮／丟兩顆按鈕蓋一個鎖頭。
+   * 朋友回報「按了沒反應」—— 他不知道要先去拿武器。按下上鎖的鍵會跳提示告訴他去哪一關拿。
+   * 裝備隨時可能拿到（關卡裡撿到、讀存檔、清除存檔），所以定時對一次，只在有變時才改 DOM。
+   */
+  const weaponBtns = ['attack', 'throw'].map(function (a) {
+    return { action: a, el: pad.querySelector('[data-key="' + a + '"]') };
+  });
+  function syncLocks() {
+    const ab = Game.abilities();
+    weaponBtns.forEach(function (w) {
+      const locked = !ab[w.action];
+      if (w.el.classList.contains('locked') !== locked) {
+        w.el.classList.toggle('locked', locked);
+        w.el.setAttribute('aria-label', w.el.getAttribute('aria-label').replace(/（未解鎖）$/, '') +
+                          (locked ? '（未解鎖）' : ''));
+      }
+    });
+  }
+  weaponBtns.forEach(function (w) {
+    w.el.addEventListener('pointerdown', function () {
+      if (w.el.classList.contains('locked')) Game.lockedHint(w.action);
+    });
+  });
+  /*
+   * 刪除存檔（☰ 選單裡，電腦與手機共用）。
+   * 原本鍵盤版只能在存檔畫面按 Delete 兩次，畫面上沒有任何提示，玩家找不到。
+   * 刪了救不回來，所以要按兩次：第一次變紅「再按一次確認刪除」（選單保持開著），
+   * 3 秒內沒再按就恢復。關卡進行中選單裡不顯示這顆。
+   */
+  const wipeBtn = document.getElementById('btn-wipe');
+  let wipeTimer = null;
+  function disarmWipe() {
+    clearTimeout(wipeTimer);
+    wipeTimer = null;
+    wipeBtn.classList.remove('armed');
+    wipeBtn.textContent = '刪除存檔';
+  }
+  wipeBtn.addEventListener('click', function (e) {
+    if (!Game.canWipe()) return;
+    if (wipeBtn.classList.contains('armed')) {
+      disarmWipe();
+      Game.wipeSave();
+      return;                          // 讓 click 冒泡上去收起選單
+    }
+    e.stopPropagation();               // 第一次按：選單不要收起來，玩家才按得到第二次
+    wipeBtn.classList.add('armed');
+    wipeBtn.textContent = '再按一次確認刪除';
+    wipeTimer = setTimeout(disarmWipe, 3000);
+  });
+
+  /** 關卡中（含暫停、確認框、過關畫面）：選單裡藏起「刪除存檔」 */
+  function syncScene() {
+    const inLevel = !Game.canWipe();
+    if (pad.classList.contains('inlevel') !== inLevel) {
+      pad.classList.toggle('inlevel', inLevel);
+      if (inLevel) disarmWipe();
+    }
+    if (!pad.classList.contains('menu') && wipeBtn.classList.contains('armed')) disarmWipe();
+  }
+
+  /** ☰ 的圖示跟著畫面換：子畫面顯示 ↩（回大地圖） */
+  function syncMenuIcon() {
+    const sub = onSubScreen();
+    if (menuBtn.classList.contains('back') === sub) return;
+    menuBtn.classList.toggle('back', sub);
+    menuBtn.textContent = sub ? '↩' : '☰';
+    menuBtn.setAttribute('aria-label', sub ? '回大地圖' : '選單');
+    if (sub) setMenu(false);
+  }
+
+  /*
+   * 連線面板（☰ →「連線」）。
+   * 只負責介面：建房、輸入邀請碼、顯示狀態；連線本身在 net.js，遊戲同步在 game.js。
+   */
+  const np = {
+    panel: document.getElementById('netpanel'),
+    start: document.getElementById('np-start'),
+    room: document.getElementById('np-room'),
+    code: document.getElementById('np-code'),
+    codeVal: document.getElementById('np-codeval'),
+    status: document.getElementById('np-status'),
+    leave: document.getElementById('np-leave'),
+    netBtn: document.getElementById('btn-net')
+  };
+  let roomCode = null;
+
+  function npStatus(msg, isErr) {
+    np.status.textContent = msg || '';
+    np.status.classList.toggle('err', !!isErr);
+  }
+  function npRender() {
+    const role = Net.role();
+    np.start.hidden = !!role;
+    np.room.hidden = !(role === 'host' && roomCode);
+    np.codeVal.textContent = roomCode || '------';
+    np.leave.hidden = !role;
+  }
+  function npOpen() {
+    np.panel.hidden = false;
+    npRender();
+    // 電腦版直接把游標放進輸入框。要等這次點擊處理完（選單會在 click 冒泡時把焦點放掉）；
+    // 手機不自動聚焦，不然鍵盤一彈出來就蓋住半個畫面
+    if (!Net.role() && !document.documentElement.classList.contains('touch')) {
+      setTimeout(function () { np.code.focus({ preventScroll: true }); }, 0);
+    }
+  }
+  function npClose() { np.panel.hidden = true; np.code.blur(); }
+  /** 關卡中不能開始連線：房主要從下一關開始帶朋友，朋友加入會離開自己正在打的關卡 */
+  function npBusy() {
+    if (Game.netInfo().inLevel) { npStatus('請先回到地圖再開始連線', true); return true; }
+    return false;
+  }
+  function copyText(text, okMsg) {
+    const done = function () { npStatus(okMsg); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { npStatus('複製失敗，請手動把邀請碼抄給朋友', true); });
+    } else {
+      npStatus('這個瀏覽器不能自動複製，請手動把邀請碼抄給朋友', true);
+    }
+  }
+
+  np.netBtn.addEventListener('click', npOpen);
+  document.getElementById('np-close').addEventListener('click', npClose);
+  document.getElementById('np-host').addEventListener('click', function () {
+    if (npBusy()) return;
+    roomCode = null;
+    Net.host();
+    npRender();
+  });
+  function doJoin() {
+    if (npBusy()) return;
+    Net.join(np.code.value);
+    npRender();
+  }
+  document.getElementById('np-join').addEventListener('click', doJoin);
+  np.code.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doJoin(); } });
+  document.getElementById('np-copy').addEventListener('click', function () {
+    if (roomCode) copyText(roomCode, '已複製邀請碼 ' + roomCode + '，貼到 LINE 給朋友吧');
+  });
+  document.getElementById('np-copylink').addEventListener('click', function () {
+    if (!roomCode) return;
+    const url = location.origin + location.pathname + '?join=' + roomCode;
+    copyText(url, '已複製邀請連結：朋友點開後按「加入」就好');
+  });
+  np.leave.addEventListener('click', function () {
+    Net.leave();
+    roomCode = null;
+    npStatus('已離開連線');
+    npRender();
+  });
+
+  Net.on('code', function (c) { roomCode = c; npRender(); });
+  Net.on('status', function (m) { npStatus(m); });
+  Net.on('error', function (m) { npStatus(m, true); npRender(); });
+  Net.on('open', function () {
+    npRender();
+    // 連上了就把面板收起來，讓兩人直接看遊戲畫面
+    setTimeout(npClose, 900);
+  });
+  Net.on('close', function () {
+    if (Net.role() === 'host') npStatus('朋友離開了，同一個邀請碼可以讓他重新加入');
+    else {
+      roomCode = null;
+      // 被房主拒絕（版本不同、房間滿了）要講原因，不然玩家不知道為什麼連不上
+      const why = Game.netInfo().byeReason;
+      npStatus(why || '連線已結束', !!why);
+      if (why) np.panel.hidden = false;
+    }
+    npRender();
+  });
+
+  // 從邀請連結點進來（?join=代碼）：直接打開面板、填好代碼，按「加入」就行
+  // （不自動連線：瀏覽器要玩家先點一下才能放聲音，而且讓朋友知道自己正在加入誰）
+  const joinParam = new URLSearchParams(location.search).get('join');
+  if (joinParam) {
+    np.code.value = Net.normalize(joinParam);
+    npOpen();
+    npStatus('按「加入」就能和房主連線');
+  }
+
+  function syncNetBtn() {
+    np.netBtn.classList.toggle('live', Net.connected());
+    np.netBtn.textContent = Net.connected() ? '連線中' : '連線';
+  }
+
+  function syncUi() { syncLocks(); syncScene(); syncMenuIcon(); syncNetBtn(); }
+  syncUi();
+  setInterval(syncUi, 200);
+})();

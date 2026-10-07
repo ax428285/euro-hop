@@ -1,0 +1,15 @@
+# Netlify 部署設定（v1.17）
+#
+# 部署方式：GitHub 連動 + 分支部署（branch deploy）。
+#   main 分支  平常開發用，推上去不會部署
+#   live 分支  朋友玩的版本：推上去就自動部署到 https://live--effervescent-cucurucho-40f89f.netlify.app
+#              分支部署不花 credits（正式部署每次 15 credits，免費方案一個月只有 300）
+#   redirect   Netlify 的「正式分支」，只有一個轉址：把舊的正式網址轉到 live 分支的網址，
+#              這樣已經傳出去的舊連結（含 ?join= 邀請連結）都還能用。這個分支幾乎不會再動。
+#
+# 發佈新版：powershell -ExecutionPolicy Bypass -File tools/deploy.ps1
+
+[build]
+  # 把所有 css / js 內嵌成單一個 HTML（dist/index.html）
+  command = "python3 tools/build-single.py"
+  publish = "dist"

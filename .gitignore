@@ -1,0 +1,16 @@
+# Local Netlify folder（記錄連到哪個網站，每台電腦各自 link）
+.netlify
+
+# 打包結果：Netlify 部署時會自己跑 tools/build-single.py 產生
+dist/
+
+# 本機開發設定（預覽伺服器等）
+.claude/
+
+# 工具的暫存輸出
+tools/_out.txt
+
+# 系統檔
+Thumbs.db
+desktop.ini
+.DS_Store
