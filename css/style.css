@@ -298,18 +298,9 @@ html.touch #pad > * { pointer-events: auto; }
  * 按得到的範圍比看得到的大一圈（::before 是按鈕的一部分，點到也算按到）。
  * 「跳」往螢幕邊緣那一側特別加大：玩家回報一直點到邊，那些點擊現在都算跳。
  */
-html.touch .pad-actions .btn::before {
-  content: "";
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-}
-/* 「跳」在十字的最下面：往下一路延伸到螢幕邊（直角），點偏到底邊也算跳 */
-html.touch .pad-actions .btn-jump::before {
-  inset: -6px -8px calc(-1 * var(--pb)) -8px;
-  border-radius: 50% 50% 0 0;
-}
-html.touch .dpad::before {
+/* 動作搖桿是整塊一起判斷方向，鍵本身不接觸控（不然按在鍵上會被當成點按鈕，拖不過去） */
+html.touch .pad-actions .btn { pointer-events: none; }
+html.touch .dpad::before, html.touch .pad-actions::before {
   content: "";
   position: absolute;
   inset: -10px;
@@ -463,16 +454,21 @@ html.touch .dp-left { left: 3px; }
 html.touch .dp-right { right: 3px; }
 
 /*
- * 右邊動作鍵：十字（菱形）排列，像遊戲手把（v1.17.2 玩家建議）。
- *   下＝跳（最常按，拇指自然落點）　右＝揮（拇指往右滾就能邊跳邊打）
- *   左＝丟　上＝確定（關卡裡最少用）
- * 斜對角相鄰兩顆的圓心距離約 54px > 按鈕 44px（含放大的可按範圍也不重疊），不會誤觸到隔壁。
+ * 右邊動作搖桿：跟左邊方向搖桿一樣，手指按住滑動換鍵（玩家建議：手機按鈕太多）。
+ *   上＝跳（關卡外是「確定」，跳與確定合成一顆）　右＝揮　左＝丟　下面空著
+ *   斜上方同時按兩顆：右上＝跳＋揮、左上＝跳＋丟
+ * 圓底只畫淡淡一圈：每顆鍵自己有透明度，整塊再設 opacity 會疊成看不見。
  */
 html.touch .pad-actions {
   display: block;
   position: relative;
   width: var(--ctl-r);
   height: var(--ctl-r);
+  border-radius: 50%;
+  /* 用 inset 陰影畫圈不用 border：border 會吃掉內部空間，斜對角兩顆鍵會擠太近 */
+  box-shadow: inset 0 0 0 2px rgba(90, 109, 176, 0.45);
+  background: radial-gradient(circle, rgba(60, 74, 120, 0.3) 0 22%, rgba(40, 52, 94, 0.2) 23%);
+  touch-action: none;
 }
 html.touch .pad-actions .btn { position: absolute; }
 html.touch .pad-actions .pos-top    { top: 0;    left: calc(50% - 22px); }

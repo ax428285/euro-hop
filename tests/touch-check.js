@@ -43,8 +43,34 @@ async function runTouchCheck() {
       pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, pointerType: 'touch'
     }));
   }
+  /** 在動作搖桿上往遊戲裡的某方向按下（回傳 pointerId，放開用 actUp） */
+  const actpad = document.getElementById('actpad');
+  function actDown(gdx, gdy) {
+    const r = actpad.getBoundingClientRect();
+    const s = dirToScreen(gdx, gdy);
+    const id = ++pid;
+    fire(actpad, 'pointerdown', r.left + r.width / 2 + s.x * r.width * 0.33,
+                                r.top + r.height / 2 + s.y * r.height * 0.33, id);
+    return id;
+  }
+  function actMove(id, gdx, gdy) {
+    const r = actpad.getBoundingClientRect();
+    const s = dirToScreen(gdx, gdy);
+    fire(actpad, 'pointermove', r.left + r.width / 2 + s.x * r.width * 0.33,
+                                r.top + r.height / 2 + s.y * r.height * 0.33, id);
+  }
+  function actUp(id) { fire(actpad, 'pointerup', 0, 0, id); }
+  // 動作搖桿上的鍵：跳／確定是同一顆（上）
+  const ACT_DIR = { jump: [0, -1], confirm: [0, -1], throw: [-1, 0], attack: [1, 0] };
+
   /** 按一下按鈕，推進一帧讓遊戲讀到 */
   function tap(key) {
+    if (ACT_DIR[key]) {
+      const aid = actDown(ACT_DIR[key][0], ACT_DIR[key][1]);
+      Game.debug.step(1);
+      actUp(aid);
+      return;
+    }
     const b = document.querySelector('#pad [data-key="' + key + '"]');
     const id = ++pid;
     fire(b, 'pointerdown', 0, 0, id);
@@ -79,21 +105,22 @@ async function runTouchCheck() {
     const op = parseFloat(getComputedStyle(c[1]).opacity);
     check(op <= 0.6, c[0] + '是半透明的（不透明度 ' + op + '，要 ≤ 0.6）');
   });
-  // 十字排列：跳在下、揮在右、丟在左、確定在上（以玩家拿手機的方向看）
+  // 動作搖桿：跳（兼確定）在上、揮在右、丟在左（以玩家拿手機的方向看）
   {
     const pos = {};
-    ['jump', 'attack', 'throw', 'confirm'].forEach(function (k) {
+    ['jump', 'attack', 'throw'].forEach(function (k) {
       const r = document.querySelector('#pad [data-key="' + k + '"]').getBoundingClientRect();
       // 螢幕座標轉回遊戲方向（直拿轉 90° 時：遊戲 x = 螢幕 y，遊戲 y = -螢幕 x）
       const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
       pos[k] = rot ? { x: sy, y: -sx } : { x: sx, y: sy };
     });
-    check(pos.jump.y > pos.attack.y && pos.jump.y > pos.throw.y && pos.confirm.y < pos.attack.y &&
-          pos.attack.x > pos.throw.x && Math.abs(pos.jump.x - pos.confirm.x) < 2,
-          '動作鍵是十字排列（下跳、右揮、左丟、上確定）');
+    check(pos.jump.y < pos.attack.y && pos.jump.y < pos.throw.y &&
+          pos.attack.x > pos.jump.x && pos.throw.x < pos.jump.x,
+          '動作鍵排列：上跳、右揮、左丟');
+    check(!document.querySelector('#pad [data-key="confirm"]'), '確定沒有獨立一顆（跟跳合併）');
   }
   // 按鈕離螢幕邊至少 16px（玩家回報：貼著邊框很難按）
-  ['dpad', 'btn-menu'].map(function (id) { return document.getElementById(id); })
+  ['dpad', 'actpad', 'btn-menu'].map(function (id) { return document.getElementById(id); })
     .concat(Array.prototype.slice.call(document.querySelectorAll('#pad .pad-actions .btn')))
     .forEach(function (el) {
       const r = el.getBoundingClientRect();
@@ -103,14 +130,12 @@ async function runTouchCheck() {
   // 整頁關掉瀏覽器的放大手勢（玩家回報：點到旁邊畫面突然放大）
   check(getComputedStyle(document.documentElement).touchAction === 'none' &&
         getComputedStyle(document.body).touchAction === 'none', '整頁關掉點兩下放大／兩指縮放（touch-action: none）');
-  // 「跳」在十字最下面：往下點偏到螢幕底邊也算按到跳
+  // 動作搖桿整塊接觸控：點在鍵上、鍵之間都是搖桿收到（不會被單顆按鈕吃掉而拖不過去）
   {
     const jb = document.querySelector('#pad [data-key="jump"]');
     const r = jb.getBoundingClientRect();
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const off = dirToScreen(0, 22 + 12);         // 往遊戲的下方偏出按鈕外 12px
-    const hit = document.elementFromPoint(cx + off.x, cy + off.y);
-    check(hit === jb, '點在「跳」下方外側（靠螢幕底邊）也算按到跳');
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    check(hit === actpad, '點在「跳」上是動作搖桿收到（可以拖曳換鍵）');
   }
 
   const visible = Array.prototype.filter.call(
@@ -228,16 +253,33 @@ async function runTouchCheck() {
     check(player().x > x0 + 40, '按住搖桿右，玩家往右走（' + Math.round(x0) + ' → ' + Math.round(player().x) + '）');
   }
 
+  // 動作搖桿：各方向對應的動作（關卡裡上＝跳）
+  [['jump', 0, -1], ['attack', 1, 0], ['throw', -1, 0]].forEach(function (d) {
+    const id = actDown(d[1], d[2]);
+    const held = ['jump', 'attack', 'throw', 'confirm'].filter(function (k) { return Input.isDown(k); });
+    actUp(id);
+    check(held.length === 1 && held[0] === d[0], '關卡裡動作搖桿往' + d[0] + ' → ' + (held.join('+') || '沒反應'));
+  });
+  // 斜上：跳＋揮；按住不放從跳滑到揮：跳放開、揮按下
+  {
+    const id = actDown(1, -1);
+    check(Input.isDown('jump') && Input.isDown('attack'), '動作搖桿右上 → 跳＋揮');
+    actUp(id);
+    const id2 = actDown(0, -1);
+    actMove(id2, 1, 0);
+    check(!Input.isDown('jump') && Input.isDown('attack'), '從跳滑到揮：跳放開、揮按下');
+    actUp(id2);
+    check(!['jump', 'attack', 'throw', 'confirm'].some(function (k) { return Input.isDown(k); }), '放開動作搖桿後全部歸零');
+  }
+
   // 跳躍鍵
   {
     Game.debug.step(60);
     const y0 = player().y;
-    const b = document.querySelector('#pad [data-key="jump"]');
-    const id = ++pid;
-    fire(b, 'pointerdown', 0, 0, id);
+    const id = actDown(0, -1);
     let minY = y0;
     for (let k = 0; k < 20; k++) { Game.debug.step(1); minY = Math.min(minY, player().y); }
-    fire(b, 'pointerup', 0, 0, id);
+    actUp(id);
     check(minY < y0 - 20, '跳躍鍵讓玩家跳起來（最高離地 ' + Math.round(y0 - minY) + 'px）');
   }
 
@@ -247,23 +289,28 @@ async function runTouchCheck() {
   tap('pause');
   check(Game.debug.getScene() === 'play', '再按暫停鍵 → 繼續');
 
+  // 暫停中：合併鍵是「繼續」
+  tap('pause');
+  tap('jump');
+  check(Game.debug.getScene() === 'play', '暫停中按合併鍵（繼續）→ 回到關卡');
+
   // 回地圖、確定鍵、商店、裝備
-  // 關卡中回大地圖：要先跳確認框，按「確定」才回去；跳／暫停 是取消
+  // 關卡中回大地圖：要先跳確認框；合併鍵在這裡是「繼續」（取消），再按一次地圖才回去
   tap('tomap');
   check(Game.debug.getScene() === 'quitconfirm', '關卡中按地圖鍵 → 先跳「放棄這一關？」確認框');
   tap('jump');
-  check(Game.debug.getScene() === 'play', '確認框按 跳 → 取消、回到關卡');
+  check(Game.debug.getScene() === 'play', '確認框按 合併鍵（繼續）→ 取消、回到關卡');
   tap('tomap');
   tap('pause');
   check(Game.debug.getScene() === 'play', '確認框按 暫停 → 取消、回到關卡');
   tap('pause');
   tap('tomap');
   check(Game.debug.getScene() === 'quitconfirm', '暫停中按地圖鍵 → 也要確認');
-  tap('confirm');
-  check(Game.debug.getScene() === 'map', '確認框按 確定 → 回大地圖');
+  tap('tomap');
+  check(Game.debug.getScene() === 'map', '確認框再按一次地圖 → 回大地圖');
   Game.debug.setScene('title');
   tap('confirm');
-  check(Game.debug.getScene() === 'map', '確定鍵 → 從標題進地圖');
+  check(Game.debug.getScene() === 'map', '合併鍵在標題是確定 → 進地圖');
   tap('shop');
   check(Game.debug.getScene() === 'shop', '商店鍵 → 開商店');
   tap('shop');

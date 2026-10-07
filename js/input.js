@@ -152,12 +152,20 @@ const Input = (function () {
             action === 'up' || action === 'down') ? pads[0] : ui;
   }
 
-  /** 觸控按鈕綁定（手機只支援 P1） */
-  function bindPad(root) {
+  /**
+   * 觸控按鈕綁定（手機只支援 P1）。
+   * opts.mainAction()：動作搖桿「上」那顆現在代表什麼動作（關卡裡是 jump，其他畫面是 confirm…），
+   *                    按下的那一刻問一次
+   * opts.onPress(key, el)：動作搖桿某顆被按下（main.js 用來跳「武器未解鎖」提示）
+   */
+  function bindPad(root, opts) {
     if (!root) return;
+    opts = opts || {};
     // 長按不要跳出系統選單（複製/存圖）
     root.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    const actpad = root.querySelector('#actpad');
     root.querySelectorAll('[data-key]').forEach(function (btn) {
+      if (actpad && actpad.contains(btn)) return;      // 動作搖桿整塊一起處理（bindActpad）
       const action = btn.getAttribute('data-key');
       const target = targetOf(action);
       // 同一顆按鈕可能被兩根手指按住，全部放開才算放開
@@ -181,26 +189,61 @@ const Input = (function () {
       btn.addEventListener('pointercancel', off);
     });
     bindDpad(root.querySelector('#dpad'));
+    bindActpad(actpad, opts);
   }
 
-  /**
-   * 方向搖桿：一整塊區域，用手指相對中心的角度決定方向。
-   *
-   * 比四顆分開的按鈕好用 —— 手指不必抬起來就能從 ← 滑到 →，
-   * 也能按斜向（航海地圖要用）。用 pointer capture，手指滑出搖桿範圍也繼續追蹤。
-   */
+  const DIRS = ['left', 'right', 'up', 'down'];
+
+  /** 方向搖桿：搖桿的方向直接就是方向鍵 */
   function bindDpad(el) {
     if (!el) return;
-    const DIRS = ['left', 'right', 'up', 'down'];
-    let finger = null;
-
-    function apply(dirs) {
+    bindStick(el, function (dirs) {
       DIRS.forEach(function (d) {
         set(pads[0], d, !!dirs[d]);
         const mark = el.querySelector('[data-dir="' + d + '"]');
         if (mark) mark.classList.toggle('on', !!dirs[d]);
       });
-    }
+    });
+  }
+
+  /**
+   * 動作搖桿：跟方向搖桿一樣的拖曳操作，每個方向對應一顆鍵（data-dir）。
+   * 手指不抬起來就能從 跳 滑到 揮；斜上方同時按兩顆（跳＋揮）。
+   * 每顆鍵按下時才決定送出哪個動作，放開時放掉同一個動作 ——
+   * 按住期間畫面切換（例如跳著過關），也不會留下卡住的鍵。
+   */
+  function bindActpad(el, opts) {
+    if (!el) return;
+    const slots = [];
+    el.querySelectorAll('[data-dir]').forEach(function (btn) {
+      slots.push({ dir: btn.getAttribute('data-dir'), key: btn.getAttribute('data-key'), el: btn, held: null });
+    });
+    bindStick(el, function (dirs) {
+      slots.forEach(function (s) {
+        const want = !!dirs[s.dir];
+        if (want === !!s.held) return;
+        if (want) {
+          s.held = (s.key === 'jump' && opts.mainAction && opts.mainAction()) || s.key;
+          set(targetOf(s.held), s.held, true);
+          if (opts.onPress) opts.onPress(s.key, s.el);
+        } else {
+          set(targetOf(s.held), s.held, false);
+          s.held = null;
+        }
+        s.el.classList.toggle('on', want);
+      });
+    });
+  }
+
+  /**
+   * 搖桿：一整塊區域，用手指相對中心的角度決定方向（八方向）。
+   *
+   * 比分開的按鈕好用 —— 手指不必抬起來就能從 ← 滑到 →，
+   * 也能按斜向（航海地圖要用）。用 pointer capture，手指滑出搖桿範圍也繼續追蹤。
+   * apply(dirs) 收到 { left, right, up, down }，放開時收到 {}。
+   */
+  function bindStick(el, apply) {
+    let finger = null;
 
     function track(e) {
       const r = el.getBoundingClientRect();

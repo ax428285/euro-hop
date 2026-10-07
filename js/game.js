@@ -2427,8 +2427,9 @@ const Game = (function () {
     U.text(ctx, skirmish ? '回大地圖後，這場不會拿到 EXP'
                          : '回大地圖後，這一關的金幣和分數不會保留',
       W / 2, 230, { size: 14, color: '#b9c6e2' });
-    U.text(ctx, 'Enter（確定）回大地圖', W / 2, 270, { size: 18, color: '#ff9aa8' });
-    U.text(ctx, 'Esc／P／空白（跳）繼續遊戲', W / 2, 304, { size: 16, color: '#ffffff' });
+    const touch = document.documentElement.classList.contains('touch');
+    U.text(ctx, touch ? '再按一次「地圖」回大地圖' : 'Enter／Q 回大地圖', W / 2, 270, { size: 18, color: '#ff9aa8' });
+    U.text(ctx, touch ? '按「繼續」回到關卡' : 'Esc／P／空白（跳）繼續遊戲', W / 2, 304, { size: 16, color: '#ffffff' });
   }
 
   function render() {
@@ -2890,8 +2891,9 @@ const Game = (function () {
        * 「放棄這一關、回大地圖？」確認框（遊戲凍結，跟暫停一樣不跑 update）。
        * 只有「確定」才會離開；Esc／P／跳躍 都是取消、回到關卡。
        * 跳躍也算取消：手機上「跳」是最順手的那顆，取消要好按。
+       * 再按一次「回地圖」也算確定：手機的跳／確定是同一顆，在這裡它是「繼續」，要離開就再按一次地圖。
        */
-      if (Input.once('confirm')) { Sfx.select(); toMap(); }
+      if (Input.once('confirm') || Input.once('tomap')) { Sfx.select(); toMap(); }
       else if (Input.once('back') || Input.once('pause') || Input.once('jump')) { Sfx.select(); scene = 'play'; }
       Input.endFrame();
       t++;

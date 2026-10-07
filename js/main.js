@@ -47,7 +47,25 @@
     // 兩指以上 = 縮放手勢
     if (e.touches && e.touches.length > 1 && !zoomSafe(e.target)) e.preventDefault();
   }, { passive: false });
-  Input.bindPad(document.getElementById('pad'));
+  /*
+   * 「跳」與「確定」合成一顆（手機按鈕太多）。兩個動作用在不同畫面，不會搶：
+   *   關卡裡           跳（關卡裡沒有任何東西吃 Enter）
+   *   暫停／放棄確認框  繼續（= 取消，最好按的鍵永遠是安全的那個；要放棄就再按一次「地圖」）
+   *   其他畫面          確定（地圖進城、商店購買、過關畫面…）
+   */
+  const MAIN_KEY = {
+    play: { action: 'jump', label: '跳', sub: '空白', cls: 'btn-jump' },
+    paused: { action: 'back', label: '繼續', sub: 'Esc', cls: 'btn-ok' },
+    quitconfirm: { action: 'jump', label: '繼續', sub: 'Esc', cls: 'btn-ok' }
+  };
+  const MAIN_CONFIRM = { action: 'confirm', label: '確定', sub: 'Enter', cls: 'btn-ok' };
+  function mainKey() { return MAIN_KEY[Game.scene()] || MAIN_CONFIRM; }
+  Input.bindPad(document.getElementById('pad'), {
+    mainAction: function () { return mainKey().action; },
+    onPress: function (key, el) {
+      if (el.classList.contains('locked')) Game.lockedHint(key);
+    }
+  });
   Input.bindCanvasClick(canvas, 960, 480);
 
   // ☰ 選單：按一下展開功能列；按了其中一顆或點遊戲畫面就收起來
@@ -127,11 +145,19 @@
       }
     });
   }
-  weaponBtns.forEach(function (w) {
-    w.el.addEventListener('pointerdown', function () {
-      if (w.el.classList.contains('locked')) Game.lockedHint(w.action);
-    });
-  });
+
+  /** 合併鍵的字跟顏色跟著畫面換（跳／確定／繼續） */
+  const mainBtn = pad.querySelector('#actpad [data-key="jump"]');
+  let mainShown = null;
+  function syncMainKey() {
+    const k = mainKey();
+    if (k === mainShown) return;
+    mainShown = k;
+    mainBtn.innerHTML = k.label + '<small>' + k.sub + '</small>';
+    mainBtn.classList.toggle('btn-jump', k.cls === 'btn-jump');
+    mainBtn.classList.toggle('btn-ok', k.cls === 'btn-ok');
+    mainBtn.setAttribute('aria-label', k.label);
+  }
   /*
    * 刪除存檔（☰ 選單裡，電腦與手機共用）。
    * 原本鍵盤版只能在存檔畫面按 Delete 兩次，畫面上沒有任何提示，玩家找不到。
@@ -294,7 +320,7 @@
     np.netBtn.textContent = Net.connected() ? '連線中' : '連線';
   }
 
-  function syncUi() { syncLocks(); syncScene(); syncMenuIcon(); syncNetBtn(); }
+  function syncUi() { syncLocks(); syncScene(); syncMenuIcon(); syncNetBtn(); syncMainKey(); }
   syncUi();
   setInterval(syncUi, 200);
 })();
