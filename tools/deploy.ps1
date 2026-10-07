@@ -1,4 +1,4 @@
-# 發佈新版給朋友玩：把 main 推到 GitHub 的 live 分支，Netlify 會自動做「分支部署」。
+﻿# 發佈新版給朋友玩：把 main 推到 GitHub 的 live 分支，Netlify 會自動做「分支部署」。
 #
 # 為什麼不用 netlify deploy --prod：
 #   Netlify 免費方案每個月 300 credits，正式部署（production deploy）每次扣 15，
