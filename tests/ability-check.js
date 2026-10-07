@@ -89,5 +89,36 @@ function runAbilityCheck() {
   }
   if (!(recoverLen(['garlic']) > recoverLen([]) * 1.3)) issues.push('大蒜沒有讓魔王破綻期變長');
 
+  /*
+   * G) 裝備分部位（v1.22）：
+   *   - 每一件都有部位，部位內不會有兩件相同 id
+   *   - 新玩家照關卡順序撿裝備（部位空著才自動裝）：拿到英國板球的那一刻一定有遠程攻擊
+   *     （扇子原本放「手」，西班牙先撿到就把手佔住，板球裝不上 → 整個西歐篇沒有遠程）
+   *   - 只有裝上的才生效：同部位兩件只會算一件
+   */
+  Equipment.defs.forEach(function (d) {
+    if (!d.slot) issues.push(d.name + ' 沒有部位');
+  });
+  if (typeof Save !== 'undefined' && typeof localStorage !== 'undefined') {
+    const KEY = 'eurohop.save.v2';
+    const backup = localStorage.getItem(KEY);
+    try {
+      Save.reset();
+      const brolly = Equipment.get('brolly');
+      Equipment.defs.filter(function (d) { return d.level <= brolly.level; })
+        .forEach(function (d) { Save.addEquip(d.id); });
+      if (!Equipment.resolve(Save.wornIds()).ranged) {
+        issues.push('新玩家拿到板球後沒有遠程攻擊（手已經被別的東西佔住：' + (Save.get().worn.hand || '空') + '）');
+      }
+      // 同部位兩件只算一件：頭戴貝雷帽時月桂冠不生效
+      Save.addEquip('beret'); Save.addEquip('laurel'); Save.wear('beret');
+      const s = Equipment.resolve(Save.wornIds());
+      if (!s.doubleJump || s.coinMul > 1) issues.push('同部位兩件都生效了（貝雷帽與月桂冠應該只能選一）');
+    } finally {
+      if (backup === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, backup);
+      Save.load();
+    }
+  }
+
   return { issueCount: issues.length, issues: issues };
 }

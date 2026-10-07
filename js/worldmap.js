@@ -242,9 +242,22 @@ const WorldMap = (function () {
    *   愛爾蘭 → 裝備
    * 國界用背景國的真實資料（EuropeBackdrop），圖釘換成功能圖示（不是國旗）。
    */
+  // 葡萄牙：酒紅色（v1.22 玩家：原本的金褐色跟背景國太像）—— 葡萄牙是波特酒的故鄉
   const SPECIAL_DEFS = [
-    { id: 'PT', name: '葡萄牙', role: '商店', scene: 'shop', fill: '#7a6438', edge: 'rgba(255, 214, 140, 0.75)', badge: '#e8b84a' },
+    { id: 'PT', name: '葡萄牙', role: '商店', scene: 'shop', seller: 'portugal', fill: '#8a2f52', edge: 'rgba(255, 190, 215, 0.8)', badge: '#e8b84a' },
     { id: 'IE', name: '愛爾蘭', role: '裝備', scene: 'inventory', fill: '#3d6a5a', edge: 'rgba(170, 240, 200, 0.7)', badge: '#5fd08a' }
+  ];
+  /*
+   * 神祕商人（v1.22 玩家要求）：藏在地圖不起眼的地方，賣葡萄牙商店沒有的東西（見 Shop.SELLERS）。
+   * 用經緯度定位（EuropeWorld.project），沒有國土，地圖上畫成披紫色斗篷、提著燈的人。
+   *   藥草婆婆  地中海：西西里島南邊的小島海域（船開得到）
+   *   老漁夫    北歐：挪威外海的峽灣口（船開得到）
+   *   駱駝商隊  撒哈拉：阿爾及利亞內陸的綠洲（上岸用走的）
+   */
+  const MERCHANT_DEFS = [
+    { id: 'M_isle', seller: 'isle', lon: 14.2, lat: 35.4, prompt: '按 Enter 跟地中海的藥草婆婆交易' },
+    { id: 'M_fjord', seller: 'fjord', lon: 3.6, lat: 62.6, prompt: '按 Enter 跟峽灣的老漁夫交易' },
+    { id: 'M_oasis', seller: 'oasis', lon: 3.5, lat: 28.6, prompt: '按 Enter 跟綠洲的駱駝商隊交易' }
   ];
   const specials = [];
 
@@ -258,6 +271,40 @@ const WorldMap = (function () {
       const pin = innerPoint(main);
       specials.push({ id: d.id, def: d, name: d.name, shapes: geo.shapes, pin: pin, label: [pin[0], pin[1] + 16] });
     });
+    MERCHANT_DEFS.forEach(function (m) {
+      const p = EuropeWorld.project(m.lon, m.lat);
+      const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+      specials.push({
+        id: m.id, name: '神祕商人', shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
+        def: { role: '神祕商人', scene: 'shop', seller: m.seller, merchant: true, prompt: m.prompt }
+      });
+    });
+  }
+
+  /** 神祕商人：紫色斗篷 + 兜帽 + 提燈（燈會微微晃，遠遠就看得到） */
+  function drawMerchant(ctx, x, y, t, near) {
+    ctx.save();
+    ctx.translate(x, y);
+    const glow = 0.5 + Math.sin(t * 0.08) * 0.2;
+    ctx.fillStyle = 'rgba(200, 160, 255, ' + (0.18 + glow * 0.15).toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(0, -10, near ? 18 : 14, 0, Math.PI * 2); ctx.fill();
+    // 斗篷
+    ctx.fillStyle = '#5a3a8a';
+    ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(-4, -16); ctx.lineTo(4, -16); ctx.lineTo(7, 0); ctx.closePath(); ctx.fill();
+    // 兜帽（臉藏在陰影裡）
+    ctx.beginPath(); ctx.arc(0, -17, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1028';
+    ctx.beginPath(); ctx.arc(0.8, -16.5, 3, 0, Math.PI * 2); ctx.fill();
+    // 一雙發亮的眼睛
+    ctx.fillStyle = '#ffe9a8';
+    ctx.fillRect(-0.6, -17.2, 1.2, 1.2); ctx.fillRect(1.8, -17.2, 1.2, 1.2);
+    // 提燈
+    const sw = Math.sin(t * 0.06) * 1.5;
+    ctx.strokeStyle = '#2a1e10'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(6, -10); ctx.lineTo(9 + sw, -6); ctx.stroke();
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath(); ctx.arc(9 + sw, -4, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   /** 特殊地點的國土：自己的顏色，一眼跟關卡國、背景國分得開 */
@@ -279,6 +326,14 @@ const WorldMap = (function () {
     specials.forEach(function (s) {
       const x = s.pin[0], y = s.pin[1];
       const near = s.id === nearId;
+      if (s.def.merchant) {
+        if (near) {
+          ctx.strokeStyle = 'rgba(216, 184, 255, 0.95)'; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(x, y - 6, 16 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+        }
+        drawMerchant(ctx, x, y, t, near);
+        return;
+      }
       const bob = near ? Math.sin(t * 0.08) * 3 : 0;
       ctx.save();
       if (near) {
@@ -319,9 +374,9 @@ const WorldMap = (function () {
   function drawSpecialLabels(ctx, nearId) {
     specials.forEach(function (s) {
       const near = s.id === nearId;
-      U.text(ctx, s.name + '・' + s.def.role, s.label[0], s.label[1], {
-        size: near ? LABEL_SIZE_SEL : 12,
-        color: near ? '#ffd166' : '#fff4dc',
+      U.text(ctx, s.def.merchant ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
+        size: near ? LABEL_SIZE_SEL : (s.def.merchant ? 11 : 12),
+        color: near ? '#ffd166' : (s.def.merchant ? '#e6d8ff' : '#fff4dc'),
         align: 'center',
         strokeWidth: 3,
         strokeColor: 'rgba(16, 24, 18, 0.75)'
@@ -475,6 +530,7 @@ const WorldMap = (function () {
     placeLabels();
     // 特殊地點的標籤（「葡萄牙・商店」比國名長，最後擺：避開關卡國已經擺好的字）
     specials.forEach(function (s) {
+      if (s.def.merchant) return;          // 神祕商人沒有國土，字就放在人底下（buildSpecials 已設好）
       const name = s.name + '・' + s.def.role;
       placeOne(s, name, s.pin);
       // 國土太小（愛爾蘭）放不下時，字會壓在自己的圖釘上 → 改放圖釘正下方

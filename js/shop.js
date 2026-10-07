@@ -15,7 +15,8 @@
  *   已經買過的強化不會退費，所以買之前介面要寫清楚效果。
  *
  * 對外 API：
- *   Shop.items                  全部商品定義
+ *   Shop.items                  全部商品定義（每件有 seller：誰在賣）
+ *   Shop.SELLERS / itemsOf(s)   賣家（葡萄牙商店、三位神祕商人）與各自賣的東西
  *   Shop.priceOf(id, owned)     下一階的價格（已滿級回 null）
  *   Shop.levelOf(id)            目前已買幾階
  *   Shop.canBuy(id)             錢夠不夠 + 還沒滿級
@@ -80,6 +81,20 @@ const Shop = (function () {
     }
   ];
 
+  /*
+   * 賣家（v1.22 玩家要求：地圖放神祕商人，某些東西要去那邊買）。
+   * 葡萄牙商店（地圖上的葡萄牙、按 B）只剩愛心；其他四樣分給三位藏在地圖角落的神祕商人，
+   * 要開船／走路去找。位置在 worldmap.js 的 MERCHANTS（經緯度）。
+   */
+  const SELLERS = {
+    portugal: { name: '金幣商店', who: '葡萄牙的港口商店', line: '關卡裡撿的金幣會存進錢包，在這裡換永久強化' },
+    isle:     { name: '神祕商人・藥草婆婆', who: '地中海小島上的藥草婆婆', line: '「海風吹來的金幣，我這道符都吸得過來。」' },
+    fjord:    { name: '神祕商人・峽灣老漁夫', who: '北歐峽灣的老漁夫', line: '「在冰冷的海上跑船，護身符和好鞋子少不了。」' },
+    oasis:    { name: '神祕商人・駱駝商隊', who: '撒哈拉綠洲的駱駝商隊', line: '「穿過沙漠的人，都相信這枚幸運徽章。」' }
+  };
+  const SELLER_OF = { heart: 'portugal', magnet: 'isle', shield: 'fjord', boots: 'fjord', luck: 'oasis' };
+  items.forEach(function (it) { it.seller = SELLER_OF[it.id] || 'portugal'; });
+
   const byId = {};
   items.forEach(function (it) { byId[it.id] = it; });
 
@@ -136,6 +151,9 @@ const Shop = (function () {
 
   return {
     items: items,
+    SELLERS: SELLERS,
+    /** 某個賣家賣的東西（葡萄牙商店 / 神祕商人） */
+    itemsOf: function (seller) { return items.filter(function (it) { return it.seller === seller; }); },
     get: function (id) { return byId[id]; },
     levelOf: levelOf,
     priceOf: priceOf,

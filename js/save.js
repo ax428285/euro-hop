@@ -24,6 +24,7 @@ const Save = (function () {
       wallet: 0,          // 可花用的金幣（商店用）
       upgrades: {},       // 已買的強化 { id: level }
       equipment: [],      // 已取得的裝備 id
+      worn: null,         // 裝上的裝備 { 部位: id }（v1.22 分部位；null = 舊存檔，讀進來時自動轉換）
       best: {},           // 各關最佳紀錄 { "0": {coins, total, cleared} }
       cleared: [],        // 已通關的關卡 index
       secrets: [],        // 已發現的密道 "關index:密道index"
@@ -71,6 +72,19 @@ const Save = (function () {
       d.equipment.forEach(function (id) {
         if (Equipment.get(id) && !seen[id]) { seen[id] = true; out.equipment.push(id); }
       });
+    }
+    /*
+     * 裝上的裝備（v1.22）。只留「有這件、而且部位對得上」的。
+     * 舊存檔沒有 worn：以前所有裝備都生效，轉換成每個部位裝一件（依 Equipment.SLOTS 的優先順序）。
+     */
+    out.worn = {};
+    if (d.worn && typeof d.worn === 'object') {
+      Object.keys(d.worn).forEach(function (slot) {
+        const id = d.worn[slot];
+        if (out.equipment.indexOf(id) >= 0 && Equipment.slotOf(id) === slot) out.worn[slot] = id;
+      });
+    } else {
+      Equipment.pickWorn(out.equipment).forEach(function (id) { out.worn[Equipment.slotOf(id)] = id; });
     }
 
     if (Array.isArray(d.cleared)) {
@@ -160,9 +174,42 @@ const Save = (function () {
 
     hasEquip: function (id) { return data.equipment.indexOf(id) >= 0; },
 
+    /** 拿到一件裝備。那個部位空著就順便裝上（v1.22：部位有東西了就只放進背包） */
     addEquip: function (id) {
       if (!Equipment.get(id) || data.equipment.indexOf(id) >= 0) return false;
       data.equipment.push(id);
+      if (!data.worn) data.worn = {};
+      const slot = Equipment.slotOf(id);
+      if (slot && !data.worn[slot]) data.worn[slot] = id;
+      persist();
+      return true;
+    },
+
+    /** 生效中的裝備 id（每個部位最多一件；能力值一律用這個算） */
+    wornIds: function () {
+      const w = data.worn || {};
+      return Equipment.SLOTS.map(function (s) { return w[s.id]; }).filter(Boolean);
+    },
+    isWorn: function (id) {
+      const slot = Equipment.slotOf(id);
+      return !!(slot && data.worn && data.worn[slot] === id);
+    },
+    /** 裝上（同部位原本那件會被換下來）；回傳被換下來的 id */
+    wear: function (id) {
+      if (data.equipment.indexOf(id) < 0) return null;
+      const slot = Equipment.slotOf(id);
+      if (!slot) return null;
+      if (!data.worn) data.worn = {};
+      const prev = data.worn[slot] || null;
+      data.worn[slot] = id;
+      persist();
+      return prev;
+    },
+    /** 卸下某件（那個部位變空的） */
+    unwear: function (id) {
+      const slot = Equipment.slotOf(id);
+      if (!slot || !data.worn || data.worn[slot] !== id) return false;
+      delete data.worn[slot];
       persist();
       return true;
     },

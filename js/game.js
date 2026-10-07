@@ -38,6 +38,9 @@ const Game = (function () {
   let confirmWipe = false;   // 清除存檔的二次確認
   let shopCursor = 0;        // 商店選到第幾項
   let shopMsg = null;        // 商店的提示訊息 { text, color, life }
+  let shopSeller = 'portugal';   // 正在跟誰買（葡萄牙商店 / 神祕商人 id，見 Shop.SELLERS）
+  let invCursor = 0;         // 裝備畫面選到第幾件（-1 = 最上面的時裝列）
+  let invMsg = null;         // 裝備畫面的提示 { text, color, life }
   // 海上遭遇戰：正在打哪一隻（null = 一般關卡）、開打前船的位置、這場拿到的 EXP
   let skirmish = null;
   let shipBack = null;
@@ -58,7 +61,7 @@ const Game = (function () {
     // 商店強化先算。注意 Equipment.resolve 內部已經會疊 Shop.resolve()，
     // 這裡留一份是給 UI 顯示用，計分不要再乘一次（會重複計算）。
     shopBonus = Shop.resolve();
-    stats = Equipment.resolve(sv.equipment);
+    stats = Equipment.resolve(Save.wornIds());
     maxLives = stats.maxLives;
     lives = [maxLives, maxLives];
     downed = [false, false];
@@ -96,7 +99,7 @@ const Game = (function () {
     const sv = Save.get();
     shipBack = Voyage.shipPos();
     shopBonus = Shop.resolve();
-    stats = Equipment.resolve(sv.equipment);
+    stats = Equipment.resolve(Save.wornIds());
     maxLives = stats.maxLives;
     lives = [maxLives, maxLives];
     downed = [false, false];
@@ -234,20 +237,11 @@ const Game = (function () {
 
       case 'inventory':
         if (checkCheat()) break;
-        // ←→ 換時裝（原本的條紋衫 + 擁有的時裝輪流）
-        {
-          const step = Input.once('left') ? -1 : (Input.once('right') ? 1 : 0);
-          const sv = Save.get();
-          const opts = [null].concat(sv.costumes);
-          if (step && opts.length > 1) {
-            const i = Math.max(0, opts.indexOf(sv.costume));
-            Save.wearCostume(opts[(i + step + opts.length) % opts.length]);
-            Sfx.select();
-          }
-        }
+        updateInventory();
         // Q（回大地圖）也要能離開 —— 提示列寫「Q 回大地圖」，商店也吃 Q，只有這裡漏掉
-        if (Input.once('inventory') || Input.once('back') || Input.once('confirm') || Input.once('tomap')) {
-          Sfx.select(); scene = 'map';
+        // v1.22：Enter 改成「裝上／卸下」，不再是離開
+        if (Input.once('inventory') || Input.once('back') || Input.once('tomap')) {
+          Sfx.select(); invMsg = null; scene = 'map';
         }
         break;
 
@@ -313,6 +307,101 @@ const Game = (function () {
    * 手機用 ☰ → 裝備，在搖桿上照順序推就行。
    * 裝備會寫進存檔（跟正常撿到一樣），要復原就清除存檔。
    */
+  /** 字太長就截斷加「⋯」（裝備格子窄，說明文字會跑進隔壁格） */
+  function fitText(str, maxW, size) {
+    ctx.save();
+    ctx.font = '600 ' + size + 'px "Segoe UI", "Microsoft JhengHei", sans-serif';
+    let s = str;
+    if (ctx.measureText(s).width > maxW) {
+      while (s.length > 1 && ctx.measureText(s + '⋯').width > maxW) s = s.slice(0, -1);
+      s += '⋯';
+    }
+    ctx.restore();
+    return s;
+  }
+
+  /** 裝備畫面的格子版面（畫與點擊判定共用） */
+  const INV_COLS = 5;
+  function invLayout() {
+    const cols = INV_COLS, gx = 12, gy = 8;
+    const rows = Math.ceil(Equipment.defs.length / cols);
+    const top = 96, bottom = H - 92;
+    const cw = Math.floor((W - 40 - (cols - 1) * gx) / cols);
+    const ch = Math.min(104, Math.floor((bottom - top - (rows - 1) * gy) / rows));
+    const sx = (W - (cols * cw + (cols - 1) * gx)) / 2;
+    return {
+      cols: cols, cw: cw, ch: ch,
+      cell: function (i) { return { x: sx + (i % cols) * (cw + gx), y: top + Math.floor(i / cols) * (ch + gy) }; }
+    };
+  }
+
+  /** 裝上 / 卸下第 i 件（沒擁有的不能裝） */
+  function toggleWear(i) {
+    const d = Equipment.defs[i];
+    if (!d) return;
+    if (!Save.hasEquip(d.id)) {
+      invMsg = { text: '還沒拿到：在' + d.country + '關卡中尋找', color: '#9aa7c7', life: 120 };
+      Sfx.clang();
+      return;
+    }
+    const slotName = Equipment.SLOTS.filter(function (s) { return s.id === d.slot; })[0].name;
+    if (Save.isWorn(d.id)) {
+      Save.unwear(d.id);
+      invMsg = { text: '卸下 ' + d.name + '（' + slotName + '空著）', color: '#c6d2e8', life: 120 };
+      Sfx.select();
+    } else {
+      const prev = Save.wear(d.id);
+      const pd = prev && Equipment.get(prev);
+      invMsg = { text: '裝上 ' + d.name + (pd ? '，換下 ' + pd.name : '') + '（' + slotName + '）', color: '#8fe3a0', life: 140 };
+      Sfx.equip();
+    }
+    stats = Equipment.resolve(Save.wornIds());
+    maxLives = stats.maxLives;
+  }
+
+  /**
+   * 裝備畫面操作（v1.22 分部位）：
+   *   方向鍵選格、Enter 裝上／卸下；最上面一列往上 = 時裝列（←→ 換時裝）
+   *   手機：點格子 = 選取並裝上／卸下
+   */
+  function updateInventory() {
+    if (invMsg && --invMsg.life <= 0) invMsg = null;
+    const n = Equipment.defs.length, cols = INV_COLS;
+    if (invCursor < 0) {
+      // 時裝列：←→ 換時裝（原本的條紋衫 + 擁有的時裝輪流）
+      const step = Input.once('left') ? -1 : (Input.once('right') ? 1 : 0);
+      const sv = Save.get();
+      const opts = [null].concat(sv.costumes);
+      if (step && opts.length > 1) {
+        const i = Math.max(0, opts.indexOf(sv.costume));
+        Save.wearCostume(opts[(i + step + opts.length) % opts.length]);
+        Sfx.select();
+      }
+      if (Input.once('down')) { invCursor = 0; Sfx.select(); }
+    } else {
+      let c = invCursor;
+      if (Input.once('left')) c = Math.max(0, c - 1);
+      if (Input.once('right')) c = Math.min(n - 1, c + 1);
+      if (Input.once('up')) c = c - cols < 0 ? -1 : c - cols;
+      if (Input.once('down') && c + cols <= n - 1) c += cols;
+      if (c !== invCursor) { invCursor = c; Sfx.select(); }
+      if (invCursor >= 0 && Input.once('confirm')) toggleWear(invCursor);
+    }
+    // 點格子（手機／滑鼠）
+    const click = Input.takeClick();
+    if (click) {
+      const L = invLayout();
+      for (let i = 0; i < n; i++) {
+        const p = L.cell(i);
+        if (click.x >= p.x && click.x <= p.x + L.cw && click.y >= p.y && click.y <= p.y + L.ch) {
+          invCursor = i;
+          toggleWear(i);
+          break;
+        }
+      }
+    }
+  }
+
   const CHEAT = 'UUDDLRLR';
   let cheatBuf = '';
   function checkCheat() {
@@ -323,7 +412,9 @@ const Game = (function () {
     if (cheatBuf !== CHEAT) return false;
     cheatBuf = '';
     Equipment.defs.forEach(function (d) { Save.addEquip(d.id); });
-    stats = Equipment.resolve(Save.get().equipment);
+    // 全部到手後，每個部位換成最好的那件（不然會停在「最早撿到的」那件）
+    Equipment.pickWorn(Save.get().equipment).forEach(function (id) { Save.wear(id); });
+    stats = Equipment.resolve(Save.wornIds());
     maxLives = stats.maxLives;
     Sfx.equip();
     toast = { text: '密技發動！', sub: '全部 ' + Equipment.count + ' 件裝備到手', life: 200 };
@@ -341,7 +432,7 @@ const Game = (function () {
 
     if (Input.once('inventory')) { Sfx.select(); scene = 'inventory'; return; }
     if (Input.once('saveinfo')) { Sfx.select(); confirmWipe = false; scene = 'saveinfo'; return; }
-    if (Input.once('shop')) { Sfx.select(); shopCursor = 0; scene = 'shop'; return; }
+    if (Input.once('shop')) { Sfx.select(); shopCursor = 0; shopSeller = 'portugal'; scene = 'shop'; return; }
     if (Input.once('mystery')) { Sfx.select(); openMystery('europe', false); return; }
 
     /*
@@ -412,7 +503,7 @@ const Game = (function () {
     const spNear = Voyage.nearbySpecial();
     if (events.indexOf('dock') >= 0 && spNear) {
       Sfx.select();
-      if (spNear.def.scene === 'shop') shopCursor = 0;
+      if (spNear.def.scene === 'shop') { shopCursor = 0; shopSeller = spNear.def.seller || 'portugal'; }
       scene = spNear.def.scene;
       return;
     }
@@ -689,14 +780,18 @@ const Game = (function () {
     if (shopMsg && --shopMsg.life <= 0) shopMsg = null;
 
     const cols = 3;
-    const n = Shop.items.length;
-    if (Input.once('left'))  { shopCursor = (shopCursor + n - 1) % n; Sfx.select(); }
-    if (Input.once('right')) { shopCursor = (shopCursor + 1) % n; Sfx.select(); }
-    if (Input.once('up'))    { shopCursor = (shopCursor + n - cols) % n; Sfx.select(); }
-    if (Input.once('down'))  { shopCursor = (shopCursor + cols) % n; Sfx.select(); }
+    const list = Shop.itemsOf(shopSeller);      // v1.22：葡萄牙商店與神祕商人各賣各的
+    const n = list.length;
+    shopCursor = U.clamp(shopCursor, 0, Math.max(0, n - 1));
+    if (n > 1) {
+      if (Input.once('left'))  { shopCursor = (shopCursor + n - 1) % n; Sfx.select(); }
+      if (Input.once('right')) { shopCursor = (shopCursor + 1) % n; Sfx.select(); }
+      if (Input.once('up'))    { shopCursor = (shopCursor + n - cols) % n; Sfx.select(); }
+      if (Input.once('down'))  { shopCursor = (shopCursor + cols) % n; Sfx.select(); }
+    }
 
-    if (Input.once('confirm')) {
-      const it = Shop.items[shopCursor];
+    if (n && Input.once('confirm')) {
+      const it = list[shopCursor];
       const price = Shop.priceOf(it.id);
       if (price == null) {
         shopMsg = { text: '已經買到最高階了', color: '#9aa7c7', life: 110 };
@@ -711,7 +806,7 @@ const Game = (function () {
         Shop.buy(it.id);
         // 買完立刻重算能力，下一關就生效
         shopBonus = Shop.resolve();
-        stats = Equipment.resolve(Save.get().equipment);
+        stats = Equipment.resolve(Save.wornIds());
         maxLives = stats.maxLives;
         shopMsg = { text: it.name + ' 升級了！', color: '#8fe3a0', life: 130 };
         Sfx.equip();
@@ -751,15 +846,21 @@ const Game = (function () {
     toast = { text: '取得 ' + e.def.name, sub: e.def.desc, life: 220 };
     // 立刻生效：重算能力值，愛心上限提高就補一顆
     const prevMax = maxLives;
-    stats = Equipment.resolve(Save.get().equipment);
-    // 能力值是共用的（裝備存檔也是共用），兩位玩家一起更新
-    state.players.forEach(function (q) { q.stats = stats; });
+    stats = Equipment.resolve(Save.wornIds());
+    // 能力值是共用的（裝備存檔也是共用），兩位玩家一起更新；
+    // 人物身上畫的配件也跟著換（新裝備部位空著才會裝上，見 Save.addEquip）
+    state.players.forEach(function (q) {
+      q.stats = stats;
+      q.equipped = {};
+      stats.worn.forEach(function (id) { q.equipped[id] = true; });
+    });
     // 連線：P2 是朋友，用朋友自己的裝備算能力（這件也算他拿到）
     if (isHost() && net.levelLive && state.players[1]) {
       if (net.guestEquip.indexOf(e.id) < 0) net.guestEquip.push(e.id);
-      net.guestStats = Equipment.resolve(net.guestEquip);
+      net.guestStats = Equipment.resolve(Equipment.pickWorn(net.guestEquip));
       state.players[1].stats = net.guestStats;
-      state.players[1].equipped[e.id] = true;
+      state.players[1].equipped = {};
+      net.guestStats.worn.forEach(function (id) { state.players[1].equipped[id] = true; });
     }
     netProgress({ t: 'equip', id: e.id });
     maxLives = stats.maxLives;
@@ -1902,8 +2003,8 @@ const Game = (function () {
         W / 2, H - 14, { size: 15, color: '#ff9aa8' });
     } else if (spot) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      U.text(ctx, blink ? '按 Enter 進入' + spot.name + '的' + spot.def.role : '　', W / 2, H - 14,
-        { size: 15, color: '#ffd166' });
+      U.text(ctx, blink ? (spot.def.prompt || '按 Enter 進入' + spot.name + '的' + spot.def.role) : '　', W / 2, H - 14,
+        { size: 15, color: spot.def.merchant ? '#d8b8ff' : '#ffd166' });
     } else if (near >= 0 && near < sv.unlocked) {
       const blink = Math.floor(t / 20) % 2 === 0;
       U.text(ctx, blink ? '按 Enter 進入' + Levels.list[near].city : '　', W / 2, H - 14,
@@ -2113,58 +2214,84 @@ const Game = (function () {
     ctx.fillStyle = 'rgba(8,12,24,0.82)';
     ctx.fillRect(0, 0, W, H);
 
-    U.text(ctx, '裝備收藏', W / 2, 42, { size: 28, color: '#ffd166' });
-    // 時裝選擇（稀有怪掉落）：←→ 切換
+    U.text(ctx, '裝備', W / 2, 36, { size: 26, color: '#ffd166' });
+    // 時裝選擇（稀有怪掉落）：游標在時裝列時 ←→ 切換
     {
       const cos = sv.costume ? Costumes.get(sv.costume) : null;
+      const onRow = invCursor < 0;
       const label = sv.costumes.length
-        ? '時裝：' + (cos ? cos.name : '條紋衫（原本的樣子）') + '　◀ ▶ 切換　（收集 ' + sv.costumes.length + ' / ' + Costumes.count + '）'
+        ? '時裝：' + (cos ? cos.name : '條紋衫（原本的樣子）') + (onRow ? '　◀ ▶ 切換' : '　（往上選到這列可以換）') + '　收集 ' + sv.costumes.length + ' / ' + Costumes.count
         : '時裝：還沒有 —— 地圖上閃金光的稀有怪會掉落（收集 0 / ' + Costumes.count + '）';
-      U.text(ctx, label, W / 2, 72, { size: 14, color: sv.costumes.length ? '#ffe070' : '#b9c6e2' });
+      if (onRow) {
+        ctx.fillStyle = 'rgba(255, 209, 102, 0.14)';
+        U.roundRect(ctx, 120, 56, W - 240, 28, 8); ctx.fill();
+      }
+      U.text(ctx, label, W / 2, 70, { size: 14, color: onRow ? '#ffd166' : (sv.costumes.length ? '#ffe070' : '#b9c6e2') });
     }
 
     /*
-     * 格子大小依裝備數自動算（原本寫死 3 欄 x 112 高，10 件時就已經超出畫面，
-     * 東歐篇加到 13 件更嚴重）。固定 5 欄，列高塞滿 [98, H-70] 這段空間。
+     * 格子大小依裝備數自動算（固定 5 欄，列高塞滿畫面中段，見 invLayout）。
+     * v1.22 分部位：每格左上角標部位；裝上的那件綠框＋「裝備中」；選到的那格金框。
      */
-    const cols = 5, gx = 12, gy = 10;
-    const rows = Math.ceil(Equipment.defs.length / cols);
-    const cw = Math.floor((W - 40 - (cols - 1) * gx) / cols);
-    const ch = Math.min(112, Math.floor((H - 70 - 98 - (rows - 1) * gy) / rows));
-    const totalW = cols * cw + (cols - 1) * gx;
-    const sx = (W - totalW) / 2;
-    const sy = 98;
+    const L = invLayout();
+    const cw = L.cw, ch = L.ch;
+    const slotName = {};
+    Equipment.SLOTS.forEach(function (s) { slotName[s.id] = s.name; });
 
     Equipment.defs.forEach(function (d, i) {
-      const cx = sx + (i % cols) * (cw + gx);
-      const cy = sy + Math.floor(i / cols) * (ch + gy);
+      const pos = L.cell(i);
+      const cx = pos.x, cy = pos.y;
       const got = Save.hasEquip(d.id);
+      const worn = got && Save.isWorn(d.id);
+      const sel = i === invCursor;
 
-      ctx.fillStyle = got ? 'rgba(32,46,82,0.95)' : 'rgba(22,26,40,0.9)';
+      ctx.fillStyle = worn ? 'rgba(30, 70, 50, 0.95)' : got ? 'rgba(32,46,82,0.95)' : 'rgba(22,26,40,0.9)';
       U.roundRect(ctx, cx, cy, cw, ch, 10); ctx.fill();
-      ctx.strokeStyle = got ? '#ffd166' : '#58637c';
-      ctx.lineWidth = got ? 2 : 1.2;
+      ctx.strokeStyle = sel ? '#ffd166' : worn ? '#8fe3a0' : got ? '#7e97c9' : '#58637c';
+      ctx.lineWidth = sel ? 2.6 : worn ? 2 : 1.2;
       U.roundRect(ctx, cx, cy, cw, ch, 10); ctx.stroke();
 
       // 圖示：未取得時只畫剪影輪廓，不疊問號（疊起來兩個都看不清）
-      // 版面依格子大小縮放（5 欄的格子比原本窄，字也要小一點）
-      const k = Math.min(1, ch / 112);
+      const k = Math.min(1, ch / 104);
       if (!got) ctx.globalAlpha = 0.22;
-      Sprites.equipIcon(ctx, d.id, cx + 24, cy + 30 * k, 0.75);
+      Sprites.equipIcon(ctx, d.id, cx + 24, cy + 34 * k, 0.72);
       ctx.globalAlpha = 1;
 
-      U.text(ctx, d.name, cx + 46, cy + 22 * k,
+      // 部位標籤（左上角小方框）
+      ctx.fillStyle = worn ? '#2f7a50' : 'rgba(255,255,255,0.12)';
+      U.roundRect(ctx, cx + 6, cy + 5, 30, 15, 4); ctx.fill();
+      U.text(ctx, slotName[d.slot] || '', cx + 21, cy + 12.5, { size: 10, color: worn ? '#eafff0' : '#b9c6e2' });
+
+      U.text(ctx, d.name, cx + 46, cy + 24 * k,
         { size: 13, color: got ? '#ffffff' : '#78839c', align: 'left' });
-      U.text(ctx, d.country, cx + 46, cy + 40 * k,
-        { size: 11, color: got ? '#9fb4d8' : '#5f6a82', align: 'left' });
-      U.text(ctx, got ? d.desc : '在' + d.country + '關卡中尋找', cx + 10, cy + ch - 16,
-        { size: 11, color: got ? '#8fe3a0' : '#78839c', align: 'left' });
+      U.text(ctx, worn ? '裝備中' : got ? '在背包' : d.country, cx + 46, cy + 42 * k,
+        { size: 11, color: worn ? '#8fe3a0' : got ? '#9fb4d8' : '#5f6a82', align: 'left' });
+      U.text(ctx, fitText(got ? d.desc : '在' + d.country + '關卡中尋找', cw - 16, 10.5), cx + 10, cy + ch - 12,
+        { size: 10.5, color: got ? (worn ? '#8fe3a0' : '#9fb4d8') : '#78839c', align: 'left' });
     });
+
+    // 五個部位現在裝了什麼（一眼看出哪個部位空著）；有提示訊息時先顯示訊息
+    const selDef = invCursor >= 0 ? Equipment.defs[invCursor] : null;
+    if (invMsg) {
+      U.text(ctx, invMsg.text, W / 2, H - 70, { size: 15, color: invMsg.color });
+    } else if (selDef) {
+      // 選到的那件：完整說明（格子裡放不下會截斷）
+      const got = Save.hasEquip(selDef.id);
+      U.text(ctx, '【' + slotName[selDef.slot] + '】' + selDef.name + '：' +
+        (got ? selDef.desc + (Save.isWorn(selDef.id) ? '（裝備中，Enter 卸下）' : '（Enter 裝上）') : '還沒拿到，在' + selDef.country + '關卡中尋找'),
+        W / 2, H - 70, { size: 14, color: got ? '#ffffff' : '#9aa7c7' });
+    } else {
+      const parts = Equipment.SLOTS.map(function (s) {
+        const id = (sv.worn || {})[s.id];
+        return s.name + '：' + (id ? Equipment.get(id).name : '（空）');
+      });
+      U.text(ctx, parts.join('　'), W / 2, H - 70, { size: 13, color: '#dce5f5' });
+    }
 
     // 目前總能力。
     // 注意：不要用 ✓/✗ 這類字元 —— Segoe UI 沒有，會被代換成 CJK 字型，
     // 基線和字高都會跑掉。改用「開 / 關」純文字 + 顏色區分。
-    const st = Equipment.resolve(sv.equipment);
+    const st = Equipment.resolve(Save.wornIds());
     const bits = [
       { label: '愛心上限', val: String(st.maxLives), on: st.maxLives > 3 },
       { label: '跑速', val: 'x' + st.speed.toFixed(2), on: st.speed > 1 },
@@ -2203,7 +2330,7 @@ const Game = (function () {
       bx += widths[i] + gap;
     });
 
-    U.text(ctx, '按 I、Q 或 Esc 返回地圖', W / 2, H - 18, { size: 13, color: '#9aa7c7' });
+    U.text(ctx, '方向鍵 選擇　Enter（或點一下）裝上／卸下　同一個部位只能裝一件　I、Q、Esc 返回', W / 2, H - 18, { size: 13, color: '#9aa7c7' });
   }
 
   /**
@@ -2217,9 +2344,11 @@ const Game = (function () {
     ctx.fillStyle = 'rgba(8,12,24,0.85)';
     ctx.fillRect(0, 0, W, H);
 
-    U.text(ctx, '金幣商店', W / 2, 38, { size: 28, color: '#ffd166' });
-    U.text(ctx, '關卡裡撿的金幣會存進錢包，在這裡換永久強化', W / 2, 64,
-      { size: 13, color: '#b9c6e2' });
+    const seller = Shop.SELLERS[shopSeller] || Shop.SELLERS.portugal;
+    const mystic = shopSeller !== 'portugal';
+    U.text(ctx, seller.name, W / 2, 38, { size: 28, color: mystic ? '#d8b8ff' : '#ffd166' });
+    U.text(ctx, seller.line, W / 2, 64,
+      { size: 13, color: mystic ? '#e6d8ff' : '#b9c6e2' });
 
     // 錢包
     const walletStr = '\u20AC ' + sv.wallet;
@@ -2235,12 +2364,14 @@ const Game = (function () {
     U.roundRect(ctx, wX, 76, wW, 30, 8); ctx.stroke();
     U.text(ctx, walletStr, W / 2, 91, { size: 20, color: '#ffd166' });
 
-    const cols = 3, cw = 288, ch = 116, gapX = 20, gapY = 14;
+    const list = Shop.itemsOf(shopSeller);
+    // 東西少（葡萄牙只剩 1 樣、商人 1~2 樣）時整排置中，不要全擠在左邊
+    const cols = Math.max(1, Math.min(3, list.length)), cw = 288, ch = 116, gapX = 20, gapY = 14;
     const totalW = cols * cw + (cols - 1) * gapX;
     const sx = (W - totalW) / 2;
     const sy = 120;
 
-    Shop.items.forEach(function (it, i) {
+    list.forEach(function (it, i) {
       const cx = sx + (i % cols) * (cw + gapX);
       const cy = sy + Math.floor(i / cols) * (ch + gapY);
       const lv = Shop.levelOf(it.id);
@@ -2313,6 +2444,11 @@ const Game = (function () {
         W / 2, H - 44, { size: 13, color: bits.length ? '#8fe3a0' : '#9aa7c7' });
     }
 
+    // 葡萄牙商店：提醒其他強化要去找神祕商人（不然玩家會以為東西變少了）
+    if (!mystic) {
+      U.text(ctx, '其他強化（磁鐵、護符、彈簧鞋、幸運徽章）在地圖上的神祕商人那裡 —— 找找看紫色的斗篷', W / 2, 270,
+        { size: 13, color: '#d8b8ff' });
+    }
     U.text(ctx, '方向鍵 選擇　Enter 購買　B 或 Esc 返回地圖',
       W / 2, H - 18, { size: 13, color: '#9aa7c7' });
   }
@@ -2723,7 +2859,7 @@ const Game = (function () {
     if (p2) {
       p2.stats = net.guestStats;
       p2.equipped = {};
-      net.guestEquip.forEach(function (id) { p2.equipped[id] = true; });
+      (net.guestStats.worn || net.guestEquip).forEach(function (id) { p2.equipped[id] = true; });
       lives[1] = net.guestStats.maxLives;
     }
     net.fx = [];
@@ -2826,7 +2962,7 @@ const Game = (function () {
       }
       case 'equip':
         Save.addEquip(msg.id);
-        stats = Equipment.resolve(Save.get().equipment);
+        stats = Equipment.resolve(Save.wornIds());
         break;
       case 'boss': Save.markBoss(msg.li); break;
       case 'secret': Save.markSecret(msg.li, msg.idx); break;
@@ -2874,7 +3010,8 @@ const Game = (function () {
         }
         net.hello = true;
         net.guestEquip = (msg.equip || []).filter(function (id) { return !!Equipment.get(id); });
-        net.guestStats = Equipment.resolve(net.guestEquip);
+        // 保險：舊版朋友會送整包已擁有的裝備 → 每個部位只留一件
+        net.guestStats = Equipment.resolve(Equipment.pickWorn(net.guestEquip));
         net.prevCoop = coop;
         coop = true;
         net.levelLive = false;
@@ -2923,7 +3060,8 @@ const Game = (function () {
       net.hostWait = null;
       net.byeReason = null;
       net.prevCoop = coop;
-      Net.send({ t: 'hello', v: Brand.version, equip: Save.get().equipment.slice() });
+      // 送「裝上的」裝備（v1.22 分部位：沒裝的不生效）
+      Net.send({ t: 'hello', v: Brand.version, equip: Save.wornIds() });
     } else {
       net.hello = false;
     }
@@ -3027,7 +3165,7 @@ const Game = (function () {
   function init(canvas) {
     ctx = canvas.getContext('2d');
     Save.load();
-    stats = Equipment.resolve(Save.get().equipment);
+    stats = Equipment.resolve(Save.wornIds());
     maxLives = stats.maxLives;
     netTapFx();
     requestAnimationFrame(frame);
@@ -3050,7 +3188,7 @@ const Game = (function () {
   function wipeSave() {
     if (!canWipe()) return false;
     Save.reset();
-    stats = Equipment.resolve(Save.get().equipment);
+    stats = Equipment.resolve(Save.wornIds());
     maxLives = stats.maxLives;
     cursor = 0;
     confirmWipe = false;
@@ -3141,7 +3279,8 @@ const Game = (function () {
       },
       grantAll: function () {
         Equipment.defs.forEach(function (d) { Save.addEquip(d.id); });
-        stats = Equipment.resolve(Save.get().equipment);
+        Equipment.pickWorn(Save.get().equipment).forEach(function (id) { Save.wear(id); });
+        stats = Equipment.resolve(Save.wornIds());
         maxLives = stats.maxLives;
       },
       unlockAll: function () {
@@ -3152,7 +3291,7 @@ const Game = (function () {
       resetSave: function () {
         Save.reset();
         // 跟遊戲內「清除存檔」一致：能力要一起重算，不然還保留舊存檔的裝備
-        stats = Equipment.resolve(Save.get().equipment);
+        stats = Equipment.resolve(Save.wornIds());
         maxLives = stats.maxLives;
       },
       /** 兩人同機（測試用：不必模擬按鍵） */

@@ -201,8 +201,10 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
   const spawnY = def.spawnY != null ? def.spawnY : Levels.GROUND_Y - 40;
   const p = makePlayer(spawnX, spawnY, st);
 
-  // 把擁有的裝備攤成布林表，繪製與邏輯都用它
-  (ownedEquip || []).forEach(function (id) { p.equipped[id] = true; });
+  // 把「裝上的」裝備攤成布林表（畫人物身上的配件用）。
+  // v1.22 分部位：擁有 ≠ 裝上 —— st.worn 是生效中的那幾件；舊呼叫端沒有 worn 就退回擁有清單
+  const wornList = st.worn || ownedEquip || [];
+  wornList.forEach(function (id) { p.equipped[id] = true; });
 
   const levelEquip = Equipment.forLevel(levelIndex);
   const equipTaken = !levelEquip || (ownedEquip || []).indexOf(levelEquip.id) >= 0;
@@ -257,7 +259,7 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
   const players = [p];
   if (coop) {
     const p2 = makePlayer(spawnX + 34, spawnY, st);
-    (ownedEquip || []).forEach(function (id) { p2.equipped[id] = true; });
+    wornList.forEach(function (id) { p2.equipped[id] = true; });
     p2.pid = 1;
     players.push(p2);
   }

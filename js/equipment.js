@@ -3,14 +3,22 @@
 /**
  * 裝備系統。
  *
- * 每一關藏一件該國的代表性裝備，拿到就寫進存檔，之後每一關都生效。
+ * 每一關藏一件該國的代表性裝備，拿到就寫進存檔。
+ *
+ * ── 部位（v1.22 玩家要求）──────────────────────────────────
+ * 裝備分 5 個部位：頭、身體、手、腳、飾品。同一個部位一次只能裝一件，
+ * 只有「裝上的」才生效（存檔 Save 另外記 worn：{ 部位: id }）。
+ * 部位內刻意放互相取捨的東西，例如頭：貝雷帽（二段跳）vs 月桂冠（金幣 ×2）；
+ * 手：板球／辣椒火球（遠程）vs 斧杖（破甲踩）vs 扇子（滑翔）。
  *
  * 對外 API（其他模組依賴這些，改動請同步）：
- *   Equipment.defs            全部裝備定義（陣列，順序 = 關卡順序）
+ *   Equipment.defs            全部裝備定義（陣列，順序 = 關卡順序；每件有 slot）
  *   Equipment.count           裝備總數
  *   Equipment.get(id)         取單一定義，不存在回 undefined
  *   Equipment.forLevel(i)     第 i 關藏的裝備（沒有則 undefined）
- *   Equipment.resolve(ids)    把已擁有的 id 陣列換算成能力值 stats
+ *   Equipment.SLOTS           部位清單 [{ id, name }]
+ *   Equipment.pickWorn(ids)   從一堆裝備裡每個部位挑一件（依部位內的優先順序）—— 舊存檔轉換、連線朋友用
+ *   Equipment.resolve(ids)    把「生效中」的 id 陣列換算成能力值 stats（stats.worn = 那串 id，畫人物用）
  *
  * stats 欄位（entities.js / game.js 會讀）：
  *   maxLives      愛心上限
@@ -165,12 +173,41 @@ const Equipment = (function () {
     }
   ];
 
+  /*
+   * 部位分配。每個部位裡的順序 = 優先順序（舊存檔轉換、自動挑選時，同部位有好幾件就挑排前面的）。
+   * 手：只放武器（火球 > 板球 > 斧杖）。遠程攻擊是唯一的攻擊手段，舊存檔優先保留。
+   * ⚠️ 扇子（滑翔）放飾品不放手：西班牙第 1 關就拿到扇子，放手的話會先佔住手，
+   *    之後英國的板球「部位不空、不自動裝」→ 新玩家整個西歐篇都沒有遠程攻擊（touch-check 抓到的）。
+   */
+  const SLOTS = [
+    { id: 'head', name: '頭',   items: ['beret', 'laurel'] },
+    { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat'] },
+    { id: 'hand', name: '手',   items: ['paprika', 'brolly', 'valaska'] },
+    { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche'] },
+    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan'] }
+  ];
+
   const byId = {};
   const byLevel = {};
   defs.forEach(function (d) {
     byId[d.id] = d;
     byLevel[d.level] = d;
   });
+  SLOTS.forEach(function (s) {
+    s.items.forEach(function (id) { if (byId[id]) byId[id].slot = s.id; });
+  });
+
+  /** 每個部位挑一件（ids 裡同部位有好幾件時，取 SLOTS 優先順序最前面的） */
+  function pickWorn(ids) {
+    const have = {};
+    (ids || []).forEach(function (id) { have[id] = true; });
+    const out = [];
+    SLOTS.forEach(function (s) {
+      const id = s.items.filter(function (k) { return have[k]; })[0];
+      if (id) out.push(id);
+    });
+    return out;
+  }
 
   /** 基礎能力值（完全沒裝備時） */
   function baseStats() {
@@ -203,9 +240,10 @@ const Equipment = (function () {
    */
   function resolve(ownedIds) {
     const s = baseStats();
+    s.worn = [];
     (ownedIds || []).forEach(function (id) {
       const d = byId[id];
-      if (d) d.apply(s);
+      if (d) { d.apply(s); s.worn.push(id); }
     });
 
     // 商店強化疊加在裝備之上。
@@ -228,6 +266,9 @@ const Equipment = (function () {
   return {
     defs: defs,
     count: defs.length,
+    SLOTS: SLOTS,
+    pickWorn: pickWorn,
+    slotOf: function (id) { return byId[id] ? byId[id].slot : null; },
     get: function (id) { return byId[id]; },
     forLevel: function (i) { return byLevel[i]; },
     resolve: resolve
