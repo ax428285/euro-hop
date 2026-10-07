@@ -134,6 +134,27 @@ const Music = (function () {
                4, null, 5, 7, 8, null, 7, 5, 4, 3, 2, null, 4, null, null, null],
       drum:   [0.5, 0, 1, 0, 1, 0, 0.5, 0, 1, 0, 1, 0, 0.5, 0, 1, 0]
     },
+    // ── 非洲篇（v1.21）──
+    // 摩洛哥：Hijaz 音階（小二度＋增二度，北非與中東音樂的味道），中速、像市集裡的手鼓
+    MA: {
+      bpm: 112, wave: 'square',
+      root: -7,
+      scale: [0, 1, 4, 5, 7, 8, 10],
+      bass: [0, 0, 1, 0, 0, 3, 1, 0],
+      melody: [4, null, 3, 2, 1, null, 2, null, 4, 5, 4, 3, 2, null, 1, null,
+               0, 1, 2, null, 4, null, 5, 4, 3, 2, 1, null, 0, null, null, null],
+      drum:   [1, 0, 0.5, 1, 0, 0.5, 1, 0, 1, 0, 0.5, 1, 0, 0.5, 1, 0.5]
+    },
+    // 肯亞：明亮的五聲大調、輕快的切分（東非 benga 吉他流行樂的感覺）
+    KE: {
+      bpm: 132, wave: 'triangle',
+      root: -5,
+      scale: [0, 2, 4, 7, 9],
+      bass: [0, 3, 4, 3, 0, 3, 4, 0],
+      melody: [0, 2, 3, null, 4, 3, 2, null, 0, null, 2, 3, 4, null, 3, null,
+               4, null, 3, 4, 3, 2, 0, null, 2, 3, 2, null, 0, null, null, null],
+      drum:   [1, 0, 0.5, 0.5, 1, 0, 0.5, 0, 1, 0, 0.5, 0.5, 1, 0.5, 0.5, 0.5]
+    },
     // 匈牙利：查爾達什（吉普賽小調，增二度），先慢後快的感覺用跳音表現
     HU: {
       bpm: 140, wave: 'sawtooth',

@@ -32,6 +32,19 @@
 const Encounter = (function () {
 
   const EAST_EXP = 300;
+  /*
+   * 要 EXP 解鎖的篇章（依門檻由低到高）。v1.21 加非洲篇。
+   * 西歐篇不在這裡 = 一開始就開放。地圖鎖定、靠港、EXP 條、勝利畫面都讀這張表。
+   */
+  const REGIONS = [
+    { id: 'east', name: '東歐篇', exp: EAST_EXP },
+    { id: 'africa', name: '非洲篇', exp: 700 }
+  ];
+  function regionOf(id) { return REGIONS.filter(function (r) { return r.id === id; })[0] || null; }
+  /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放） */
+  function regionUnlocked(id, exp) { const r = regionOf(id); return !r || exp >= r.exp; }
+  /** 下一個還沒解鎖的篇章（全部都解鎖了回 null） */
+  function nextRegion(exp) { return REGIONS.filter(function (r) { return exp < r.exp; })[0] || null; }
 
   const MAX_ON_MAP = 3;
   const SPAWN_EVERY = 240;
@@ -289,7 +302,10 @@ const Encounter = (function () {
       flag: ['#1d3a5c', '#e8e2d2', '#1d3a5c'],
       flagDir: 'h',
       landmark: null,
-      fact: '打贏可得 ' + k.exp + ' EXP，累積 ' + EAST_EXP + ' EXP 解鎖東歐篇。',
+      fact: (function () {
+        const nx = nextRegion(typeof Save !== 'undefined' ? Save.get().exp : 0);
+        return '打贏可得 ' + k.exp + ' EXP' + (nx ? '，累積 ' + nx.exp + ' EXP 解鎖' + nx.name + '。' : '。');
+      })(),
       sky: kind === 'golden' ? ['#6a8ad8', '#f8e0a8'] : ['#5fa8d8', '#f6dcae'],
       hill: '#2f6f9a',
       // 船的甲板：木板色
@@ -682,6 +698,10 @@ const Encounter = (function () {
 
   return {
     EAST_EXP: EAST_EXP,
+    REGIONS: REGIONS,
+    regionOf: regionOf,
+    regionUnlocked: regionUnlocked,
+    nextRegion: nextRegion,
     KINDS: KINDS,
     updateMap: updateMap,
     drawMap: drawMap,

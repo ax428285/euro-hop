@@ -26,10 +26,18 @@ const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'ne110m.json');
 const OUT = path.join(ROOT, 'js', 'europe-geo.js');
 
-const WORLD_W = 960;
-const LON_MIN = -12, LON_MAX = 45;
-// v1.9：往北到挪威北角（北歐）、往南到撒哈拉（非洲），先畫出來給之後的篇章用
-const LAT_MIN = 19, LAT_MAX = 71.5;
+/*
+ * v1.21 非洲篇：取景往南延伸到好望角（南緯 35.5）、往東到東經 52（非洲之角、馬達加斯加）。
+ *
+ * ⚠️ 比例尺固定用「舊取景（經度 -12 ~ 45 剛好 960 寬）」算，不跟著新範圍變：
+ *   這樣歐洲每一國的世界座標完全不變（舊的版面、圖釘、標籤、map-check 都照舊），
+ *   只是世界往右多 118px、往下多一大段。地圖本來就會跟著船捲動，寬度超過 960 一樣能左右捲。
+ */
+const SCALE_LON_MIN = -12, SCALE_LON_MAX = 45, SCALE_W = 960;
+const LON_MIN = -12, LON_MAX = 52;
+// v1.9：往北到挪威北角（北歐）；v1.21：往南過好望角（非洲篇）
+// -38：好望角在南緯 34.8，下面要留一段海，船才繞得過去（地中海到紅海沒有蘇伊士運河，往東非只能繞過非洲）
+const LAT_MIN = -38, LAT_MAX = 71.5;
 // x 相對 y 的拉伸（Mercator 在這個緯度帶看起來偏瘦，略拉寬比較像大家印象中的歐洲）
 const X_STRETCH = 1.15;
 
@@ -50,8 +58,19 @@ const BACKDROP_COUNTRIES = {
   CYP: 'CY', CYN: 'CN', SYR: 'SY', LBN: 'LB', ISR: 'IL', JOR: 'JO',
   IRQ: 'IQ', IRN: 'IR', EGY: 'EG', LBY: 'LY', SAU: 'SA',
   // 非洲（撒哈拉一帶）與阿拉伯半島北部
-  SAH: 'EH', MRT: 'MR', MLI: 'ML', NER: 'NE', TCD: 'TD', SDN: 'SD', ERI: 'ER', YEM: 'YE'
+  SAH: 'EH', MRT: 'MR', MLI: 'ML', NER: 'NE', TCD: 'TD', SDN: 'SD', ERI: 'ER', YEM: 'YE',
+  // v1.21 非洲篇：撒哈拉以南全部（關卡國也放這裡，跟東歐篇一樣由 worldmap 算圖釘）
+  SEN: 'SN', GMB: 'GM', GNB: 'GW', GIN: 'GN', SLE: 'SL', LBR: 'LR', CIV: 'CI', BFA: 'BF',
+  GHA: 'GH', TGO: 'TG', BEN: 'BJ', NGA: 'NG', CMR: 'CM', CAF: 'CF', GNQ: 'GQ', GAB: 'GA',
+  COG: 'CG', COD: 'CD', AGO: 'AO', ZMB: 'ZM', MWI: 'MW', MOZ: 'MZ', ZWE: 'ZW', BWA: 'BW',
+  NAM: 'NA', ZAF: 'ZA', LSO: 'LS', SWZ: 'SZ', MDG: 'MG', TZA: 'TZ', KEN: 'KE', UGA: 'UG',
+  RWA: 'RW', BDI: 'BI', SDS: 'SS', ETH: 'ET', DJI: 'DJ', SOM: 'SO', SOL: 'XS',
+  // 阿拉伯半島南部（取景往東延伸後進來的）
+  KWT: 'KW', QAT: 'QA', ARE: 'AE', OMN: 'OM'
 };
+
+// 小國：簡化與最小面積放寬，不然會被濾掉（甘比亞、賴索托、史瓦帝尼、吉布地、盧安達、蒲隆地⋯⋯）
+const SMALL_OK = { GMB: 1, LSO: 1, SWZ: 1, DJI: 1, RWA: 1, BDI: 1, GNQ: 1, QAT: 1, KWT: 1, GNB: 1, SLE: 1, TGO: 1 };
 
 function mercY(lat) {
   const r = Math.max(Math.min(lat, 84), -84) * Math.PI / 180;
@@ -59,8 +78,9 @@ function mercY(lat) {
 }
 const minX = LON_MIN * Math.PI / 180, maxX = LON_MAX * Math.PI / 180;
 const maxY = mercY(LAT_MAX), minY = mercY(LAT_MIN);
-const SCALE_X = WORLD_W / (maxX - minX);
+const SCALE_X = SCALE_W / ((SCALE_LON_MAX - SCALE_LON_MIN) * Math.PI / 180);
 const SCALE_Y = SCALE_X / X_STRETCH;
+const WORLD_W = Math.round((maxX - minX) * SCALE_X);
 const WORLD_H = Math.round((maxY - minY) * SCALE_Y);
 
 function project(lon, lat) {
@@ -165,8 +185,9 @@ function main() {
     if (!g) return;
     const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
     // 關卡國保留較多細節；背景國簡化得兇一點
-    const tol = isLevel ? 0.8 : 1.4;
-    const minArea = isLevel ? 12 : 30;
+    const small = !!SMALL_OK[iso];
+    const tol = isLevel || small ? 0.8 : 1.4;
+    const minArea = isLevel ? 12 : small ? 3 : 30;
     const shapes = [];
     polys.forEach(function (poly) {
       const ring = poly[0];

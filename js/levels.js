@@ -1049,6 +1049,61 @@ const Levels = (function () {
     ]
   }));
 
+  // ════════════════════════════════════════════════════════════
+  // 非洲篇（v1.21，海上 EXP 解鎖，見 Encounter.REGIONS）
+  // 一定要接在最後面：存檔的通關紀錄、裝備是照關卡順序記的，插在中間會讓舊存檔整個錯位。
+  // 第一階段先做摩洛哥、肯亞；之後依序：埃及（魔王）、奈及利亞、衣索比亞、坦尚尼亞、馬達加斯加、南非（最終魔王）
+  // ════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────────
+  // 19. 摩洛哥 · 馬拉喀什 —— 紅土老城與撒哈拉邊緣：流沙
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1031,
+    id: 'MA', country: '摩洛哥', city: '馬拉喀什', region: 'africa',
+    flag: ['#C1272D', '#006233'], flagDir: 'star',
+    landmark: 'koutoubia',
+    fact: '馬拉喀什的庫圖比亞清真寺宣禮塔高約 77 公尺，12 世紀完工，是全城最高的建築。',
+    sky: ['#e8a060', '#f8dcae'], hill: '#b8683e',
+    groundTop: '#d89a5a', groundBody: '#8a5030',
+    deco: 'palm',
+    layout: 'hills',
+    groundTypes: ['walker', 'spiker', 'charger', 'guard'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    // 招牌：撒哈拉流沙 —— 踩進去會走不快、跳不高、越陷越深，站太久會受傷
+    features: [{ type: 'quicksand', count: 6 }],
+    secretHint: '地毯店後面的暗門，掀開掛毯就看得到',
+    secretNear: 0.55,
+    props: [
+      { type: 'paprikaStall', x: 900 },    // 香料攤（借用匈牙利紅椒攤的造型）
+      { type: 'paprikaStall', x: 4300 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 20. 肯亞 · 馬賽馬拉 —— 莽原：動物大遷徙
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1032,
+    id: 'KE', country: '肯亞', city: '馬賽馬拉', region: 'africa',
+    flag: ['#000000', '#BB0000', '#006600'], flagDir: 'kenya',
+    landmark: 'acacia',
+    fact: '馬賽馬拉每年 7 到 10 月有上百萬頭牛羚跟著雨季遷徙，是地球上最壯觀的動物大遷徙之一。',
+    sky: ['#f0a858', '#fbe4b0'], hill: '#8a7a40',
+    groundTop: '#c8a850', groundBody: '#7a5a30',
+    deco: 'acacia',
+    layout: 'flat',
+    groundTypes: ['walker', 'charger', 'spiker', 'guard'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.1,
+    // 招牌：動物大遷徙 —— 牛羚群從前方迎面衝來，跳過去或踩在背上彈起來
+    features: [{ type: 'migration', from: 0.3, to: 0.78 }],
+    secretHint: '白蟻丘後面的洞，比看起來大得多',
+    secretNear: 0.6,
+    props: []
+  }));
+
   return {
     GROUND_Y: GROUND_Y,
     GROUND_H: GROUND_H,

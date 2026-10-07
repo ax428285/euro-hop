@@ -154,6 +154,21 @@ const Equipment = (function () {
       desc: '愛心上限 +1',
       note: 'vyshyvanka 上的刺繡花紋各地不同，傳統上被當成保佑穿的人平安的護身符。',
       apply: function (s) { s.maxLives += 1; }
+    },
+    // ── 非洲篇（v1.21）──
+    {
+      id: 'babouche', level: 18, country: '摩洛哥', icon: 'babouche',
+      name: '尖頭拖鞋',
+      desc: '踩空邊緣後還來得及跳（寬限時間加倍）',
+      note: '摩洛哥的 babouche 是不分左右腳的尖頭皮拖鞋，馬拉喀什的市集一整條街都在賣。',
+      apply: function (s) { s.coyoteX = 2; }
+    },
+    {
+      id: 'runner', level: 19, country: '肯亞', icon: 'runner',
+      name: '長跑選手的跑鞋',
+      desc: '跑速再快 10%（跟羅馬涼鞋疊加）',
+      note: '肯亞的長跑選手拿下非常多奧運與世界馬拉松金牌，很多人在海拔兩千多公尺的高地練跑。',
+      apply: function (s) { s.speed *= 1.1; }
     }
   ];
 
@@ -178,6 +193,7 @@ const Equipment = (function () {
       fastThrow: false,   // 遠程攻擊冷卻縮短（德國啤酒杯）
       highStomp: false,   // 踩敵人彈得更高（奧地利指揮棒）
       stompAll: false,    // 踩不死的敵人也踩得倒（斯洛伐克斧杖）
+      coyoteX: 1,         // 踩空邊緣後還能跳的寬限帧數倍率（v1.21 摩洛哥尖頭拖鞋）
       // 以下由商店強化提供（Shop.resolve）
       magnet: 0,          // 金幣吸取半徑，0 = 沒有
       jumpBoost: 0,       // 跳躍力加成

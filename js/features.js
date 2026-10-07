@@ -120,6 +120,18 @@ const Features = (function () {
             if (ly == null || ry == null || Math.abs(ly - ry) > 2) return;   // 只架在兩岸一樣高的斷崖
             list.push({ type: 'bridge', x: g.x - 6, y: ly, w: g.w + 12, h: 12 });
           });
+      } else if (c.type === 'quicksand') {
+        // 摩洛哥：撒哈拉流沙。平地上幾片沙坑，踩進去會變慢、跳不高、越陷越深
+        const n = c.count || 6;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.12 + 0.76 * i / Math.max(1, n - 1)), SAND_W, 60);
+          if (!sp || sp.x < 700) continue;
+          list.push({ type: 'sand', x: sp.x, y: sp.y, w: SAND_W });
+          ctx.avoid.push({ x: sp.x - 100, y: 0, w: SAND_W + 200, h: 600 });
+        }
+      } else if (c.type === 'migration') {
+        // 肯亞：動物大遷徙。一段區間內，牛羚群定時從前方迎面衝過來
+        list.push({ type: 'migration', x0: Math.round(W * (c.from || 0.3)), x1: Math.round(W * (c.to || 0.78)) });
       } else if (c.type === 'thorns') {
         // 保加利亞：玫瑰荊棘，定時從地裡冒出來
         const n = c.count || 8;
@@ -133,6 +145,21 @@ const Features = (function () {
     });
     return { list: list, coins: coins };
   }
+
+  /*
+   * 流沙（摩洛哥）：站在裡面每帧水平速度只剩 55%、起跳初速 ×0.7，
+   * 身體慢慢往下陷（畫面上沙子淹到腳），陷滿 SAND_LIMIT 帧就受傷、被彈出來。
+   * 全速走過 120px 寬的沙坑約 50 帧，遠低於 150 —— 一直走就不會受傷，停在裡面才會。
+   */
+  const SAND_W = 120;
+  const SAND_LIMIT = 150;
+  const SAND_MAX_RUN = 2.3;
+  /*
+   * 動物大遷徙（肯亞）：牛羚群從前方迎面衝來（西班牙奔牛是從後面追）。
+   * 3~4 頭一群、群長約 200px；相對速度 = 牛 3.4 + 玩家 4.6 → 跳一下（滯空約 40 帧）就飛得過去，
+   * 也可以踩在背上彈起來（比一般踩敵人高）。
+   */
+  const GNU_SPEED = 3.4, GNU_W = 56, GNU_H = 34, GNU_GAP = 64, GNU_EVERY = 280, GNU_BOUNCE = -11;
 
   const GUST_CYCLE = 320;     // 一輪：安靜 → 預告 → 颳風
   const GUST_PUSH = 1.5;      // 逆風時每帧把地面上的玩家往回推幾 px（空中不推：跳躍距離不受影響）
@@ -165,6 +192,7 @@ const Features = (function () {
         if (f.type === 'barrels') { o.items = []; o.cd = 60; }
         if (f.type === 'cannons') { o.shells = []; o.cd = 60; o.seq = 0; }
         if (f.type === 'bridge') { o.state = 'ok'; o.timer = 0; }
+        if (f.type === 'migration') { o.herd = []; o.cd = 60; o.seq = 0; }
         return o;
       }),
       seen: {}
@@ -205,6 +233,7 @@ const Features = (function () {
     const players = state.players.filter(function (p) { return !p.out; });
     const lead = players.reduce(function (a, p) { return !a || p.x > a.x ? p : a; }, null);
     if (!lead) return events;
+    players.forEach(function (p) { p.inSand = false; });
 
     fs.list.forEach(function (f) {
       // 第一次接近時發一個事件，game.js 顯示提示
@@ -289,6 +318,41 @@ const Features = (function () {
         } else if (--f.timer <= 0) {
           f.state = 'ok';                    // 過一陣子橋又「修好」（不然掉下去重生後就沒路了）
         }
+      } else if (f.type === 'sand') {
+        players.forEach(function (p) {
+          const feet = p.y + p.h;
+          if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 6 && p.x < f.x + f.w - 6) p.inSand = true;
+        });
+      } else if (f.type === 'migration') {
+        // 牛羚群：玩家在區間內才會來；從畫面右邊外面（玩家前方 620）往左衝
+        if (lead.x > f.x0 && lead.x < f.x1 && --f.cd <= 0) {
+          f.cd = GNU_EVERY;
+          const n = 3 + (f.seq++ % 2);
+          const base = lead.x + 620;
+          for (let k = 0; k < n; k++) f.herd.push({ x: base + k * GNU_GAP, y: null, k: f.seq * 7 + k });
+          events.push('herd');
+        }
+        f.herd.forEach(function (g) {
+          g.x -= GNU_SPEED;
+          // 跟著地面高度跑；經過斷崖時維持原本高度（看起來是一躍而過）
+          const gy = groundTop(def, g.x + GNU_W / 2);
+          if (gy != null) g.y = gy;
+          if (g.y == null) return;
+          const box = { x: g.x, y: g.y - GNU_H, w: GNU_W, h: GNU_H };
+          players.forEach(function (p, i) {
+            if (!U.overlap(p, box)) return;
+            const stomping = p.vy > 0 && (p.y + p.h) - box.y < 16;
+            if (stomping) {
+              // 踩在牛羚背上：彈得比一般踩敵人高，可以一路踩過整群
+              launch(p, GNU_BOUNCE, events, pidOf(p, i));
+              g.bumped = 8;
+            } else {
+              hurt(p, g.x + GNU_W / 2, events, pidOf(p, i));
+            }
+          });
+          if (g.bumped > 0) g.bumped--;
+        });
+        f.herd = f.herd.filter(function (g) { return g.x > lead.x - 800 && g.x > f.x0 - 600; });
       } else if (f.type === 'thorn') {
         const k = (t + f.phase) % THORN_CYCLE;
         f.state = k < 80 ? 'bud' : k < 104 ? 'warn' : 'spike';
@@ -362,6 +426,30 @@ const Features = (function () {
         f.items = f.items.filter(function (b) { return b.alive && b.x > lead.x - 900; });
       }
     });
+
+    // 流沙的效果（所有沙坑判定完才算，避免站在兩片交界時被算兩次）
+    players.forEach(function (p, i) {
+      if (p.inSand) {
+        p.sandT = (p.sandT || 0) + 1;
+        /*
+         * 走不快：速度上限 2.3（正常 4.6 的一半），走過 120px 約 52 帧。
+         * ⚠️ 不能寫成每帧 vx *= 0.55：玩家每帧又加速 0.62，平衡點只有 0.76px/帧，
+         * 走完一片沙坑要 158 帧 > SAND_LIMIT，等於「一定受傷」。
+         */
+        p.vx = U.clamp(p.vx, -SAND_MAX_RUN, SAND_MAX_RUN);
+        if (p.sandT > SAND_LIMIT) {
+          // 陷太深：受傷，順勢被彈出沙坑
+          p.sandT = 0;
+          hurt(p, p.x + p.w / 2 + (p.facing || 1) * -10, events, pidOf(p, i));
+          events.push('p' + pidOf(p, i) + ':sinkout');
+        }
+      } else {
+        // 剛從沙裡起跳的那一下：初速打折（跳不高）
+        if (p.wasInSand && !p.onGround && p.vy < -9) p.vy *= 0.7;
+        p.sandT = Math.max(0, (p.sandT || 0) - 4);   // 離開沙坑，下陷慢慢回復
+      }
+      p.wasInSand = p.inSand;
+    });
     return events;
   }
 
@@ -382,6 +470,36 @@ const Features = (function () {
     ctx.fillRect(-24 + leg, -6, 6, 6); ctx.fillRect(10 - leg, -6, 6, 6);
     ctx.fillStyle = '#ff6b5a';
     ctx.fillRect(28, -24, 3, 2);
+    ctx.restore();
+  }
+
+  /** 牛羚（往左跑）：深灰褐身體、黑鬃毛、彎角、會擺動的腿 */
+  function drawGnu(ctx, x, y, t, k, bumped) {
+    const bob = Math.abs(Math.sin(t * 0.4 + k)) * 3 - (bumped ? 3 : 0);
+    ctx.save();
+    ctx.translate(x, y - bob);
+    // 腿
+    ctx.fillStyle = '#3a3028';
+    const leg = Math.sin(t * 0.55 + k) * 7;
+    ctx.fillRect(10 + leg, -12, 5, 12); ctx.fillRect(40 - leg, -12, 5, 12);
+    ctx.fillRect(16 - leg, -12, 5, 12); ctx.fillRect(46 + leg, -12, 5, 12);
+    // 身體（前高後低，牛羚的招牌體型）
+    ctx.fillStyle = '#5a5048';
+    ctx.beginPath();
+    ctx.moveTo(4, -14); ctx.quadraticCurveTo(8, -34, 26, -32); ctx.lineTo(50, -26);
+    ctx.quadraticCurveTo(58, -20, 54, -12); ctx.closePath(); ctx.fill();
+    // 頭（朝左）+ 黑色長臉
+    ctx.fillStyle = '#2a241e';
+    ctx.beginPath(); ctx.ellipse(-2, -26, 9, 7, -0.5, 0, Math.PI * 2); ctx.fill();
+    // 鬃毛與鬍鬚
+    ctx.fillRect(8, -34, 14, 4);
+    ctx.fillRect(0, -20, 6, 8);
+    // 彎角
+    ctx.strokeStyle = '#d8ccb0'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(0, -31); ctx.quadraticCurveTo(-8, -40, -2, -42); ctx.stroke();
+    // 揚起的塵土
+    ctx.fillStyle = 'rgba(200, 170, 110, 0.45)';
+    ctx.beginPath(); ctx.arc(60 + (t * 2 + k * 9) % 14, -4, 6, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
@@ -505,6 +623,36 @@ const Features = (function () {
             ctx.beginPath(); ctx.arc(sx, s.y - 12, 40 - s.boom, 0, Math.PI * 2); ctx.fill();
           }
         });
+      } else if (f.type === 'sand') {
+        // 流沙：比地面深一點的沙色、表面有慢慢轉的漩渦和冒泡（一眼看得出「這片不一樣」）
+        const sx = f.x - camX;
+        if (sx > 1000 || sx + f.w < -40) return;
+        ctx.fillStyle = '#c08848';
+        ctx.beginPath(); ctx.ellipse(sx + f.w / 2, f.y + 3, f.w / 2 + 4, 9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e8b878';
+        ctx.beginPath(); ctx.ellipse(sx + f.w / 2, f.y + 1, f.w / 2 - 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(140, 90, 40, 0.6)';
+        ctx.lineWidth = 1.5;
+        for (let r = 0; r < 3; r++) {
+          const a = t * 0.03 + r * 2.1;
+          ctx.beginPath();
+          ctx.ellipse(sx + f.w / 2, f.y + 1, 12 + r * 14, 2.5 + r, 0, a, a + Math.PI * 1.2);
+          ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(255, 230, 180, 0.8)';
+        for (let b = 0; b < 3; b++) {
+          const ph = (t * 0.05 + b * 1.7) % 3;
+          if (ph < 1) {
+            ctx.beginPath(); ctx.arc(sx + 24 + b * 34, f.y - ph * 4, 2 + ph * 2, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+      } else if (f.type === 'migration') {
+        f.herd.forEach(function (g) {
+          if (g.y == null) return;
+          const sx = g.x - camX;
+          if (sx < -80 || sx > 1040) return;
+          drawGnu(ctx, sx, g.y, t, g.k, g.bumped > 0);
+        });
       } else if (f.type === 'bridge') {
         if (f.state === 'fallen') return;
         const sx = f.x - camX + (f.state === 'shaking' ? Math.sin(t * 1.3) * 2 : 0);
@@ -594,6 +742,21 @@ const Features = (function () {
   function drawOverlay(ctx, state, camX, t, W, H) {
     const fs = state.features;
     if (!fs) return;
+    /*
+     * 流沙：陷進去的玩家，腳邊蓋一圈沙（畫在玩家之後，看起來就像身體陷進沙裡）。
+     * 越久越高，快到上限時沙子變紅閃爍 —— 提醒玩家「要受傷了，快跳」。
+     */
+    (state.players || []).forEach(function (p) {
+      if (p.out || !(p.sandT > 0)) return;
+      const k = U.clamp(p.sandT / SAND_LIMIT, 0, 1);
+      const sx = p.x + p.w / 2 - camX, gy = p.y + p.h;
+      const hgt = 6 + k * 22;
+      const warn = k > 0.7 && Math.floor(t / 6) % 2 === 0;
+      ctx.fillStyle = warn ? '#d8704a' : '#e0ae70';
+      ctx.beginPath(); ctx.ellipse(sx, gy + 2, 20, hgt, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(150, 100, 50, 0.5)';
+      ctx.fillRect(sx - 20, gy, 40, 3);
+    });
     fs.list.forEach(function (f) {
       if (f.type !== 'dark') return;
       const p = state.player;

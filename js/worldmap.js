@@ -522,14 +522,22 @@ const WorldMap = (function () {
     { name: '挪　威　海', lon: 1, lat: 67, size: 16 },
     { name: '巴倫支海', lon: 38, lat: 71, size: 13 },
     { name: '波的尼亞灣', lon: 20.5, lat: 62.8, size: 10, angle: -1.2 },
-    { name: '紅海', lon: 38.5, lat: 20.5, size: 11, angle: -1.0 }
+    { name: '紅海', lon: 38.5, lat: 20.5, size: 11, angle: -1.0 },
+    // v1.21 非洲篇：地圖往南延伸到好望角
+    { name: '幾內亞灣', lon: 3, lat: 1.5, size: 13 },
+    { name: '印　度　洋', lon: 48, lat: -8, size: 17, vertical: true },
+    { name: '莫三比克海峽', lon: 40.5, lat: -18.5, size: 10, angle: -1.3 },
+    { name: '亞丁灣', lon: 47.5, lat: 12.6, size: 10 },
+    { name: '大　西　洋', lon: 0, lat: -18, size: 17, vertical: true }
   ];
 
-  /** 尚未開放的區域名稱（大而淡，標「之後的篇章」） */
+  /** 區域名稱（大而淡，像地圖上印的大字；還沒有關卡的標「篇章開發中」） */
   const REGIONS = [
     { name: '北　歐', sub: '（篇章開發中）', lon: 17, lat: 65.5, size: 26 },
-    { name: '非　洲', sub: '（篇章開發中）', lon: 14, lat: 25, size: 30 },
-    { name: '撒哈拉沙漠', lon: 2, lat: 22.5, size: 14 }
+    { name: '非　洲', lon: 20, lat: 8, size: 30 },
+    { name: '撒哈拉沙漠', lon: 6, lat: 23.5, size: 16 },
+    { name: '剛果盆地', lon: 21, lat: -2.5, size: 12 },
+    { name: '喀拉哈里沙漠', lon: 22, lat: -24, size: 12 }
   ];
 
   function drawRegionNames(ctx) {
@@ -582,10 +590,18 @@ const WorldMap = (function () {
      * 圖釘最後畫，旗子永遠在最上層。
      */
     const eastOpen = !!(opts.east && opts.east.unlocked);
+    /*
+     * 要 EXP 解鎖的篇章（東歐、v1.21 非洲）：還沒解鎖時整國鎖住（紫灰色 + 鎖頭）。
+     * opts.regionOpen(region) 由 game.js 給；舊呼叫端只傳 opts.east 也照舊能用。
+     */
+    function regionLocked(region) {
+      if (!region || region === 'west') return false;
+      if (opts.regionOpen) return !opts.regionOpen(region);
+      return region === 'east' ? !eastOpen : !!opts.east;
+    }
     const info = nations.map(function (n) {
       const lv = Levels.list[n.idx];
-      // 東歐篇的關卡：EXP 不夠時整國鎖住（紫灰色 + 鎖頭）
-      const eastLock = lv.region === 'east' && !eastOpen;
+      const eastLock = regionLocked(lv.region);
       const open = n.idx < opts.unlocked && !eastLock;
       const done = opts.clearedFn(n.idx);
       return {

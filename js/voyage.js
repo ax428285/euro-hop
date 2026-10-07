@@ -274,7 +274,8 @@ const Voyage = (function () {
       clearedFn: opts.clearedFn,
       cursor: nearIdx,
       t: t,
-      east: opts.east
+      east: opts.east,
+      regionOpen: opts.regionOpen       // v1.21：各篇章（東歐、非洲）的解鎖狀態
       // 不再隱藏固定航線：各國之間的虛線就是建議旅程
     });
 

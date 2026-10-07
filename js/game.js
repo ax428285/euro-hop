@@ -404,11 +404,12 @@ const Game = (function () {
     if (events.indexOf('embark') >= 0) Sfx.select();
 
     if (events.indexOf('dock') >= 0 && near >= 0 && near < unlocked) {
-      // 東歐篇要 EXP 解鎖
-      if (Levels.list[near].region === 'east' && !eastUnlocked()) {
+      // 東歐篇、非洲篇要 EXP 解鎖（門檻見 Encounter.REGIONS）
+      const rg = Levels.list[near].region;
+      if (!regionUnlocked(rg)) {
         Sfx.clang();
-        toast = { text: '東歐篇還沒解鎖',
-                  sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.EAST_EXP, life: 170 };
+        toast = { text: Encounter.regionOf(rg).name + '還沒解鎖',
+                  sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf(rg).exp, life: 170 };
       } else {
         Sfx.select();
         startLevel(near);
@@ -426,7 +427,10 @@ const Game = (function () {
     gusts: ['塔特拉山風', '樹葉往後飄就是要颳逆風了 —— 颳風時跳著走比較快'],
     cannons: ['城牆砲擊', '地上的紅圈是砲彈落點，看到就快離開'],
     bridge: ['河上的老木橋', '踩上去一下就會塌，別停下來'],
-    thorn: ['玫瑰荊棘', '花苞抖動之後會冒出尖刺，等它縮回去再過']
+    thorn: ['玫瑰荊棘', '花苞抖動之後會冒出尖刺，等它縮回去再過'],
+    // v1.21 非洲篇
+    sand: ['撒哈拉流沙', '踩進去會走不快、跳不高，越陷越深 —— 別停下來，趕快走出去'],
+    migration: ['動物大遷徙', '牛羚群從前面衝過來 —— 跳過去，或踩在牠們背上彈起來']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -446,9 +450,9 @@ const Game = (function () {
     cable: ['搭纜車過山谷', '山谷跳不過去：在月台邊等纜車靠站再走上去，到對岸再下車']
   };
 
-  function eastUnlocked() {
-    return Save.get().exp >= Encounter.EAST_EXP;
-  }
+  function eastUnlocked() { return regionUnlocked('east'); }
+  /** 這一篇解鎖了嗎（西歐篇與不在 Encounter.REGIONS 的篇章一開始就開放） */
+  function regionUnlocked(region) { return Encounter.regionUnlocked(region, Save.get().exp); }
 
   function updatePlay() {
     // 沒有關卡狀態就不該在 play（只會發生在狀態被外部改動時），退回地圖
@@ -556,6 +560,7 @@ const Game = (function () {
           break;
         }
         case 'stampede': Sfx.bossRoar(); shake = 12; break;
+        case 'herd': Sfx.stomp(); shake = 4; break;          // 肯亞牛羚群：遠遠傳來的蹄聲
         case 'throw': Sfx.swing(); break;
         case 'quake': shake = 8; break;
         // 海上小遊戲
@@ -1758,7 +1763,8 @@ const Game = (function () {
       clearedFn: function (i) { return Save.isCleared(i); },
       cursor: cursor,
       t: t,
-      east: { unlocked: eastUnlocked() }
+      east: { unlocked: eastUnlocked() },
+      regionOpen: regionUnlocked
     });
     WorldMap.endView(ctx);
   }
@@ -1774,6 +1780,7 @@ const Game = (function () {
       unlocked: sv.unlocked,
       clearedFn: function (i) { return Save.isCleared(i); },
       east: { unlocked: eastOpen },
+      regionOpen: regionUnlocked,
       beforeShip: function () { Encounter.drawMap(ctx, t); }
     });
     WorldMap.endView(ctx);
@@ -1782,24 +1789,28 @@ const Game = (function () {
     // 標題條
     ctx.fillStyle = 'rgba(10,16,30,0.72)';
     ctx.fillRect(0, 0, W, 40);
-    U.text(ctx, '歐羅巴地圖　海上開船・陸上步行', 16, 20,
+    U.text(ctx, '世界地圖　海上開船・陸上步行', 16, 20,
       { size: 18, color: '#ffd166', align: 'left' });
 
     /*
-     * 經驗值條：打海上怪物累積，滿了解鎖東歐篇。
+     * 經驗值條：打海上怪物累積，滿了解鎖下一篇（東歐 → v1.21 非洲）。
      * 放在標題與右側統計之間，一直看得到進度，才有「再打一隻」的動機。
+     * 進度是「上一篇門檻 → 下一篇門檻」這一段，不是從 0 算（不然解鎖東歐後條子一開始就快滿）。
      */
     {
       const bx = 372, by = 14, bw = 140, bh = 12;   // 標題「海上開船・陸上步行」比較長，往右讓開
-      const need = Encounter.EAST_EXP;
-      const prog = U.clamp(sv.exp / need, 0, 1);
+      const nx = Encounter.nextRegion(sv.exp);
+      const done = !nx;
+      const idx = nx ? Encounter.REGIONS.indexOf(nx) : Encounter.REGIONS.length;
+      const from = idx > 0 ? Encounter.REGIONS[idx - 1].exp : 0;
+      const prog = done ? 1 : U.clamp((sv.exp - from) / (nx.exp - from), 0, 1);
       U.text(ctx, 'EXP', bx - 6, 20, { size: 12, color: '#c9b8ff', align: 'right' });
       ctx.fillStyle = 'rgba(255,255,255,0.12)';
       U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
-      ctx.fillStyle = eastOpen ? '#8fe3a0' : '#a98bff';
+      ctx.fillStyle = done ? '#8fe3a0' : '#a98bff';
       if (prog > 0) { U.roundRect(ctx, bx, by, Math.max(bh, bw * prog), bh, 6); ctx.fill(); }
-      U.text(ctx, eastOpen ? '東歐篇已解鎖' : `${sv.exp}/${need} 解鎖東歐`, bx + bw + 8, 20,
-        { size: 12, color: eastOpen ? '#8fe3a0' : '#d8ccff', align: 'left' });
+      U.text(ctx, done ? '全部篇章已解鎖' : `${sv.exp}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
+        { size: 12, color: done ? '#8fe3a0' : '#d8ccff', align: 'left' });
     }
     U.text(ctx, (coop ? '2P　' : '') +
       `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　\u20AC ${sv.wallet}`,
@@ -1987,6 +1998,14 @@ const Game = (function () {
       ctx.strokeStyle = '#3c4a78'; ctx.lineWidth = 1;
       U.roundRect(ctx, x, 372, boxW, 56, 8); ctx.stroke();
       const cx = x + 14;
+      if (c.wip) {
+        // 開發中的洲（v1.21 非洲）：線索可以先收集，這裡顯示收了幾條
+        const cp = Mystery.progress(c.id);
+        U.text(ctx, '🔍 ' + c.name + '：線索 ' + cp.got + ' / ' + cp.total, cx, 390,
+          { size: 13, color: '#7fc4f5', align: 'left' });
+        U.text(ctx, c.teaser, cx, 412, { size: 12, color: '#7d88a6', align: 'left' });
+        return;
+      }
       U.text(ctx, '🔒 ' + (pr.complete ? c.name + '：' + c.question : '？？？之謎'), cx, 390,
         { size: 13, color: '#c6d2e8', align: 'left' });
       U.text(ctx, pr.complete ? c.teaser : '先解開歐洲之謎', cx, 412,
@@ -2041,7 +2060,8 @@ const Game = (function () {
       ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件'],
       ['密道', sv.secrets.length + ' 條'],
       ['魔王', sv.bosses.length + ' 隻'],
-      ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp + ' / ' + Encounter.EAST_EXP],
+      ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp +
+        (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（全部篇章已解鎖）')],
       ['總分', String(sv.score)]
     ];
 
@@ -2280,12 +2300,15 @@ const Game = (function () {
       W / 2, H - 18, { size: 13, color: '#9aa7c7' });
   }
 
-  /** 遭遇戰勝利畫面：重點是 EXP 與東歐篇進度 */
+  /** 遭遇戰勝利畫面：重點是 EXP 與下一篇的解鎖進度（東歐 → 非洲） */
   function drawSeaClear() {
     const def = state.def;
     const r = expResult || { gain: def.exp, before: 0, after: Save.get().exp };
-    const need = Encounter.EAST_EXP;
-    const justOpened = r.before < need && r.after >= need;
+    // 這一場剛好跨過門檻的篇章；沒有的話就看下一個還沒解鎖的
+    const opened = Encounter.REGIONS.filter(function (g) { return r.before < g.exp && r.after >= g.exp; })[0];
+    const target = opened || Encounter.nextRegion(r.after) || Encounter.REGIONS[Encounter.REGIONS.length - 1];
+    const need = target.exp;
+    const justOpened = !!opened;
     const tall = (justOpened ? 280 : 240) + (r.costume ? 50 : 0);
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
@@ -2317,11 +2340,14 @@ const Game = (function () {
       y += 26;
     }
     if (justOpened) {
-      U.text(ctx, '東歐篇地圖解鎖！', W / 2, y + 4, { size: 20, color: '#ffd166' });
-      U.text(ctx, '波蘭、匈牙利、羅馬尼亞⋯⋯關卡開發中，敬請期待', W / 2, y + 30,
+      U.text(ctx, target.name + '地圖解鎖！', W / 2, y + 4, { size: 20, color: '#ffd166' });
+      // 列出這一篇的國家（從關卡表抓，不手寫）
+      const names = Levels.list.filter(function (l) { return l.region === target.id; })
+        .map(function (l) { return l.country; });
+      U.text(ctx, names.slice(0, 4).join('、') + (names.length > 4 ? '⋯⋯' : '') + '，開船過去吧', W / 2, y + 30,
         { size: 13, color: '#dce5f5' });
     } else if (r.after < need) {
-      U.text(ctx, `再 ${need - r.after} EXP 解鎖東歐篇`, W / 2, y + 4, { size: 14, color: '#c6d2e8' });
+      U.text(ctx, `再 ${need - r.after} EXP 解鎖${target.name}`, W / 2, y + 4, { size: 14, color: '#c6d2e8' });
     }
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
       U.text(ctx, '按 Enter 回到海上', W / 2, top + tall - 22, { size: 18, color: '#ffffff' });
@@ -2382,6 +2408,7 @@ const Game = (function () {
       U.text(ctx, '🔍 ' + newClue.cont.name + '・新線索：' + newClue.clue.item + '（' + p.got + '/' + p.total + '）',
         W / 2, y + 17, { size: 15, color: '#7fc4f5' });
       U.text(ctx, newClue.completed ? '線索全部到齊！回到地圖就會解開謎底'
+                                    : newClue.cont.wip ? '非洲篇還在開發中，線索先幫你收著'
                                     : '在地圖按 N，或 ☰ →「世界之謎」查看線索內容',
         W / 2, y + 38, { size: 13, color: newClue.completed ? '#8fe3a0' : '#dce5f5' });
       y += 62;
@@ -2391,7 +2418,7 @@ const Game = (function () {
 
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
       const last = !!Levels.list[levelIndex].finale;
-      U.text(ctx, last ? '按 Enter 看結局' : '按 Enter 回歐洲地圖',
+      U.text(ctx, last ? '按 Enter 看結局' : '按 Enter 回大地圖',
         W / 2, top + tall - 26, { size: 18, color: '#ffffff' });
     }
   }
@@ -2413,7 +2440,7 @@ const Game = (function () {
         : '裝備不會消失，回地圖再挑戰一次',
       W / 2, 280, { size: 14, color: '#c6d2e8' });
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
-      U.text(ctx, '按 Enter 回歐洲地圖', W / 2, 324, { size: 18, color: '#ffd166' });
+      U.text(ctx, '按 Enter 回大地圖', W / 2, 324, { size: 18, color: '#ffd166' });
     }
   }
 
@@ -2440,9 +2467,10 @@ const Game = (function () {
     ctx.fill();
 
     const sv = Save.get();
-    // 依剛打完的是哪一篇顯示（西歐篇 / 東歐篇）
+    // 依剛打完的是哪一篇顯示（西歐篇 / 東歐篇 / 非洲篇）
     const region = (Levels.list[levelIndex] && Levels.list[levelIndex].region) || 'west';
-    U.text(ctx, region === 'east' ? '東歐篇完成！' : '西歐全線踏遍！', W / 2, 124, { size: 42, color: '#ffd166' });
+    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！' };
+    U.text(ctx, WIN_TITLE[region] || WIN_TITLE.west, W / 2, 124, { size: 42, color: '#ffd166' });
     // 路線由關卡資料組出來，加關卡不用改這裡。
     // 10 個城市一行會太長，拆兩行。
     const cities = Levels.list.filter(function (l) { return (l.region || 'west') === region; })

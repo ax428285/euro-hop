@@ -1416,7 +1416,8 @@ function updatePlayer(state, input, t, who) {
   }
 
   if (p.onGround) {
-    p.coyote = PHYS.COYOTE;
+    // 摩洛哥尖頭拖鞋：踩空邊緣後還能跳的寬限帧數加倍
+    p.coyote = PHYS.COYOTE * (st.coyoteX || 1);
     p.airJumps = st.doubleJump ? 1 : 0;
     if (!wasOnGround && p.vy === 0) events.push('land');
   }

@@ -52,7 +52,10 @@ const Mystery = (function () {
     HR: { item: '城牆石縫裡的地圖', text: '歐羅巴的家鄉叫泰爾，是腓尼基人的港口，在地中海最東邊，今天的黎巴嫩 —— 屬於亞洲。' },
     RS: { item: '木橋下撈起的瓶中信', text: '兩千多年前，希臘史學家希羅多德就覺得奇怪：這片土地，為什麼要用一位亞洲公主的名字？' },
     BG: { item: '玫瑰谷修道院的古書', text: '保加利亞誕生的西里爾字母，是從希臘字母來的；而傳說中，希臘字母是那位尋找妹妹的王子帶來的。' },
-    UA: { item: '一根火鳥的羽毛', text: '歐羅巴的祖母叫利比亞 —— 古希臘人就用她的名字，稱呼地中海對面那片南方大陸。' }
+    UA: { item: '一根火鳥的羽毛', text: '歐羅巴的祖母叫利比亞 —— 古希臘人就用她的名字，稱呼地中海對面那片南方大陸。' },
+    // ── 非洲篇：利比亞（v1.21 第一階段：摩洛哥、肯亞；其餘六國之後補）──
+    MA: { item: '市集地毯店裡的古地圖', text: '古希臘的地圖上，地中海對岸整片南方大陸只寫著一個名字：利比亞。' },
+    KE: { item: '馬賽長老手上的串珠', text: '可是今天這片大陸叫「非洲」。這個名字不是希臘人取的 —— 是後來的羅馬人。' }
   };
 
   /*
@@ -85,7 +88,16 @@ const Mystery = (function () {
       id: 'africa',
       name: '非洲之謎',
       question: '歐羅巴的祖母，為什麼把名字留在了南方？',
-      open: false,
+      /*
+       * v1.21 第一階段：非洲篇只有 2 關，但謎題規劃 8 條線索。
+       * wip = 還在開發中：線索照樣收集、顯示「x / 8」，但不會「到齊」也不會揭曉謎底
+       * （不然打完兩關就跳出謎底畫面，而且謎底畫面目前只會畫歐洲的）。八國都做完再拿掉 wip、補上 answer。
+       */
+      open: true,
+      wip: true,
+      planned: 8,
+      regions: ['africa'],
+      groups: [{ region: 'africa', title: '非洲篇・利比亞' }],
       teaser: '利比亞的父親厄帕福斯，出生在尼羅河畔⋯⋯（非洲篇開發中）'
     },
     {
@@ -118,9 +130,12 @@ const Mystery = (function () {
   }
 
   function progress(contId) {
+    const c = byId(contId);
     const s = slots(contId);
     const got = s.filter(function (x) { return x.got; }).length;
-    return { got: got, total: s.length, complete: s.length > 0 && got === s.length };
+    // 開發中的洲：總數用規劃的線索數，而且永遠不算「到齊」
+    const total = Math.max(s.length, (c && c.planned) || 0);
+    return { got: got, total: total, complete: !(c && c.wip) && s.length > 0 && got === s.length };
   }
 
   /** 這一關屬於哪個洲（沒有回 null） */
