@@ -102,7 +102,13 @@ const Shaft = (function () {
      * 第 1、2 拍實心，第 3 拍消失。站著不動會在第 3 拍掉下去，
      * 從上面落下時剛好遇到第 3 拍也會穿過去。要「數拍子」才踩得穩。
      */
-    beat:    { solid: true,  hurt: false, beat: true }
+    beat:    { solid: true,  hurt: false, beat: true },
+    /*
+     * 冰面（瑞士阿爾卑斯用）：站在上面會滑 —— 加速慢、放開方向鍵也停不下來。
+     * 要提早放開、甚至反方向踩一下才停得住；往上跳時的助跑也會被帶著走。
+     * 不會傷人、也不會消失（climb 模式不能有會消失的平台，見 pickType）。
+     */
+    ice:     { solid: true,  hurt: false, ice: true }
   };
 
   // 節拍台的一拍幾帧（≈ 奧地利曲目 126 BPM 的一拍，平台跟音樂同步）
@@ -163,7 +169,7 @@ const Shaft = (function () {
 
     /*
      * 額外型別（關卡自選）。只有開了 extras 才多抽一次亂數 ——
-     * 否則沒用到的關卡（奧地利、瑞士）樓層排列會整個被打亂。
+     * 否則沒用到的關卡樓層排列會整個被打亂。
      * 滑台不連續出現：兩片都在動的話落點完全讀不出來。
      */
     if (extras && extras.indexOf('slide') >= 0 && floor >= 6 && prevType !== 'slide') {
@@ -172,6 +178,10 @@ const Shaft = (function () {
     // 節拍台也不連續出現：兩層一起消失的話會直接掉兩層，太懲罰
     if (extras && extras.indexOf('beat') >= 0 && floor >= 5 && prevType !== 'beat') {
       if (r() < 0.24 + prog * 0.12) return 'beat';
+    }
+    // 冰面不連續出現：兩層都滑的話，滑下去又落在冰上，玩家會覺得完全控制不了
+    if (extras && extras.indexOf('ice') >= 0 && floor >= 4 && prevType !== 'ice') {
+      if (r() < 0.26 + prog * 0.14) return 'ice';
     }
 
     // 普通平台的比例從 70% 緩降到 46%
@@ -409,6 +419,7 @@ const Shaft = (function () {
     /*
      * 金幣：擺在部分平台上方。
      * 不放在 spike / spring 上（引誘玩家去踩傷害平台很惡意）。
+     * 冰面上可以放：滑過去順手撿是冰面的樂趣之一。
      *
      * climb 模式不放 spring 的限制可以放寬 —— 往上爬時彈簧是助力
      * 而不是陷阱，但為了程式單純還是一併跳過。

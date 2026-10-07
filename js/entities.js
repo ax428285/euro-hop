@@ -367,6 +367,12 @@ function respawnInShaft(state, invulnFrames, who) {
     if (f.gone) return;
     // 不要重生在節拍台上（下一拍就消失，等於一重生又掉下去）
     if (f.type === 'beat' || f.type === 'slide') return;
+    /*
+     * 也不要重生在尖刺上：無敵時間一過就被刺，等於重生在陷阱裡。
+     * v1.19 瑞士關實測：雪崩追到頂端時唯一合格的是第 26 層尖刺台，
+     * 重生 → 從尖刺台起跳沒接到 → 掉進雪崩 → 又重生在同一層，無限循環。
+     */
+    if (f.type === 'spike') return;
     const top = f.rect.y;
     if (pl.mode === 'climb') {
       if (top > hz - 70) return;            // 離雪崩至少 70px
@@ -1141,13 +1147,20 @@ function updatePlayer(state, input, t, who) {
   const solids = solidsOf(state);
 
   // ── 水平輸入（涼鞋加速） ──
+  /*
+   * 站在冰面上（上一帧踩到的是瑞士關的冰面）：加速變慢、放開後還會滑一段。
+   * 摩擦 0.95：全速放開約再滑 45px（平台寬 108）—— 要提早放開，但不會一放就整個滑下去。
+   * （試過 0.975：放開後滑 86px，幾乎每次都滑出平台，太懲罰）
+   */
+  const onIce = p.onIce && p.onGround;
   const maxRun = PHYS.MAX_RUN * st.speed;
-  const accel = PHYS.ACCEL * (st.speed > 1 ? 1.15 : 1);
+  const accel = PHYS.ACCEL * (st.speed > 1 ? 1.15 : 1) * (onIce ? 0.3 : 1);
+  const friction = onIce ? 0.95 : PHYS.FRICTION;
   const left = input.isDown('left');
   const right = input.isDown('right');
   if (left && !right) { p.vx -= accel; p.facing = -1; }
   else if (right && !left) { p.vx += accel; p.facing = 1; }
-  else { p.vx *= PHYS.FRICTION; if (Math.abs(p.vx) < 0.05) p.vx = 0; }
+  else { p.vx *= friction; if (Math.abs(p.vx) < 0.05) p.vx = 0; }
   p.vx = U.clamp(p.vx, -maxRun, maxRun);
 
   // ── 跳躍 ──
@@ -1406,12 +1419,16 @@ function updatePlayer(state, input, t, who) {
    * 必須放在垂直碰撞之後（要知道踩到了誰），
    * 但在「尖刺天花板 / 死亡判定」之前（彈簧可能把玩家送上去吃尖刺）。
    */
+  p.onIce = false;
   if (state.shaft && landedOn) {
     const sf = state.shaft.floors.filter(function (f) {
       return !f.gone && f.rect === landedOn;
     })[0];
     if (sf) {
       const spec = Shaft.TYPES[sf.type] || Shaft.TYPES.normal;
+
+      // 冰面：下一帧的水平移動會讀這個（見「水平輸入」）
+      if (spec.ice) p.onIce = true;
 
       if (!sf.touched) {
         sf.touched = true;

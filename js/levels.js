@@ -618,6 +618,15 @@ const Levels = (function () {
     groundTop: '#eaf2f8', groundBody: '#49607a',
     deco: 'pine',
     mode: 'climb',
+    // 美術主題：阿爾卑斯山（雪山遠景、馬特洪峰、岩壁積雪、山頂十字架，見 Sprites.shaftBackdrop）
+    theme: 'alps',
+    /*
+     * v1.19 玩家：瑞士關有點單調（三座豎井只有這座沒有專屬機關）。加兩個：
+     *   ice      冰面：站上去會滑，要提早放開方向鍵
+     *   轟隆      每隔一段時間山上傳來轟隆聲，雪崩加速追上來（跟英國鐘聲同一套機制）
+     */
+    extras: ['ice'],
+    chime: { every: 660, dur: 100, boost: 1.35, label: '轟隆隆——', sub: '雪崩加速追上來了！', sound: 'rumble', from: 'bottom' },
     /*
      * 往上爬的參數要比往下降保守：
      *   層距 84 —— 必須明顯小於基礎跳躍高度（約 128px），

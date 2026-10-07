@@ -3008,6 +3008,24 @@ const Sprites = (function () {
       return;
     }
 
+    if (f.goal && theme === 'alps') {
+      // 阿爾卑斯的終點：山頂積雪 + 登頂十字架
+      ctx.fillStyle = '#6a7686';
+      ctx.fillRect(x, y + 4, w, h - 4);
+      ctx.fillStyle = '#f6fbff';
+      ctx.beginPath();
+      ctx.moveTo(x, y + 8);
+      for (let px = x; px <= x + w; px += 24) ctx.quadraticCurveTo(px + 12, y - 4, px + 24, y + 6);
+      ctx.lineTo(x + w, y + 10); ctx.lineTo(x, y + 10);
+      ctx.closePath(); ctx.fill();
+      // 十字架（阿爾卑斯山頂常見的登頂十字架）
+      const cx = x + w - 70;
+      ctx.fillStyle = '#5a3c26';
+      ctx.fillRect(cx - 2.5, y - 58, 5, 60);
+      ctx.fillRect(cx - 16, y - 44, 32, 5);
+      return;
+    }
+
     if (f.goal) {
       // 抵達層：整條金色平台，看起來就是終點
       ctx.fillStyle = '#6b5a3c';
@@ -3140,6 +3158,52 @@ const Sprites = (function () {
         ctx.fillStyle = i === beat ? (i === 2 ? '#ff6b7a' : '#ffd166') : 'rgba(255,255,255,0.25)';
         ctx.beginPath(); ctx.arc(x + w / 2 - 12 + i * 12, y - 6, 3, 0, Math.PI * 2); ctx.fill();
       }
+    } else if (f.type === 'ice') {
+      /*
+       * 冰面：半透明的淡藍冰塊 + 斜向反光 + 一道會掃過去的亮光。
+       * 跟積雪的木板（普通平台）一眼分得出來：沒有雪、整塊是亮藍色。
+       */
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, '#e6f7ff');
+      g.addColorStop(1, '#7cc4ea');
+      ctx.fillStyle = g;
+      U.roundRect(ctx, x, y, w, h, 4); ctx.fill();
+      ctx.strokeStyle = 'rgba(40, 110, 160, 0.55)';
+      ctx.lineWidth = 1.2;
+      U.roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 4); ctx.stroke();
+      // 斜向反光
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 2;
+      for (let sx = x + 10; sx < x + w - 10; sx += 26) {
+        ctx.beginPath(); ctx.moveTo(sx, y + h - 3); ctx.lineTo(sx + 8, y + 3); ctx.stroke();
+      }
+      // 掃過去的亮光（約 2.5 秒一次）
+      const sweep = ((t * 2) % 300) - 40;
+      if (sweep > 0 && sweep < w) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.fillRect(x + sweep, y + 1, 6, h - 2);
+      }
+      // 底下垂著的小冰柱
+      ctx.fillStyle = 'rgba(190, 230, 250, 0.9)';
+      for (let ix = x + 8; ix < x + w - 6; ix += 17) {
+        const len = 5 + ((ix * 7) % 5);
+        ctx.beginPath(); ctx.moveTo(ix, y + h); ctx.lineTo(ix + 3, y + h + len); ctx.lineTo(ix + 6, y + h); ctx.fill();
+      }
+    } else if (theme === 'alps') {
+      // 阿爾卑斯的普通樓層：木板棧道 + 上面一層積雪（踩得穩、不會滑）
+      ctx.fillStyle = '#6e4e32';
+      U.roundRect(ctx, x, y + 3, w, h - 3, 3); ctx.fill();
+      ctx.strokeStyle = 'rgba(30, 18, 10, 0.4)';
+      ctx.lineWidth = 1;
+      for (let px = x + 18; px < x + w - 4; px += 18) {
+        ctx.beginPath(); ctx.moveTo(px, y + 6); ctx.lineTo(px, y + h); ctx.stroke();
+      }
+      ctx.fillStyle = '#f7fbff';
+      ctx.beginPath();
+      ctx.moveTo(x - 1, y + 6);
+      for (let px = x; px < x + w; px += 14) ctx.quadraticCurveTo(px + 7, y - 3, px + 14, y + 4);
+      ctx.lineTo(x + w + 1, y + 6);
+      ctx.closePath(); ctx.fill();
     } else if (theme === 'opera') {
       // 歌劇院的普通樓層：大理石板 + 金邊
       const g = ctx.createLinearGradient(0, y, 0, y + h);
@@ -3228,6 +3292,150 @@ const Sprites = (function () {
       ctx.fillRect(px, py, 3, 3);
     }
     ctx.restore();
+  }
+
+  // ── 瑞士阿爾卑斯主題（theme: 'alps'） ─────────────────────────
+
+  /** 一座雪峰：山體 + 山頂積雪（積雪用同一個三角形往下截一段） */
+  function snowPeak(ctx, cx, baseY, halfW, hgt, body, snow) {
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(cx - halfW, baseY); ctx.lineTo(cx, baseY - hgt); ctx.lineTo(cx + halfW, baseY);
+    ctx.closePath(); ctx.fill();
+    const k = 0.32;     // 積雪佔山高的比例
+    ctx.fillStyle = snow;
+    ctx.beginPath();
+    ctx.moveTo(cx - halfW * k, baseY - hgt * (1 - k));
+    ctx.lineTo(cx, baseY - hgt);
+    ctx.lineTo(cx + halfW * k, baseY - hgt * (1 - k));
+    // 雪線不是直的：鋸齒往下
+    ctx.lineTo(cx + halfW * k * 0.5, baseY - hgt * (1 - k) + 8);
+    ctx.lineTo(cx, baseY - hgt * (1 - k) - 2);
+    ctx.lineTo(cx - halfW * k * 0.45, baseY - hgt * (1 - k) + 10);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /**
+   * 阿爾卑斯的背景（螢幕座標，自己算視差）。
+   *   遠：一排排雪峰，越往上爬越往下沉（像離山谷越來越遠）
+   *   中：馬特洪峰（歪頭的金字塔形，一眼認得出），每爬一大段經過一次
+   *   近：飄過的雲、落下的雪花
+   * 顏色刻意淡：平台與岩壁要跟背景分得開。
+   */
+  function alpsBackdrop(ctx, camY, t, W, H) {
+    ctx.save();
+
+    // 遠景群峰（視差 0.15，每 520 一排）
+    const farY = camY * 0.15;
+    const ROW = 520;
+    const r0 = Math.floor((farY - 200) / ROW);
+    for (let i = r0; i < r0 + Math.ceil(H / ROW) + 2; i++) {
+      const base = i * ROW + 420 - farY;
+      if (base < -40 || base > H + 300) continue;
+      for (let k = 0; k < 6; k++) {
+        const cx = ((k * 211 + i * 97) % 1100) - 70;
+        const hw = 110 + ((k * 37 + i * 13) % 70);
+        const hg = 120 + ((k * 53 + i * 29) % 90);
+        snowPeak(ctx, cx, base, hw, hg, 'rgba(96, 128, 160, 0.35)', 'rgba(250, 252, 255, 0.55)');
+      }
+    }
+
+    // 中景：馬特洪峰（視差 0.3，每 1500 經過一座）
+    const midY = camY * 0.3;
+    const MH = 1500;
+    const m0 = Math.floor((midY - 300) / MH);
+    for (let i = m0; i < m0 + 3; i++) {
+      const base = i * MH + 520 - midY;
+      if (base < -20 || base > H + 420) continue;
+      const cx = 480 + ((i % 2) ? 120 : -120);
+      ctx.fillStyle = 'rgba(74, 96, 122, 0.42)';
+      ctx.beginPath();
+      // 馬特洪峰的形：東壁陡、山頂往右勾一點
+      ctx.moveTo(cx - 230, base);
+      ctx.lineTo(cx - 40, base - 250);
+      ctx.lineTo(cx + 6, base - 330);
+      ctx.lineTo(cx + 26, base - 312);
+      ctx.lineTo(cx + 70, base - 220);
+      ctx.lineTo(cx + 240, base);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(252, 253, 255, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(cx - 52, base - 236);
+      ctx.lineTo(cx + 6, base - 330);
+      ctx.lineTo(cx + 26, base - 312);
+      ctx.lineTo(cx + 56, base - 246);
+      ctx.lineTo(cx + 30, base - 256);
+      ctx.lineTo(cx + 8, base - 240);
+      ctx.lineTo(cx - 20, base - 252);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // 近景：雲（視差 0.55，橫向慢慢飄）
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    for (let i = 0; i < 6; i++) {
+      const px = ((i * 263 + t * (0.15 + (i % 3) * 0.05)) % (W + 300)) - 150;
+      const py = (((i * 331) - camY * 0.55) % (H + 200) + H + 200) % (H + 200) - 100;
+      ctx.beginPath();
+      ctx.ellipse(px, py, 70, 16, 0, 0, Math.PI * 2);
+      ctx.ellipse(px + 40, py - 8, 46, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 雪花：斜斜地往下飄（跟爬的方向相反，更有「往上」的感覺）
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    for (let i = 0; i < 46; i++) {
+      const px = (((i * 157) + Math.sin(t * 0.02 + i) * 14 + t * 0.3) % W + W) % W;
+      const py = (((i * 211) - camY * 0.9 + t * (0.7 + (i % 4) * 0.2)) % H + H) % H;
+      const s = 1.5 + (i % 3) * 0.7;
+      ctx.fillRect(px, py, s, s);
+    }
+
+    ctx.restore();
+  }
+
+  /** 阿爾卑斯的岩壁：灰藍岩層 + 內緣的積雪與冰柱（世界座標，跟著捲動） */
+  function alpsWall(ctx, wall, camY, viewH) {
+    const g = ctx.createLinearGradient(wall.x, 0, wall.x + wall.w, 0);
+    const leftSide = wall.x < 480;
+    g.addColorStop(leftSide ? 0 : 1, '#3e4a5a');
+    g.addColorStop(leftSide ? 1 : 0, '#66788c');
+    ctx.fillStyle = g;
+    ctx.fillRect(wall.x, camY - 20, wall.w, viewH + 40);
+
+    const inner = leftSide ? wall.x + wall.w : wall.x;
+    const out = leftSide ? -1 : 1;     // 往岩壁裡面的方向
+    const STEP = 70;
+    const y0 = Math.floor((camY - 80) / STEP) * STEP;
+    for (let wy = y0; wy < camY + viewH + 80; wy += STEP) {
+      const h = (wy * 7919) % 97;      // 每段的固定亂數，捲動時不會閃
+      // 岩層裂縫
+      ctx.strokeStyle = 'rgba(25, 32, 44, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(inner + out * 6, wy + h % 30);
+      ctx.lineTo(inner + out * (40 + h % 40), wy + 18 + h % 20);
+      ctx.lineTo(inner + out * (90 + h % 50), wy + 10 + h % 26);
+      ctx.stroke();
+      // 內緣的積雪小台
+      ctx.fillStyle = '#f2f8fd';
+      ctx.beginPath();
+      ctx.ellipse(inner + out * 10, wy + 40, 16, 6, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(inner + out * 10 - (leftSide ? 16 : 0), wy + 40, 16, 3);
+      // 冰柱
+      ctx.fillStyle = 'rgba(200, 236, 252, 0.85)';
+      for (let k = 0; k < 3; k++) {
+        const ix = inner + out * (4 + k * 7) - (leftSide ? 4 : 0);
+        ctx.beginPath(); ctx.moveTo(ix, wy + 43); ctx.lineTo(ix + 2, wy + 52 + (h + k * 3) % 8); ctx.lineTo(ix + 4, wy + 43); ctx.fill();
+      }
+    }
+    // 內緣亮線（跟其他井一樣，讓邊界清楚）
+    ctx.strokeStyle = 'rgba(230, 242, 252, 0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(inner, camY - 20);
+    ctx.lineTo(inner, camY + viewH + 20);
+    ctx.stroke();
   }
 
   // ── 英國鐘塔主題（theme: 'bigben'） ─────────────────────────
@@ -3332,6 +3540,7 @@ const Sprites = (function () {
    */
   function shaftBackdrop(ctx, theme, camY, t, W, H) {
     if (theme === 'opera') { operaBackdrop(ctx, camY, t, W, H); return; }
+    if (theme === 'alps') { alpsBackdrop(ctx, camY, t, W, H); return; }
     if (theme !== 'bigben') return;
     ctx.save();
 
@@ -3767,17 +3976,24 @@ const Sprites = (function () {
   function chimeOverlay(ctx, life, W, H, cfg) {
     const label = (cfg && cfg.label) || '噹——';
     const sub = (cfg && cfg.sub) || '鐘聲響起，捲動加速！';
+    // from: 'bottom'（瑞士雪崩轟隆）：波紋從畫面底部的雪崩往上擴散，白色；預設是鐘聲從上面擴散，金色
+    const bottom = cfg && cfg.from === 'bottom';
     const k = 1 - life / 90;          // 0 → 1
     ctx.save();
     ctx.globalAlpha = Math.min(1, life / 30);
     for (let i = 0; i < 3; i++) {
       const rr = 40 + (k + i * 0.18) * 520;
-      ctx.strokeStyle = 'rgba(255, 214, 120, ' + (0.5 * (1 - k)).toFixed(3) + ')';
-      ctx.lineWidth = 4 - i;
-      ctx.beginPath(); ctx.arc(W / 2, 60, rr, 0, Math.PI); ctx.stroke();
+      ctx.strokeStyle = bottom
+        ? 'rgba(235, 245, 255, ' + (0.6 * (1 - k)).toFixed(3) + ')'
+        : 'rgba(255, 214, 120, ' + (0.5 * (1 - k)).toFixed(3) + ')';
+      ctx.lineWidth = bottom ? 6 - i * 1.5 : 4 - i;
+      ctx.beginPath();
+      if (bottom) ctx.arc(W / 2, H - 30, rr, Math.PI, Math.PI * 2);
+      else ctx.arc(W / 2, 60, rr, 0, Math.PI);
+      ctx.stroke();
     }
-    U.text(ctx, label, W / 2, 110 - k * 10, { size: 34, color: '#ffd166', strokeWidth: 6 });
-    U.text(ctx, sub, W / 2, 144, { size: 14, color: '#f3e3c0' });
+    U.text(ctx, label, W / 2, 110 - k * 10, { size: 34, color: bottom ? '#ffffff' : '#ffd166', strokeWidth: 6 });
+    U.text(ctx, sub, W / 2, 144, { size: 14, color: bottom ? '#e3eef8' : '#f3e3c0' });
     ctx.restore();
   }
 
@@ -3785,6 +4001,7 @@ const Sprites = (function () {
   function shaftWall(ctx, wall, camY, viewH, theme, t) {
     if (theme === 'bigben') { bigBenWall(ctx, wall, camY, viewH, t || 0); return; }
     if (theme === 'opera') { operaWall(ctx, wall, camY, viewH, t || 0); return; }
+    if (theme === 'alps') { alpsWall(ctx, wall, camY, viewH); return; }
     ctx.fillStyle = '#2f2b36';
     ctx.fillRect(wall.x, camY - 20, wall.w, viewH + 40);
     // 內緣亮線，讓井道邊界明確

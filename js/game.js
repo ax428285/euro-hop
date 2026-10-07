@@ -528,8 +528,10 @@ const Game = (function () {
           break;
         case 'chime': {
           const cs = state.def.shaft && state.def.shaft.chime;
-          if (cs && cs.sound === 'fanfare') Sfx.fanfare(); else Sfx.bell();
-          shake = 6;
+          if (cs && cs.sound === 'fanfare') Sfx.fanfare();
+          else if (cs && cs.sound === 'rumble') Sfx.bossRoar();   // 瑞士：雪崩轟隆聲
+          else Sfx.bell();
+          shake = cs && cs.sound === 'rumble' ? 12 : 6;
           break;
         }
         case 'stampede': Sfx.bossRoar(); shake = 12; break;
@@ -1207,7 +1209,8 @@ const Game = (function () {
       U.roundRect(ctx, W / 2 - 215, by, 430, 48, 8); ctx.fill();
       U.text(ctx, climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
         W / 2, by + 18, { size: 16, color: '#ffd166' });
-      U.text(ctx, climb ? '←→ 移動　空白 跳躍　平台可以從下面穿過去'
+      U.text(ctx, climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・冰面會滑・轟隆聲響起時雪崩加速'
+                                                : '←→ 移動　空白 跳躍　平台可以從下面穿過去')
                         : def.theme === 'bigben' ? '往下掉時小心鐘擺・鐘聲響起時會加速'
                         : def.theme === 'opera' ? '鋼琴鍵平台第 3 拍會消失・小心飛來的音符'
                         : '←→ 移動　掉出畫面下方也會死',
