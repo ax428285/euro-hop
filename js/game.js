@@ -532,7 +532,10 @@ const Game = (function () {
         }
         break;
 
-      case 'shop': updateShop(); break;
+      case 'shop':
+        if (shopSeller === 'portugal' && cheatTyped()) { cheatMap(); break; }
+        updateShop();
+        break;
       case 'shipyard': updateShipyard(); break;
       case 'market': updateMarket(); break;
 
@@ -785,13 +788,36 @@ const Game = (function () {
 
   const CHEAT = 'UUDDLRLR';
   let cheatBuf = '';
-  function checkCheat() {
+  /** 這一帧有沒有剛好打完密技 ↑↑↓↓←→←→（裝備畫面 = 裝備全開；葡萄牙商店 = 地圖全開） */
+  function cheatTyped() {
     const k = Input.once('up') ? 'U' : Input.once('down') ? 'D' :
               Input.once('left') ? 'L' : Input.once('right') ? 'R' : '';
     if (!k) return false;
     cheatBuf = (cheatBuf + k).slice(-CHEAT.length);
     if (cheatBuf !== CHEAT) return false;
     cheatBuf = '';
+    return true;
+  }
+
+  /**
+   * v1.31 玩家：增加密技「地圖全開」（在葡萄牙商店按跟裝備全開一樣的密技）。
+   * 所有篇章一次解鎖：東歐、非洲（EXP 補到門檻）、北歐（索爾的結界解開）、美洲（哥倫布的委託完成）、南美（美洲 EXP 補到門檻）。
+   */
+  function cheatMap() {
+    const sv = Save.get();
+    const needExp = Math.max.apply(null, Encounter.EXP_REGIONS.map(function (r) { return r.exp; }));
+    if (sv.exp < needExp) Save.gainExp(needExp - sv.exp);
+    ['thorAsked', 'loki', 'north'].forEach(function (k) { if (!Save.flag(k)) Save.setFlag(k, 1); });
+    if (Save.flag('columbus') < 2) Save.setFlag('columbus', 2);
+    if (Save.expAm() < Encounter.SOUTH_EXP) { sv.expAm = Encounter.SOUTH_EXP; Save.touch(); }
+    sv.unlocked = Levels.count;
+    Save.touch();
+    Sfx.fanfare();
+    shopMsg = { text: '密技發動！地圖全開 —— 東歐、非洲、北歐、美洲、南美全部解鎖', color: '#ffd166', life: 240 };
+  }
+
+  function checkCheat() {
+    if (!cheatTyped()) return false;
     Equipment.defs.forEach(function (d) { Save.addEquip(d.id); });
     // 全部到手後，每個部位換成最好的那件（不然會停在「最早撿到的」那件）
     Equipment.pickWorn(Save.get().equipment).forEach(function (id) { Save.wear(id); });
