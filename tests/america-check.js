@@ -12,7 +12,7 @@
  *   E) 巴西足球：踩守門員的頭沒用；球滾進球門 = 扣一格；守門員站著時貼地球會被擋回來；
  *      他躺下（破綻期）時完全擋不到球（貼地球也進得去）；守門員不會撞傷人；踢球機器人贏得了
  *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型
- *   G) 新大陸的海上怪：新大陸只生新大陸的怪（鵜鶘、黑鬍子、海豚、黃金海龜），玩法沿用歐洲那四種；
+ *   G) 新大陸的海上怪：新大陸只生新大陸的怪（食人魚、黑鬍子、海豚、黃金海龜）；食人魚是新玩法，其他三種沿用歐洲的玩法；
  *      打贏給「美洲 EXP」（跟歐洲的分開）；美洲 EXP 夠了才解鎖南美（哥倫比亞、巴西），中美洲一開始就能玩
  * 會暫時改存檔、換地圖，結束前還原。
  */
@@ -224,7 +224,7 @@ function runAmericaCheck() {
   (function () {
     const was = WorldMap.world();
     WorldMap.useWorld('am'); Voyage.rebuild(); Encounter.clear();
-    const AMK = ['pelicans', 'buccaneers', 'dolphins', 'goldturtle'];
+    const AMK = ['piranhas', 'buccaneers', 'dolphins', 'goldturtle'];
     sv.expAm = 200;
     const seen = {};
     for (let k = 0; k < 400; k++) {
@@ -232,16 +232,17 @@ function runAmericaCheck() {
       if (m) { seen[m.kind] = true; Encounter.remove(m); }
     }
     Object.keys(seen).forEach(function (kd) { if (AMK.indexOf(kd) < 0) issues.push('新大陸生出了歐洲的怪：' + kd); });
-    ['pelicans', 'buccaneers', 'dolphins'].forEach(function (kd) { if (!seen[kd]) issues.push('新大陸一直沒生出 ' + kd); });
+    ['piranhas', 'buccaneers', 'dolphins'].forEach(function (kd) { if (!seen[kd]) issues.push('新大陸一直沒生出 ' + kd); });
     Encounter.clear();
     WorldMap.useWorld(was); Voyage.rebuild();
-    const BASE = { pelicans: 'gulls', buccaneers: 'pirates', dolphins: 'serpent', goldturtle: 'golden' };
+    // 食人魚是自己的新玩法；其他三種沿用歐洲的玩法
+    const BASE = { piranhas: 'piranhas', buccaneers: 'pirates', dolphins: 'serpent', goldturtle: 'golden' };
     AMK.forEach(function (kd) {
       const k = Encounter.KINDS[kd];
       if (!k || !k.am) { issues.push(kd + '：不是新大陸的怪'); return; }
       const d = Encounter.makeDef({ kind: kd, def: k, x: 0, y: 0 }, Equipment.resolve([]));
       if (d.minigame !== BASE[kd]) issues.push(kd + '：玩法應該沿用 ' + BASE[kd] + '，現在是 ' + d.minigame);
-      if (!d.am || !d.skin) issues.push(kd + '：遭遇戰沒標記新大陸（美洲 EXP）或沒有換外觀');
+      if (!d.am || (kd !== 'piranhas' && !d.skin)) issues.push(kd + '：遭遇戰沒標記新大陸（美洲 EXP）或沒有換外觀');
     });
     // 美洲 EXP 分開算，南美要 SOUTH_EXP
     const e0 = sv.exp;

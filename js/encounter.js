@@ -104,7 +104,12 @@ const Encounter = (function () {
    * 玩法沿用歐洲那四種（base），換成加勒比海的東西（skin）；打贏給的是「美洲 EXP」（Save.expAm），
    * 累積到 SOUTH_EXP 解鎖南美（哥倫比亞、巴西）。
    */
-  KINDS.pelicans   = { name: '鵜鶘群',     lv: 1, exp: 70,  game: '守護漁獲', goal: '鵜鶘頭上出現「!」在盤旋時，跳起來碰牠就嚇跑了', base: 'gulls', skin: 'pelican', am: true };
+  /*
+   * 食人魚（v1.31 玩家：鵜鶘群改成食人魚，換種玩法）—— 自己的玩法 'piranhas'：
+   *   站在亞馬遜河中間的木頭碼頭上，兩邊的河裡不時冒泡（預告），食人魚從那裡跳出來飛過碼頭 —— 被咬到會痛；
+   *   有些跳不夠遠，掉在甲板上啪啪亂彈 —— 這時踩下去就抓進桶子裡。限時內抓到 PIRANHA_GOAL 隻就贏。
+   */
+  KINDS.piranhas   = { name: '食人魚群',   lv: 1, exp: 70,  game: '抓食人魚', goal: '河面冒泡就是要跳出來了！別被飛過來的咬到，掉在甲板上亂彈的踩下去抓起來', am: true };
   KINDS.buccaneers = { name: '黑鬍子海盜船', lv: 2, exp: 90, game: '艦砲對決', goal: '抓準砲口角度，命中黑鬍子的「安妮女王復仇號」5 次', base: 'pirates', skin: 'blackbeard', am: true };
   KINDS.dolphins   = { name: '頑皮海豚',   lv: 3, exp: 130, game: '拍拍頭',   goal: '海豚從甲板的洞探出頭時，跳上去拍拍牠的頭 6 次', base: 'serpent', skin: 'dolphin', am: true };
   KINDS.goldturtle = { name: '黃金海龜',   lv: '★', exp: 60, game: '捕捉',     goal: '碰到牠 3 次就抓到了！', rare: true, base: 'golden', skin: 'turtle', am: true };
@@ -169,11 +174,11 @@ const Encounter = (function () {
     // v1.31 新大陸：換成加勒比海的怪，強度看美洲 EXP
     if (inAmerica()) {
       const ea = typeof Save !== 'undefined' && Save.expAm ? Save.expAm() : 0;
-      const wa = [['pelicans', 5], ['buccaneers', (ea >= 30 ? 3 : 1) + cargo * 2], ['dolphins', ea >= 90 ? 2 : 0]];
+      const wa = [['piranhas', 5], ['buccaneers', (ea >= 30 ? 3 : 1) + cargo * 2], ['dolphins', ea >= 90 ? 2 : 0]];
       const ta = wa.reduce(function (s, x) { return s + x[1]; }, 0);
       let ra = Math.random() * ta;
       for (let i = 0; i < wa.length; i++) { ra -= wa[i][1]; if (ra < 0) return wa[i][0]; }
-      return 'pelicans';
+      return 'piranhas';
     }
     const w = [['gulls', 5], ['pirates', (exp >= 30 ? 3 : 1) + cargo * 2], ['serpent', exp >= 90 ? 2 : 0]];
     const total = w.reduce(function (s, x) { return s + x[1]; }, 0);
@@ -323,16 +328,18 @@ const Encounter = (function () {
     }
   }
 
-  /** v1.31 新大陸：鵜鶘群（大嘴巴下面掛著一個喉囊） */
-  function drawPelicans(ctx, t) {
+  /** v1.31 新大陸：一群食人魚在水面翻騰（跳出水面的那隻會換來換去） */
+  function drawPiranhaMap(ctx, t) {
+    ctx.strokeStyle = 'rgba(220, 240, 255, 0.7)'; ctx.lineWidth = 1;
+    for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse((k - 1) * 7, 4, 4 + ((t * 0.2 + k * 3) % 4), 1.6, 0, 0, Math.PI * 2); ctx.stroke(); }
     for (let i = 0; i < 3; i++) {
-      const a = t * 0.04 + i * 2.1;
-      const x = Math.cos(a) * 9, y = Math.sin(a) * 4 - 7;
-      const flap = Math.sin(t * 0.22 + i) * 2.5;
-      ctx.strokeStyle = '#e8e2d2'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x - 7, y - flap); ctx.quadraticCurveTo(x - 3, y - 4, x, y); ctx.quadraticCurveTo(x + 3, y - 4, x + 7, y - flap); ctx.stroke();
-      ctx.fillStyle = '#f2b030'; ctx.fillRect(x + 1, y - 1, 5, 1.6);
-      ctx.fillStyle = '#e89a40'; ctx.beginPath(); ctx.ellipse(x + 3, y + 1.4, 2.2, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+      const ph = (t * 0.07 + i * 2.1) % (Math.PI * 2), up = Math.max(0, Math.sin(ph)) * 7;
+      if (up <= 0.5) continue;
+      ctx.save(); ctx.translate((i - 1) * 8, 2 - up); ctx.rotate(Math.cos(ph) * -0.6);
+      ctx.fillStyle = '#5a6a72'; ctx.beginPath(); ctx.ellipse(0, 0, 5, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d8402a'; ctx.beginPath(); ctx.ellipse(0, 1.4, 4, 1.8, 0, 0, Math.PI); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-8, -2.5); ctx.lineTo(-8, 2.5); ctx.closePath(); ctx.fillStyle = '#5a6a72'; ctx.fill();
+      ctx.restore();
     }
   }
   /** v1.31 新大陸：從水裡跳出來的海豚 */
@@ -571,7 +578,7 @@ const Encounter = (function () {
       ctx.beginPath(); ctx.arc(0, 0, pulse, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = 'rgba(220, 238, 255, 0.5)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.ellipse(0, 5, 12, 3, 0, 0, Math.PI * 2); ctx.stroke();
-      if (m.def.skin === 'pelican') drawPelicans(ctx, t);
+      if (m.kind === 'piranhas') drawPiranhaMap(ctx, t);
       else if (m.def.skin === 'blackbeard') drawPirate(ctx, t, m.heading, true);
       else if (m.def.skin === 'dolphin') drawDolphinMap(ctx, t);
       else if (m.kind === 'gulls') drawGulls(ctx, t);
@@ -587,7 +594,14 @@ const Encounter = (function () {
   // ── 小遊戲：關卡定義 ───────────────────────────────────
 
   const ARENA_W = 960;
-  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60, charybdis: 40 * 60 };
+  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60, charybdis: 40 * 60, piranhas: 40 * 60 };
+  /*
+   * 食人魚的碼頭：場地中間 DOCK 是木頭碼頭，兩邊是河（掉下去會痛、被拉回碼頭）。
+   * 食人魚從兩邊的河裡起跳：先冒泡 PIRANHA_WARN 帧，再沿拋物線飛過碼頭；
+   * 每 3 隻有 1 隻跳不夠遠（short），落在甲板上亂彈 PIRANHA_FLOP 帧，再跳回河裡。
+   */
+  const DOCK = { x0: 170, x1: 790 };
+  const PIRANHA_GOAL = 6, PIRANHA_WARN = 42, PIRANHA_FLOP = 170, PIRANHA_G = 0.3;
   // 漩渦逃生：場地中間是漩渦眼（掉下去會痛、被甩回岸邊）
   const EYE = { x: 400, w: 160 };
   /*
@@ -742,8 +756,14 @@ const Encounter = (function () {
       bossArena: { x: 0, y: 0, w: deckW, h: 480 },
       ground: kind === 'charybdis'
         ? [{ x: 0, y: GY, w: EYE.x, h: Levels.GROUND_H }, { x: EYE.x + EYE.w, y: GY, w: ARENA_W - EYE.x - EYE.w, h: Levels.GROUND_H }]
-        : [{ x: 0, y: GY, w: deckW, h: Levels.GROUND_H }],
-      water: [], spikes: [], props: [],
+        : kind === 'piranhas'
+          ? [{ x: DOCK.x0, y: GY, w: DOCK.x1 - DOCK.x0, h: Levels.GROUND_H }]
+          : [{ x: 0, y: GY, w: deckW, h: Levels.GROUND_H }],
+      // 食人魚：碼頭兩邊的河（掉下去會痛、被拉回碼頭上）
+      water: kind === 'piranhas'
+        ? [{ x: 0, y: GY + 30, w: DOCK.x0 - 4, h: 60 }, { x: DOCK.x1 + 4, y: GY + 30, w: ARENA_W - DOCK.x1 - 4, h: 60 }]
+        : [],
+      spikes: [], props: [],
       platforms: kind === 'gulls'
         ? [{ x: 150, y: 290, w: 130, h: 18 }, { x: 680, y: 290, w: 130, h: 18 }]
         : kind === 'golden'
@@ -778,6 +798,7 @@ const Encounter = (function () {
     }
     if (kind === 'serpent') { mini.hits = 0; mini.heads = HOLES.map(function (x) { return { x: x, up: 0, t: 0, spat: false }; }); mini.next = 40; mini.seq = 0; }
     if (kind === 'golden') { mini.caught = 0; mini.px = 700; mini.py = 200; mini.cool = 0; mini.phase = 0; mini.speed = 0.022; }
+    if (kind === 'piranhas') { mini.caught = 0; mini.fish = []; mini.next = 50; mini.seq = 0; }
     if (kind === 'charybdis') {
       mini.got = 0; mini.buoy = null; mini.next = 40; mini.seq = 0; mini.junk = []; mini.junkCd = 120;
     }
@@ -849,6 +870,60 @@ const Encounter = (function () {
 
     function win() { mini.done = true; state.cleared = true; events.push('clear'); }
     function fail() { mini.done = true; events.push('minifail'); }
+
+    if (mini.kind === 'piranhas') {
+      // 冒泡 → 起跳。左右輪流，越後面越密
+      if (--mini.next <= 0) {
+        const n = mini.seq++;
+        mini.next = Math.max(34, 62 - Math.floor(mini.elapsed / 120));
+        const left = n % 2 === 0;
+        const x = left ? 40 + (n * 37) % 90 : ARENA_W - 130 + (n * 37) % 90;
+        const short = n % 3 === 1;
+        // 短的落在碼頭上（離起點 200～420），長的飛過整個碼頭落到對面的河裡
+        const dest = short ? x + (left ? 1 : -1) * (220 + (n * 53) % 200) : (left ? DOCK.x1 + 60 : DOCK.x0 - 60);
+        // 長跳飛得高：在碼頭中間會從跳起來的人頭頂上飛過去（只有碼頭兩端比較低，要看冒泡躲開）
+        const vy = short ? -8.6 : -11.8;
+        const T = 2 * -vy / PIRANHA_G;
+        mini.fish.push({ x: x, y: GY + 40, vx: (dest - x) / T, vy: vy, w: 30, h: 18, state: 'warn', t: PIRANHA_WARN, short: short, dir: left ? 1 : -1 });
+      }
+      mini.fish.forEach(function (f) {
+        if (f.state === 'warn') {
+          if (--f.t <= 0) { f.state = 'leap'; f.y = GY + 10; }
+          return;
+        }
+        if (f.state === 'leap') {
+          f.x += f.vx; f.y += f.vy; f.vy += PIRANHA_G;
+          f.dir = f.vx >= 0 ? 1 : -1;
+          const onDock = f.x + f.w / 2 > DOCK.x0 && f.x + f.w / 2 < DOCK.x1;
+          if (f.vy > 0 && f.short && onDock && f.y + f.h >= GY) { f.y = GY - f.h; f.state = 'flop'; f.t = PIRANHA_FLOP; }
+          else if (f.y > GY + 60) f.state = 'gone';
+        } else if (f.state === 'flop') {
+          // 在甲板上啪啪亂彈；時間到就往最近的河跳回去（逃命的這一跳不咬人）
+          f.y = GY - f.h - Math.abs(Math.sin(mini.elapsed * 0.25 + f.x)) * 8;
+          if (--f.t <= 0) {
+            const toLeft = f.x + f.w / 2 - DOCK.x0 < DOCK.x1 - (f.x + f.w / 2);
+            f.state = 'leap'; f.short = false; f.escape = true; f.vy = -6.5; f.vx = (toLeft ? -1 : 1) * 4.2;
+          }
+        }
+        if (f.state !== 'leap' && f.state !== 'flop') return;
+        players.forEach(function (q) {
+          if (!U.overlap(q, f) || f.state === 'gone') return;
+          const stomp = q.vy > 0 && (q.y + q.h) - f.y < 16;
+          if (stomp && f.state === 'flop') {
+            f.state = 'gone'; mini.caught++;
+            q.vy = PHYS.STOMP_BOUNCE;
+            events.push('catch');
+            burst(state, f.x + f.w / 2, f.y, '#ffd6a0', 10);
+          } else if (f.state === 'leap' && !f.escape) {
+            hurt(q, f.x + f.w / 2, events);
+          }
+        });
+      });
+      mini.fish = mini.fish.filter(function (f) { return f.state !== 'gone'; });
+      if (mini.caught >= PIRANHA_GOAL) win();
+      else if (mini.time <= 0) fail();
+      return events;
+    }
 
     if (mini.kind === 'gulls') {
       /*
@@ -1153,20 +1228,12 @@ const Encounter = (function () {
       ctx.strokeStyle = '#6a4a20'; ctx.lineWidth = 1.5;
       for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.moveTo(bx + i * 10, GY - BASKET.h); ctx.lineTo(bx + i * 10, GY); ctx.stroke(); }
       for (let i = 0; i < mini.bread; i++) {
-        if (mini.skin === 'pelican') {
-          // 新大陸：籃子裡是今天釣到的魚
-          ctx.fillStyle = '#9ab8c8';
-          ctx.beginPath(); ctx.ellipse(bx + 12 + i * 13, GY - BASKET.h - 2, 8, 3.5, 0.3, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.moveTo(bx + 4 + i * 13, GY - BASKET.h - 4); ctx.lineTo(bx + 1 + i * 13, GY - BASKET.h - 8); ctx.lineTo(bx + 1 + i * 13, GY - BASKET.h); ctx.fill();
-        } else {
-          ctx.fillStyle = '#e8b45a';
-          ctx.beginPath(); ctx.ellipse(bx + 12 + i * 13, GY - BASKET.h - 2, 8, 5, 0.3, 0, Math.PI * 2); ctx.fill();
-        }
+        ctx.fillStyle = '#e8b45a';
+        ctx.beginPath(); ctx.ellipse(bx + 12 + i * 13, GY - BASKET.h - 2, 8, 5, 0.3, 0, Math.PI * 2); ctx.fill();
       }
       mini.gulls.forEach(function (g) {
         const shake = g.mode === 'hover' ? Math.sin(t * 1.2) * 1.5 : 0;
-        if (mini.skin === 'pelican') drawPelicanBig(ctx, g.x + shake, g.y, g.w, g.h, g.dir, t);
-        else Sprites.enemy(ctx, { x: g.x + shake, y: g.y, w: g.w, h: g.h, dir: g.dir, squash: 0, type: 'flyer' }, t);
+        Sprites.enemy(ctx, { x: g.x + shake, y: g.y, w: g.w, h: g.h, dir: g.dir, squash: 0, type: 'flyer' }, t);
         // 盤旋中：頭上驚嘆號，提示「現在跳起來碰牠」
         if (g.mode === 'hover') U.text(ctx, '!', g.x + g.w / 2, g.y - 10, { size: 18, color: '#ff6b5a', strokeWidth: 4 });
         if (g.loot) {
@@ -1282,6 +1349,8 @@ const Encounter = (function () {
         ctx.beginPath(); ctx.ellipse(h.x + 15, GY - 4, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       });
+    } else if (mini.kind === 'piranhas') {
+      drawPiranhaArena(ctx, mini, t, GY);
     } else if (mini.kind === 'charybdis') {
       drawCharybdisArena(ctx, mini, t, GY);
     } else if (mini.kind === 'scylla') {
@@ -1301,25 +1370,63 @@ const Encounter = (function () {
     }
   }
 
-  /** v1.31 守護漁獲的鵜鶘（大隻的）：白身體、黑翅尖、黃色大嘴下面一個鼓鼓的喉囊 */
-  function drawPelicanBig(ctx, x, y, w, h, dir, t) {
-    const cx = x + w / 2, cy = y + h / 2;
-    const flap = Math.sin(t * 0.25) * 9;
+  /** v1.31 食人魚：銀灰色的背、紅色的肚子、一排尖牙 */
+  function drawPiranha(ctx, f, t) {
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
     ctx.save();
-    ctx.fillStyle = '#e8e4da';
-    ctx.beginPath(); ctx.moveTo(cx - 3, cy - 2); ctx.quadraticCurveTo(cx - 18, cy - 12 - flap, cx - 30, cy - flap); ctx.quadraticCurveTo(cx - 16, cy + 2, cx - 3, cy + 2); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(cx + 3, cy - 2); ctx.quadraticCurveTo(cx + 18, cy - 12 - flap, cx + 30, cy - flap); ctx.quadraticCurveTo(cx + 16, cy + 2, cx + 3, cy + 2); ctx.fill();
-    ctx.fillStyle = '#2a2a30';
-    ctx.beginPath(); ctx.arc(cx - 28, cy - flap, 3, 0, Math.PI * 2); ctx.arc(cx + 28, cy - flap, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#f4f0e8';
-    ctx.beginPath(); ctx.ellipse(cx, cy, w * 0.32, h * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(cx + dir * 10, cy - 5, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#f2b030';
-    ctx.beginPath(); ctx.moveTo(cx + dir * 14, cy - 6); ctx.lineTo(cx + dir * 32, cy - 3); ctx.lineTo(cx + dir * 14, cy - 2); ctx.fill();
-    ctx.fillStyle = '#e89a40';
-    ctx.beginPath(); ctx.ellipse(cx + dir * 22, cy + 1, 8, 4, 0, 0, Math.PI); ctx.fill();          // 喉囊
-    ctx.fillStyle = '#16161c'; ctx.fillRect(cx + dir * 11, cy - 7, 2, 2);
+    ctx.translate(cx, cy);
+    if (f.state === 'leap') ctx.rotate(Math.atan2(f.vy, Math.abs(f.vx) + 0.01) * f.dir * 0.8);
+    if (f.state === 'flop') ctx.rotate(Math.sin(t * 0.5 + f.x) * 0.5);
+    ctx.scale(f.dir, 1);
+    ctx.fillStyle = '#5a6a72';
+    ctx.beginPath(); ctx.ellipse(0, 0, 15, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-22, -8); ctx.lineTo(-22, 8); ctx.closePath(); ctx.fill();   // 尾巴
+    ctx.beginPath(); ctx.moveTo(-2, -8); ctx.lineTo(4, -14); ctx.lineTo(6, -7); ctx.fill();                     // 背鰭
+    ctx.fillStyle = '#d8402a';
+    ctx.beginPath(); ctx.ellipse(1, 3, 12, 5, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#f4f0e6';
+    for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(8 + k * 1.6, 3); ctx.lineTo(9 + k * 1.6, 6); ctx.lineTo(10 + k * 1.6, 3); ctx.fill(); }
+    ctx.fillStyle = '#ffe070'; ctx.beginPath(); ctx.arc(8, -2, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#16161c'; ctx.fillRect(8, -3, 1.6, 2);
     ctx.restore();
+  }
+
+  /** 食人魚的場地：亞馬遜河（兩邊）＋中間的木頭碼頭＋抓到的魚放的桶子 */
+  function drawPiranhaArena(ctx, mini, t, GY) {
+    // 河
+    ctx.fillStyle = '#3a7a7a';
+    ctx.fillRect(0, GY - 4, DOCK.x0, 100); ctx.fillRect(DOCK.x1, GY - 4, ARENA_W - DOCK.x1, 100);
+    ctx.fillStyle = 'rgba(90, 160, 150, 0.6)';
+    ctx.fillRect(0, GY - 4, DOCK.x0, 4); ctx.fillRect(DOCK.x1, GY - 4, ARENA_W - DOCK.x1, 4);
+    ctx.fillStyle = 'rgba(160, 200, 150, 0.5)';
+    for (let i = 0; i < 8; i++) {
+      const x = (i * 131 + t * 0.4) % ARENA_W;
+      if (x > DOCK.x0 - 20 && x < DOCK.x1) continue;
+      ctx.fillRect(x, GY + 16 + (i % 3) * 14, 24, 2);
+    }
+    // 碼頭的支柱
+    ctx.fillStyle = '#5a3a1e';
+    for (let x = DOCK.x0 + 10; x < DOCK.x1; x += 90) ctx.fillRect(x, GY, 10, 80);
+    // 桶子（抓到幾隻就有幾條魚尾巴露出來）
+    const bx = 470;
+    ctx.fillStyle = '#8a5a2a'; U.roundRect(ctx, bx, GY - 34, 40, 34, 5); ctx.fill();
+    ctx.fillStyle = '#5a3a1e'; ctx.fillRect(bx, GY - 24, 40, 3); ctx.fillRect(bx, GY - 10, 40, 3);
+    for (let k = 0; k < mini.caught; k++) {
+      ctx.fillStyle = '#5a6a72';
+      ctx.beginPath(); ctx.moveTo(bx + 6 + k * 6, GY - 34); ctx.lineTo(bx + 2 + k * 6, GY - 44); ctx.lineTo(bx + 10 + k * 6, GY - 44); ctx.closePath(); ctx.fill();
+    }
+    mini.fish.forEach(function (f) {
+      if (f.state === 'warn') {
+        // 起跳前：水面冒泡（越來越多）
+        const k = 1 - f.t / PIRANHA_WARN;
+        ctx.fillStyle = 'rgba(230, 245, 230, 0.85)';
+        for (let b = 0; b < 2 + Math.floor(k * 4); b++) {
+          ctx.beginPath(); ctx.arc(f.x + 6 + ((b * 11 + t) % 20), GY + 14 - ((t * 0.5 + b * 5) % 10), 2 + (b % 2), 0, Math.PI * 2); ctx.fill();
+        }
+        return;
+      }
+      drawPiranha(ctx, f, t);
+    });
   }
 
   /** v1.31 拍拍頭的海豚：灰藍色、長長的嘴、從洞裡探出頭來笑 */
@@ -1513,7 +1620,8 @@ const Encounter = (function () {
     const k = state.def.monster.def;
     const sec = Math.max(0, Math.ceil(mini.time / 60));
     let goal;
-    if (mini.kind === 'gulls') goal = (mini.skin === 'pelican' ? '漁獲 ' : '麵包 ') + mini.bread + ' / 5　撐 ' + sec + ' 秒';
+    if (mini.kind === 'piranhas') goal = '抓到 ' + mini.caught + ' / ' + PIRANHA_GOAL + '　剩 ' + sec + ' 秒　（掉在甲板上亂彈的才踩得到）';
+    else if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
     else if (mini.kind === 'charybdis') goal = '救生圈 ' + mini.got + ' / 5　剩 ' + sec + ' 秒　（別被拖進中間的漩渦眼）';

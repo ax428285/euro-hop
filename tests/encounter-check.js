@@ -148,10 +148,28 @@ function runEncounterCheck() {
       moveTo(p, held, mini.px, 6);
       if (p.onGround && mini.py < p.y && Math.abs(mini.px - (p.x + p.w / 2)) < 80) { press.jump = true; held.jump = true; }
       if (!p.onGround && p.vy < 0) held.jump = true;
+    },
+    // v1.31 食人魚：站在碼頭中間；甲板上有亂彈的就走過去，靠近時跳起來踩；低空飛過來的就跳過去
+    piranhas: function (st, held, press) {
+      const p = st.player, mini = st.mini;
+      if (!mini) return;
+      const cx = p.x + p.w / 2;
+      const flop = mini.fish.filter(function (f) { return f.state === 'flop' && f.t > 30; })
+        .sort(function (a, b) { return Math.abs(a.x - cx) - Math.abs(b.x - cx); })[0];
+      const danger = mini.fish.some(function (f) {
+        return f.state === 'leap' && Math.abs(f.x + f.w / 2 - cx) < 70 && f.y + f.h > p.y - 6 && f.y < p.y + p.h + 30 && (f.x + f.w / 2 - cx) * f.vx < 0;
+      });
+      if (danger && p.onGround) { press.jump = true; held.jump = true; }
+      else if (flop) {
+        const fx = flop.x + flop.w / 2;
+        moveTo(p, held, fx, 4);
+        if (p.onGround && Math.abs(fx - cx) < 46) { press.jump = true; held.jump = true; }
+      } else moveTo(p, held, 480, 10);
+      if (!p.onGround && p.vy < 0) held.jump = true;
     }
   };
   // v1.31 新大陸的怪沿用歐洲的玩法（同一個機器人打）
-  bots.pelicans = bots.gulls; bots.buccaneers = bots.pirates; bots.dolphins = bots.serpent; bots.goldturtle = bots.golden;
+  bots.buccaneers = bots.pirates; bots.dolphins = bots.serpent; bots.goldturtle = bots.golden;
 
   const report = {};
   Object.keys(bots).forEach(function (kind) {

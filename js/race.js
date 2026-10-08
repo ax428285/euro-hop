@@ -12,7 +12,7 @@
  *   撞到障礙扣一顆愛心、速度掉一大截；開到終點線就過關。
  *
  * 兩種主題：
- *   car   古巴・哈瓦那：馬雷貢海濱大道，左邊是海、右邊是彩色老房子；路上有慢吞吞的老爺車，海堤冒水花 = 大浪要打上來了
+ *   car   （v1.31 古巴改成上帝視角，見 topdown.js；這個主題的程式還留著）
  *   chase 墨西哥・銅峽谷：緝毒大追擊 —— 開警車追走私販的卡車，卡車沿路丟下木箱（矮，跳過去）；
  *         仙人掌、大石頭要閃，風滾草可以跳；終點是攔下卡車的路障
  *
@@ -56,6 +56,8 @@ const Race = (function () {
    * cfg.theme：'car'（古巴）/ 'chase'（墨西哥）
    */
   function plan(cfg) {
+    // v1.31 古巴改成上帝視角（view: 'top'，見 topdown.js）
+    if (cfg.view === 'top') return TopRace.plan(cfg);
     const r = rng(cfg.seed || 1);
     const segs = [];
     let y = 0;
@@ -155,6 +157,7 @@ const Race = (function () {
 
   function makeState(def) {
     const pl = def.race;
+    if (pl.view === 'top') return TopRace.makeState(def);
     const r = rng(pl.seed + 7);
     // 古巴：路上慢慢開的老爺車（跟你同方向，比你慢）
     const cars = [];
@@ -172,6 +175,7 @@ const Race = (function () {
   function segAt(pl, z) { return pl.segs[Math.max(0, Math.min(pl.total - 1, Math.floor(z / SEG)))]; }
 
   function update(state, input, t) {
+    if (state.def.race.view === 'top') return TopRace.update(state, input, t);
     const events = [];
     const def = state.def, pl = def.race, rs = state.race, p = state.player;
     const st = p.stats || {};
@@ -558,6 +562,7 @@ const Race = (function () {
   }
 
   function draw(ctx, state, t, W, H) {
+    if (state.def.race.view === 'top') { TopRace.draw(ctx, state, t, W, H); return; }
     const def = state.def, pl = def.race, rs = state.race, th = THEME[pl.theme];
     drawBackdrop(ctx, pl, rs, t, W, H);
     const base = segAt(pl, rs.pos);

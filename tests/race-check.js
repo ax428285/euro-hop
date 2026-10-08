@@ -6,12 +6,15 @@
  *   B) 會開車的機器人（看前面的路選車道、矮的障礙就跳、高的閃開）沒有任何裝備也開得到終點，受傷不超過 2 次
  *   C) 站著不動（不轉向、不跳）一定會撞到東西 —— 不是放著就會過
  *   D) 古巴襯衫：大浪打到不痛
+ *   E) 上帝視角（v1.31 古巴，topdown.js）：路一直在畫面範圍內、終點後面沒有障礙；大浪前有預告、浪只蓋左邊（右車道安全）；
+ *      會開車的機器人（看前面選車道、浪來就往右）開得到終點、受傷不超過 2 次；完全不轉向一定會撞到；古巴襯衫浪打到不痛
  */
 function runRaceCheck() {
   const issues = [];
   const report = {};
   Levels.list.forEach(function (def, li) {
     if (def.layout !== 'race') return;
+    if (def.race.view === 'top') { topCheck(def, li, issues, report); return; }
     const pl = def.race, tag = def.country;
     // ── A) ──
     if (!(pl.finish > 100 && pl.finish < pl.total)) issues.push(tag + '：終點位置不對（' + pl.finish + ' / ' + pl.total + '）');
@@ -90,4 +93,67 @@ function runRaceCheck() {
   });
   if (!Object.keys(report).length) issues.push('沒有任何賽道關');
   return { issueCount: issues.length, issues: issues, report: report };
+}
+
+/** v1.31 上帝視角賽車（古巴）的檢查 */
+function topCheck(def, li, issues, report) {
+  const pl = def.race, tag = def.country;
+  let minC = 1e9, maxC = -1e9;
+  for (let y = 0; y < pl.length; y += 40) { const c = TopRace.centerAt(pl, y); minC = Math.min(minC, c); maxC = Math.max(maxC, c); }
+  if (minC - TopRace.RW < 60 || maxC + TopRace.RW > 900) issues.push(tag + '：馬路彎到畫面外面了（中線 ' + Math.round(minC) + '～' + Math.round(maxC) + '）');
+  if (pl.obs.some(function (o) { return o.y > pl.finish - 200; })) issues.push(tag + '：終點附近／後面還有障礙');
+  if (pl.waves.length < 2) issues.push(tag + '：大浪太少（' + pl.waves.length + '）');
+  if (!pl.coins.length) issues.push(tag + '：路上沒有金幣');
+  // 浪只蓋左邊：右車道的車子不會被打到
+  const w0 = { y: 0, state: 'hit' }, box = TopRace.waveBox(pl, w0), c0 = TopRace.centerAt(pl, TopRace.WAVE_LEN / 2);
+  if (!(box.w < c0 + TopRace.LANE - TopRace.CAR_W / 2 - 4)) issues.push(tag + '：大浪蓋到最右邊的車道，躲不掉');
+  if (!(box.w > c0)) issues.push(tag + '：大浪連中間車道都沒蓋到，沒有壓力');
+
+  function drive(smart, owned) {
+    const stats = Equipment.resolve(owned || []);
+    const st = buildLevelState(def, li, owned || [], stats);
+    const rs = st.race;
+    let hurts = 0, frames = 0, cleared = false, waveWarned = false;
+    const held = {};
+    const input = { isDown: function (a) { return !!held[a]; }, once: function () { return false; } };
+    for (; frames < 9000 && !cleared; frames++) {
+      held.left = held.right = false;
+      if (smart) {
+        const ahead = function (lx, from, to) {
+          return pl.obs.some(function (o) { return Math.abs(o.lx - lx) < 60 && o.y > rs.d + from && o.y < rs.d + to; }) ||
+                 rs.cars.some(function (car) { return Math.abs(car.lx - lx) < 60 && car.y > rs.d - 40 && car.y < rs.d + to * 0.8; });
+        };
+        const waveSoon = rs.waves.some(function (w) { return (w.state === 'warn' || w.state === 'hit') || (w.state === 'idle' && rs.d > w.y - 520); });
+        let target;
+        if (waveSoon) target = TopRace.LANES[2];
+        else {
+          const cur = TopRace.LANES.reduce(function (b, lx) { return Math.abs(rs.x - TopRace.centerAt(pl, rs.d) - lx) < Math.abs(rs.x - TopRace.centerAt(pl, rs.d) - b) ? lx : b; }, 0);
+          const free = TopRace.LANES.filter(function (lx) { return !ahead(lx, -20, 360); });
+          target = free.indexOf(cur) >= 0 ? cur : (free.sort(function (a, b) { return Math.abs(a - cur) - Math.abs(b - cur); })[0] != null ? free[0] : cur);
+        }
+        const tx = TopRace.centerAt(pl, rs.d + 60) + target;
+        if (rs.x < tx - 6) held.right = true;
+        if (rs.x > tx + 6) held.left = true;
+      }
+      const evs = TopRace.update(st, input, frames);
+      evs.forEach(function (e) { if (/hurt$/.test(e)) hurts++; if (e === 'clear') cleared = true; if (e === 'waveWarn') waveWarned = true; });
+    }
+    return { cleared: cleared, hurts: hurts, frames: frames, coins: st.coinsGot, waveWarned: waveWarned };
+  }
+  const r = drive(true);
+  report[def.id] = r;
+  if (!r.cleared) issues.push(tag + '：開車機器人 9000 帧內開不到終點');
+  else if (r.hurts > 2) issues.push(tag + '：開車機器人受傷 ' + r.hurts + ' 次，可能太難');
+  if (!r.waveWarned) issues.push(tag + '：大浪打上來之前沒有預告');
+  if (r.frames < 1800) issues.push(tag + '：太短了（' + r.frames + ' 帧就到終點）');
+  const idle = drive(false);
+  if (idle.hurts === 0) issues.push(tag + '：完全不轉向也不會撞到東西，沒有挑戰性');
+  // 古巴襯衫：只在浪裡（左車道）停著，浪打到不痛
+  const st = buildLevelState(def, li, ['guayabera'], Equipment.resolve(['guayabera']));
+  const w = st.race.waves[0];
+  st.race.d = w.y + 40; st.race.x = TopRace.centerAt(pl, st.race.d) - TopRace.LANE; st.race.speed = 0;
+  w.state = 'hit'; w.t = 20;
+  st.race.cars = [];
+  const ev = TopRace.update(st, { isDown: function () { return false; }, once: function () { return false; } }, 1);
+  if (ev.some(function (e) { return /hurt$/.test(e); })) issues.push('古巴襯衫：大浪打到還是會痛');
 }
