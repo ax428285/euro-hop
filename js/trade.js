@@ -5,7 +5,8 @@
  *
  * ── C 貿易 ─────────────────────────────────────────────
  * 四個貿易港各產一樣特產，在產地買便宜、運到別的港口賣貴。
- *   熱那亞   橄欖油   羅德島  葡萄酒（古代羅德島的酒裝在雙耳陶罐裡賣遍地中海）
+ *   熱那亞   臘腸     羅德島  葡萄酒（古代羅德島的酒裝在雙耳陶罐裡賣遍地中海）
+ *   （v1.29 熱那亞的橄欖油換成臘腸：熱那亞臘腸很有名；峽灣的黃金獵犬要吃臘腸才肯跟你走，見 pet.js）
  *   迦太基   椰棗     亞歷山卓 莎草紙（古埃及的紙，整個地中海世界都靠它寫字）
  * 價格每「天」變一次（打完一關或一場海戰就過一天，Save.day），用 day 當亂數種子 —— 同一天價格固定、可以比價。
  * 船艙：3 箱起跳，造船廠加厚船身每級 +1。
@@ -29,7 +30,7 @@
 const Trade = (function () {
 
   const GOODS = [
-    { id: 'oil',     name: '橄欖油', home: 'genoa',      base: 46, color: '#b8b040' },
+    { id: 'sausage', name: '臘腸',   home: 'genoa',      base: 46, color: '#a8423a' },
     { id: 'wine',    name: '葡萄酒', home: 'rhodes',     base: 52, color: '#8a2a4a' },
     { id: 'dates',   name: '椰棗',   home: 'carthage',   base: 40, color: '#8a5a2a' },
     { id: 'papyrus', name: '莎草紙', home: 'alexandria', base: 58, color: '#d8c890' }

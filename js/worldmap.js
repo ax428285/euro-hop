@@ -314,6 +314,14 @@ const WorldMap = (function () {
         });
       });
     }
+    // v1.29 峽灣的黃金獵犬（pet.js）：收養之後就不在這裡了（gone() 為真時不畫、不算靠近）
+    if (typeof Pet !== 'undefined') {
+      const dp = Pet.spotPin();
+      specials.push({
+        id: 'PET_dog', name: '黃金獵犬', shapes: [], pin: dp, label: [dp[0], dp[1] + 16],
+        def: { role: '黃金獵犬', scene: 'dog', dog: true, gone: Pet.adopted, prompt: '按 Enter 跟黃金獵犬打招呼' }
+      });
+    }
     PORT_DEFS.forEach(function (m) {
       const p = EuropeWorld.project(m.lon, m.lat);
       const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
@@ -418,6 +426,8 @@ const WorldMap = (function () {
     specials.forEach(function (s) {
       const x = s.pin[0], y = s.pin[1];
       const near = s.id === nearId;
+      if (s.def.gone && s.def.gone()) return;
+      if (s.def.dog) { Pet.drawWaiting(ctx, x, y, t, near); return; }
       if (s.def.merchant) {
         if (near) {
           ctx.strokeStyle = 'rgba(216, 184, 255, 0.95)'; ctx.lineWidth = 2.5;
@@ -467,8 +477,10 @@ const WorldMap = (function () {
   function drawSpecialLabels(ctx, nearId) {
     specials.forEach(function (s) {
       const near = s.id === nearId;
-      U.text(ctx, s.def.merchant || s.def.port ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
-        size: near ? LABEL_SIZE_SEL : (s.def.merchant || s.def.port ? 11 : 12),
+      if (s.def.gone && s.def.gone()) return;
+      const bare = s.def.merchant || s.def.port || s.def.dog;     // 沒有國土的地點：只印名字
+      U.text(ctx, bare ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
+        size: near ? LABEL_SIZE_SEL : (bare ? 11 : 12),
         color: near ? '#ffd166' : (s.def.merchant ? '#e6d8ff' : s.def.port ? '#bdf0ff' : '#fff4dc'),
         align: 'center',
         strokeWidth: 3,
@@ -481,6 +493,7 @@ const WorldMap = (function () {
   function nearSpecial(x, y, range) {
     let best = null, bestD = range;
     specials.forEach(function (s) {
+      if (s.def.gone && s.def.gone()) return;
       const d = Math.hypot(x - s.pin[0], y - (s.pin[1] + 4));
       if (d < bestD) { bestD = d; best = s; }
     });
@@ -623,7 +636,7 @@ const WorldMap = (function () {
     placeLabels();
     // 特殊地點的標籤（「葡萄牙・商店」比國名長，最後擺：避開關卡國已經擺好的字）
     specials.forEach(function (s) {
-      if (s.def.merchant || s.def.port) return;          // 神祕商人、港口沒有國土，字就放在人底下（buildSpecials 已設好）
+      if (s.def.merchant || s.def.port || s.def.dog) return;          // 神祕商人、港口、黃金獵犬沒有國土，字就放在人底下（buildSpecials 已設好）
       const name = s.name + '・' + s.def.role;
       placeOne(s, name, s.pin);
       // 國土太小（愛爾蘭）放不下時，字會壓在自己的圖釘上 → 改放圖釘正下方

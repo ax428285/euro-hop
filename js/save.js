@@ -38,6 +38,7 @@ const Save = (function () {
       bounty: null,       // 接下的懸賞（一次一張，見 trade.js）
       bountyDone: 0,      // 今天已完成幾張（完成後同一天換新的三張）
       relics: [],         // 沉船潛水撈到的寶物 id（v1.26 安提基特拉沉船）
+      pet: null,          // 寵物（v1.29：'dog' = 峽灣的黃金獵犬，餵一根臘腸就跟你走）
       allies: 0,          // 海神夥伴（消耗品，亞特蘭提斯神殿拿到；魔王關自動出戰一次用掉一個）
       costumes: [],     // 擁有的時裝 id（稀有怪掉落）
       costume: null       // 目前穿的時裝（null = 原本的條紋衫）
@@ -61,9 +62,15 @@ const Save = (function () {
     out.day = Math.max(0, parseInt(d.day, 10) || 0);
     out.bountyDone = Math.max(0, parseInt(d.bountyDone, 10) || 0);
     if (d.cargo && typeof d.cargo === 'object' && typeof Trade !== 'undefined') {
+      // v1.29 熱那亞的橄欖油換成臘腸：舊存檔船艙裡的橄欖油當成臘腸（同一個產地、同樣的箱數）
+      if (d.cargo.oil && !d.cargo.sausage) d.cargo.sausage = d.cargo.oil;
       Trade.GOODS.forEach(function (g) { const n = parseInt(d.cargo[g.id], 10) || 0; if (n > 0) out.cargo[g.id] = n; });
     }
-    if (d.bounty && typeof d.bounty === 'object' && typeof d.bounty.type === 'string') out.bounty = d.bounty;
+    if (d.bounty && typeof d.bounty === 'object' && typeof d.bounty.type === 'string') {
+      out.bounty = d.bounty;
+      if (out.bounty.good === 'oil') out.bounty.good = 'sausage';
+    }
+    if (d.pet === 'dog') out.pet = 'dog';
     if (d.ship && typeof d.ship === 'object' && typeof Shipyard !== 'undefined') out.ship = Shipyard.sanitize(d.ship);
     if (Array.isArray(d.relics)) {
       d.relics.forEach(function (r) { if (typeof r === 'string' && out.relics.indexOf(r) < 0) out.relics.push(r); });
@@ -324,6 +331,9 @@ const Save = (function () {
       return true;
     },
     setBounty: function (b) { data.bounty = b; persist(); },
+    // ── 寵物（v1.29）──
+    pet: function () { return data.pet; },
+    setPet: function (id) { data.pet = id; persist(); },
     /** 懸賞完成：清掉、加今天的完成數（獎勵由呼叫端用 addCoins / addExp 給） */
     finishBounty: function () { data.bounty = null; data.bountyDone++; persist(); },
     /** 只改記憶體不存檔（送信倒數每帧都在減，呼叫端隔一段再 save） */

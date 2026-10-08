@@ -150,6 +150,25 @@ const Game = (function () {
     return k.track || (k.dive ? 'ATL' : 'BATTLE');
   }
 
+  /**
+   * 峽灣的黃金獵犬（v1.29，pet.js）：船艙有臘腸就餵一根（扣一箱），牠就變成寵物跟著你。
+   * 沒有臘腸：牠只會聞一聞你，提示去熱那亞的貿易港買。
+   */
+  function greetDog() {
+    if (Pet.adopted()) return;
+    if (!(Save.get().cargo.sausage > 0)) {
+      Sfx.select();
+      toast = { text: '黃金獵犬聞了聞你，搖搖尾巴⋯⋯', sub: '牠好像很想吃臘腸 —— 熱那亞的貿易港有在賣', life: 220 };
+      return;
+    }
+    Save.moveCargo('sausage', -1, 0);
+    Save.setPet('dog');
+    const sp = Voyage.shipPos();
+    Pet.snap(sp.x, sp.y);
+    Sfx.equip();
+    toast = { text: '黃金獵犬吃了臘腸，決定跟著你！', sub: '從今天起牠是你的夥伴，走到哪跟到哪（開船時牠會游在後面）', life: 260 };
+  }
+
   /** 雙人試煉：場上有兩位玩家才進得去（同機 C 鍵，或連線時朋友當 2P） */
   function tryStartDuo(spNear) {
     const k = Encounter.KINDS[spNear.def.port];
@@ -663,6 +682,8 @@ const Game = (function () {
     }
 
     const events = Voyage.update(Input);
+    // 寵物（v1.29）：收養的黃金獵犬沿著足跡跟在後面
+    Pet.update(Voyage.shipPos());
     const shipNow = Voyage.shipPos();
     // 地圖比畫面高：相機跟著船走
     WorldMap.follow(shipNow.x, shipNow.y);
@@ -744,6 +765,7 @@ const Game = (function () {
       if (spNear.def.scene === 'shop') { shopCursor = 0; shopSeller = spNear.def.seller || 'portugal'; }
       // v1.26 地中海港口：沉船潛水直接開潛；造船廠打開升級畫面
       if (spNear.def.scene === 'duo') { tryStartDuo(spNear); return; }
+      if (spNear.def.scene === 'dog') { greetDog(); return; }
       if (spNear.def.scene === 'dive') {
         const ship0 = Voyage.shipPos();
         startSkirmish({ kind: spNear.def.port, def: Encounter.KINDS[spNear.def.port], x: ship0.x, y: ship0.y, port: true });
@@ -2776,7 +2798,7 @@ const Game = (function () {
       clearedFn: function (i) { return Save.isCleared(i); },
       east: { unlocked: eastOpen },
       regionOpen: regionUnlocked,
-      beforeShip: function () { Encounter.drawMap(ctx, t); }
+      beforeShip: function () { Encounter.drawMap(ctx, t); Pet.drawFollower(ctx, t); }
     });
     WorldMap.endView(ctx);
     drawMapScroll();
@@ -2898,7 +2920,10 @@ const Game = (function () {
         W / 2, H - 15, { size: 14, color: '#ff9aa8' });
     } else if (spot) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      U.text(ctx, blink ? (spot.def.prompt || '按 Enter 進入' + spot.name + '的' + spot.def.role) : '　', W / 2, H - 15,
+      const sausages = Save.get().cargo.sausage || 0;
+      const txt = spot.def.dog ? (sausages ? '按 Enter 餵黃金獵犬一根臘腸（船艙有 ' + sausages + ' 箱）' : '按 Enter 摸摸黃金獵犬')
+        : (spot.def.prompt || '按 Enter 進入' + spot.name + '的' + spot.def.role);
+      U.text(ctx, blink ? txt : '　', W / 2, H - 15,
         { size: 14, color: spot.def.merchant ? '#d8b8ff' : '#ffd166' });
     } else if (near >= 0 && near < sv.unlocked) {
       const blink = Math.floor(t / 20) % 2 === 0;
