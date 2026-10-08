@@ -269,7 +269,16 @@ const WorldMap = (function () {
     { id: 'P_yard', kind: 'shipyard', name: '瓦倫西亞造船廠', lon: 0.0, lat: 39.45, scene: 'shipyard',
       prompt: '按 Enter 進入瓦倫西亞造船廠（升級你的船）' },
     { id: 'P_wreck', kind: 'wreck', name: '安提基特拉沉船', lon: 23.3, lat: 35.85, scene: 'dive',
-      prompt: '按 Enter 潛到安提基特拉沉船（撈兩千年前的寶物）' }
+      prompt: '按 Enter 潛到安提基特拉沉船（撈兩千年前的寶物）' },
+    /*
+     * 雙人試煉（v1.28，關卡在 duo.js）：選擇性地點，不擋主線。
+     *   雙子燈塔：科西嘉島和薩丁尼亞島之間的博尼法喬海峽（兩座島隔著海峽對望，像一對雙胞胎）
+     *   米諾斯迷宮：克里特島的克諾索斯王宮遺跡（圖釘放在島的東南外海：島上北邊是沉船、東北是羅德島，字會疊在一起）
+     */
+    { id: 'P_duo1', kind: 'duoTwins', name: '雙子燈塔', lon: 9.25, lat: 41.3, scene: 'duo', duo: true,
+      prompt: '按 Enter 挑戰雙子燈塔（需雙人）' },
+    { id: 'P_duo2', kind: 'duoMaze', name: '米諾斯迷宮', lon: 26.1, lat: 34.7, scene: 'duo', duo: true,
+      prompt: '按 Enter 挑戰米諾斯迷宮（需雙人）' }
   ];
   const specials = [];
 
@@ -309,7 +318,7 @@ const WorldMap = (function () {
       const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
       specials.push({
         id: m.id, name: m.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
-        def: { role: '港口', scene: m.scene, port: m.kind, prompt: m.prompt }
+        def: { role: m.duo ? '雙人試煉' : '港口', scene: m.scene, port: m.kind, prompt: m.prompt, duo: !!m.duo }
       });
     });
   }
@@ -354,7 +363,8 @@ const WorldMap = (function () {
     ctx.fillRect(-8, 1, 2, 4); ctx.fillRect(6, 1, 2, 4);
     // 徽章
     const by = -14 + (near ? Math.sin(t * 0.08) * 2 : 0);
-    ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : kind === 'market' ? '#b8862a' : '#1f6a78';
+    const duo = kind === 'duoTwins' || kind === 'duoMaze';
+    ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : kind === 'market' ? '#b8862a' : duo ? '#8a4ab8' : '#1f6a78';
     ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.stroke();
@@ -365,6 +375,10 @@ const WorldMap = (function () {
       ctx.moveTo(-5, by + 1); ctx.quadraticCurveTo(-4, by + 6, 0, by + 6); ctx.quadraticCurveTo(4, by + 6, 5, by + 1);
       ctx.stroke();
       ctx.beginPath(); ctx.arc(0, by - 7, 1.6, 0, Math.PI * 2); ctx.stroke();
+    } else if (duo) {
+      // 雙人試煉：兩個小人並肩（一大一小，像在疊羅漢）
+      ctx.beginPath(); ctx.arc(-3.2, by - 4, 2.2, 0, Math.PI * 2); ctx.arc(3.2, by - 4, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(-5.4, by - 1, 4.4, 6); ctx.fillRect(1, by - 1, 4.4, 6);
     } else if (kind === 'market') {
       // 貿易港：一箱貨（木箱＋交叉繩）
       ctx.fillRect(-5, by - 4, 10, 8);

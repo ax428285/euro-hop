@@ -126,10 +126,12 @@ const Game = (function () {
     levelIndex = -1;
     skirmish = m;
     // 造船廠的加厚船身（v1.26）：海上遭遇戰多幾顆愛心（潛水是人下水，不算）
-    if (!m.def.dive && typeof Shipyard !== 'undefined') {
+    if (!m.def.dive && !m.def.duo && typeof Shipyard !== 'undefined') {
       maxLives += Shipyard.hullBonus(Save.ship());
       lives = [maxLives, maxLives];
     }
+    // 雙人試煉：二段跳、蹬牆跳、滑翔、跳躍強化封印（不然一個人就上得了高台，見 duo.js）
+    if (m.def.duo) stats = Duo.seal(stats);
     const def = Encounter.makeDef(m, stats);
     state = buildLevelState(def, -1, sv.equipment, stats, coop);
     camX = 0;
@@ -139,8 +141,30 @@ const Game = (function () {
     scene = 'play';
     sceneTimer = 0;
     toast = { text: m.def.name + '・' + m.def.game, sub: m.def.goal, life: 170 };
-    Music.playTrack(m.def.dive ? 'ATL' : 'BATTLE');
+    Music.playTrack(skirmishTrack(m.def));
     netLevelStarted();
+  }
+
+  /** 遭遇戰的配樂：潛水用亞特蘭提斯的、雙人試煉借附近國家的（KINDS.track），其他是海戰 */
+  function skirmishTrack(k) {
+    return k.track || (k.dive ? 'ATL' : 'BATTLE');
+  }
+
+  /** 雙人試煉：場上有兩位玩家才進得去（同機 C 鍵，或連線時朋友當 2P） */
+  function tryStartDuo(spNear) {
+    const k = Encounter.KINDS[spNear.def.port];
+    if (!coop) {
+      Sfx.clang();
+      // 手機沒有鍵盤（按不了 C）：只提示連線
+      const touch = document.documentElement.classList.contains('touch');
+      toast = { text: k.name + '需要兩位玩家',
+                sub: touch ? '點左上角 ☰ 選單的「連線」，找朋友當 2P 一起闖'
+                           : '按 C 開啟兩人同機（2P 用 WASD＋G），或用「連線遊玩」找朋友當 2P', life: 260 };
+      return;
+    }
+    Sfx.select();
+    const ship0 = Voyage.shipPos();
+    startSkirmish({ kind: spNear.def.port, def: k, x: ship0.x, y: ship0.y, port: true });
   }
 
   function toMap() {
@@ -300,7 +324,7 @@ const Game = (function () {
       const nowMuted = Sfx.toggleMute();
       // 解除靜音時，如果還在關卡裡就把音樂接回來
       if (!nowMuted && scene === 'play') {
-        if (skirmish) Music.playTrack(skirmish.def.dive ? 'ATL' : 'BATTLE'); else Music.playForLevel(levelIndex);
+        if (skirmish) Music.playTrack(skirmishTrack(skirmish.def)); else Music.playForLevel(levelIndex);
       }
       if (!nowMuted && mapLike(scene)) Music.playTrack('MAP');
     }
@@ -719,6 +743,7 @@ const Game = (function () {
       Sfx.select();
       if (spNear.def.scene === 'shop') { shopCursor = 0; shopSeller = spNear.def.seller || 'portugal'; }
       // v1.26 地中海港口：沉船潛水直接開潛；造船廠打開升級畫面
+      if (spNear.def.scene === 'duo') { tryStartDuo(spNear); return; }
       if (spNear.def.scene === 'dive') {
         const ship0 = Voyage.shipPos();
         startSkirmish({ kind: spNear.def.port, def: Encounter.KINDS[spNear.def.port], x: ship0.x, y: ship0.y, port: true });
@@ -885,6 +910,8 @@ const Game = (function () {
     // 招牌機制（要在玩家物理之後：彈跳墊要知道玩家這帧有沒有站在上面）
     state.players.forEach(function (q, i) { q.out = !!downed[i]; });
     const featureEvents = state.features ? Features.update(state, t) : [];
+    // 雙人試煉：壓板、閘門、吊橋（要在玩家物理之後：看這帧誰站在壓板上）
+    if (state.duo) Duo.update(state).forEach(function (e) { featureEvents.push(e); });
     // 玩家丟出去的板球／辣椒火球
     updatePlayerShots(state).forEach(function (e) { featureEvents.push(e); });
     // 會講話的 NPC（玩家走近就講）
@@ -913,6 +940,12 @@ const Game = (function () {
         const rd = Encounter.RELICS.filter(function (q) { return q.id === rid; })[0];
         Sfx.secret(); runScore += 300;
         toast = { text: '撈到寶物：' + (rd ? rd.name : rid) + '！', sub: rd ? rd.note : '', life: 220 };
+        return;
+      }
+      if (ev === 'duo:press') { Sfx.select(); return; }
+      if (ev === 'duo:unlock') {
+        Sfx.secret(); shake = 6;
+        toast = { text: '石門打開了！', sub: '兩個人一起過去吧', life: 140 };
         return;
       }
       if (ev.indexOf && ev.indexOf('feature:') === 0) {
@@ -1294,7 +1327,7 @@ const Game = (function () {
   /** 海戰打輸（時間到或沒命）：船上有貨的話，海盜搶走一箱（潛水不算：人下水了，船沒事） */
   function loseCargo() {
     deadNote = null;
-    if (!skirmish || skirmish.def.dive || !Save.cargoCount()) return;
+    if (!skirmish || skirmish.def.dive || skirmish.def.duo || !Save.cargoCount()) return;
     const id = Object.keys(Save.get().cargo)[0];
     Save.moveCargo(id, -1, 0);
     deadNote = '趁亂被搶走了一箱' + Trade.good(id).name + '⋯⋯';
@@ -1566,7 +1599,9 @@ const Game = (function () {
       downed[i] = true;
       // 還有隊友活著 → 這位玩家退場，遊戲繼續
       const anyAlive = state.players.some(function (_, k) { return !downed[k]; });
-      if (anyAlive) {
+      // 雙人試煉少一個人就過不去了 → 直接算失敗，不要讓剩下的人卡在閘門前
+      const duoOut = anyAlive && state.duo;
+      if (anyAlive && !state.duo) {
         Sfx.hurt();
         toast = {
           text: (i === 0 ? '玩家 1' : '玩家 2') + ' 沒命了',
@@ -1577,6 +1612,7 @@ const Game = (function () {
       }
       Sfx.gameover();
       loseCargo();       // 海戰沒命：船上的貨被搶走一箱（見 loseCargo）
+      if (duoOut) deadNote = (i === 0 ? '玩家 1' : '玩家 2') + ' 沒命了 —— 雙人試煉要兩個人一起才過得去';
       // 死掉也保留撿到的金幣（否則練習關卡完全沒收益，玩家會覺得白跑）
       // 但只給一半，死亡仍有代價。
       const keep = Math.floor(runCoins / 2);
@@ -1659,7 +1695,7 @@ const Game = (function () {
       expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null };
       netProgress({ t: 'exp', n: state.def.exp, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
-      if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed) && Save.markSeaBoss(skirmish.kind)) {
+      if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed || skirmish.def.duo) && Save.markSeaBoss(skirmish.kind)) {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
@@ -1692,7 +1728,7 @@ const Game = (function () {
       // D 懸賞：討伐、黃金海馬、斯庫拉
       {
         const b = Save.get().bounty;
-        if (b && !skirmish.def.dive) {
+        if (b && !skirmish.def.dive && !skirmish.def.duo) {
           if (b.type === 'hunt') { b.got = (b.got || 0) + 1; if (b.got >= b.n) completeBounty(b); else Save.touch(); }
           if (b.type === 'golden' && skirmish.def.rare) completeBounty(b);
           if (b.type === 'scylla' && skirmish.kind === 'scylla') completeBounty(b);
@@ -2239,6 +2275,8 @@ const Game = (function () {
     Npcs.draw(ctx, state, camX, t);   // 當地居民（站在小道具前面）
     // 招牌機制本體（彈跳墊、間歇泉、啤酒桶、牛群）
     if (state.features) Features.drawWorld(ctx, state, camX, t, 'fg');
+    // 雙人試煉的壓板、閘門、吊橋
+    if (state.duo) Duo.drawWorld(ctx, state, camX, t, W);
     // 海上小遊戲的場景物件（麵包籃、海盜船、海獺、黃金海馬）
     if (def.skirmish) Encounter.drawWorld(ctx, state, t);
 
@@ -2393,7 +2431,9 @@ const Game = (function () {
     ctx.strokeRect(16, 12, 33, 20);
 
     let title;
-    if (def.skirmish || def.dive) {
+    if (def.duo) {
+      title = '雙人試煉　' + def.country + ' · ' + def.city;
+    } else if (def.skirmish || def.dive) {
       title = def.country + '　' + def.city;
     } else {
       title = (def.isBoss ? '魔王關　' : `第 ${levelIndex + 1} / ${Levels.count} 關　`) +
@@ -2653,6 +2693,44 @@ const Game = (function () {
     WorldMap.endView(ctx);
   }
 
+  /**
+   * 雙人試煉的資訊卡（蓋在一般關卡資訊卡上）：
+   *   第一行：兩個小人的徽章、試煉名（＋「需雙人」標記）、小知識｜右邊：目前幾位玩家
+   *   第二行：玩法｜右邊：首次獎勵／已通過
+   */
+  function drawDuoCard(spot, CARD, t) {
+    const k = Encounter.KINDS[spot.def.port];
+    const base = Duo.build(k.duo);
+    const done = Save.seaBossDown(spot.def.port);
+    ctx.fillStyle = 'rgba(10,16,30,0.96)';
+    ctx.fillRect(0, H - CARD + 1, W, CARD - 1);
+    // 徽章：紫底兩個小人
+    ctx.fillStyle = '#8a4ab8';
+    U.roundRect(ctx, 14, H - 50, 33, 22, 4); ctx.fill();
+    ctx.fillStyle = '#f4efe2';
+    ctx.beginPath(); ctx.arc(25, H - 44, 3, 0, Math.PI * 2); ctx.arc(36, H - 44, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(22, H - 40, 6, 9); ctx.fillRect(33, H - 40, 6, 9);
+    const nameStr = k.name + ' · ' + base.city;
+    U.text(ctx, nameStr, 56, H - 39, { size: 16, color: '#ffffff', align: 'left' });
+    ctx.font = '600 16px "Segoe UI", "Microsoft JhengHei", sans-serif';
+    const bx = 56 + ctx.measureText(nameStr).width + 10;
+    // 「需雙人」標記（同魔王關標記的樣式，紫色）
+    ctx.fillStyle = 'rgba(176,120,232,0.25)';
+    U.roundRect(ctx, bx, H - 49, 58, 20, 5); ctx.fill();
+    ctx.strokeStyle = '#c89af0'; ctx.lineWidth = 1.2;
+    U.roundRect(ctx, bx, H - 49, 58, 20, 5); ctx.stroke();
+    U.text(ctx, '需雙人', bx + 29, H - 39, { size: 11, color: '#e2c8ff' });
+    U.text(ctx, fitText(base.fact, W - 236 - bx - 68, 12), bx + 72, H - 39, { size: 12, color: '#aab6d0', align: 'left' });
+    // 右上：現在場上幾位玩家（一個人時提示怎麼找 2P）
+    const two = coop;
+    const touch = document.documentElement.classList.contains('touch');
+    U.text(ctx, two ? '✓ 兩位玩家' + (isHost() ? '（連線）' : '') : touch ? '目前 1 人：用連線找 2P' : '目前 1 人：按 C 加入 2P', W - 14, H - 39,
+      { size: 12, color: two ? '#8fe3a0' : '#ff9aa8', align: 'right' });
+    U.text(ctx, k.tags, 56, H - 15, { size: 12, color: '#c8b8e8', align: 'left' });
+    U.text(ctx, done ? '已通過　再闖 +' + k.exp + ' EXP' : '首次 +' + k.bossExp + ' EXP、€' + k.bossCoins, W - 14, H - 15,
+      { size: 12, color: done ? '#8fe3a0' : '#f6d98a', align: 'right' });
+  }
+
   function drawMap() {
     const sv = Save.get();
     // 航海模式：Voyage 內部會先叫 WorldMap.draw 畫海與陸地，再疊船與港口
@@ -2767,6 +2845,10 @@ const Game = (function () {
     } else if (!open) {
       U.text(ctx, '未解鎖', W - 14, H - 15, { size: 12, color: '#8894b2', align: 'right' });
     }
+
+    // 雙人試煉（v1.28）：靠近時資訊卡換成試煉的資料，關名後面標「需雙人」
+    const duoSpot = Voyage.nearbySpecial();
+    if (duoSpot && duoSpot.def.duo) drawDuoCard(duoSpot, CARD, t);
 
     // 靠岸提示：在港口圈內才顯示「可上岸」；旁邊有怪時優先提示挑戰
     const near = Voyage.nearbyLevel();
@@ -3272,7 +3354,7 @@ const Game = (function () {
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
     const md = def.monster.def;
-    U.text(ctx, def.monster.kind === 'wreck' ? '撈起了安提基特拉機械！' : md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
+    U.text(ctx, def.monster.kind === 'wreck' ? '撈起了安提基特拉機械！' : md.duo ? '兩人合力闖過' + md.name + '！' : md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
       { size: 32, color: md.dive ? '#8ff0e0' : md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
     // 稀有怪掉的時裝（已經自動穿上，到裝備畫面可以換）
     if (r.relics) {
@@ -3414,7 +3496,7 @@ const Game = (function () {
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
       W / 2, 252, { size: 13, color: '#ffd166' });
     U.text(ctx, skirmish
-        ? (deadNote || (skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
+        ? (deadNote || (skirmish.def.duo ? '試煉場還在，兩個人準備好再來' : skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
         : '裝備不會消失，回地圖再挑戰一次',
       W / 2, 280, { size: 14, color: '#c6d2e8' });
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
@@ -3491,7 +3573,7 @@ const Game = (function () {
     ctx.fillStyle = 'rgba(8,12,24,0.75)';
     ctx.fillRect(0, 0, W, H);
     panel(250, 150, 460, 190);
-    U.text(ctx, skirmish ? (skirmish.def.dive ? '放棄這次潛水？' : '放棄這場海戰？') : '放棄這一關？', W / 2, 192, { size: 30, color: '#ffd166' });
+    U.text(ctx, skirmish ? (skirmish.def.dive ? '放棄這次潛水？' : skirmish.def.duo ? '放棄這次試煉？' : '放棄這場海戰？') : '放棄這一關？', W / 2, 192, { size: 30, color: '#ffd166' });
     U.text(ctx, skirmish ? '回大地圖後，這場不會拿到 EXP'
                          : '回大地圖後，這一關的金幣和分數不會保留',
       W / 2, 230, { size: 14, color: '#b9c6e2' });
@@ -3700,7 +3782,7 @@ const Game = (function () {
     net.levelLive = true;
     const p2 = state.players[1];
     if (p2) {
-      p2.stats = net.guestStats;
+      p2.stats = state.duo ? Duo.seal(net.guestStats) : net.guestStats;
       p2.equipped = {};
       (net.guestStats.worn || net.guestEquip).forEach(function (id) { p2.equipped[id] = true; });
       lives[1] = net.guestStats.maxLives;
@@ -3920,6 +4002,10 @@ const Game = (function () {
         if (LEVEL_SCENES[scene] && state && state.players[1]) downed[1] = true;
         coop = net.prevCoop;
         toast = { text: '朋友離線了', sub: '可以繼續一個人玩，或請朋友用同一個邀請碼重新加入', life: 220 };
+        // 雙人試煉一個人過不去：直接講清楚要回地圖
+        if (LEVEL_SCENES[scene] && state && state.duo) {
+          toast = { text: '朋友離線了', sub: '雙人試煉一個人過不去 —— 按左上角 ↩ 回地圖，等朋友重新加入再來', life: 300 };
+        }
       }
       net.hello = false;
       net.levelLive = false;
@@ -4108,6 +4194,14 @@ const Game = (function () {
         const m = k && k.boss ? Encounter.boss(kind) : Encounter.spawn(Voyage.shipPos(), 0, kind || 'gulls');
         if (m) startSkirmish(m);
         return !!m;
+      },
+      /** 直接進雙人試煉（kind = 'duoTwins' / 'duoMaze'），會自動打開兩人同機 */
+      enterDuo: function (kind) {
+        if (scene !== 'map') toMap();
+        coop = true;
+        const sp = Voyage.shipPos();
+        startSkirmish({ kind: kind, def: Encounter.KINDS[kind], x: sp.x, y: sp.y, port: true });
+        return state;
       },
       warpToGoal: function () {
         if (!state) return;

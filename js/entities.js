@@ -298,6 +298,8 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
     shaft: def.layout === 'shaft' ? makeShaftState(def) : null,
     // 橫向關卡的招牌機制（奔牛、彈跳墊⋯⋯見 features.js）
     features: def.features && def.features.length ? Features.makeState(def) : null,
+    // 雙人試煉的壓板、閘門（見 duo.js；一般關卡是 null）
+    duo: def.duo && typeof Duo !== 'undefined' ? Duo.makeState(def) : null,
     // 會講話的 NPC（見 npcs.js）
     npcs: typeof Npcs !== 'undefined' ? Npcs.makeState(def) : [],
     coinsTotal: (def.coins || []).length,
@@ -1140,7 +1142,9 @@ function solidsOf(state) {
   const extra = state.features ? Features.solids(state) : [];
   (d.platforms || []).forEach(function (pf) { pf.passThru = true; });
   state.movers.forEach(function (m) { m.passThru = true; });
-  return d.ground.concat(d.platforms || [], state.movers, blocks, extra);
+  // 雙人試煉：關著的閘門、放下的吊橋與踏板
+  const duo = state.duo ? Duo.solids(state) : [];
+  return d.ground.concat(d.platforms || [], state.movers, blocks, extra, duo);
 }
 
 /** 擊殺一個敵人，噴粒子 */
@@ -1172,6 +1176,8 @@ function updatePlayer(state, input, t, who) {
   const st = p.stats;
   const events = [];
   const solids = solidsOf(state);
+  // 雙人試煉：隊友的頭頂可以站（疊羅漢）。只加在玩家自己的碰撞裡，敵人不會踩在玩家頭上
+  if (state.duo) Duo.heads(state, p).forEach(function (s) { solids.push(s); });
 
   // ── 水平輸入（涼鞋加速） ──
   /*
