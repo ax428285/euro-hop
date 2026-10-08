@@ -61,7 +61,7 @@ function runRaceCheck() {
           if (seg.curve > 1.5 && rs.x > tx - 0.1) { held.left = false; held.right = true; }
           if (seg.curve < -1.5 && rs.x < tx + 0.1) { held.right = false; held.left = true; }
           // 矮的障礙壓在自己的位置上、3～6 段後就到：跳
-          for (let k = 2; k <= 6; k++) {
+          for (let k = 2; k <= 5; k++) {
             const s = pl.segs[here + k];
             if (s && rs.hop <= 0 && s.obs.some(function (o) { return o.low && Math.abs(o.x - rs.x) < (o.w + Race.PLAYER_W) / 2 + 0.05; })) jumpNow = true;
           }

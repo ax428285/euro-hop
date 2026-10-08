@@ -289,11 +289,83 @@ function makeBot(state) {
  * 永遠打不贏（破綻期碰到還是會受傷、癱太低導致跳躍飛過去、
  * 震波貼地無法閃避）。單點測試看不出這種「組合起來不可行」。
  */
+/*
+ * v1.31 巴西足球魔王（pattern 'soccer'）的踢球機器人 —— 踩頭沒用，要把球踢進門。真人的踢法：
+ *   繞到球的左邊（在右邊就從球上面跳過去）→ 往右帶球；
+ *   守門員站著時，帶到禁區外等；他丟球就閃（跳過去）；
+ *   他丟完累倒（破綻期）→ 衝過去、靠近球時跳起來踢（高吊球越過躺著的他）。
+ * cheat = true：玩家不會受傷（runBossTest 用：只驗「進球扣血 → 倒下 → 撿裝備 → 過關」接線）。
+ */
+function runSoccerBot(def, li, cheat) {
+  const owned = Equipment.defs.filter(function (d) { return d.level < li; }).map(function (d) { return d.id; });
+  const stats = Equipment.resolve(owned);
+  const st = buildLevelState(def, li, owned, stats);
+  const b = st.boss, p = st.player, ball = st.ball;
+  b.phase = 'idle'; b.timer = 90;
+  let lives = stats.maxLives, frame = 0, hurts = 0, goals = 0, equipTaken = false, cleared = false;
+  let jE = false, hJ = false, hR = false, hL = false, lob = false;
+  const inp = {
+    isDown: function (a) { return (a === 'right' && hR) || (a === 'left' && hL) || (a === 'jump' && hJ); },
+    once: function (a) { return a === 'jump' && jE; },
+    endFrame: function () {}
+  };
+  const LIMIT = 20000;
+  while (frame < LIMIT && lives > 0 && !cleared) {
+    frame++;
+    updateMovers(st.movers, frame);
+    updateEnemies(st, frame);
+    updateBoss(st, frame).forEach(function (e) { if (e === 'goal') goals++; });
+    updateShots(st);
+    jE = false; hR = false; hL = false; hJ = false;
+    const pcx = p.x + p.w / 2, bcx = ball.x + ball.w / 2;
+    if (cheat) p.invuln = 999;
+    if (b.defeated) {
+      const tx = st.equip && !st.equip.taken ? st.equip.x : def.width + 50;
+      if (tx > pcx) hR = true; else hL = true;
+    } else {
+      // 守門員丟過來的球：快到了就跳
+      const incoming = st.shots.some(function (s) {
+        if (!s.football) return false;
+        const dx = (s.x + s.w / 2) - pcx;
+        return dx > -10 && dx < 90 && s.y + s.h > p.y - 10 && s.y < p.y + p.h + 10;
+      });
+      if (p.onGround) lob = false;
+      if (incoming && p.onGround) { jE = true; hJ = true; }
+      else if (!p.onGround && p.vy < 0) hJ = true;
+      const lying = b.phase === 'recover';
+      if (!ball.scored && !incoming) {
+        if (pcx > bcx - 8) {
+          // 在球的右邊：往左繞，靠近時從球上面跳過去
+          hL = true;
+          if (p.onGround && pcx - bcx < 70 && Math.abs(ball.y + ball.h - (p.y + p.h)) < 30) { jE = true; hJ = true; }
+        } else if (!lying && ball.x > 820) {
+          // 守門員站著、球已經在禁區附近：停在球左邊等他丟完球累倒
+          if (pcx < bcx - 70) hR = true;
+          else if (pcx > bcx - 40) hL = true;
+        } else {
+          hR = true;
+          // 他躺下了、球離球門不遠：靠近球時跳起來踢（高吊球）
+          if (lying && ball.x > 640 && p.onGround && bcx - pcx < 46 && bcx - pcx > 10) { jE = true; hJ = true; lob = true; }
+        }
+      }
+      if (lob && !p.onGround) { hR = true; if (p.vy < 0) hJ = true; }
+    }
+    const ev = updatePlayer(st, inp, frame);
+    if (ev.indexOf('hurt') >= 0) { lives--; hurts++; }
+    if (ev.indexOf('equip') >= 0) equipTaken = true;
+    if (ev.indexOf('clear') >= 0) cleared = true;
+  }
+  return { level: li + 1, country: def.country, name: def.country, bossName: b.name, hpMax: b.hpMax,
+           won: b.defeated, defeated: b.defeated, hitsLanded: goals, goals: goals, timesHurt: hurts, playerHurt: hurts,
+           livesLeft: lives, frames: frame, equipTaken: equipTaken, cleared: cleared, soccer: true };
+}
+
 function runBossFightTest() {
   const out = [];
 
   Levels.list.forEach(function (def, li) {
     if (!def.isBoss) return;
+    if (def.boss.pattern === 'soccer') { out.push(runSoccerBot(def, li, false)); return; }
 
     // 進關時應該有的裝備（前面關卡拿得到的）
     const owned = Equipment.defs
@@ -484,6 +556,8 @@ function runBossTest() {
 
   Levels.list.forEach(function (def, li) {
     if (!def.isBoss) return;
+    // 巴西足球：踩頭沒用（下面的「破綻期踩頭」策略不適用），改用踢球機器人（不會受傷）驗接線
+    if (def.boss.pattern === 'soccer') { out.push(runSoccerBot(def, li, true)); return; }
 
     // 進魔王關時，玩家應該已經有前面關卡的裝備
     const owned = Equipment.defs

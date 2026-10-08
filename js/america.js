@@ -690,11 +690,121 @@ const America = (function () {
       for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(s.x + s.w / 2 + (k - 1.5) * 10, Levels.GROUND_Y - 6 - s.arc.t * 2, 4, 0, Math.PI * 2); ctx.fill(); }
     }
   }
+  // ── 巴西足球（v1.31）────────────────────────────────────
+
+  /** 足球：白底黑色五角形（轉動時花紋跟著轉） */
+  function football(ctx, cx, cy, r, spin) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(spin || 0);
+    ctx.fillStyle = '#f8f8f4';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1e1e22';
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; ctx.lineTo(Math.cos(a) * r * 0.38, Math.sin(a) * r * 0.38); }
+    ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.86, Math.sin(a) * r * 0.86, r * 0.22, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** 球場：草皮上的白線（中線、中圈、禁區）＋右邊的球門（門柱、橫梁、球網），畫在守門員後面 */
+  function drawPitch(ctx, state, camX, t) {
+    const S = state.boss && state.boss.soccer;
+    if (!S) return;
+    const G = Levels.GROUND_Y, gx = S.goalX - camX, bar = S.barY;
+    const back = (state.def.bossArena ? state.def.bossArena.x + state.def.bossArena.w : state.def.width) - camX;
+    ctx.save();
+    // 草皮的條紋
+    for (let x = -camX % 80 - 80; x < 1000; x += 80) {
+      ctx.fillStyle = Math.floor((x + camX) / 80) % 2 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+      ctx.fillRect(x, G, 80, 10);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(640 - camX - 2, G, 4, 8);                         // 中線
+    ctx.fillRect(gx - 180, G, 180, 3);                             // 禁區線
+    ctx.fillRect(gx - 182, G, 4, 8);
+    // 球網
+    ctx.fillStyle = 'rgba(240, 240, 240, 0.25)';
+    ctx.fillRect(gx, bar, back - gx, G - bar);
+    ctx.strokeStyle = 'rgba(240, 240, 240, 0.55)'; ctx.lineWidth = 1;
+    for (let x = gx; x < back; x += 12) { ctx.beginPath(); ctx.moveTo(x, bar); ctx.lineTo(x + 8, G); ctx.stroke(); }
+    for (let y = bar; y < G; y += 12) { ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(back, y); ctx.stroke(); }
+    // 門柱、橫梁
+    ctx.fillStyle = '#f8f8f4';
+    ctx.fillRect(gx - 3, bar - 4, 7, G - bar + 4);
+    ctx.fillRect(gx - 3, bar - 4, back - gx + 3, 6);
+    ctx.restore();
+  }
+
+  function drawBall(ctx, ball, camX, t) {
+    const cx = ball.x + ball.w / 2 - camX, cy = ball.y + ball.h / 2;
+    const G = Levels.GROUND_Y;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    ctx.beginPath(); ctx.ellipse(cx, G - 1, ball.w / 2 * (0.6 + 0.4 * Math.min(1, 80 / Math.max(1, G - cy))), 3, 0, 0, Math.PI * 2); ctx.fill();
+    if (ball.scored && Math.floor(ball.scored / 6) % 2 === 0) ctx.globalAlpha = 0.6;
+    football(ctx, cx, cy, ball.w / 2, ball.spin);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * 巨人守門員：黃綠球衣（巴西隊的顏色）、大手套。
+   * 平常彎腰張開雙手守門；預告時把備用球舉過頭；破綻期（丟完球累倒）整個人躺在地上喘氣。
+   */
+  Sprites.bossKinds.goalkeeper = function (ctx, b, t) {
+    const x = b.x, y = b.y, w = b.w, h = b.h, cx = x + w / 2, gy = y + h;
+    if (b.phase === 'recover' && !b.defeated) {
+      // 躺著：身體橫在地上、頭在右邊，頭上冒汗
+      ctx.fillStyle = '#f2c230'; U.roundRect(ctx, x - 20, gy - 24, w + 10, 22, 8); ctx.fill();
+      ctx.fillStyle = '#2f9a4a'; ctx.fillRect(x - 20, gy - 10, w + 10, 6);
+      ctx.fillStyle = '#2a4aa8'; ctx.fillRect(x - 40, gy - 20, 22, 16);
+      ctx.fillStyle = '#c8946a'; ctx.beginPath(); ctx.arc(x + w + 4, gy - 16, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1e1a18'; ctx.fillRect(x + w + 2, gy - 22, 2, 6); ctx.fillRect(x + w + 8, gy - 22, 2, 6);
+      ctx.fillStyle = 'rgba(160, 210, 255, 0.9)';
+      for (let k = 0; k < 3; k++) { const ph = (t * 0.2 + k * 3) % 10; ctx.beginPath(); ctx.arc(x + w + 10 + k * 6, gy - 34 - ph, 2.5, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#f4f4f0'; ctx.beginPath(); ctx.arc(x - 30, gy - 30, 11, 0, Math.PI * 2); ctx.fill();   // 大手套
+      return;
+    }
+    const crouch = b.phase === 'idle' ? Math.sin(t * 0.1) * 2 : 0;
+    // 腿
+    ctx.fillStyle = '#2a4aa8'; ctx.fillRect(cx - 18, gy - 34, 14, 24); ctx.fillRect(cx + 4, gy - 34, 14, 24);
+    ctx.fillStyle = '#f4f4f0'; ctx.fillRect(cx - 18, gy - 14, 14, 10); ctx.fillRect(cx + 4, gy - 14, 14, 10);
+    ctx.fillStyle = '#1e1e22'; ctx.fillRect(cx - 20, gy - 5, 18, 5); ctx.fillRect(cx + 2, gy - 5, 18, 5);
+    // 身體（黃色球衣、綠色領口與號碼 1）
+    ctx.fillStyle = '#f2c230'; U.roundRect(ctx, cx - 26, y + 26 + crouch, 52, 40, 8); ctx.fill();
+    ctx.fillStyle = '#2f9a4a'; ctx.fillRect(cx - 8, y + 26 + crouch, 16, 5);
+    U.text(ctx, '1', cx, y + 48 + crouch, { size: 16, weight: 800, color: '#2f9a4a', stroke: false });
+    // 頭
+    ctx.fillStyle = '#c8946a'; ctx.beginPath(); ctx.arc(cx, y + 14 + crouch, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1e1a18'; ctx.beginPath(); ctx.arc(cx, y + 8 + crouch, 15, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#16161c'; ctx.fillRect(cx - 9, y + 13 + crouch, 4, 4); ctx.fillRect(cx - 1, y + 13 + crouch, 4, 4);
+    // 手臂＋大手套：預告時舉起一顆備用球
+    const raise = b.phase === 'telegraph' || b.phase === 'act';
+    ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+    if (raise) {
+      ctx.beginPath(); ctx.moveTo(cx - 20, y + 32); ctx.lineTo(cx - 24, y - 6); ctx.moveTo(cx + 20, y + 32); ctx.lineTo(cx + 22, y - 2); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.fillStyle = '#f4f4f0';
+      ctx.beginPath(); ctx.arc(cx - 24, y - 10, 10, 0, Math.PI * 2); ctx.arc(cx + 22, y - 6, 10, 0, Math.PI * 2); ctx.fill();
+      if (b.shotsLeft > 0 || b.phase === 'telegraph') football(ctx, cx - 2, y - 22, 11, t * 0.05);
+    } else {
+      ctx.beginPath(); ctx.moveTo(cx - 22, y + 34 + crouch); ctx.lineTo(cx - 46, y + 18 + crouch); ctx.moveTo(cx + 22, y + 34 + crouch); ctx.lineTo(cx + 44, y + 22 + crouch); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.fillStyle = '#f4f4f0';
+      ctx.beginPath(); ctx.arc(cx - 48, y + 16 + crouch, 11, 0, Math.PI * 2); ctx.arc(cx + 46, y + 20 + crouch, 11, 0, Math.PI * 2); ctx.fill();
+    }
+  };
+
   const baseShot = Sprites.shot;
   Sprites.shot = function (ctx, s, t) {
     if (s.serpent || s.arcMark) { drawSerpentShot(ctx, s, t); return; }
+    if (s.football) { football(ctx, s.x + s.w / 2, s.y + s.h / 2, s.w / 2, t * 0.3); return; }
     baseShot(ctx, s, t);
   };
 
-  return { FLAGS: FLAGS };
+  return { FLAGS: FLAGS, drawPitch: drawPitch, drawBall: drawBall, football: football };
 })();

@@ -34,7 +34,11 @@ const Race = (function () {
   const DRAW = 150;             // 往前畫幾段
   const LANES = [-0.62, 0, 0.62];
   const PLAYER_W = 0.34;        // 玩家（車子）的寬（路寬單位）
-  const HOP_V = 9.5, HOP_G = 0.5;   // 跳起來的初速、重力（hop 是離地高度，像素）
+  /*
+   * 跳起來的初速、重力（hop 是離地高度，像素）。
+   * v1.31 玩家：墨西哥的障礙很難跳過去 → 跳得更高、在空中更久（約 50 帧），矮的障礙只要離地 HOP_CLEAR 就算跳過。
+   */
+  const HOP_V = 10.5, HOP_G = 0.42, HOP_CLEAR = 6;
   const INVULN = 90;
 
   /** 可重現的偽隨機 */
@@ -93,7 +97,7 @@ const Race = (function () {
 
     // 障礙：每隔一段距離放一個；高的（要閃）、矮的（可以跳）
     const obsKinds = cfg.theme === 'chase'
-      ? [{ kind: 'tumbleweed', low: true, w: 0.4 }, { kind: 'rock', low: false, w: 0.42 }, { kind: 'cactusRoad', low: false, w: 0.3 }, { kind: 'crates', low: true, w: 2.4, full: true }]
+      ? [{ kind: 'tumbleweed', low: true, w: 0.4 }, { kind: 'rock', low: false, w: 0.42 }, { kind: 'cactusRoad', low: false, w: 0.3 }]
       : [{ kind: 'pothole', low: true, w: 0.5 }, { kind: 'cone', low: false, w: 0.3 }, { kind: 'cart', low: false, w: 0.46 }];
     const gap = cfg.obsEvery || 34;
     for (let i = START; i < END; i += gap + Math.floor(r() * 12)) {
@@ -112,11 +116,12 @@ const Race = (function () {
       segs[i].obs.push({ x: 0, kind: 'wave', w: 2.6, low: true });
       for (let d = 4; d <= 22; d += 3) segs[i - d].sprites.push({ x: -1.15, kind: 'spray' });
     });
-    // 墨西哥：走私卡車丟下的一整排木箱（整條路，要跳）
+    // 墨西哥：走私卡車丟下的一整排木箱（整條路，要跳）—— 前面兩側先立警示牌（跟古巴海堤冒水花一樣是預告）
     (cfg.crates || []).forEach(function (k) {
       const i = Math.round(START + (END - START) * k);
-      for (let d = -2; d < 3; d++) segs[i + d].obs = [];
+      for (let d = -16; d < 4; d++) segs[i + d].obs = [];
       segs[i].obs.push({ x: 0, kind: 'crates', w: 2.6, low: true });
+      for (let d = 6; d <= 24; d += 6) { segs[i - d].sprites.push({ x: -1.2, kind: 'warn' }); segs[i - d].sprites.push({ x: 1.2, kind: 'warn' }); }
     });
     // 金幣：一排 5 枚，放在沒有障礙的車道
     const coins = [];
@@ -221,7 +226,7 @@ const Race = (function () {
       }
       s.obs.forEach(function (o) {
         if (rs.invuln > 0) return;
-        if (o.low && rs.hop > 14) return;                   // 跳在半空中：矮的障礙飛過去
+        if (o.low && rs.hop > HOP_CLEAR) return;            // 跳在半空中：矮的障礙飛過去
         if (o.kind === 'wave' && st.waveProof) { rs.speed *= 0.7; return; }   // v1.31 古巴襯衫：浪打到不痛，只是慢下來
         if (Math.abs(rs.x - o.x) < (o.w + PLAYER_W) / 2) {
           rs.invuln = INVULN;
@@ -372,6 +377,13 @@ const Race = (function () {
         ctx.fillStyle = '#b05a34';
         ctx.beginPath(); ctx.moveTo(-u * 0.6, 0); ctx.lineTo(-u * 0.45, -u * 0.7); ctx.lineTo(u * 0.4, -u * 0.72); ctx.lineTo(u * 0.6, 0); ctx.fill();
         ctx.fillStyle = 'rgba(255, 220, 170, 0.3)'; ctx.fillRect(-u * 0.5, -u * 0.5, u, u * 0.04);
+        break;
+      case 'warn':
+        // 前方有障礙的三角警示牌
+        ctx.fillStyle = '#5a5a60'; ctx.fillRect(-u * 0.01, -u * 0.3, u * 0.02, u * 0.3);
+        ctx.fillStyle = '#f2a020';
+        ctx.beginPath(); ctx.moveTo(0, -u * 0.5); ctx.lineTo(u * 0.12, -u * 0.3); ctx.lineTo(-u * 0.12, -u * 0.3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#16161c'; ctx.fillRect(-u * 0.01, -u * 0.45, u * 0.02, u * 0.08); ctx.fillRect(-u * 0.01, -u * 0.35, u * 0.02, u * 0.02);
         break;
       case 'sign':
         // 路邊的告示牌：「緝毒檢查哨 前方 2 公里」
@@ -635,6 +647,7 @@ const Race = (function () {
     PLAYER_W: PLAYER_W,
     LANES: LANES,
     HOP_V: HOP_V,
+    HOP_CLEAR: HOP_CLEAR,
     HOP_G: HOP_G
   };
 })();

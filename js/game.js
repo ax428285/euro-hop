@@ -1295,6 +1295,15 @@ const Game = (function () {
         case 'cannon': Sfx.stomp(); shake = 8; break;
         case 'waveWarn': Sfx.land(); break;           // v1.31 古巴：浪頭在海堤後面捲起來了
         case 'pour': Sfx.land(); break;               // v1.31 牙買加：細口壺開始沖水
+        // v1.31 巴西足球
+        case 'kick': Sfx.stomp(); break;
+        case 'save': Sfx.clang(); shake = 4; break;
+        case 'goal': {
+          Sfx.fanfare(); shake = 10;
+          const left = state.boss ? state.boss.hp : 0;      // 進球時已經扣過了（soccerTick 同一帧呼叫 damageBoss）
+          toast = { text: '進球！GOOOL！', sub: left > 0 ? '再進 ' + left + ' 球就贏了' : '最後一球！', life: 140 };
+          break;
+        }
         case 'beat': Sfx.stomp(); break;              // v1.31 牙買加：重低音「咚」
         case 'grab': Sfx.select(); break;             // v1.31 哥倫比亞：抓住盪繩
         case 'creak': Sfx.clang(); break;
@@ -2623,6 +2632,8 @@ const Game = (function () {
       }
     }
 
+    // v1.31 巴西足球：球場的線、球門（在守門員後面）
+    if (state.ball && typeof America !== 'undefined') America.drawPitch(ctx, state, camX, t);
     // 魔王（破綻期用實際的矮碰撞盒繪製，玩家看到的就是能踩的範圍）
     if (state.boss) {
       const b = state.boss;
@@ -2648,6 +2659,7 @@ const Game = (function () {
     });
 
     // 彈射物 / 震波
+    if (state.ball && typeof America !== 'undefined') America.drawBall(ctx, state.ball, camX, t);   // v1.31 巴西足球
     state.shots.forEach(function (s) {
       const sx = s.x - camX;
       if (sx > W + 30 || sx < -30) return;
@@ -2656,6 +2668,7 @@ const Game = (function () {
         pillar: s.pillar, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember,
         slash: s.slash, lava: s.lava,
         serpent: s.serpent, seg: s.seg, ang: s.ang, dirX: s.dirX, arc: s.arc,          // v1.31 亞馬遜大蛇
+        football: s.football,                                                           // v1.31 巴西守門員丟的球
         arcMark: s.arcMark ? { x0: s.arcMark.x0 - camX, x1: s.arcMark.x1 - camX, h: s.arcMark.h, from: s.arcMark.from } : null }, t);
     });
 

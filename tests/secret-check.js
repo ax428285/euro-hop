@@ -42,7 +42,8 @@ function runSecretCheck() {
         if (b.left == null || b.right == null) {
           issues.push(tag + '：魔王沒有 left/right 活動範圍');
         } else {
-          if (b.right - b.left < 300) {
+          // v1.31 巴西足球的守門員本來就只守在球門前（只靠進球打他），不算
+          if (b.right - b.left < 300 && b.pattern !== 'soccer') {
             issues.push(tag + '：魔王活動範圍只有 ' + (b.right - b.left) + 'px，太窄');
           }
           const a = def.bossArena;

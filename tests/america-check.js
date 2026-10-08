@@ -9,7 +9,8 @@
  *      牙買加手沖咖啡 —— 沖水前有預告；站在水柱裡會燙、站在旁邊不會，而且會被咖啡粉托上去；手沖細口壺不會燙
  *      巴拿馬船閘 —— 閘門比跳躍高（從岸上跳不過）、小船升到頂比閘門高；兩艘船差半個週期
  *      哥倫比亞盪繩 —— 把手擺到岸邊時從岸上跳得到；從正中間往前衝時放手飛得過對岸
- *   E) 亞馬遜大蛇：身體在竄出地面前碰到不痛；弧線兩端都在地上；鑽進地底時本體碰不到
+ *   E) 巴西足球：踩守門員的頭沒用；球滾進球門 = 扣一格；守門員站著時貼地球會被擋回來；
+ *      他躺下（破綻期）時高吊球過得去；守門員不會撞傷人；踢球機器人（照真人打法）贏得了
  *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型
  * 會暫時改存檔、換地圖，結束前還原。
  */
@@ -173,20 +174,46 @@ function runAmericaCheck() {
     });
   })();
 
-  // ── E) 亞馬遜大蛇 ──
+  // ── E) 巴西足球 ──
   (function () {
-    const def = AM[5].lv;
-    if (def.boss.pattern !== 'boiuna') { issues.push('巴西魔王的招式不是 boiuna'); return; }
-    const st = { def: def, shots: [], particles: [], enemies: [] };
-    const end = makeSerpentArc(st, 400, 800, 0);
-    const segs = st.shots.filter(function (s) { return s.serpent; });
-    if (segs.length < 4) issues.push('大蛇：身體只有 ' + segs.length + ' 節');
-    if (!st.shots.some(function (s) { return s.arcMark; })) issues.push('大蛇：沒有虛線弧的預告');
-    if (segs.some(function (s) { return !(s.warn > 30); })) issues.push('大蛇：身體竄出來之前的預告太短');
-    if (!(end > 60)) issues.push('大蛇：整段竄過去的時間算錯（' + end + '）');
-    const b = makeBoss(def.boss);
-    b.fade = 0;
-    if (!bossHarmless(b)) issues.push('大蛇：鑽進地底時本體還會撞傷人');
+    const o = AM[5], def = o.lv;
+    if (def.boss.pattern !== 'soccer') { issues.push('巴西魔王不是足球（pattern ' + def.boss.pattern + '）'); return; }
+    const fresh = function () { return buildLevelState(def, o.i, [], Equipment.resolve([])); };
+    const G = Levels.GROUND_Y, S = def.boss.soccer;
+    // 踩頭沒用
+    let st = fresh();
+    st.boss.phase = 'recover'; st.boss.timer = 100;
+    if (bossVulnerable(st.boss)) issues.push('巴西：守門員躺下時踩頭也算數（應該只有進球才算）');
+    if (!bossHarmless(st.boss)) issues.push('巴西：守門員會撞傷人');
+    // 球滾進門 = 扣一格
+    st = fresh();
+    const hp0 = st.boss.hp;
+    st.boss.phase = 'recover'; st.boss.timer = 200;
+    st.ball.x = S.goalX - 4; st.ball.y = G - st.ball.h; st.ball.vx = 6; st.ball.vy = 0;
+    st.player.x = 200;
+    let goal = false;
+    for (let f = 0; f < 30 && !goal; f++) goal = updateBoss(st, f).indexOf('goal') >= 0;
+    if (!goal || st.boss.hp !== hp0 - 1) issues.push('巴西：球滾進球門沒有算進球（hp ' + hp0 + ' → ' + st.boss.hp + '）');
+    // 守門員站著：貼地球擋回來
+    st = fresh();
+    st.boss.phase = 'idle'; st.boss.timer = 500; st.boss.x = 1110;
+    st.ball.x = 900; st.ball.y = G - st.ball.h; st.ball.vx = 8; st.ball.vy = 0;
+    st.player.x = 200;
+    let saved = false, scored = false;
+    for (let f = 0; f < 90; f++) { const ev = updateBoss(st, f); if (ev.indexOf('save') >= 0) saved = true; if (ev.indexOf('goal') >= 0) scored = true; }
+    if (!saved || scored) issues.push('巴西：守門員站著時，貼地球沒有被擋下來');
+    // 躺下時：從禁區外起腳的高吊球進得去
+    st = fresh();
+    st.boss.phase = 'recover'; st.boss.timer = 300; st.boss.x = 1110;
+    st.ball.x = 860; st.ball.y = G - st.ball.h; st.ball.vx = 8.2; st.ball.vy = -9;
+    st.player.x = 200;
+    scored = false;
+    for (let f = 0; f < 120 && !scored; f++) scored = updateBoss(st, f).indexOf('goal') >= 0;
+    if (!scored) issues.push('巴西：守門員躺下時，高吊球還是進不去');
+    // 照真人打法的踢球機器人（不作弊、帶前面拿得到的裝備）
+    const r = runSoccerBot(def, o.i, false);
+    if (!r.won) issues.push('巴西：踢球機器人踢不贏（進 ' + r.goals + ' 球、受傷 ' + r.timesHurt + ' 次）');
+    else if (r.timesHurt >= 3) issues.push('巴西：踢球機器人贏了但受傷 ' + r.timesHurt + ' 次，可能太難');
   })();
 
   // ── F) 美術 ──

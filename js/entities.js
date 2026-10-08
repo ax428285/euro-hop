@@ -171,6 +171,88 @@ function makeSerpentArc(state, x0, x1, delay) {
   return delay + SERPENT_WARN + (SERPENT_SEGS - 1) * SERPENT_GAP + SERPENT_T;
 }
 
+/*
+ * v1.31 巴西足球魔王（pattern 'soccer'）。
+ *   球：有重力、落地會彈、在地上慢慢滾停；玩家碰到就踢（站著踢 = 貼地球，跳起來踢 = 高吊球）。
+ *   球門在場地右邊（def.boss.soccer.goalX 起、橫梁高 barY）：球整顆過了門線、在橫梁底下 = 進球 = 魔王扣一格。
+ *   守門員（魔王本體）身體會擋球（擋到就往回彈）；看到高球飛來會跳起來擋。
+ *   破綻期（丟完球累倒）躺在地上，只擋得到貼地球 —— 這時候用高吊球越過他。
+ */
+const BALL_R = 12, BALL_G = 0.42, BALL_KICK_CD = 10;
+function makeBall(def) {
+  const G = Levels.GROUND_Y;
+  return { x: 560, y: G - BALL_R * 2 - 60, w: BALL_R * 2, h: BALL_R * 2, vx: 0, vy: 0, cd: 0, scored: 0, spin: 0 };
+}
+/** 守門員躺下（破綻期）時的碰撞盒：只剩貼地的一截 */
+const KEEPER_LYING_H = 26;
+function soccerTick(state, b, events) {
+  const G = Levels.GROUND_Y, ball = state.ball, S = b.soccer;
+  if (!ball || !S) return;
+  // 守門員跳起來擋高球（只有在站著守門的時候）
+  const floor = G - b.h;
+  if (b.kvy || b.y < floor) {
+    b.kvy = (b.kvy || 0) + 0.6;
+    b.y += b.kvy;
+    if (b.y >= floor) { b.y = floor; b.kvy = 0; }
+  }
+  if (b.kjcd > 0) b.kjcd--;
+  const guarding = b.phase === 'idle' || b.phase === 'telegraph' || b.phase === 'act';
+  if (guarding && b.y >= floor && !(b.kjcd > 0) && !ball.scored &&
+      ball.vx > 1.5 && ball.x > b.x - 230 && ball.x < b.x && ball.y + ball.h < b.y + 16) {
+    b.kvy = -11; b.kjcd = 80;
+    events.push('jump');
+  }
+  // 球的物理
+  if (ball.cd > 0) ball.cd--;
+  ball.vy += BALL_G;
+  ball.x += ball.vx; ball.y += ball.vy;
+  ball.spin += ball.vx * 0.06;
+  if (ball.y + ball.h >= G) {
+    ball.y = G - ball.h;
+    ball.vy = Math.abs(ball.vy) > 2 ? -Math.abs(ball.vy) * 0.55 : 0;
+    ball.vx *= 0.985;
+    if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
+  }
+  if (ball.x < 8) { ball.x = 8; ball.vx = Math.abs(ball.vx) * 0.7; }
+  // 橫梁：在橫梁上方往門裡飛 → 彈回來
+  if (ball.vx > 0 && ball.y + ball.h / 2 < S.barY && ball.x + ball.w > S.goalX && ball.x < S.goalX + 10) {
+    ball.x = S.goalX - ball.w; ball.vx = -Math.abs(ball.vx) * 0.6;
+  }
+  // 球網後面
+  const back = (state.def.bossArena ? state.def.bossArena.x + state.def.bossArena.w : state.def.width) - 8;
+  if (ball.x + ball.w > back) { ball.x = back - ball.w; ball.vx = 0; }
+  // 進球
+  if (!ball.scored && ball.x > S.goalX + 4 && ball.y + ball.h / 2 > S.barY) {
+    ball.scored = 60;
+    events.push('goal');
+    events.push(damageBoss(state, b));
+  }
+  if (ball.scored) {
+    ball.vx *= 0.9;
+    if (--ball.scored === 0) {
+      ball.x = 560; ball.y = G - ball.h - 120; ball.vx = 0; ball.vy = 0;
+    }
+    return;
+  }
+  // 守門員擋球
+  const kb = bossBox(b);
+  if (!b.defeated && U.overlap(ball, kb)) {
+    ball.x = kb.x - ball.w - 1;
+    ball.vx = -Math.max(5, Math.abs(ball.vx) * 0.8);
+    ball.vy = -5;
+    events.push('save');
+  }
+  // 玩家踢球
+  (state.players || [state.player]).forEach(function (p) {
+    if (p.out || ball.cd > 0 || !U.overlap(p, ball)) return;
+    const dir = (p.x + p.w / 2) < (ball.x + ball.w / 2) ? 1 : -1;
+    ball.vx = dir * Math.max(5.5, Math.abs(p.vx) + 3.6);
+    ball.vy = p.onGround ? -3.5 : -9;
+    ball.cd = BALL_KICK_CD;
+    events.push('kick');
+  });
+}
+
 const PILLAR_WARN = 48, PILLAR_UP = 34;
 function makePillar(x) {
   return { x: x, y: Levels.GROUND_Y - 124, w: 44, h: 124, vx: 0, vy: 0,
@@ -191,8 +273,10 @@ function makeBoss(def) {
     //   dive   空中斜線俯衝 + 沿路火星、落地火海
     //   sphinx 腳底下噴沙柱（看地上的漩渦走位）
     //   surtr  火焰劍高掃／低掃（看劍舉高還壓低，決定跳或不跳）
-    //   boiuna 亞馬遜大蛇鑽進地底，沿著虛線弧竄出來跳過場地（看虛線站到弧外或弧下的空檔）
+    //   boiuna 亞馬遜大蛇鑽進地底，沿著虛線弧竄出來跳過場地（看虛線站到弧外或弧下的空檔；目前沒有關卡用）
+    //   soccer 巴西足球：巨人守門員守門，踢球進門才算打中（踩頭沒用）；他丟完球累倒時是破門的機會
     pattern: def.pattern || 'slam',
+    soccer: def.soccer || null,      // v1.31 巴西足球：球門位置 { goalX, barY }
     shotsLeft: 0,
     shotCd: 0,
     hoverBase: null,
@@ -362,6 +446,8 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
     shaft: def.layout === 'shaft' ? makeShaftState(def) : null,
     // v1.31 往前衝的賽道關的執行期狀態（見 race.js；其他關是 null）
     race: def.layout === 'race' && typeof Race !== 'undefined' ? Race.makeState(def) : null,
+    // v1.31 巴西足球魔王的球
+    ball: def.boss && def.boss.pattern === 'soccer' ? makeBall(def) : null,
     // 橫向關卡的招牌機制（奔牛、彈跳墊⋯⋯見 features.js）
     features: def.features && def.features.length ? Features.makeState(def) : null,
     // 雙人試煉的壓板、閘門（見 duo.js；一般關卡是 null）
@@ -725,6 +811,9 @@ function updateBoss(state, t) {
   const p = state.player;
   const pcx = p.x + p.w / 2;
 
+  // v1.31 巴西足球：球、守門員擋球／跳、進球判定
+  if (b.pattern === 'soccer') soccerTick(state, b, events);
+
   b.timer--;
 
   switch (b.phase) {
@@ -777,6 +866,13 @@ function updateBoss(state, t) {
               }
               events.push('shoot');
             }
+            break;
+          }
+          case 'soccer': {
+            // 守門員：抱著備用球，一顆一顆丟向玩家（狂暴三顆）；丟完累倒
+            b.shotsLeft = bossEnraged(b) ? 3 : 2;
+            b.shotCd = 6;
+            b.timer = 300;
             break;
           }
           case 'boiuna': {
@@ -924,6 +1020,29 @@ function updateBoss(state, t) {
             }
           }
           b.swingT++;
+          break;
+        }
+
+        case 'soccer': {
+          b.dir = -1;
+          if (b.shotCd > 0) b.shotCd--;
+          else if (b.shotsLeft > 0) {
+            b.shotsLeft--;
+            b.shotCd = 44;
+            // 往玩家丟一顆球（直線，看得到、閃得掉：跳過去或跑開）
+            const sx = b.x, sy = b.y + 30;
+            const px = p.x + p.w / 2, py = p.y + p.h / 2;
+            const d = Math.max(1, Math.hypot(px - sx, py - sy));
+            const s = makeShot(sx - 10, sy, (px - sx) / d * 4.4, (py - sy) / d * 4.4);
+            s.football = true; s.w = s.h = 20;
+            state.shots.push(s);
+            events.push('throw');
+          }
+          if (b.shotsLeft <= 0 && b.shotCd <= 0) {
+            b.phase = 'recover';
+            b.timer = b.recoverTime;
+            events.push('slam');
+          }
           break;
         }
 
@@ -1270,6 +1389,8 @@ function bossPatternOf(b) {
 }
 
 function bossVulnerable(b) {
+  // v1.31 巴西足球：踩頭、丟東西都沒用，只有進球才算（見 soccerTick）
+  if (b && b.pattern === 'soccer') return false;
   return !!b && !b.defeated && b.phase === 'recover' && b.invuln <= 0;
 }
 
@@ -1282,6 +1403,7 @@ function bossVulnerable(b) {
  * 判定只看 phase，不看 invuln。
  */
 function bossHarmless(b) {
+  if (b && b.pattern === 'soccer') return true;     // 守門員不會撞人（他丟的球才會）
   // 吸血伯爵化成霧（半透明以下）時穿過去不會痛 —— 看不到的東西不該打人
   return !!b && !b.defeated &&
     (b.phase === 'recover' || b.graceTimer > 0 || (b.fade != null && b.fade < 0.5));
@@ -1302,6 +1424,10 @@ const SPEAR_RECOVER = 100;
 
 /** 魔王當前的碰撞盒（癱倒期間會變矮，跟繪製一致） */
 function bossBox(b) {
+  // 巴西守門員累倒時是整個人躺在地上（只剩貼地的一截）
+  if (b && b.pattern === 'soccer' && b.phase === 'recover' && !b.defeated) {
+    return { x: b.x - 20, y: b.y + b.h - KEEPER_LYING_H, w: b.w + 30, h: KEEPER_LYING_H };
+  }
   const slump = (b && b.phase === 'recover' && !b.defeated) ? BOSS_SLUMP : 0;
   return { x: b.x, y: b.y + slump, w: b.w, h: b.h - slump };
 }
