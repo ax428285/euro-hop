@@ -40,6 +40,16 @@ canvas#game {
   touch-action: none;
 }
 
+/* v1.29.9 大地圖是古地圖羊皮紙：畫布外框換成木框（main.js 在地圖畫面加 body.mapframe） */
+body.mapframe { background: #1c140c; transition: background 0.3s; }
+body.mapframe canvas#game {
+  border-color: #8a6234;
+  background: #2e1c0e;
+  box-shadow: 0 0 0 2px #3a2614, 0 0 22px rgba(212, 162, 58, 0.22);
+}
+body.mapframe .sbtn { background: rgba(70, 44, 20, 0.88); border-color: #a07a40; color: #f0dcb0; }
+body.mapframe .sbtn.on, body.mapframe .sbtn:active { background: #8a6234; }
+
 canvas#game:focus-visible {
   outline: 3px solid #ffd166;
   outline-offset: 3px;

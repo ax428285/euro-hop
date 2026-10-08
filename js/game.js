@@ -2758,7 +2758,7 @@ const Game = (function () {
     const k = Encounter.KINDS[spot.def.port];
     const base = Duo.build(k.duo);
     const done = Save.seaBossDown(spot.def.port);
-    ctx.fillStyle = 'rgba(10,16,30,0.96)';
+    ctx.fillStyle = 'rgba(46, 28, 14, 0.97)';
     ctx.fillRect(0, H - CARD + 1, W, CARD - 1);
     // 徽章：紫底兩個小人
     ctx.fillStyle = '#8a4ab8';
@@ -2776,13 +2776,13 @@ const Game = (function () {
     ctx.strokeStyle = '#c89af0'; ctx.lineWidth = 1.2;
     U.roundRect(ctx, bx, H - 49, 58, 20, 5); ctx.stroke();
     U.text(ctx, '需雙人', bx + 29, H - 39, { size: 11, color: '#e2c8ff' });
-    U.text(ctx, fitText(base.fact, W - 236 - bx - 68, 12), bx + 72, H - 39, { size: 12, color: '#aab6d0', align: 'left' });
+    U.text(ctx, fitText(base.fact, W - 236 - bx - 68, 12), bx + 72, H - 39, { size: 12, color: '#d6c4a0', align: 'left' });
     // 右上：現在場上幾位玩家（一個人時提示怎麼找 2P）
     const two = coop;
     const touch = document.documentElement.classList.contains('touch');
     U.text(ctx, two ? '✓ 兩位玩家' + (isHost() ? '（連線）' : '') : touch ? '目前 1 人：用連線找 2P' : '目前 1 人：按 C 加入 2P', W - 14, H - 39,
       { size: 12, color: two ? '#8fe3a0' : '#ff9aa8', align: 'right' });
-    U.text(ctx, k.tags, 56, H - 15, { size: 12, color: '#c8b8e8', align: 'left' });
+    U.text(ctx, k.tags, 56, H - 15, { size: 12, color: '#e2cfa8', align: 'left' });
     U.text(ctx, done ? '已通過　再闖 +' + k.exp + ' EXP' : '首次 +' + k.bossExp + ' EXP、€' + k.bossCoins, W - 14, H - 15,
       { size: 12, color: done ? '#8fe3a0' : '#f6d98a', align: 'right' });
   }
@@ -2791,7 +2791,7 @@ const Game = (function () {
     const sv = Save.get();
     // 航海模式：Voyage 內部會先叫 WorldMap.draw 畫海與陸地，再疊船與港口
     const eastOpen = eastUnlocked();
-    ctx.fillStyle = '#15293f';
+    ctx.fillStyle = '#2e1c0e';     // 地圖與資訊卡之間露出來的底色（v1.29.9 配古地圖的木框）
     ctx.fillRect(0, 0, W, H);
     WorldMap.beginView(ctx);
     Voyage.draw(ctx, t, {
@@ -2805,8 +2805,11 @@ const Game = (function () {
     drawMapScroll();
 
     // 標題條
-    ctx.fillStyle = 'rgba(10,16,30,0.72)';
+    // v1.29.9 玩家：地圖改古地圖了，周圍的框還是一開始的深藍 → 標題條、資訊卡改成深胡桃木＋金線
+    ctx.fillStyle = 'rgba(46, 28, 14, 0.94)';
     ctx.fillRect(0, 0, W, 40);
+    ctx.fillStyle = 'rgba(212, 162, 58, 0.7)';
+    ctx.fillRect(0, 39, W, 1.5);
     U.text(ctx, '世界地圖', 16, 20,
       { size: 18, color: '#ffd166', align: 'left' });
 
@@ -2822,17 +2825,17 @@ const Game = (function () {
       const idx = nx ? Encounter.REGIONS.indexOf(nx) : Encounter.REGIONS.length;
       const from = idx > 0 ? Encounter.REGIONS[idx - 1].exp : 0;
       const prog = done ? 1 : U.clamp((sv.exp - from) / (nx.exp - from), 0, 1);
-      U.text(ctx, 'EXP', bx - 6, 20, { size: 12, color: '#c9b8ff', align: 'right' });
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      U.text(ctx, 'EXP', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
+      ctx.fillStyle = 'rgba(255, 230, 180, 0.15)';
       U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
-      ctx.fillStyle = done ? '#8fe3a0' : '#a98bff';
+      ctx.fillStyle = done ? '#8fe3a0' : '#d4a23a';
       if (prog > 0) { U.roundRect(ctx, bx, by, Math.max(bh, bw * prog), bh, 6); ctx.fill(); }
       U.text(ctx, done ? '全部篇章已解鎖' : `${sv.exp}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
-        { size: 12, color: done ? '#8fe3a0' : '#d8ccff', align: 'left' });
+        { size: 12, color: done ? '#8fe3a0' : '#f0dcb0', align: 'left' });
     }
     U.text(ctx, (coop ? '2P　' : '') +
       `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　\u20AC ${sv.wallet}`,
-      W - 16, 20, { size: 14, color: coop ? '#8fe3a0' : '#cfd8ec', align: 'right' });
+      W - 16, 20, { size: 14, color: coop ? '#8fe3a0' : '#f0e0c0', align: 'right' });
 
     // 底部資訊卡
     const lv = Levels.list[cursor];
@@ -2846,9 +2849,9 @@ const Game = (function () {
      *   第二行：密道進度｜中間：靠岸提示／操作說明｜右邊：最佳紀錄
      */
     const CARD = 58;
-    ctx.fillStyle = 'rgba(10,16,30,0.86)';
+    ctx.fillStyle = 'rgba(46, 28, 14, 0.94)';
     ctx.fillRect(0, H - CARD, W, CARD);
-    ctx.strokeStyle = 'rgba(126,151,201,0.6)';
+    ctx.strokeStyle = 'rgba(212, 162, 58, 0.7)';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(0, H - CARD); ctx.lineTo(W, H - CARD); ctx.stroke();
 
@@ -2860,7 +2863,7 @@ const Game = (function () {
 
     const nameStr = (cursor + 1) + '. ' + lv.country + ' · ' + lv.city;
     U.text(ctx, nameStr, 56, H - 39,
-      { size: 16, color: open ? '#ffffff' : '#8894b2', align: 'left' });
+      { size: 16, color: open ? '#ffffff' : '#a8967a', align: 'left' });
     ctx.font = '600 16px "Segoe UI", "Microsoft JhengHei", sans-serif';
     let afterName = 56 + ctx.measureText(nameStr).width + 10;
 
@@ -2877,14 +2880,14 @@ const Game = (function () {
       afterName += 68;
     }
 
-    U.text(ctx, fitText(lv.fact, W - 236 - afterName, 12), afterName + 4, H - 39, { size: 12, color: '#aab6d0', align: 'left' });
+    U.text(ctx, fitText(lv.fact, W - 236 - afterName, 12), afterName + 4, H - 39, { size: 12, color: '#d6c4a0', align: 'left' });
 
     // 密道進度
     const scTotal = (lv.secrets || []).length;
     if (scTotal) {
       const found = Save.secretsFound(cursor);
       U.text(ctx, '密道 ' + found + '/' + scTotal, 56, H - 15,
-        { size: 12, color: found >= scTotal ? '#8fe3a0' : '#b9d4f5', align: 'left' });
+        { size: 12, color: found >= scTotal ? '#8fe3a0' : '#e8d4a8', align: 'left' });
     }
 
     // 這一關的裝備狀態
@@ -2899,7 +2902,7 @@ const Game = (function () {
       U.text(ctx, '最佳 € ' + best.coins + '/' + best.total + '　' + best.score + ' 分', W - 14, H - 15,
         { size: 12, color: '#f6d98a', align: 'right' });
     } else if (!open) {
-      U.text(ctx, '未解鎖', W - 14, H - 15, { size: 12, color: '#8894b2', align: 'right' });
+      U.text(ctx, '未解鎖', W - 14, H - 15, { size: 12, color: '#a8967a', align: 'right' });
     }
 
     // 雙人試煉（v1.28）：靠近時資訊卡換成試煉的資料，關名後面標「需雙人」
@@ -2932,7 +2935,7 @@ const Game = (function () {
         { size: 14, color: '#ffd166' });
     } else {
       U.text(ctx, '方向鍵 移動　Enter 進城　B 商店　I 裝備　N 世界之謎　F2 存檔',
-        W / 2, H - 15, { size: 12, color: '#8a97b7' });
+        W / 2, H - 15, { size: 12, color: '#c0aa84' });
     }
   }
 

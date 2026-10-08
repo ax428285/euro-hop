@@ -231,6 +231,9 @@
 
   /** 關卡中（含暫停、確認框、過關畫面）：選單裡藏起「刪除存檔」 */
   function syncScene() {
+    // 大地圖（古地圖羊皮紙）時外框換成木框，見 style.css body.mapframe
+    const onMap = Game.scene() === 'map';
+    if (document.body.classList.contains('mapframe') !== onMap) document.body.classList.toggle('mapframe', onMap);
     const inLevel = !Game.canWipe();
     if (pad.classList.contains('inlevel') !== inLevel) {
       pad.classList.toggle('inlevel', inLevel);
