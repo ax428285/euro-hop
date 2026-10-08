@@ -194,7 +194,44 @@ const Quests = (function () {
   }
 
   /** 地圖上額外的東西：美洲預告（往西的箭頭＋字），哥倫布出航後才有 */
+  // ── 比利時的扒手 ───────────────────────────────────────
+  /*
+   * v1.30 玩家：新增比利時，到那邊會被偷錢 100 元（歐洲扒手多）。
+   * 比利時不是關卡國，只在地圖上標國名＋國旗；走進比利時的國土、或船開進奧斯坦德前面那個小海灣的底（PICK_R 以內），
+   * 就被扒走 PICK_COINS 枚（海灣的範圍刻意小：去荷蘭港口的船停在海灣東側，碰不到）。
+   * 錢包不夠就全拿。離開比利時、也離海灣夠遠（PICK_REARM 以外）才會再被偷一次，不會停在那邊一直扣。
+   */
+  const PICK_AT = [2.6, 51.35], PICK_OFF = [-3, -8], PICK_R = 18, PICK_REARM = 60, PICK_COINS = 100;
+  let pickArmed = true;
+  function pickSpot() { const p = EuropeWorld.project(PICK_AT[0], PICK_AT[1]); return [p[0] + PICK_OFF[0], p[1] + PICK_OFF[1]]; }
+  /** 大地圖每帧呼叫：這一帧被偷了幾枚（0 = 沒事） */
+  function pickpocket(ship) {
+    if (typeof Save === 'undefined' || typeof EuropeWorld === 'undefined') return 0;
+    const p = pickSpot(), d = Math.hypot(ship.x - p[0], ship.y - p[1]);
+    const inBE = typeof EuropeBackdrop !== 'undefined' && EuropeBackdrop.BE &&
+                 EuropeBackdrop.BE.shapes.some(function (sh) { return inPoly(ship.x, ship.y, sh); });
+    if (!inBE && d > PICK_REARM) { pickArmed = true; return 0; }
+    if (!pickArmed || (!inBE && d > PICK_R)) return 0;
+    pickArmed = false;
+    const n = Math.min(PICK_COINS, Save.get().wallet || 0);
+    if (n > 0) Save.spendCoins(n);
+    return n || -1;          // -1：錢包空空，扒手摸了個空
+  }
+  /** 港邊鬼鬼祟祟的扒手：戴黑帽、揹著錢袋，左右張望 */
+  function drawPickpocket(ctx, t) {
+    const p = pickSpot(), x = p[0] + 8, y = p[1] + 16;
+    tinyPerson(ctx, x, y, '#2a2a30');
+    ctx.fillStyle = '#16161a';
+    ctx.fillRect(x - 6, y - 23, 12, 2); ctx.fillRect(x - 4, y - 28, 8, 5);
+    const look = Math.sin(t * 0.05) > 0 ? 1 : -1;
+    ctx.fillStyle = '#16161a'; ctx.fillRect(x + look * 1.5 - 1, y - 19, 2, 1.5);
+    ctx.fillStyle = '#c9a227';
+    ctx.beginPath(); ctx.arc(x - look * 8, y - 6, 4, 0, Math.PI * 2); ctx.fill();
+    U.text(ctx, '$', x - look * 8, y - 5.5, { size: 6, weight: 800, color: '#5a4310', stroke: false });
+  }
+
   function drawMapExtras(ctx, t) {
+    if (typeof EuropeWorld !== 'undefined') drawPickpocket(ctx, t);
     if (flag('columbus') < 2 || typeof EuropeWorld === 'undefined') return;
     const p = EuropeWorld.project(-21, 41);
     ctx.save();
@@ -543,6 +580,8 @@ const Quests = (function () {
     drawMapExtras: drawMapExtras,
     coinProgress: coinProgress,
     tick: tick,
+    pickpocket: pickpocket,
+    PICK_COINS: PICK_COINS,
     zooFee: zooFee,
     talk: talk,
     portrait: portrait,

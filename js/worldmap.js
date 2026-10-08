@@ -842,7 +842,9 @@ const WorldMap = (function () {
     { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' },
     // v1.30 玩家：黃金獵犬搬到蘇格蘭，把蘇格蘭標出來（國界在英國的資料裡，只印名字＋聖安德魯十字旗）
     // over：畫在關卡國的國土上面（蘇格蘭在英國的國土裡，畫在底下會被蓋掉）
-    { id: 'SCO', name: '蘇格蘭', lon: -3.4, lat: 56.4, flag: 'scotland', over: true }
+    { id: 'SCO', name: '蘇格蘭', lon: -3.4, lat: 56.4, flag: 'scotland', over: true },
+    // v1.30 玩家：新增比利時（不是關卡，海邊有扒手，見 quests.js 的 pickpocket）
+    { id: 'BE', name: '比利時', lon: 4.7, lat: 50.6, flag: 'belgium' }
   ];
   const PF_W = 20, PF_H = 13;     // 平貼國旗的大小（關卡國的旗子約 22×15，這個要比較低調）
   /** 北歐十字旗：直條偏旗桿那側（約 37%），inner = 挪威十字裡面那條藍 */
@@ -900,6 +902,10 @@ const WorldMap = (function () {
       ctx.globalAlpha = 0.9;
       if (d.flag === 'turkey') drawTurkeyFlag(ctx, PF_W, PF_H);
       else if (d.flag === 'scotland') drawSaltire(ctx, PF_W, PF_H);
+      else if (d.flag === 'belgium') {
+        // 黑黃紅直條
+        ['#1a1a1a', '#fdda24', '#ef3340'].forEach(function (c, k) { ctx.fillStyle = c; ctx.fillRect(-PF_W / 2 + k * PF_W / 3, -PF_H / 2, PF_W / 3 + 0.5, PF_H); });
+      }
       else drawNordicFlag(ctx, PF_W, PF_H, d);
       ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 0.8;
       ctx.strokeRect(-PF_W / 2, -PF_H / 2, PF_W, PF_H);

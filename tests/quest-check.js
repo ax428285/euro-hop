@@ -6,6 +6,8 @@
  *   C) 戰艦海戰：五艘都打得贏（升滿級的船、機器人會躲紅圈、踩水兵），沒升級也至少打得贏最弱的
  *   D) 動物大遷徙：機器人抓得到 3 隻以上
  *   E) 瑞士銀行：每分鐘 1 枚、離線最多一天份；動物園的門票照天數算
+ *   H) 比利時的扒手：開到海灣底、走進比利時都會被偷 100 枚（不夠就全拿）、停著不會一直扣、離開再回來才會再偷；
+ *      船開得到那裡，荷蘭港口的圖釘和海上靠港的位置碰不到
  * 會暫時改存檔，結束前還原。
  */
 function runQuestCheck() {
@@ -154,6 +156,40 @@ function runQuestCheck() {
     st.player.x = 470; st.player.y = Levels.GROUND_Y + 40;
     const ev = Encounter.updateSkirmish(st, idle);
     if (ev.indexOf('helfall') < 0) issues.push('掉進卡律布狄斯的漩渦眼沒有接冥界');
+  })();
+
+  // H) 比利時的扒手
+  (function () {
+    const far = { x: 100, y: 100 };
+    Quests.pickpocket(far);
+    const p = EuropeWorld.project(2.6, 51.35), at = { x: p[0] - 3, y: p[1] - 8 };
+    if (!Voyage.isNavigable(at.x, at.y)) issues.push('比利時扒手的位置船開不到');
+    sv.wallet = 150;
+    if (Quests.pickpocket(at) !== 100 || sv.wallet !== 50) issues.push('開到比利時沒有被偷 100 枚（錢包剩 ' + sv.wallet + '）');
+    if (Quests.pickpocket(at) !== 0 || sv.wallet !== 50) issues.push('停在比利時會一直被偷');
+    Quests.pickpocket(far);
+    if (Quests.pickpocket(at) !== 50 || sv.wallet !== 0) issues.push('錢包不到 100 枚時沒有全拿');
+    Quests.pickpocket(far);
+    if (Quests.pickpocket(at) !== -1) issues.push('錢包空空時扒手應該摸個空');
+    // 走進比利時（布魯塞爾）也會被偷
+    Quests.pickpocket(far); sv.wallet = 300;
+    const bxl = EuropeWorld.project(4.35, 50.85);
+    if (Quests.pickpocket({ x: bxl[0], y: bxl[1] }) !== 100) issues.push('走進比利時沒有被偷');
+    // 去荷蘭靠港：圖釘本身、港口 DOCK_RANGE 內海上的點都不該被偷
+    const nl0 = Voyage.ports().filter(function (q) { return q.id === 'NL'; })[0];
+    Quests.pickpocket(far);
+    if (nl0 && Quests.pickpocket({ x: nl0.x, y: nl0.y }) !== 0) issues.push('站在荷蘭的港口圖釘上也會被比利時扒手偷');
+    const nl = Voyage.ports().filter(function (q) { return q.id === 'NL' || q.name === 'NL'; })[0];
+    if (nl) {
+      for (let dx = -Voyage.DOCK_RANGE; dx <= Voyage.DOCK_RANGE; dx += 2) {
+        for (let dy = -Voyage.DOCK_RANGE; dy <= Voyage.DOCK_RANGE; dy += 2) {
+          const x = nl.x + dx, y = nl.y + dy;
+          if (Math.hypot(dx, dy) > Voyage.DOCK_RANGE || !Voyage.isNavigable(x, y)) continue;
+          Quests.pickpocket(far);
+          if (Quests.pickpocket({ x: x, y: y }) !== 0) { issues.push('在荷蘭港口靠港也會被比利時扒手偷'); return; }
+        }
+      }
+    }
   })();
 
   // 還原存檔

@@ -798,6 +798,16 @@ const Game = (function () {
         : { text: '雷神的結界擋住了去路', sub: '北海上的雷神索爾好像在等人 —— 去找他問問', life: 170 };
     }
     const shipNow = Voyage.shipPos();
+    // v1.30 比利時的扒手：船開到比利時海岸就被扒走金幣
+    {
+      const stolen = Quests.pickpocket(shipNow);
+      if (stolen > 0) {
+        Sfx.clang(); shake = 4;
+        toast = { text: '錢包被扒了！-' + stolen + ' 金幣', sub: '比利時港邊的扒手一溜煙跑掉了⋯⋯歐洲扒手真多，下次繞遠一點', life: 220 };
+      } else if (stolen < 0) {
+        toast = { text: '扒手摸了你的口袋⋯⋯', sub: '可惜裡面一枚金幣也沒有，他白跑一趟', life: 180 };
+      }
+    }
     // 地圖比畫面高：相機跟著船走
     WorldMap.follow(shipNow.x, shipNow.y);
     // 稀有怪出現時提示一下（牠待不久，而且會逃）
