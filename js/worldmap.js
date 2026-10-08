@@ -617,15 +617,7 @@ const WorldMap = (function () {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= W; x += 48) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    }
-    for (let y = 0; y <= H; y += 48) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-
+    // （v1.26.2 玩家：海背後的網格拿掉，只留波紋）
     ctx.strokeStyle = 'rgba(160, 200, 240, 0.10)';
     ctx.lineWidth = 2;
     for (let i = 0; i < Math.ceil(H / 60); i++) {
