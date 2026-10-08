@@ -8,6 +8,8 @@
  *   E) 瑞士銀行：每分鐘 1 枚、離線最多一天份；動物園的門票照天數算
  *   H) 比利時的扒手：開到海灣底、走進比利時都會被偷 100 枚（不夠就全拿）、停著不會一直扣、離開再回來才會再偷；
  *      船開得到那裡，荷蘭港口的圖釘和海上靠港的位置碰不到
+ *   I) 埃及豔后：看完對話才付錢買聖蛇護身符（Esc 不買、錢不夠不買），買過之後扒手每次都被嚇跑（永久）
+ *   J) 芬蘭的聖誕老人：走近就拿到聖誕禮物（記在 Save.flag('gift')），只給一次
  * 會暫時改存檔，結束前還原。
  */
 function runQuestCheck() {
@@ -190,6 +192,45 @@ function runQuestCheck() {
         }
       }
     }
+  })();
+
+  // I) 埃及豔后的聖蛇護身符
+  (function () {
+    const far = { x: 100, y: 100 };
+    const p = EuropeWorld.project(2.6, 51.35), at = { x: p[0] - 3, y: p[1] - 8 };
+    sv.flags.asp = 0; sv.wallet = 150;
+    let tk = Quests.talk('cleopatra');
+    if (tk.end && tk.end(true)) issues.push('錢不夠也買得到聖蛇護身符');
+    sv.wallet = 500;
+    tk = Quests.talk('cleopatra');
+    if (!tk.end) issues.push('錢夠了，埃及豔后卻沒有要賣護身符');
+    else {
+      tk.end(false);
+      if (Save.flag('asp') || sv.wallet !== 500) issues.push('中途按 Esc 離開也買了護身符');
+      tk = Quests.talk('cleopatra'); tk.end(true);
+      if (!Save.flag('asp') || sv.wallet !== 500 - Quests.ASP_COST) issues.push('看完對話沒有買到護身符（錢包 ' + sv.wallet + '）');
+    }
+    Quests.pickpocket(far);
+    const w0 = sv.wallet;
+    if (Quests.pickpocket(at) !== -2 || sv.wallet !== w0) issues.push('有聖蛇護身符還是被扒手偷了');
+    Quests.pickpocket(far);
+    if (Quests.pickpocket(at) !== -2 || !Save.flag('asp') || sv.wallet !== w0) issues.push('聖蛇護身符應該永久有效，第二次還是被偷了');
+    if (Quests.talk('cleopatra').end) issues.push('已經有護身符了，埃及豔后還要再賣');
+  })();
+
+  // J) 芬蘭的聖誕老人
+  (function () {
+    const fi = Levels.list.findIndex(function (d) { return d.id === 'FI'; });
+    const def = Levels.list[fi];
+    const santa = (def.npcs || []).filter(function (n) { return n.gift; })[0];
+    if (!santa) { issues.push('芬蘭關卡裡沒有聖誕老人'); return; }
+    if (Math.abs(santa.x - def.goal) > 1200) issues.push('聖誕老人離終點太遠（應該在聖誕老人村）');
+    sv.flags.gift = 0;
+    const st = { npcs: Npcs.makeState(def), players: [{ x: santa.x - 10, y: santa.y - 40, w: 22, h: 40 }] };
+    const ev = Npcs.update(st);
+    if (ev.indexOf('gift') < 0 || !Save.flag('gift')) issues.push('走近聖誕老人沒有拿到聖誕禮物');
+    const st2 = { npcs: Npcs.makeState(def), players: st.players };
+    if (Npcs.update(st2).indexOf('gift') >= 0) issues.push('聖誕禮物可以重複拿');
   })();
 
   // 還原存檔

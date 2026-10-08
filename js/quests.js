@@ -11,12 +11,17 @@
  *   瑞士銀行   日內瓦：歐洲每一關的金幣都收滿過才能開戶；之後每分鐘生 1 枚金幣的利息（離開遊戲也算，最多一天份）。
  *   動物園     阿爾及爾：放撒哈拉動物大遷徙抓回來的動物，每過一天收一次門票。
  *   金字塔     吉薩：直接進「金字塔探險」（expedition.js）。
+ *   埃及豔后   西奈半島：賣「聖蛇護身符」（ASP_COST 金幣）—— 買過之後比利時的扒手永遠偷不到你（聖蛇會把他嚇跑）。
  *
  * 對話（talk）回傳 { who, lines: [{ who, text }], panel?, end? }，game.js 的 'talk' 場景負責顯示。
  * end() 在講完時呼叫，可以回傳 { toast, sfx, start }（start = 要開始的探險，例如 'pyramid'）。
  * 劇情進度存在 Save.flag（thorAsked / loki / north / columbus）。
  */
 const Quests = (function () {
+
+  // 西奈半島（埃及的圖釘、亞歷山卓港、失落的金字塔附近都很擠，這裡最空）
+  const CLEO_AT = [33.8, 29.3];
+  const ASP_COST = 200;
 
   const SPOTS = [
     { id: 'Q_thor', npc: 'thor', name: '雷神索爾', lon: 5.6, lat: 58.4, prompt: '按 Enter 跟雷神索爾說話' },
@@ -25,10 +30,12 @@ const Quests = (function () {
     { id: 'Q_bank', npc: 'bank', name: '瑞士銀行', lon: 6.2, lat: 46.3, prompt: '按 Enter 進入瑞士銀行' },
     { id: 'Q_zoo', npc: 'zoo', name: '阿爾及爾動物園', lon: 3.1, lat: 36.3, prompt: '按 Enter 參觀阿爾及爾動物園' },
     // v1.30 玩家：太靠近亞歷山卓港和埃及的圖釘 → 搬到南邊的沙漠深處，改叫「失落的金字塔」
-    { id: 'Q_pyramid', npc: 'pyramid', name: '失落的金字塔', lon: 32.5, lat: 24.5, prompt: '按 Enter 走進失落的金字塔' }
+    { id: 'Q_pyramid', npc: 'pyramid', name: '失落的金字塔', lon: 32.5, lat: 24.5, prompt: '按 Enter 走進失落的金字塔' },
+    // v1.30 玩家：增加埃及豔后 NPC（用途自由發揮）→ 西奈半島的金色遊船上，賣嚇跑比利時扒手的聖蛇護身符
+    { id: 'Q_cleopatra', npc: 'cleopatra', name: '埃及豔后', lon: CLEO_AT[0], lat: CLEO_AT[1], prompt: '按 Enter 晉見埃及豔后' }
   ];
 
-  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長' };
+  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后' };
 
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
@@ -176,6 +183,21 @@ const Quests = (function () {
       ctx.beginPath(); ctx.ellipse(x + 4, y - 31, 4, 2.6, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#8a5a20';
       ctx.fillRect(x + 1.6, y - 26, 1.6, 1.6); ctx.fillRect(x + 2, y - 20, 1.6, 1.6);
+    } else if (kind === 'cleopatra') {
+      ring(ctx, x, y, t, near, 'rgba(255, 220, 120, 0.95)');
+      // 金色遊船，船上站著白袍、黑色齊瀏海、金頭冠的女王，旁邊一隻昂首的眼鏡蛇
+      ctx.fillStyle = '#c99a2e';
+      ctx.beginPath(); ctx.moveTo(-15 + x, y - 3); ctx.lineTo(15 + x, y - 3); ctx.quadraticCurveTo(13 + x, y + 3, x, y + 3); ctx.quadraticCurveTo(-13 + x, y + 3, -15 + x, y - 3); ctx.fill();
+      ctx.fillRect(x - 17, y - 9, 3, 7); ctx.fillRect(x + 14, y - 9, 3, 7);
+      tinyPerson(ctx, x - 2, y - 3, '#f4efe2', '#c8946a');
+      ctx.fillStyle = '#16161a';
+      ctx.beginPath(); ctx.arc(x - 2, y - 22, 5, Math.PI, 0); ctx.fill();
+      ctx.fillRect(x - 7, y - 22, 3, 7); ctx.fillRect(x + 3, y - 22, 3, 7);          // 齊肩黑髮
+      ctx.fillStyle = '#f2c94c'; ctx.fillRect(x - 7, y - 24, 10, 2);                 // 金頭冠
+      const sw = Math.sin(t * 0.09) * 1.5;
+      ctx.strokeStyle = '#3a6a3a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + 6, y - 3); ctx.quadraticCurveTo(x + 11, y - 6, x + 8 + sw, y - 12); ctx.stroke();
+      ctx.fillStyle = '#3a6a3a'; ctx.beginPath(); ctx.ellipse(x + 8 + sw, y - 13, 2.6, 2, 0, 0, Math.PI * 2); ctx.fill();
     } else if (kind === 'pyramid') {
       ring(ctx, x, y, t, near, 'rgba(255, 220, 140, 0.95)');
       // 半埋在沙丘裡
@@ -213,11 +235,14 @@ const Quests = (function () {
     if (!inBE && d > PICK_REARM) { pickArmed = true; return 0; }
     if (!pickArmed || (!inBE && d > PICK_R)) return 0;
     pickArmed = false;
+    if (hasAsp()) return -2;   // -2：被埃及豔后的聖蛇嚇跑（v1.30 玩家：買過就永遠不怕扒手）
     const n = Math.min(PICK_COINS, Save.get().wallet || 0);
-    if (n > 0) Save.spendCoins(n);
+    if (n > 0) { Save.spendCoins(n); Save.setFlag('robbed', (flag('robbed') || 0) + n); }
     return n || -1;          // -1：錢包空空，扒手摸了個空
   }
   /** 港邊鬼鬼祟祟的扒手：戴黑帽、揹著錢袋，左右張望 */
+  /** 埃及豔后的聖蛇護身符還在嗎（v1.30）：在的話扒手會被嚇跑 */
+  function hasAsp() { return !!flag('asp'); }
   function drawPickpocket(ctx, t) {
     const p = pickSpot(), x = p[0] + 8, y = p[1] + 16;
     tinyPerson(ctx, x, y, '#2a2a30');
@@ -472,7 +497,40 @@ const Quests = (function () {
     } };
   }
 
+  /*
+   * 埃及豔后（v1.30）：賣聖蛇護身符。對話沒有選項 → 最後一句說明「Enter 買、Esc 不買」，
+   * end(complete) 只有把對話看完（complete = true）才付錢；中途按 Esc 離開不會買。
+   */
+  function talkCleopatra() {
+    const robbed = flag('robbed') || 0;
+    if (hasAsp()) {
+      return { who: 'cleopatra', lines: [
+        L('cleopatra', '我的聖蛇還盤在你的錢包上呢。'),
+        L('cleopatra', '比利時那個扒手要是敢伸手⋯⋯嘶～保證他再也不敢了。')
+      ] };
+    }
+    const lines = [
+      L('cleopatra', '我是克麗奧佩脫拉七世，尼羅河的女王。'),
+      robbed > 0 ? L('cleopatra', '聽說你在比利時被扒了 ' + robbed + ' 枚金幣？整個地中海都在笑呢。')
+                 : L('cleopatra', '要去歐洲？小心比利時港邊的扒手，他們的手比尼羅河的鱷魚還快。'),
+      L('cleopatra', '傳說我把一顆珍珠溶在醋裡喝掉，只為了跟安東尼打賭誰的晚宴比較貴。'),
+      L('cleopatra', '財寶，就要讓聖蛇來守。牠是埃及的守護神，盤在你的錢包上，誰伸手就咬誰。')
+    ];
+    const w = Save.get().wallet || 0;
+    if (w < ASP_COST) {
+      lines.push(L('cleopatra', '一條聖蛇 ' + ASP_COST + ' 枚金幣。你身上只有 ' + w + ' 枚⋯⋯存夠了再來吧。'));
+      return { who: 'cleopatra', lines: lines };
+    }
+    lines.push(L('cleopatra', '一條聖蛇 ' + ASP_COST + ' 枚金幣，牠會一輩子守著你的錢包。要的話按 Enter，不要就按 Esc 離開。'));
+    return { who: 'cleopatra', lines: lines, end: function (complete) {
+      if (!complete || !Save.spendCoins(ASP_COST)) return null;
+      Save.setFlag('asp', 1);
+      return { sfx: 'equip', toast: { text: '得到聖蛇護身符！-' + ASP_COST + ' 金幣', sub: '從此比利時的扒手再也偷不到你了', life: 240 } };
+    } };
+  }
+
   function talk(id) {
+    if (id === 'cleopatra') return talkCleopatra();
     if (id === 'thor') return talkThor();
     if (id === 'loki') return talkLoki();
     if (id === 'lokiLocked') return talkLokiLocked();
@@ -531,6 +589,19 @@ const Quests = (function () {
       eyes(-2, 7);
       ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 1.5;                                                      // 單片眼鏡
       ctx.beginPath(); ctx.arc(7, -2, 6, 0, Math.PI * 2); ctx.stroke();
+    } else if (who === 'cleopatra') {
+      ctx.fillStyle = '#f4efe2'; ctx.fillRect(-26, 14, 52, 36);                                           // 白袍
+      ctx.fillStyle = '#2a7ab0'; ctx.fillRect(-24, 14, 48, 6);                                            // 寬領圈（青金石）
+      ctx.fillStyle = '#f2c94c'; ctx.fillRect(-24, 20, 48, 3);
+      ctx.fillStyle = '#16161a'; ctx.fillRect(-22, -20, 44, 40);                                          // 齊肩黑髮
+      ctx.fillStyle = '#c8946a'; ctx.beginPath(); ctx.arc(0, -2, 17, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16161a'; ctx.fillRect(-18, -20, 36, 10);                                          // 齊瀏海
+      ctx.fillStyle = '#f2c94c'; ctx.fillRect(-20, -22, 40, 4);                                           // 金頭冠
+      ctx.fillStyle = '#3a8a4a'; ctx.beginPath(); ctx.ellipse(0, -27, 3.5, 5, 0, 0, Math.PI * 2); ctx.fill();   // 額前的聖蛇
+      eyes(-2, 7);
+      ctx.strokeStyle = '#16161a'; ctx.lineWidth = 1.5;                                                   // 眼線
+      [-1, 1].forEach(function (s) { ctx.beginPath(); ctx.moveTo(s * 4, -4); ctx.lineTo(s * 13, -5); ctx.stroke(); });
+      ctx.fillStyle = '#b8323a'; ctx.fillRect(-4, 8, 8, 2.5);
     } else if (who === 'keeper') {
       ctx.fillStyle = '#6a8a3a'; ctx.fillRect(-26, 14, 52, 36);
       ctx.fillStyle = '#c8946a'; ctx.beginPath(); ctx.arc(0, -2, 18, 0, Math.PI * 2); ctx.fill();
@@ -580,6 +651,7 @@ const Quests = (function () {
     drawMapExtras: drawMapExtras,
     coinProgress: coinProgress,
     tick: tick,
+    ASP_COST: ASP_COST,
     pickpocket: pickpocket,
     PICK_COINS: PICK_COINS,
     zooFee: zooFee,

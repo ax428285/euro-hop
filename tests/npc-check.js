@@ -15,7 +15,8 @@ function runNpcCheck() {
     const tag = '關 ' + (li + 1) + ' ' + def.country;
     const npcs = def.npcs || [];
     counts[def.id] = npcs.length;
-    const want = def.layout === 'shaft' ? 0 : def.isBoss ? 1 : 3;
+    // v1.30：送禮物的特別 NPC（芬蘭的聖誕老人）另外算
+    const want = (def.layout === 'shaft' ? 0 : def.isBoss ? 1 : 3) + npcs.filter(function (n) { return n.gift; }).length;
     if (npcs.length !== want) issues.push(tag + '：NPC 有 ' + npcs.length + ' 位，應該 ' + want + ' 位');
 
     npcs.forEach(function (n) {
@@ -38,6 +39,8 @@ function runNpcCheck() {
         if (f.x != null && f.w != null && n.x > f.x - 50 && n.x < f.x + f.w + 50) issues.push(who + '：擋在' + f.type + '上');
       });
       if (!def.isBoss && Math.abs(n.x - def.goal) < 150) issues.push(who + '：離終點旗太近');
+      // v1.30：過了終點就直接過關，站在後面的人永遠講不到話
+      if (!def.isBoss && n.x > def.goal) issues.push(who + '：站在終點後面（x=' + n.x + '，終點 ' + def.goal + '）');
       npcs.forEach(function (o) {
         if (o !== n && Math.abs(o.x - n.x) < 200) issues.push(who + '：跟 ' + o.name + ' 擠在一起');
       });

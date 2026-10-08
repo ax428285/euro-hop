@@ -910,9 +910,7 @@ const WorldMap = (function () {
       ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 0.8;
       ctx.strokeRect(-PF_W / 2, -PF_H / 2, PF_W, PF_H);
       ctx.restore();
-      U.text(ctx, d.name, p[0], p[1] + 12, {
-        size: 11, color: PAL.label || '#e8e0d0', align: 'center', strokeWidth: 3, strokeColor: PAL.labelStroke || 'rgba(16, 24, 18, 0.75)'
-      });
+      // v1.30 玩家：沒有關卡的國家出現國旗就好，不用國名（name 留著給程式、測試看）
     });
   }
 

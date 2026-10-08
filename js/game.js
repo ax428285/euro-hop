@@ -257,7 +257,8 @@ const Game = (function () {
     const tk = talk;
     talk = null;
     scene = 'map';
-    const r = tk && tk.end ? tk.end() : null;
+    // complete：有沒有把每一句都看完（中途按 Esc 離開 = false；埃及豔后只有看完才付錢）
+    const r = tk && tk.end ? tk.end(tk.i >= tk.lines.length) : null;
     if (!r) return;
     if (r.sfx && Sfx[r.sfx]) Sfx[r.sfx]();
     if (r.shake) shake = r.shake;
@@ -804,6 +805,9 @@ const Game = (function () {
       if (stolen > 0) {
         Sfx.clang(); shake = 4;
         toast = { text: '錢包被扒了！-' + stolen + ' 金幣', sub: '比利時港邊的扒手一溜煙跑掉了⋯⋯歐洲扒手真多，下次繞遠一點', life: 220 };
+      } else if (stolen === -2) {
+        Sfx.stomp();
+        toast = { text: '扒手伸手⋯⋯嘶！', sub: '埃及豔后的聖蛇把比利時扒手嚇跑了！', life: 220 };
       } else if (stolen < 0) {
         toast = { text: '扒手摸了你的口袋⋯⋯', sub: '可惜裡面一枚金幣也沒有，他白跑一趟', life: 180 };
       }
@@ -891,7 +895,7 @@ const Game = (function () {
       if (spNear.def.scene === 'dog') { greetDog(); return; }
       // v1.30 劇情人物與地點：金字塔直接進去探險，其他都是對話
       if (spNear.def.scene === 'talk') {
-        if (spNear.def.npc === 'pyramid' || spNear.def.npc === 'zoo') {
+        if (spNear.def.npc === 'pyramid' || spNear.def.npc === 'zoo' || spNear.def.npc === 'cleopatra') {
           if (!regionUnlocked('africa')) {
             Sfx.clang();
             toast = { text: '非洲篇還沒解鎖', sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf('africa').exp, life: 170 };
@@ -1173,6 +1177,10 @@ const Game = (function () {
         // 豎井關
         case 'spring': Sfx.jump(); break;
         case 'npc': Sfx.talk(); break;
+        case 'gift':
+          Sfx.equip();
+          toast = { text: '拿到聖誕老人的禮物！', sub: '包得好好的一份聖誕禮物（先收著，以後會用到）', life: 240 };
+          break;
         case 'npcline': break;
         case 'crumble': Sfx.land(); break;
         case 'secretbump':

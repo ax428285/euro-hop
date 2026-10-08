@@ -255,7 +255,14 @@ const Npcs = (function () {
         lines: ['芬蘭有三百多萬間三溫暖，差不多每兩個人就有一間。', '蒸完三溫暖，跳進結冰的湖裡最過癮！', '三溫暖 sauna 這個字，就是從芬蘭語來的。'] },
       { at: 0.9, name: '聖誕郵局職員 Leena',
         look: { skin: '#f3d6bc', hair: '#c88a4a', shirt: '#c8202a', pants: '#2a2a36', hat: 'beanie', hatColor: '#c8202a', item: 'book' },
-        lines: ['全世界的小朋友，每年寄幾十萬封信給聖誕老人。', '寄到這裡的信都會蓋上北極圈的郵戳。', '這裡冬天的極光，一年可以看到兩百多個晚上。'] }
+        lines: ['全世界的小朋友，每年寄幾十萬封信給聖誕老人。', '寄到這裡的信都會蓋上北極圈的郵戳。', '這裡冬天的極光，一年可以看到兩百多個晚上。'] },
+      /*
+       * v1.30 玩家：芬蘭關卡中有聖誕老人，靠近他可以拿到聖誕禮物（用途先不開發，但要記住玩家身上有）
+       * → gift：第一次搭話時給一份，記在 Save.flag('gift')；game.js 收到 'gift' 事件跳提示。
+       */
+      { at: 0.96, name: '聖誕老人 Joulupukki', gift: 'gift',
+        look: { skin: '#f3d0b8', hair: '#f4f4f0', shirt: '#c8202a', pants: '#c8202a', hat: 'santa', hatColor: '#c8202a', beard: true, item: 'gift' },
+        lines: ['呵呵呵！你從那麼遠的地方來看我呀？', '這份聖誕禮物送給你 —— 先別拆，留到最需要的時候。', '在芬蘭，大家叫我 Joulupukki，意思是「聖誕山羊」。'] }
     ],
     IS: [
       { name: '火山學家 Guðrún',
@@ -280,6 +287,7 @@ const Npcs = (function () {
       if (gl == null || gm == null || gr == null || Math.abs(gl - gr) > 2 || Math.abs(gl - gm) > 2) return true;
       if (x < 220 || x > ctx.width - 60) return true;
       if (Math.abs(x - ctx.goal) < 160) return true;
+      if (x > ctx.goal) return true;      // v1.30：終點後面走不到（碰到終點就過關了）
       if (ctx.gaps.some(function (g) { return x > g.x - 60 && x < g.x + g.w + 60; })) return true;
       if ((ctx.secrets || []).some(function (s) {
         const r = s.room;
@@ -308,7 +316,7 @@ const Npcs = (function () {
           const cands = d === 0 ? [want] : [want + d, want - d];
           for (let k = 0; k < cands.length; k++) {
             if (bad(cands[k], pass === 0)) continue;
-            out.push({ x: cands[k], y: LevelGen.groundAt(ctx.segs, cands[k]), name: sp.name, look: sp.look, lines: sp.lines });
+            out.push({ x: cands[k], y: LevelGen.groundAt(ctx.segs, cands[k]), name: sp.name, look: sp.look, lines: sp.lines, gift: sp.gift });
             return;
           }
         }
@@ -331,7 +339,7 @@ const Npcs = (function () {
 
   function makeState(def) {
     return (def.npcs || []).map(function (n) {
-      return { x: n.x, y: n.y, name: n.name, look: n.look, lines: n.lines,
+      return { x: n.x, y: n.y, name: n.name, look: n.look, lines: n.lines, gift: n.gift,
         line: 0, timer: 0, talking: false, talked: false, fade: 0, face: -1 };
     });
   }
@@ -349,7 +357,11 @@ const Npcs = (function () {
       if (best && bd < 260) n.face = best.x + best.w / 2 > n.x ? 1 : -1;
       if (near) {
         if (!n.talking) { n.talking = true; n.timer = 0; }
-        if (!n.talked) { n.talked = true; events.push('npc'); }
+        if (!n.talked) {
+          n.talked = true; events.push('npc');
+          // 聖誕老人送禮物：一人只有一份
+          if (n.gift && typeof Save !== 'undefined' && !Save.flag(n.gift)) { Save.setFlag(n.gift, 1); events.push('gift'); }
+        }
         if (++n.timer > lineTime(n.lines[n.line])) {
           n.timer = 0;
           n.line = (n.line + 1) % n.lines.length;
@@ -385,6 +397,13 @@ const Npcs = (function () {
       case 'chef':
         ctx.fillRect(hx - 7, hy - 10, 14, 5);
         ctx.beginPath(); ctx.arc(hx - 4, hy - 15, 5, 0, Math.PI * 2); ctx.arc(hx + 4, hy - 15, 5, 0, Math.PI * 2); ctx.arc(hx, hy - 18, 5, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'santa':
+        // 聖誕帽：往後垂的紅色尖帽＋白色毛邊＋尾巴的白毛球
+        ctx.beginPath(); ctx.moveTo(hx - 9, hy - 5); ctx.quadraticCurveTo(hx - 2, hy - 22, hx - 14, hy - 16); ctx.lineTo(hx + 9, hy - 5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f4f4f0';
+        ctx.fillRect(hx - 10, hy - 7, 20, 4);
+        ctx.beginPath(); ctx.arc(hx - 14, hy - 16, 3, 0, Math.PI * 2); ctx.fill();
         break;
       case 'cap':
         ctx.beginPath(); ctx.arc(hx, hy - 5, 8.5, Math.PI, 0); ctx.fill();
@@ -426,6 +445,7 @@ const Npcs = (function () {
 
   function drawItem(ctx, it, x, y, t) {
     switch (it) {
+      case 'gift': ctx.fillStyle = '#2f9a4a'; ctx.fillRect(x - 6, y - 10, 12, 10); ctx.fillStyle = '#f2c94c'; ctx.fillRect(x - 1, y - 10, 2, 10); ctx.fillRect(x - 6, y - 6, 12, 2); ctx.beginPath(); ctx.arc(x - 2.5, y - 12, 2.5, 0, Math.PI * 2); ctx.arc(x + 2.5, y - 12, 2.5, 0, Math.PI * 2); ctx.fill(); break;
       case 'baguette': ctx.fillStyle = '#d9a35a'; ctx.save(); ctx.translate(x, y); ctx.rotate(-0.9); U.roundRect(ctx, -3, -16, 6, 30, 3); ctx.fill(); ctx.restore(); break;
       case 'brush': ctx.fillStyle = '#7a5a3a'; ctx.fillRect(x - 1, y - 14, 2, 14); ctx.fillStyle = '#3a7ad0'; ctx.fillRect(x - 2, y - 18, 4, 5); break;
       case 'mug': ctx.fillStyle = '#f2e6b0'; ctx.fillRect(x - 4, y - 9, 8, 10); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 4, y - 11, 8, 3); ctx.strokeStyle = '#d9c890'; ctx.lineWidth = 1.5; ctx.strokeRect(x + 4, y - 7, 3, 5); break;
@@ -499,6 +519,15 @@ const Npcs = (function () {
     const mouth = n.talking && Math.floor(t / 7) % 2 === 0 ? 2.5 : 1;
     ctx.fillStyle = '#8a3a3a'; ctx.fillRect(3, hy + 4, 3, mouth);
     ctx.fillStyle = 'rgba(230, 120, 120, 0.35)'; ctx.fillRect(5.5, hy + 1.5, 3, 2);
+    if (L.beard) {
+      // 白色大鬍子（聖誕老人）：蓋住下半張臉，講話時跟著上下動
+      ctx.fillStyle = '#f4f4f0';
+      ctx.beginPath(); ctx.moveTo(-6, hy + 1); ctx.quadraticCurveTo(2, hy + 18 + mouth, 9, hy + 2); ctx.lineTo(9, hy + 4); ctx.lineTo(-6, hy + 4); ctx.closePath(); ctx.fill();
+      ctx.fillRect(2, hy + 2, 7, 2);
+      // 黑腰帶＋金扣
+      ctx.fillStyle = '#1e1a1a'; ctx.fillRect(-9, -20, 18, 3);
+      ctx.fillStyle = '#f2c94c'; ctx.fillRect(-2, -20.5, 4, 4);
+    }
     drawHat(ctx, L, 0, hy);
     ctx.restore();
   }
