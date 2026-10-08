@@ -2644,15 +2644,15 @@ const Game = (function () {
     ['#ffd166', '開船環遊', '開到國家旁按 Enter 進城，跑到終點旗子過關'],
     ['#8fe3a0', '找裝備', '每關藏一件裝備，常在密道裡（往上頂出隱形磚）'],
     ['#ff9aa8', '海上冒險', '打海上怪物拿 EXP，累積夠了解鎖東歐、非洲篇'],
-    ['#9fd0ff', '港口', 'B 商店・造船廠升級船・貿易港低買高賣接懸賞'],
+    ['#9cd0c8', '港口', 'B 商店・造船廠升級船・貿易港低買高賣接懸賞'],
     ['#e2c8ff', '兩人一起', 'C 同機雙人，或 ☰ 選單「連線」；土耳其有雙人關'],
     ['#f6d98a', '世界之謎', '每過一關得一條線索（N 查看），集滿揭開祕密']
   ];
   function drawTitleGuide(top) {
     const x0 = 60, w = W - 120, h = 142;
-    ctx.fillStyle = 'rgba(10, 16, 34, 0.82)';
+    ctx.fillStyle = 'rgba(46, 28, 14, 0.9)';      // v1.29.10 配古地圖：胡桃木底＋金線
     U.roundRect(ctx, x0, top, w, h, 10); ctx.fill();
-    ctx.strokeStyle = 'rgba(242, 193, 78, 0.45)';
+    ctx.strokeStyle = 'rgba(212, 162, 58, 0.75)';
     ctx.lineWidth = 1.2;
     U.roundRect(ctx, x0, top, w, h, 10); ctx.stroke();
     U.text(ctx, '怎麼玩', W / 2, top + 18, { size: 14, color: '#f2c14e', weight: 800 });
@@ -2663,35 +2663,42 @@ const Game = (function () {
       ctx.fillStyle = g[0];
       ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
       U.text(ctx, g[1], x + 12, y, { size: 14, color: g[0], align: 'left', weight: 800 });
-      U.text(ctx, fitText(g[2], colW - 100, 13), x + 82, y, { size: 13, color: '#e4eaf6', align: 'left' });
+      U.text(ctx, fitText(g[2], colW - 100, 13), x + 82, y, { size: 13, color: '#f0e0c0', align: 'left' });
     });
   }
 
   function drawTitle() {
+    /*
+     * v1.29.10 玩家：大地圖改古地圖了，一開始的首頁畫風沒跟進 → 首頁也做成一張羊皮紙：
+     * 泛黃紙底＋紙紋＋燒黃暈邊（跟大地圖同一張紙紋貼圖），遠景地標用 multiply 印上去像褪色的版畫。
+     */
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#1b2a55');
-    g.addColorStop(1, '#4a3a63');
+    g.addColorStop(0, '#f3e3b6');
+    g.addColorStop(1, '#dcc18a');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
     const keys = Object.keys(Sprites.landmarks);
-    ctx.globalAlpha = 0.3;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.22;
     keys.forEach(function (k, i) {
       const x = ((i * 220 - t * 0.5) % (W + 440) + W + 440) % (W + 440) - 220;
       Sprites.landmarks[k](ctx, x, H - 60, 0.8, t * 0.06);
     });
-    ctx.globalAlpha = 1;
+    ctx.restore();
+    WorldMap.paperOverlay(ctx, 0, 0, W, H);
 
     // 名稱與標語一律從 Brand 取，避免改到一半漏掉
     // v1.28.2 玩家：首頁放些遊戲說明 → 標誌往上挪，中間空出一塊「怎麼玩」
     drawLogo(W / 2, 78);
     U.text(ctx, Brand.tagline(Levels.count),
-      W / 2, 172, { size: 15, color: '#d8c8a0' });
+      W / 2, 172, { size: 15, color: '#5a3a18', strokeColor: 'rgba(250, 238, 205, 0.8)' });
     U.text(ctx, Brand.versionLabel, W - 12, H - 12,
-      { size: 12, color: '#7f8db0', align: 'right' });
+      { size: 12, color: '#7a5a38', align: 'right', strokeColor: 'rgba(250, 238, 205, 0.8)' });
 
     if (Math.floor(t / 30) % 2 === 0) {
-      U.text(ctx, '按 Enter 或 空白鍵 開始', W / 2, 206, { size: 22, color: '#ffffff' });
+      U.text(ctx, '按 Enter 或 空白鍵 開始', W / 2, 206, { size: 22, color: '#a3260f', strokeColor: 'rgba(250, 238, 205, 0.9)' });
     }
     drawTitleGuide(226);
 
@@ -2701,7 +2708,7 @@ const Game = (function () {
     }, 0);
     U.text(ctx,
       `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　密道 ${sv.secrets.length}/${secretsAll}　總分 ${sv.score}`,
-      W / 2, 392, { size: 15, color: '#9aa7c7' });
+      W / 2, 392, { size: 15, color: '#4a2e14', strokeColor: 'rgba(250, 238, 205, 0.8)' });
 
     // 已取得的裝備排一列
     if (sv.equipment.length) {
@@ -2713,10 +2720,10 @@ const Game = (function () {
     }
 
     U.text(ctx, '←→ 移動　空白 跳躍　K 遠程攻擊　Q 回大地圖　I 裝備　P 暫停',
-      W / 2, 440, { size: 13, color: '#7f8db0' });
+      W / 2, 440, { size: 13, color: '#6e5232', strokeColor: 'rgba(250, 238, 205, 0.8)' });
     // 兩人同機的開關說明（放在標題，讓玩家一開始就知道有這功能）
     U.text(ctx, coop ? 'C 兩人同機：開（2P 用 WASD + G）' : 'C 兩人同機：關',
-      W / 2, 460, { size: 13, color: coop ? '#8fe3a0' : '#7f8db0' });
+      W / 2, 460, { size: 13, color: coop ? '#2f7a4a' : '#6e5232', strokeColor: 'rgba(250, 238, 205, 0.8)' });
   }
 
   /**

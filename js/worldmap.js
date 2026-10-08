@@ -1141,6 +1141,18 @@ const WorldMap = (function () {
     hitTestEast: hitTestEast,
     specials: specials,
     PALETTES: PALETTES,
+    /** 首頁也要同一張羊皮紙（v1.29.10）：在 (x, y, w, h) 蓋紙紋＋燒黃暈邊（畫面座標） */
+    paperOverlay: function (ctx, x, y, w, h) {
+      const pat = paperPattern(ctx);
+      ctx.save();
+      if (pat) { ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.5; ctx.fillStyle = pat; ctx.fillRect(x, y, w, h); }
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      const g = ctx.createRadialGradient(x + w / 2, y + h / 2, h * 0.45, x + w / 2, y + h / 2, w * 0.62);
+      g.addColorStop(0, 'rgba(120, 70, 20, 0)');
+      g.addColorStop(1, 'rgba(110, 60, 15, 0.32)');
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+      ctx.restore();
+    },
     setPalette: function (name) { if (PALETTES[name]) PAL = PALETTES[name]; return !!PALETTES[name]; },
     nearSpecial: nearSpecial,
     pinBox: pinBox,
