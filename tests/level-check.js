@@ -53,8 +53,14 @@ function runLevelCheck() {
       // v1.30 挪威冰海水道：本來就跳不過去，要踩浮冰（浮冰的間距由 feature-check 驗）
       const ch = (def.channels || []).filter(function (c) { return Math.abs(c.x - g.x) < 2 && Math.abs(c.w - g.w) < 2; })[0];
       if (ch) {
-        const floes = (def.features || []).filter(function (f) { return f.type === 'floe' && f.bx > g.x && f.bx < g.x + g.w; });
-        if (!floes.length) issues.push(tag + '：冰海水道 x=' + g.x + ' 寬 ' + g.w + ' 上面沒有浮冰');
+        // v1.31：巴拿馬是船閘的小船（lock）、哥倫比亞是盪繩（rope）—— 一樣是「過寬水道的辦法」
+        const floes = (def.features || []).filter(function (f) {
+          if (f.type === 'floe') return f.bx > g.x && f.bx < g.x + g.w;
+          if (f.type === 'lock') return f.x > g.x && f.x < g.x + g.w;
+          if (f.type === 'rope') return f.ax > g.x && f.ax < g.x + g.w;
+          return false;
+        });
+        if (!floes.length) issues.push(tag + '：寬水道 x=' + g.x + ' 寬 ' + g.w + ' 上面沒有浮冰／小船／盪繩');
         return;
       }
       if (!gapCrossable(g, solids, hazards, def)) {

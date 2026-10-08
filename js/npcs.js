@@ -269,6 +269,56 @@ const Npcs = (function () {
       { name: '火山學家 Guðrún',
         look: { skin: '#f3d6bc', hair: '#e8cf8a', shirt: '#e86a2a', pants: '#2a2a36', hat: 'helmet', hatColor: '#f1c40f', item: 'lamp' },
         lines: ['看他的劍！舉到頭上就是高掃 —— 站著別跳；壓低貼地就跳過去！', '冰島底下有一百多座火山，平均四、五年就有一座噴發。', '冰島有一成的土地被冰河蓋住，冰底下還有火山。'] }
+    ],
+    // ── 美洲篇（v1.31）──
+    CU: [
+      { at: 0.1, name: '老爺車司機 Ernesto',
+        look: { skin: '#c8946a', hair: '#2a2420', shirt: '#f4f0e6', pants: '#3a3a44', hat: 'straw', hatColor: '#e8d8a8', item: null },
+        lines: ['車子停不下來，只能跳！海堤後面捲起浪頭，就準備起跳。', '浪拍上路面的那一下，人要在半空中才不會被打到。', '我這台 1956 年的車，引擎是拿船的零件改的！'] },
+      { at: 0.38, name: '樂手 Yolanda',
+        look: { skin: '#a8724a', hair: '#1e1a18', shirt: '#e86a8a', pants: '#2a2a36', hat: 'kerchief', hatColor: '#f2c230', item: 'trumpet' },
+        lines: ['哈瓦那的街角到處都有人在打鼓、唱「頌樂」son。', '騷莎舞 salsa 的節奏，很多都是從古巴的頌樂來的。', '古巴的國鳥古巴咬鵑，身上剛好是紅白藍三個顏色。'] },
+      { at: 0.88, name: '漁夫 Santiago',
+        look: { skin: '#b8845a', hair: '#cfcfcf', shirt: '#4a7aa8', pants: '#e8e0d0', hat: 'straw', hatColor: '#d8c890', item: 'net' },
+        lines: ['海明威在哈瓦那住了二十年，《老人與海》寫的就是這片海。', '馬雷貢海堤有八公里長，晚上整條堤坐滿了吹海風的人。', '颳北風的日子，浪會打過海堤、一路淹到馬路上！'] }
+    ],
+    JM: [
+      { at: 0.1, name: '雷鬼歌手 Desmond',
+        look: { skin: '#6a4a30', hair: '#1e1a18', shirt: '#2f9a4a', pants: '#2a2a36', hat: 'beanie', hatColor: '#f2c230', item: null },
+        lines: ['站上那些音響，等紅黃綠燈亮完 —— 重低音「咚」一聲就把你彈上天！', '雷鬼音樂 1960 年代在金斯敦誕生，巴布・馬利讓全世界都聽到了。', '牙買加人辦舞會，會把音響一台一台疊得比房子還高。'] },
+      { at: 0.42, name: '咖啡農 Marcia',
+        look: { skin: '#7a5236', hair: '#2a2018', shirt: '#f4f0e6', pants: '#6a8a4a', hat: 'straw', hatColor: '#e8d8a8', item: 'jar' },
+        lines: ['藍山咖啡長在常年起霧的山上，豆子慢慢長，味道特別柔順。', '摘下來的咖啡果是紅色的，像櫻桃一樣。', '以前的咖啡都裝在木桶裡運到日本，現在還有人照這個傳統。'] },
+      { at: 0.8, name: '短跑選手 Usain',
+        look: { skin: '#5a3a24', hair: '#1e1a18', shirt: '#f2c230', pants: '#2f9a4a', hat: null, item: null },
+        lines: ['牙買加的人口不到三百萬，卻出了好多奧運短跑冠軍。', '跑步的祕訣？放鬆！越緊張越跑不快。', '1988 年牙買加還組了一支冬季奧運的雪橇隊 —— 這個國家根本不下雪！'] }
+    ],
+    PA: [
+      { at: 0.1, name: '閘門管理員 Rodrigo',
+        look: { skin: '#c8946a', hair: '#2a2420', shirt: '#e8a020', pants: '#3a3a44', hat: 'helmet', hatColor: '#f4f0e6', item: 'map' },
+        lines: ['中間那道閘門跳不過去 —— 站上小船，等它升上去！', '小船升到頂的時候，翻過閘門跳到另一邊，那邊的船剛好降到底。', '一艘大船通過整條運河，大概要八到十個小時。'] },
+      { at: 0.44, name: '水手 Lucía',
+        look: { skin: '#b8845a', hair: '#3a2a20', shirt: '#f4f4f0', pants: '#1f3a8a', hat: 'cap', hatColor: '#1f3a8a', item: 'oar' },
+        lines: ['運河讓船不用繞過整個南美洲 —— 少開一萬多公里！', '船閘裡的水不用幫浦，全靠中間加通湖的水往下流。', '每一艘船都要付過路費。1928 年有人游泳通過，只付了 36 美分！'] },
+      { at: 0.86, name: '雨林嚮導 Iván',
+        look: { skin: '#a8724a', hair: '#1e1a18', shirt: '#4a7a3a', pants: '#6a5a3a', hat: 'straw', hatColor: '#c8b890', item: 'lamp' },
+        lines: ['運河兩旁都是雨林，樹上住著樹懶和巨嘴鳥。', '樹懶一個禮拜才下樹一次 —— 去上廁所。', '巴拿馬是南北美洲之間的陸橋，動物都從這裡走過去。'] }
+    ],
+    CO: [
+      { at: 0.1, name: '城牆衛兵 Andrés',
+        look: { skin: '#c8946a', hair: '#2a2420', shirt: '#1f3a8a', pants: '#f4f0e6', hat: 'tricorn', hatColor: '#16161c', item: 'spear' },
+        lines: ['水道太寬跳不過去 —— 跳起來抓住海盜的盪繩！', '盪到往前衝的那一下按跳躍放手，就會飛到對岸。', '以前英國的海盜德瑞克，真的打進過這座城；城牆蓋了兩百年，就是為了擋海盜。'] },
+      { at: 0.46, name: '水果小販 Palenquera',
+        look: { skin: '#5a3a24', hair: '#1e1a18', shirt: '#f2c230', pants: '#d8262c', hat: 'kerchief', hatColor: '#2a6ab8', item: 'jar' },
+        lines: ['我頂在頭上的這盆水果，是卡塔赫納的招牌風景！', '要不要來一杯芒果汁？還是熱帶的百香果？', '我們穿的黃、藍、紅，剛好就是哥倫比亞國旗的顏色。'] },
+      { at: 0.84, name: '作家 Gabriel',
+        look: { skin: '#c8946a', hair: '#cfcfcf', shirt: '#f4f0e6', pants: '#e8e0d0', hat: null, item: 'book' },
+        lines: ['寫《百年孤寂》的馬奎斯，年輕時就在這座城裡當記者。', '他說這座城的陽台、九重葛和海風，全都寫進了他的小說。', '哥倫比亞的咖啡多半是一顆一顆用手摘的。'] }
+    ],
+    BR: [
+      { name: '森巴舞者 Ana',
+        look: { skin: '#a8724a', hair: '#2a1e18', shirt: '#2f9a4a', pants: '#f2c230', hat: 'wreath', hatColor: '#d8262c', item: 'fan' },
+        lines: ['大蛇鑽進地底的時候，看地上那道虛線 —— 那就是牠等一下竄出來的路！', '站到弧線的外面，或是躲在弧線正中間底下的空檔。', '牠最後會在落點探出頭來，趁那時候踩牠的頭！'] }
     ]
   };
 

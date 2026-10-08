@@ -43,14 +43,16 @@ const Encounter = (function () {
      * v1.30 北歐篇：不用 EXP，用劇情解鎖（quest）—— 北海的雷神索爾把北歐罩在結界裡，
      * 找到躲在冥界的洛基、回去跟索爾說完話才解開（見 quests.js）。
      */
-    { id: 'north', name: '北歐篇', quest: true }
+    { id: 'north', name: '北歐篇', quest: true },
+    // v1.31 美洲篇：完成哥倫布的委託（打敗西歐五艘戰艦、回去找他）才開放；在另一張「新大陸」地圖上
+    { id: 'america', name: '美洲篇', quest: true }
   ];
   function regionOf(id) { return REGIONS.filter(function (r) { return r.id === id; })[0] || null; }
   /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放；quest 篇章看劇情） */
   function regionUnlocked(id, exp) {
     const r = regionOf(id);
     if (!r) return true;
-    if (r.quest) return typeof Quests !== 'undefined' && Quests.northOpen();
+    if (r.quest) return typeof Quests !== 'undefined' && (id === 'america' ? Quests.americaOpen() : Quests.northOpen());
     return exp >= r.exp;
   }
   /** 要 EXP 解鎖的篇章（EXP 條、海戰勝利畫面用；劇情解鎖的不算） */
@@ -190,6 +192,8 @@ const Encounter = (function () {
   /** 海上魔王一直待在固定位置：不在清單上就補回來（打完、clear() 之後） */
   function ensureBosses() {
     if (typeof EuropeWorld === 'undefined') return;
+    // v1.31：海上魔王、哥倫布的戰艦、動物大遷徙都在歐洲地圖上（新大陸地圖目前只有一般的海上怪）
+    if (WorldMap.world && WorldMap.world() !== 'eu') return;
     SEA_BOSSES.forEach(function (b) {
       if (monsters.some(function (m) { return m.boss && m.kind === b.kind; })) return;
       const p = EuropeWorld.project(b.lon, b.lat);

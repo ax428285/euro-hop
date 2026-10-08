@@ -2866,8 +2866,11 @@ const Sprites = (function () {
    *
    * dir: 'v' 直三色 / 'h' 橫三色 / 'cross' 瑞士 / 'greek' 希臘
    */
+  // v1.31：新國旗畫法可以從外面註冊（america.js 的古巴、牙買加、墨西哥、巴拿馬、哥倫比亞、巴西）
+  const flagDirs = {};
   function flagFace(ctx, x, y, w, h, colors, dir) {
     const d = dir || 'v';
+    if (flagDirs[d]) { flagDirs[d](ctx, x, y, w, h, colors); return; }
 
     if (d === 'esp') {
       // 西班牙：紅-黃-紅 橫三條，中間的黃色是上下兩條紅的兩倍寬
@@ -6997,6 +7000,7 @@ const Sprites = (function () {
     secretRoom: secretRoom,
     coin: coin,
     flagFace: flagFace,
+    flagDirs: flagDirs,
     goalFlag: goalFlag
   };
 })();

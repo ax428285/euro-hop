@@ -16,8 +16,10 @@ function runVoyageCheck() {
   const issues = [];
   const ports = Voyage.ports();
 
-  if (ports.length !== Levels.count) {
-    issues.push('入口數 ' + ports.length + ' 與關卡數 ' + Levels.count + ' 不一致');
+  // v1.31：兩張地圖 —— 這裡驗目前這張（歐洲），美洲篇的國家在新大陸地圖上（america-check 驗）
+  const here = Levels.list.filter(function (lv) { return (lv.region === 'america') === (WorldMap.world() === 'am'); }).length;
+  if (ports.length !== here) {
+    issues.push('入口數 ' + ports.length + ' 與這張地圖上的關卡數 ' + here + ' 不一致');
   }
 
   // 1. 入口 = 圖釘

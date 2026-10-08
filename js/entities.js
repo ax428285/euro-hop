@@ -150,6 +150,27 @@ function makeSlash(x, dir, high) {
     : { x: x, y: G - 28, w: 30, h: 28, vx: dir * SLASH_SPEED, vy: 0, life: 300, slash: 'low', fixed: true };
 }
 
+/*
+ * v1.31 亞馬遜大蛇 Boiúna：一節一節的身體沿著同一道拋物線竄過去（頭在前、身體每隔 SERPENT_GAP 帧跟上）。
+ * 弧線從地面 x0 出發、最高 SERPENT_ARC_H、在 x1 鑽回地面，走完一趟 SERPENT_T 帧。
+ * 每一節在還沒竄出地面之前是 warn 狀態（不會痛），跟沙柱的預告同一套。
+ */
+const SERPENT_SEGS = 7, SERPENT_GAP = 5, SERPENT_T = 74, SERPENT_ARC_H = 150, SERPENT_WARN = 46;
+function makeSerpentArc(state, x0, x1, delay) {
+  const G = Levels.GROUND_Y;
+  // 預告：地上兩個冒泡的洞＋一道虛線弧（只是畫面，碰到不痛）
+  state.shots.push({ x: Math.min(x0, x1), y: G - SERPENT_ARC_H, w: 0, h: 0, vx: 0, vy: 0, fixed: true,
+                     life: delay + SERPENT_WARN + 4, warn: delay + SERPENT_WARN + 4, arcMark: { x0: x0, x1: x1, h: SERPENT_ARC_H, from: delay } });
+  for (let k = 0; k < SERPENT_SEGS; k++) {
+    const wait = delay + SERPENT_WARN + k * SERPENT_GAP;
+    const head = k === 0;
+    state.shots.push({ x: x0, y: G + 60, w: head ? 34 : 26, h: head ? 30 : 24, vx: 0, vy: 0, fixed: true,
+                       life: wait + SERPENT_T + 2, warn: wait, serpent: head ? 'head' : 'body', seg: k,
+                       arc: { x0: x0, x1: x1, h: SERPENT_ARC_H, T: SERPENT_T, t: -wait } });
+  }
+  return delay + SERPENT_WARN + (SERPENT_SEGS - 1) * SERPENT_GAP + SERPENT_T;
+}
+
 const PILLAR_WARN = 48, PILLAR_UP = 34;
 function makePillar(x) {
   return { x: x, y: Levels.GROUND_Y - 124, w: 44, h: 124, vx: 0, vy: 0,
@@ -170,6 +191,7 @@ function makeBoss(def) {
     //   dive   空中斜線俯衝 + 沿路火星、落地火海
     //   sphinx 腳底下噴沙柱（看地上的漩渦走位）
     //   surtr  火焰劍高掃／低掃（看劍舉高還壓低，決定跳或不跳）
+    //   boiuna 亞馬遜大蛇鑽進地底，沿著虛線弧竄出來跳過場地（看虛線站到弧外或弧下的空檔）
     pattern: def.pattern || 'slam',
     shotsLeft: 0,
     shotCd: 0,
@@ -613,6 +635,18 @@ function updateShots(state) {
   for (let i = state.shots.length - 1; i >= 0; i--) {
     const s = state.shots[i];
     if (s.warn > 0) s.warn--;
+    // v1.31 亞馬遜大蛇的身體：沿拋物線走（還沒竄出地面前埋在地底）
+    if (s.arc) {
+      const a = s.arc;
+      a.t++;
+      const k = U.clamp(a.t / a.T, 0, 1);
+      const G = Levels.GROUND_Y;
+      s.x = a.x0 + (a.x1 - a.x0) * k - s.w / 2;
+      s.y = a.t < 0 ? G + 60 : G - s.h / 2 - 4 * a.h * k * (1 - k) - s.h / 2 + 6;
+      s.ang = Math.atan2(-4 * a.h * (1 - 2 * k), (a.x1 - a.x0) || 1);
+      s.dirX = a.x1 > a.x0 ? 1 : -1;
+      if (a.t >= a.T) s.life = 0;
+    }
     // 吸血伯爵的蝙蝠（v1.29.1）：每帧往最近的玩家轉一點點（轉向有上限，繞著跑就甩得掉）
     if (s.homing) {
       let tgt = null, best = Infinity;
@@ -743,6 +777,29 @@ function updateBoss(state, t) {
             }
             break;
           }
+          case 'boiuna': {
+            /*
+             * 亞馬遜大蛇：鑽進地底（化成地上的漣漪），接著沿一道弧線從地底竄出來、跳過大半個場地再鑽回去。
+             * 弧線的落點瞄玩家（加上一點他正在跑的方向）；起點跟落點至少隔 260，弧線底下留得出空檔。
+             * 狂暴：連竄兩次，第二次從第一次的落點往回竄。最後在最後一個落點探出頭來 = 破綻期。
+             */
+            const ar = state.def.bossArena || { x: 0, w: state.def.width };
+            const lo = Math.max(ar.x + 60, b.left), hi = Math.min(ar.x + ar.w - 60, b.right);
+            const n = bossEnraged(b) ? 2 : 1;
+            let x0 = b.x + b.w / 2, end = 0;
+            for (let i = 0; i < n; i++) {
+              let x1 = U.clamp(i === 0 ? pcx + p.vx * 24 : pcx - (x0 - pcx) * 0.5, lo, hi);
+              if (Math.abs(x1 - x0) < 260) x1 = U.clamp(x0 + (x0 < (lo + hi) / 2 ? 300 : -300), lo, hi);
+              end = makeSerpentArc(state, x0, x1, i * 70);
+              x0 = x1;
+            }
+            b.emergeX = x0;
+            b.arcT = 0;
+            b.emergeAt = end + 6;
+            b.timer = end + 60;
+            events.push('shoot');
+            break;
+          }
           case 'sphinx':
             // 人面獅身：坐定唸咒，連噴三根沙柱（狂暴五根），每根瞄玩家當下的位置
             b.pillarsLeft = bossEnraged(b) ? 5 : 3;
@@ -865,6 +922,27 @@ function updateBoss(state, t) {
             }
           }
           b.swingT++;
+          break;
+        }
+
+        case 'boiuna': {
+          /*
+           * 前 20 帧鑽進地底（fade → 0，看不到也碰不到）；身體在 updateShots 裡沿弧線走；
+           * 走完之後在最後的落點探出頭來（fade 慢慢回到 1），接著進破綻期。
+           */
+          b.arcT++;
+          if (b.arcT <= 20) b.fade = 1 - b.arcT / 20;
+          if (b.arcT === b.emergeAt) {
+            b.x = U.clamp(b.emergeX - b.w / 2, b.left, b.right - b.w);
+            b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
+          }
+          if (b.arcT > b.emergeAt) b.fade = Math.min(1, (b.arcT - b.emergeAt) / 20);
+          if (b.arcT >= b.emergeAt + 20) {
+            b.fade = 1;
+            b.phase = 'recover';
+            b.timer = b.recoverTime;
+            events.push('slam');
+          }
           break;
         }
 
@@ -1326,6 +1404,33 @@ function updatePlayer(state, input, t, who) {
   const solids = solidsOf(state);
   // 雙人試煉：隊友的頭頂可以站（疊羅漢）。只加在玩家自己的碰撞裡，敵人不會踩在玩家頭上
   if (state.duo) Duo.heads(state, p).forEach(function (s) { solids.push(s); });
+
+  /*
+   * v1.31 哥倫比亞的海盜盪繩（Features 'rope'）：抓著繩子時人跟著繩尾走，不受重力、不能左右移動；
+   * 按跳躍放手 —— 帶著繩子盪的速度飛出去，再加一點往上的力（盪到正中間往前衝時放手最遠）。
+   */
+  if (p.swing) {
+    const r = p.swing;
+    if (input.once('jump') || r.gone) {
+      const v = Features.ropeRelease(r, t);
+      p.swing = null;
+      r.cool = 24;
+      p.vx = v.vx;
+      p.vy = v.vy;
+      p.facing = p.vx >= 0 ? 1 : -1;
+      p.onGround = false; p.coyote = 0; p.jumpBuffer = 0;
+      p.launched = true;
+      events.push('jump');
+    } else {
+      const h = Features.ropeHandle(r, t);
+      p.x = h.x - p.w / 2;
+      p.y = h.y - 8;
+      p.vx = 0; p.vy = 0;
+      p.onGround = false;
+      if (p.invuln > 0) p.invuln--;
+      return events;
+    }
+  }
 
   // ── 水平輸入（涼鞋加速） ──
   /*

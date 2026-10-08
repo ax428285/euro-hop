@@ -17,6 +17,11 @@
  *   ice       瑞典    結冰的湖面：加速慢、放開還會滑
  *   floes     挪威    冰海水道上的浮冰：會漂、站上去會下沉
  *   aurora    芬蘭    極夜：一片漆黑，極光亮起來才看得清楚
+ *   （v1.31 美洲篇）
+ *   waves     古巴    馬雷貢海堤的大浪：浪頭先在堤後捲起來，接著整片拍上路面（跳起來躲）
+ *   speakers  牙買加  雷鬼音響：只有重低音「咚」的那一下會把人彈上天（站在上面等節拍，跑過去不會彈）
+ *   locks     巴拿馬  運河船閘：閘室中間一道閘門牆跳不過去，兩側的小船交替升降，搭升起來的船翻過閘門
+ *   ropes     哥倫比亞 海盜盪繩：寬水道上方掛著來回盪的繩子，跳起來抓住、盪到前面按跳躍放手飛過去
  *
  * 規劃（plan）在關卡定義時用固定 seed 跑，結果可重現、可測試；
  * 執行期（update）每帧處理碰撞，事件格式跟玩家事件一樣帶 'p0:' 前綴。
@@ -49,6 +54,20 @@ const Features = (function () {
     if (blocked) return null;
     if (Math.abs(x - ctx.goal) < 260) return null;
     return { x: x, y: s.y, seg: s };
+  }
+
+  /**
+   * v1.31：寬水道（巴拿馬船閘、哥倫比亞盪繩）上方不能有浮空平台 —— 不然踩平台就過去了，用不到船、繩子。
+   * 水道兩側各多清 40px，之後的機制、金幣也不會再放進來（ctx.avoid）。
+   */
+  function clearChannel(ctx, g) {
+    const zone = { x: g.x - 40, y: 0, w: g.w + 80, h: 600 };
+    for (let i = ctx.platforms.length - 1; i >= 0; i--) {
+      const q = ctx.platforms[i];
+      if (q.x < zone.x + zone.w && q.x + q.w > zone.x) ctx.platforms.splice(i, 1);
+    }
+    ctx.avoid.push(zone);
+    (ctx.cleared || (ctx.cleared = [])).push(zone);
   }
 
   /** 從偏好位置往兩側找第一個合格點 */
@@ -314,6 +333,54 @@ const Features = (function () {
             coins.push({ x: Math.round(cx - 12), y: ly - 70 });
           }
         });
+      } else if (c.type === 'speakers') {
+        // 牙買加：雷鬼音響。跟彈跳墊一樣頭上要淨空、上面放金幣，但只有節拍到的那一下才會彈
+        const n = c.count || 5;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.15 + 0.7 * i / Math.max(1, n - 1)), 60, 320);
+          if (!sp) continue;
+          list.push({ type: 'beatpad', x: sp.x, y: sp.y, w: 60, h: 12, phase: (i * 23) % BEAT_PERIOD });
+          ctx.avoid.push({ x: sp.x - 60, y: 0, w: 180, h: 600 });
+          coinColumn(sp.x + 30, sp.y, 150, 280, 4).forEach(function (q) { coins.push(q); });
+        }
+      } else if (c.type === 'ropes') {
+        /*
+         * 哥倫比亞：海盜盪繩。每一道寬水道（cfg.channels，約 300 寬，跳不過去）正上方吊一條繩子，
+         * 一直來回盪（ROPE_PERIOD、擺幅 ROPE_AMP）。跳起來碰到繩尾的把手就抓住，按跳躍放手 ——
+         * 放手時帶著繩子盪的速度飛出去：盪到正中間往前衝的那一下放手最遠。
+         */
+        ctx.gaps.filter(function (g) { return g.channel; }).forEach(function (g, gi) {
+          clearChannel(ctx, g);
+          const ly = LevelGen.groundAt(ctx.segs, g.x - 4);
+          list.push({ type: 'rope', ax: Math.round(g.x + g.w / 2), ay: ly - ROPE_TOP, len: ROPE_LEN, gx: g.x, gw: g.w,
+                      x: Math.round(g.x + g.w / 2), phase: gi * 50 });
+          coins.push({ x: Math.round(g.x + g.w / 2 - 12), y: ly - 120 });
+        });
+      } else if (c.type === 'waves') {
+        // 古巴：馬雷貢海堤的大浪。每一段各自有節奏（phase 錯開），不會三段同時打上來
+        (c.zones || [[0.3, 0.5]]).forEach(function (z, i) {
+          list.push({ type: 'waves', x0: Math.round(W * z[0]), x1: Math.round(W * z[1]), phase: i * 83 });
+        });
+      } else if (c.type === 'locks') {
+        /*
+         * 巴拿馬：運河船閘。每一道閘室（cfg.channels 拓寬過的斷崖，gap.channel）正中間有一道閘門牆，
+         * 頂端比岸高 GATE_H（跳不過去）；牆的兩側各一艘小船，像升降梯一樣交替升降（週期 LOCK_PERIOD）：
+         * 最低跟岸一樣高、最高比岸高 LOCK_RISE（比閘門還高）。
+         * 搭左邊的船升上去 → 翻過閘門跳到右邊（右邊的船這時剛好降到底）→ 走上對岸。
+         */
+        ctx.gaps.filter(function (g) { return g.channel; }).forEach(function (g, gi) {
+          clearChannel(ctx, g);
+          const ly = LevelGen.groundAt(ctx.segs, g.x - 4);
+          const gx = Math.round(g.x + g.w / 2 - GATE_W / 2);
+          const bw = Math.round((g.w - GATE_W) / 2 - 18);
+          list.push({ type: 'lockGate', x: gx, y: ly - GATE_H, w: GATE_W, h: GATE_H + 120, gy: ly });
+          [0, 1].forEach(function (side) {
+            const bx = side === 0 ? g.x + 10 : gx + GATE_W + 8;
+            list.push({ type: 'lock', x: bx, y: ly, w: bw, gx: side === 0 ? g.x : gx + GATE_W, gw: side === 0 ? gx - g.x : g.x + g.w - gx - GATE_W,
+                        phase: gi * 140 + side * LOCK_PERIOD / 2, side: side });
+          });
+          coins.push({ x: gx - 5, y: ly - GATE_H - 60 });
+        });
       } else if (c.type === 'aurora') {
         // 芬蘭：極夜。一段區間整片黑，極光週期性亮起
         list.push({ type: 'aurora', x0: Math.round(W * (c.from || 0.3)), x1: Math.round(W * (c.to || 0.8)) });
@@ -328,7 +395,7 @@ const Features = (function () {
         }
       }
     });
-    return { list: list, coins: coins, goalPlat: goalPlat };
+    return { list: list, coins: coins, goalPlat: goalPlat, cleared: ctx.cleared || [] };
   }
 
   /*
@@ -416,6 +483,61 @@ const Features = (function () {
   const FLOE_W = 64, FLOE_DROP = 3, FLOE_AMP = 24, FLOE_PERIOD = 260;
   const FLOE_GRACE = 18, FLOE_SINK = 0.18, FLOE_RISE = 0.35, FLOE_MAX = 16;
   function floeX(f, t) { return f.bx + Math.sin((t + f.phase) * Math.PI * 2 / FLOE_PERIOD) * f.amp; }
+
+  /*
+   * 古巴的大浪：週期 WAVE_CYCLE，前段平靜、接著 WAVE_WARN 帧浪頭在堤後捲起來（看得到、聽得到），
+   * 最後 WAVE_HIT 帧整片拍上路面：腳底低於「路面 − WAVE_H」的人都會被打到（跳起來就躲得過）。
+   */
+  /*
+   * 牙買加的雷鬼音響：每 BEAT_PERIOD 帧「咚」一下（BEAT_WINDOW 帧內站在上面的人被彈上去），
+   * 節拍前 BEAT_WARN 帧喇叭上的紅黃綠燈一顆顆亮起來（準備）。初速比法國遮陽篷再高一點。
+   */
+  const BEAT_PERIOD = 80, BEAT_WINDOW = 8, BEAT_WARN = 24, BEAT_V = -17.2;
+  function beatState(f, t) {
+    const k = (t + f.phase) % BEAT_PERIOD;
+    return { boom: k < BEAT_WINDOW, warn: k >= BEAT_PERIOD - BEAT_WARN, k: k };
+  }
+  /*
+   * 哥倫比亞的盪繩：角度 θ = ROPE_AMP·sin(2π(t+phase)/ROPE_PERIOD)，把手在 (ax + len·sinθ, ay + len·cosθ)。
+   * 錨點在岸上方 ROPE_TOP；擺到最邊時把手離岸約 30、離地約 130（從岸上跳得到）。
+   */
+  const ROPE_TOP = 250, ROPE_LEN = 168, ROPE_AMP = 0.78, ROPE_PERIOD = 150, ROPE_GRAB = 22;
+  function ropeAngle(f, t) { return ROPE_AMP * Math.sin((t + f.phase) * Math.PI * 2 / ROPE_PERIOD); }
+  function ropeHandle(f, t) {
+    const a = ropeAngle(f, t);
+    return { x: f.ax + f.len * Math.sin(a), y: f.ay + f.len * Math.cos(a), a: a };
+  }
+  /** 繩尾的切線速度（每帧 px） */
+  function ropeVel(f, t) {
+    const a = ropeAngle(f, t);
+    const w = ROPE_AMP * (Math.PI * 2 / ROPE_PERIOD) * Math.cos((t + f.phase) * Math.PI * 2 / ROPE_PERIOD);
+    return { vx: f.len * Math.cos(a) * w, vy: -f.len * Math.sin(a) * w };
+  }
+  /*
+   * 按跳躍放手時的初速：帶著繩子盪的速度，再加一次完整的跳躍（不然空中最快只有跑速，飛不過 300 寬的水道）。
+   * entities.js 放手、america-check 算落點都用這個。
+   */
+  function ropeRelease(f, t) {
+    const v = ropeVel(f, t);
+    return { vx: U.clamp(v.vx * 1.15, -7, 7), vy: Math.min(v.vy, 2) + PHYS.JUMP_V };
+  }
+
+  const WAVE_CYCLE = 260, WAVE_WARN = 70, WAVE_HIT = 22, WAVE_H = 62;
+  function waveState(f, t) {
+    const k = (t + f.phase) % WAVE_CYCLE;
+    const hitAt = WAVE_CYCLE - WAVE_HIT, warnAt = hitAt - WAVE_WARN;
+    return { k: k, warn: k >= warnAt && k < hitAt, hit: k >= hitAt, rise: k >= warnAt ? Math.min(1, (k - warnAt) / WAVE_WARN) : 0 };
+  }
+
+  /*
+   * 巴拿馬船閘：船頂 = 岸高 − LOCK_RISE × (1 − cos) / 2 —— 最低跟岸齊平、最高比岸高 LOCK_RISE。
+   * 閘門牆頂比岸高 GATE_H 150 > 跳躍高度 128：從岸上、從降到底的船上都跳不過去，要搭船升上去。
+   * 同一道閘室的兩艘船差半個週期：左邊升到頂時，右邊剛好降到底。
+   */
+  const LOCK_RISE = 180, LOCK_PERIOD = 400, GATE_W = 16, GATE_H = 150;
+  function lockLift(f, t) {
+    return LOCK_RISE * (1 - Math.cos((t + f.phase) * Math.PI * 2 / LOCK_PERIOD)) / 2;
+  }
   /*
    * 極夜（芬蘭）：一輪 AURORA_CYCLE 帧 —— 漆黑 240 → 極光慢慢亮 50 → 全亮 90 → 慢慢暗 40。
    * glow 0~1：0 = 只看得到身邊，1 = 整片看得清楚。
@@ -457,6 +579,9 @@ const Features = (function () {
       if (f.type === 'brick' && (f.on || fs.brickSolid)) out.push(f);
       // 挪威浮冰：會漂、會沉的平台（有 dx/dy → entities.js 會載著站在上面的人）
       if (f.type === 'floe' && f.box) out.push(f.box);
+      // 巴拿馬船閘：跟著水位升降的小船、正中間的閘門牆
+      if (f.type === 'lock' && f.box) out.push(f.box);
+      if (f.type === 'lockGate') out.push(f);
     });
     return out;
   }
@@ -474,6 +599,10 @@ const Features = (function () {
         if (f.type === 'column') { o.state = 'stand'; o.timer = 0; o.angle = 0; }
         if (f.type === 'mount') { o.state = 'wait'; o.timer = 0; }
         if (f.type === 'brick') { o.on = brickState(o, 0).on; }
+        if (f.type === 'lock') {
+          o.lift = lockLift(o, 0);
+          o.box = { x: o.x, y: o.y - o.lift, w: o.w, h: 16, dx: 0, dy: 0, passThru: true, floe: true };
+        }
         if (f.type === 'floe') {
           o.depth = 0; o.rideT = 0;
           o.box = { x: floeX(o, 0), y: o.by, w: o.w, h: 14, dx: 0, dy: 0, passThru: true, floe: true };
@@ -531,7 +660,8 @@ const Features = (function () {
     fs.list.forEach(function (f) {
       // 第一次接近時發一個事件，game.js 顯示提示
       const near = f.x0 != null ? lead.x > f.x0 - 300 && lead.x < (f.x1 || f.x0) : Math.abs(lead.x - f.x) < 420;
-      const tipKey = f.brine ? 'brine' : f.type;      // 鹽湖跟流沙同一套機制，提示分開
+      // 鹽湖跟流沙同一套機制，提示分開；v1.31 牙買加音響、哥倫比亞海盜砲、巴拿馬閘門也各有自己的提示
+      const tipKey = f.brine ? 'brine' : f.type === 'lockGate' ? 'lock' : f.type;
       if (near && !fs.seen[tipKey]) { fs.seen[tipKey] = true; events.push('feature:' + tipKey); }
 
       if (f.type === 'stampede') {
@@ -554,7 +684,8 @@ const Features = (function () {
         players.forEach(function (p, i) {
           const feet = p.y + p.h;
           if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 4 && p.x < f.x + f.w - 4) {
-            launch(p, PAD_V, events, pidOf(p, i));
+            // v1.31 牙買加雷鬼毛線帽：彈跳墊（遮陽篷、音響）彈得更高
+            launch(p, PAD_V * (p.stats && p.stats.padBoost ? 1.12 : 1), events, pidOf(p, i));
             f.squash = 10;
           }
         });
@@ -673,7 +804,9 @@ const Features = (function () {
           // 落點在玩家附近（偏前方），用序號錯開，不用 Math.random —— 結果可重現
           const tx = lead.x + lead.w / 2 + [-30, 140, 60, 220, 10, 180][f.seq++ % 6];
           const ty = groundTop(def, tx);
-          if (ty != null) f.shells.push({ x: tx, y: ty, fuse: SHELL_FUSE });
+          // v1.31 哥倫比亞咖啡：紅圈提早出現（引信多 30 帧）
+          const early = players.some(function (p) { return p.stats && p.stats.earlyWarn; });
+          if (ty != null) f.shells.push({ x: tx, y: ty, fuse: SHELL_FUSE + (early ? 30 : 0), fuse0: SHELL_FUSE + (early ? 30 : 0) });
         }
         f.shells.forEach(function (s) {
           if (--s.fuse === 0) {
@@ -732,6 +865,55 @@ const Features = (function () {
         f.box.dx = nx - f.box.x; f.box.dy = ny - f.box.y;
         f.box.x = nx; f.box.y = ny;
         f.sinking = ridden && f.rideT > FLOE_GRACE;
+      } else if (f.type === 'beatpad') {
+        const bs = beatState(f, t);
+        f.boom = bs.boom; f.warn = bs.warn;
+        if (bs.boom) {
+          players.forEach(function (p, i) {
+            const feet = p.y + p.h;
+            if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 4 && p.x < f.x + f.w - 4) {
+              // v1.31 牙買加雷鬼毛線帽：彈得更高
+              launch(p, BEAT_V * (p.stats && p.stats.padBoost ? 1.1 : 1), events, pidOf(p, i));
+              f.squash = 10;
+            }
+          });
+        }
+        if (bs.k === 0 && Math.abs(lead.x - f.x) < 500) events.push('beat');
+        if (f.squash > 0) f.squash--;
+      } else if (f.type === 'rope') {
+        const h = ropeHandle(f, t);
+        f.hx = h.x; f.hy = h.y; f.ang = h.a;
+        if (f.cool > 0) f.cool--;
+        players.forEach(function (p, i) {
+          if (p.swing || p.onGround || f.cool > 0) return;
+          const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+          if (Math.abs(cx - h.x) < ROPE_GRAB && Math.abs(cy - h.y) < ROPE_GRAB + 10) {
+            p.swing = f;                     // 抓住了：entities.js 的 updatePlayer 會讓人跟著繩子走，按跳躍放手
+            events.push('p' + pidOf(p, i) + ':grab');
+          }
+        });
+      } else if (f.type === 'waves') {
+        const ws = waveState(f, t);
+        f.warn = ws.warn; f.hit = ws.hit; f.rise = ws.rise;
+        if (ws.warn && ws.k === WAVE_CYCLE - WAVE_HIT - WAVE_WARN && lead.x > f.x0 - 500 && lead.x < f.x1 + 200) events.push('waveWarn');
+        if (ws.hit) {
+          players.forEach(function (p, i) {
+            const cx = p.x + p.w / 2;
+            if (cx < f.x0 || cx > f.x1) return;
+            const gy = groundTop(def, cx);
+            if (gy == null || p.y + p.h <= gy - WAVE_H) return;
+            if (p.stats && p.stats.waveProof) {            // v1.31 古巴襯衫：浪打到不會痛，只被推一下
+              p.vx = Math.min(p.vx, -2);
+              return;
+            }
+            hurt(p, p.x + p.w + 40, events, pidOf(p, i));
+          });
+        }
+      } else if (f.type === 'lock') {
+        const lift = lockLift(f, t);
+        const ny = f.y - lift;
+        f.box.dx = 0; f.box.dy = ny - f.box.y;
+        f.box.y = ny; f.lift = lift;
       } else if (f.type === 'aurora') {
         f.glow = auroraGlow(t);
       } else if (f.type === 'thorn') {
@@ -971,7 +1153,15 @@ const Features = (function () {
     fs.list.forEach(function (f) {
       // 背景層：鹽礦岩壁、極夜的星空與極光（要在建築後面）
       if (layer && (layer === 'bg') !== (f.type === 'dark' || f.type === 'aurora')) return;
-      if (f.type === 'pad') {
+      if (f.type === 'beatpad') {
+        const sx = f.x - camX;
+        if (sx < -80 || sx > 1040) return;
+        drawSpeaker(ctx, sx, f.y, f, t);
+      } else if (f.type === 'rope') {
+        const ax = f.ax - camX;
+        if (ax < -220 || ax > 1180) return;
+        drawRope(ctx, ax, f, t);
+      } else if (f.type === 'pad') {
         const sx = f.x - camX;
         if (sx < -80 || sx > 1040) return;
         const sq = f.squash > 0 ? 4 : 0;
@@ -1066,7 +1256,7 @@ const Features = (function () {
           if (sx < -60 || sx > 1020) return;
           if (s.fuse > 0) {
             // 落點預告：地上的紅圈越縮越小
-            const k = s.fuse / SHELL_FUSE;
+            const k = Math.min(1, s.fuse / (s.fuse0 || SHELL_FUSE));
             ctx.strokeStyle = 'rgba(255, 80, 70, ' + (0.9 - k * 0.5).toFixed(2) + ')';
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.ellipse(sx, s.y - 2, 12 + k * 24, 4 + k * 6, 0, 0, Math.PI * 2); ctx.stroke();
@@ -1278,6 +1468,16 @@ const Features = (function () {
         const bx = f.box.x - camX;
         if (bx < -100 || bx > 1060) return;
         drawFloe(ctx, bx, f.box.y, f, t);
+      } else if (f.type === 'waves') {
+        drawWaves(ctx, state, f, camX, t);
+      } else if (f.type === 'lock') {
+        const gx = f.gx - camX;
+        if (gx < -f.gw - 40 || gx > 1000) return;
+        drawLock(ctx, gx, f, f.box.x - camX, f.box.y, t);
+      } else if (f.type === 'lockGate') {
+        const gx = f.x - camX;
+        if (gx < -40 || gx > 1000) return;
+        drawLockGate(ctx, gx, f, t);
       } else if (f.type === 'aurora') {
         drawAuroraSky(ctx, state, f, camX, t);
       } else if (f.type === 'dark') {
@@ -1365,6 +1565,118 @@ const Features = (function () {
       }
     }
     ctx.restore();
+  }
+
+  /** 牙買加的雷鬼音響：一疊黑色喇叭箱；節拍前燈一顆顆亮起來（準備），「咚」的那一下喇叭鼓出來、冒出聲波圈 */
+  function drawSpeaker(ctx, sx, y, f, t) {
+    const sq = f.squash > 0 ? 4 : 0;
+    const pull = f.warn ? 2 : 0, push = f.boom ? 3 : 0;
+    ctx.fillStyle = '#1e1e22';
+    ctx.fillRect(sx + 2, y - 8, f.w - 4, 8);
+    ctx.fillRect(sx, y - 18 + sq, f.w, 12);
+    ctx.fillStyle = '#3a3a40';
+    ctx.beginPath(); ctx.ellipse(sx + f.w / 2, y - 14 + sq, f.w / 2 - 6, 4 - pull + push, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#5a5a62';
+    ctx.beginPath(); ctx.ellipse(sx + f.w / 2, y - 14 + sq, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+    // 紅黃綠的燈：快到節拍時三顆依序亮起來
+    const k = (t + f.phase) % BEAT_PERIOD;
+    const lit = f.warn ? Math.min(3, Math.floor((k - (BEAT_PERIOD - BEAT_WARN)) / 8) + 1) : f.boom ? 3 : 0;
+    ['#d8262c', '#f2c230', '#2f9a4a'].forEach(function (c, i) {
+      ctx.fillStyle = i < lit ? c : 'rgba(80, 80, 80, 0.8)';
+      ctx.beginPath(); ctx.arc(sx + 12 + i * 18, y - 3, 3, 0, Math.PI * 2); ctx.fill();
+    });
+    // 「咚」的聲波圈
+    if (k < 20) {
+      ctx.strokeStyle = 'rgba(255, 230, 140, ' + (1 - k / 20).toFixed(2) + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(sx + f.w / 2, y - 16, 20 + k * 2.4, 6 + k * 0.6, 0, Math.PI, 0); ctx.stroke();
+    }
+  }
+
+  /** 哥倫比亞的盪繩：從上方的木樑垂下來的粗繩，繩尾一個打結的把手 */
+  function drawRope(ctx, ax, f, t) {
+    const hx = (f.hx != null ? f.hx : f.ax) - f.ax + ax, hy = f.hy != null ? f.hy : f.ay + f.len;
+    ctx.fillStyle = '#6a4a2a'; ctx.fillRect(ax - 40, f.ay - 8, 80, 8);
+    ctx.fillStyle = '#4a3220'; ctx.fillRect(ax - 4, f.ay - 14, 8, 8);
+    ctx.strokeStyle = '#c8a46a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(ax, f.ay); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.strokeStyle = 'rgba(110, 80, 40, 0.7)'; ctx.lineWidth = 1;
+    for (let k = 1; k < 8; k++) {
+      const q = k / 8, x = ax + (hx - ax) * q, y = f.ay + (hy - f.ay) * q;
+      ctx.beginPath(); ctx.moveTo(x - 3, y - 2); ctx.lineTo(x + 3, y + 2); ctx.stroke();
+    }
+    ctx.fillStyle = '#a8804a'; ctx.beginPath(); ctx.arc(hx, hy, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 230, 140, ' + (0.25 + Math.sin(t * 0.15) * 0.15).toFixed(2) + ')';
+    ctx.beginPath(); ctx.arc(hx, hy, 13, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** 古巴的大浪：海堤後面捲起來的浪頭（預告），拍上來時整段路面蓋一層白浪 */
+  function drawWaves(ctx, state, f, camX, t) {
+    const x0 = f.x0 - camX, x1 = f.x1 - camX;
+    if (x1 < -40 || x0 > 1000) return;
+    const gy = groundTop(state.def, (f.x0 + f.x1) / 2) || Levels.GROUND_Y;
+    // 這段路邊的海堤（矮牆），提醒玩家「這裡會有浪」
+    ctx.fillStyle = 'rgba(200, 190, 170, 0.9)';
+    ctx.fillRect(x0, gy - 16, x1 - x0, 6);
+    if (f.rise > 0 && !f.hit) {
+      // 浪頭從堤後升起來（越來越高、越來越白）
+      const h = 20 + f.rise * 70;
+      ctx.fillStyle = 'rgba(70, 150, 200, ' + (0.35 + f.rise * 0.4).toFixed(2) + ')';
+      ctx.beginPath(); ctx.moveTo(x0, gy - 16);
+      for (let x = x0; x <= x1; x += 24) ctx.lineTo(x, gy - 16 - h + Math.sin(x * 0.05 + t * 0.2) * 8);
+      ctx.lineTo(x1, gy - 16); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.4 + f.rise * 0.5).toFixed(2) + ')';
+      for (let x = x0; x <= x1; x += 24) {
+        ctx.beginPath(); ctx.arc(x, gy - 16 - h + Math.sin(x * 0.05 + t * 0.2) * 8, 5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (f.hit) {
+      // 整片白浪拍上路面
+      ctx.fillStyle = 'rgba(230, 245, 255, 0.85)';
+      ctx.fillRect(x0, gy - WAVE_H, x1 - x0, WAVE_H);
+      ctx.fillStyle = 'rgba(120, 190, 230, 0.6)';
+      for (let x = x0; x < x1; x += 30) {
+        ctx.beginPath(); ctx.arc(x + 15, gy - WAVE_H + Math.sin(x + t) * 4, 14, Math.PI, 0); ctx.fill();
+      }
+    }
+  }
+
+  /** 巴拿馬船閘：半邊閘室的水（從船底一直到底，跟著船一起升降）＋水上的小拖船＋升降的箭頭 */
+  function drawLock(ctx, gx, f, bx, by, t) {
+    const water = by + 12;
+    ctx.fillStyle = 'rgba(40, 110, 140, 0.85)';
+    ctx.fillRect(gx, water, f.gw, 480 - water);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    for (let x = gx + 6; x < gx + f.gw - 8; x += 22) ctx.fillRect(x + Math.sin(t * 0.05 + x) * 2, water + 2, 10, 2);
+    // 閘室外牆（岸邊那一側）
+    ctx.fillStyle = '#8a8a84';
+    if (f.side === 0) ctx.fillRect(gx - 6, f.y - 2, 6, 482 - f.y);
+    else ctx.fillRect(gx + f.gw, f.y - 2, 6, 482 - f.y);
+    // 小拖船（船頂就是踩的地方）
+    ctx.fillStyle = '#c8402a';
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + f.w, by); ctx.lineTo(bx + f.w - 10, by + 16); ctx.lineTo(bx + 10, by + 16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f4efe2'; ctx.fillRect(bx, by, f.w, 3);
+    ctx.fillStyle = '#e8e0d0'; ctx.fillRect(bx + f.w / 2 - 14, by - 12, 28, 12);
+    ctx.fillStyle = '#4a6a8a'; ctx.fillRect(bx + f.w / 2 - 10, by - 9, 7, 5); ctx.fillRect(bx + f.w / 2 + 3, by - 9, 7, 5);
+    // 升／降的箭頭（綠色 = 正在升）
+    const rising = Math.sin((t + f.phase) * Math.PI * 2 / LOCK_PERIOD) > 0;
+    ctx.fillStyle = rising ? 'rgba(140, 230, 140, 0.95)' : 'rgba(255, 170, 90, 0.95)';
+    const ax = bx + f.w / 2, ay = by - 24;
+    ctx.beginPath();
+    if (rising) { ctx.moveTo(ax - 6, ay + 4); ctx.lineTo(ax + 6, ay + 4); ctx.lineTo(ax, ay - 5); }
+    else { ctx.moveTo(ax - 6, ay - 4); ctx.lineTo(ax + 6, ay - 4); ctx.lineTo(ax, ay + 5); }
+    ctx.closePath(); ctx.fill();
+  }
+
+  /** 閘門牆：混凝土牆＋鋼製閘門（中間一道縫） */
+  function drawLockGate(ctx, gx, f, t) {
+    ctx.fillStyle = '#7a7a74';
+    ctx.fillRect(gx, f.y, f.w, 480 - f.y);
+    ctx.fillStyle = '#4a5a6a';
+    ctx.fillRect(gx + 2, f.y + 6, f.w - 4, 480 - f.y - 6);
+    ctx.fillStyle = '#2a3440'; ctx.fillRect(gx + f.w / 2 - 0.5, f.y + 6, 1, 480 - f.y - 6);
+    ctx.fillStyle = '#f2c230';
+    for (let y = f.y; y < f.y + 30; y += 10) ctx.fillRect(gx, y, f.w, 4);       // 頂端的黃黑警示條
+    ctx.fillStyle = '#e8e0d0'; ctx.fillRect(gx - 3, f.y - 3, f.w + 6, 3);
   }
 
   /** 極夜的天空：星星＋綠紫色的極光簾幕（glow 越亮越明顯；畫在建築後面） */
@@ -1729,10 +2041,60 @@ const Features = (function () {
     ctx.restore();
   }
 
+  /**
+   * 古巴的老爺車（v1.31 def.ride === 'car'）：1950 年代的粉紅敞篷車，玩家坐在駕駛座上；
+   * 後面排氣管冒煙，跑起來車輪會轉。sx = 玩家左緣的螢幕座標。
+   */
+  function drawCar(ctx, p, sx, t) {
+    ctx.save();
+    ctx.translate(sx + p.w / 2, p.y + p.h);
+    if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) ctx.globalAlpha = 0.5;
+    // 車身（長長的尾鰭）
+    ctx.fillStyle = '#e87aa0';
+    ctx.beginPath();
+    ctx.moveTo(-34, -8); ctx.lineTo(-30, -20); ctx.lineTo(-22, -18); ctx.lineTo(-14, -14);
+    ctx.lineTo(24, -14); ctx.quadraticCurveTo(40, -14, 44, -6); ctx.lineTo(44, -4); ctx.lineTo(-34, -4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f4f0e8'; ctx.fillRect(-34, -9, 78, 3);                   // 白色腰線
+    ctx.fillStyle = '#c8c8d0'; ctx.fillRect(40, -8, 6, 4); ctx.fillRect(-36, -8, 4, 4);   // 保險桿
+    ctx.fillStyle = '#ffe9a0'; ctx.beginPath(); ctx.arc(43, -11, 2.4, 0, Math.PI * 2); ctx.fill();   // 大燈
+    ctx.fillStyle = 'rgba(190, 230, 250, 0.7)';
+    ctx.beginPath(); ctx.moveTo(10, -14); ctx.lineTo(16, -24); ctx.lineTo(19, -14); ctx.fill();   // 擋風玻璃
+    // 車輪
+    const spin = t * 0.4;
+    [-20, 28].forEach(function (wx) {
+      ctx.fillStyle = '#1e1e22'; ctx.beginPath(); ctx.arc(wx, -3, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d8d8e0'; ctx.beginPath(); ctx.arc(wx, -3, 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#8a8a92'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(wx + Math.cos(spin) * 3, -3 + Math.sin(spin) * 3); ctx.lineTo(wx - Math.cos(spin) * 3, -3 - Math.sin(spin) * 3); ctx.stroke();
+    });
+    // 排氣管的煙
+    ctx.fillStyle = 'rgba(160, 160, 170, 0.5)';
+    for (let k = 0; k < 3; k++) {
+      const ph = (t * 0.4 + k * 6) % 18;
+      ctx.beginPath(); ctx.arc(-38 - ph * 1.5, -6 - ph * 0.5, 2 + ph * 0.2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   return {
     dismount: dismount,
     drawMount: drawMount,
     drawSled: drawSled,
+    drawCar: drawCar,
+    waveState: waveState,
+    beatState: beatState,
+    ropeHandle: ropeHandle,
+    ropeVel: ropeVel,
+    ropeRelease: ropeRelease,
+    BEAT_PERIOD: BEAT_PERIOD,
+    BEAT_WINDOW: BEAT_WINDOW,
+    BEAT_V: BEAT_V,
+    ROPE_PERIOD: ROPE_PERIOD,
+    lockLift: lockLift,
+    WAVE_H: WAVE_H,
+    LOCK_RISE: LOCK_RISE,
+    LOCK_PERIOD: LOCK_PERIOD,
+    GATE_H: GATE_H,
     plan: plan,
     solids: solids,
     gustState: gustState,

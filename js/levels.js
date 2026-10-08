@@ -336,6 +336,25 @@ const Levels = (function () {
      * v1.30 挪威：終點在積木階梯頂上的高台（Features 'bricks' toGoal）。
      * 那一欄的浮空平台被拿掉了，原本擺在平台上的金幣會懸在半空 → 一起拿掉。
      */
+    /*
+     * v1.31 巴拿馬船閘、哥倫比亞盪繩：水道上方的浮空平台被拿掉了（不然踩平台就過去）——
+     * 原本擺在平台上的金幣、會載人過去的移動平台也一起拿掉。
+     */
+    feat.cleared.forEach(function (z) {
+      for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+        if (c.x + 24 > z.x && c.x < z.x + z.w) coins.splice(i, 1);
+      }
+      for (let i = movers.length - 1; i >= 0; i--) {
+        const m = movers[i], x0 = m.x - (m.axis === 'x' ? m.range : 0), x1 = m.x + m.w + (m.axis === 'x' ? m.range : 0);
+        if (x0 < z.x + z.w && x1 > z.x) movers.splice(i, 1);
+      }
+      // 站在被拿掉的平台上的敵人（有 y 的是平台上的）
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.y != null && e.left < z.x + z.w && e.right > z.x) enemies.splice(i, 1);
+      }
+    });
     const goalPlat = feat.goalPlat || null;
     if (goalPlat) {
       platforms.push(goalPlat);
@@ -413,6 +432,7 @@ const Levels = (function () {
       deco: cfg.deco,
       vehicle: vehicle,
       autorun: !!cfg.autorun,       // v1.30 瑞典馴鹿雪橇：自動往前衝，只能跳
+      ride: cfg.ride || null,       // v1.31 自動往前衝時坐的是什麼：預設馴鹿雪橇，'car' = 古巴老爺車
       channels: channels,           // v1.30 挪威冰海水道（要踩浮冰過，level-check 另外驗）
       goalY: goalPlat ? goalPlat.y : null,   // v1.30 挪威：終點在高台上（要站上去才過關）
       width: width,
@@ -1443,6 +1463,208 @@ const Levels = (function () {
     coins: [
       { x: 70, y: 250 }, { x: 104, y: 250 }, { x: 138, y: 250 },
       { x: 1090, y: 250 }, { x: 1124, y: 250 }, { x: 1158, y: 250 },
+      { x: 480, y: 332 }, { x: 514, y: 332 }, { x: 548, y: 332 }, { x: 582, y: 332 }
+    ]
+  }));
+
+  // ════════════════════════════════════════════════════════════
+  // 美洲篇（v1.31）：另一張「新大陸」地圖（加勒比海、中南美洲沿岸）。
+  // 完成哥倫布的委託（打敗西歐五艘戰艦、回去找他）才開放，從歐洲地圖一直往西開就到。
+  // 一樣接在最後面（存檔照關卡順序記）。
+  // 古巴 → 牙買加 → 墨西哥 → 巴拿馬 → 哥倫比亞 → 巴西（最終魔王）
+  // ════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────────
+  // 29. 古巴 · 哈瓦那 —— 開著老爺車沿馬雷貢海堤衝，大浪會打上岸
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1061,
+    id: 'CU', country: '古巴', city: '哈瓦那', region: 'america',
+    flag: ['#002A8F', '#FFFFFF', '#CF142B'], flagDir: 'cuba',
+    landmark: 'capitolio',
+    fact: '哈瓦那街上還在跑的 1950 年代美國老爺車有好幾萬輛，很多都是靠自己手工改裝的零件撐到今天。',
+    sky: ['#7cc8f0', '#fbe8c0'], hill: '#6aa0a0',
+    groundTop: '#d8c8a8', groundBody: '#8a7a64',
+    deco: 'palm',
+    layout: 'flat',
+    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.95,
+    /*
+     * 坐老爺車（ride: 'car'）：跟瑞典雪橇一樣自動往前衝、只能跳。
+     * 招牌：馬雷貢海堤的大浪 —— 浪頭先在海堤後面捲起來（預告），接著整片拍上路面；被打到會痛、被推回去。
+     */
+    autorun: true,
+    ride: 'car',
+    features: [{ type: 'waves', zones: [[0.18, 0.3], [0.42, 0.56], [0.68, 0.82]] }],
+    secretHint: '海堤底下的漁夫小屋，門板是一張舊車牌',
+    secretNear: 0.36,
+    secretKind: 'room',   // 老爺車停不下來、也不能往回開：天上的岔路接不上，改成地面的小密室
+    props: [
+      { type: 'classicCar', x: 700 },
+      { type: 'bongos', x: 1700 },
+      { type: 'classicCar', x: 3000 },
+      { type: 'bongos', x: 4600 },
+      { type: 'classicCar', x: 6000 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 30. 牙買加 · 藍山 —— 雷鬼音響：跟著重低音的節拍彈上天
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1052,
+    id: 'JM', country: '牙買加', city: '藍山', region: 'america',
+    flag: ['#009B3A', '#FED100', '#000000'], flagDir: 'jamaica',
+    landmark: 'blueMountains',
+    fact: '牙買加藍山的咖啡長在海拔一千多公尺、常年起霧的山坡上，是世界上最貴的咖啡之一。',
+    sky: ['#8fd0f0', '#e6f6e0'], hill: '#3f7a5a',
+    groundTop: '#6aa84a', groundBody: '#6a4a30',
+    deco: 'palm',
+    layout: 'hills',
+    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    // 招牌：雷鬼音響 —— 只有重低音「咚」的那一下會把人彈上天（站上去等燈亮完），空中有金幣
+    features: [{ type: 'speakers', count: 5 }],
+    secretHint: '咖啡園的烘豆小屋，香味是從地板縫飄出來的',
+    secretNear: 0.6,
+    props: [
+      { type: 'soundSystem', x: 900 },
+      { type: 'coffeeSacks', x: 2000 },
+      { type: 'soundSystem', x: 3400 },
+      { type: 'coffeeSacks', x: 4800 },
+      { type: 'soundSystem', x: 6200 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 31. 墨西哥 · 奇琴伊察 —— 豎井：往下跳進馬雅人的聖井（天然石灰岩井）
+  // ────────────────────────────────────────────────────────────
+  list.push(shaftLevel({
+    seed: 1053,
+    id: 'MX', country: '墨西哥', city: '奇琴伊察', region: 'america',
+    flag: ['#006847', '#FFFFFF', '#CE1126'], flagDir: 'mexico',
+    landmark: 'chichenItza',
+    fact: '猶加敦半島底下是一整片石灰岩，雨水把岩層蝕穿就變成天然的井「cenote」—— 馬雅城市都蓋在井旁邊。',
+    sky: ['#9ad8f0', '#f6efd0'], hill: '#5a8a4a',
+    groundTop: '#c8b890', groundBody: '#8a7860',
+    deco: 'palm',
+    // 美術主題：聖井（石灰岩壁、垂下來的樹根、底下是翠綠的水，見 america.js 的 'cenote'）
+    theme: 'cenote',
+    floors: 30,
+    platW: 104,
+    shaftW: 560,
+    extras: ['slide'],
+    intro: ['往下跳進馬雅人的聖井！上面的石頭塌下來了', '一路往下，底下翠綠的井水就是終點'],
+    equipAt: 'goal'
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 32. 巴拿馬 · 巴拿馬運河 —— 運河的船閘：水位一下升一下降，船跟著上下
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1054,
+    id: 'PA', country: '巴拿馬', city: '巴拿馬運河', region: 'america',
+    flag: ['#FFFFFF', '#DA121A', '#005293'], flagDir: 'panama',
+    landmark: 'canalLocks',
+    fact: '巴拿馬運河的船閘像水梯：關上閘門灌水把船抬高 26 公尺，翻過中間的加通湖，再一格一格放下去。',
+    sky: ['#8ccaf0', '#eaf6f0'], hill: '#3a7a4a',
+    groundTop: '#8a9a7a', groundBody: '#5a5a54',
+    deco: 'palm',
+    layout: 'flat',
+    water: true,          // 閘室裡是運河的水
+    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.0,
+    // 三個閘室，每個約 300 寬，跳不過去
+    channels: { at: [0.3, 0.52, 0.74], width: 300 },
+    // 招牌：船閘 —— 閘室裡的小船跟著水位上下：水滿時船跟岸一樣高，水退時船沉到底下，要等它升上來
+    features: [{ type: 'locks' }],
+    secretHint: '閘門控制室底下，有一條給工人走的維修通道',
+    secretNear: 0.42,
+    props: [
+      { type: 'canalMule', x: 800 },
+      { type: 'shipContainer', x: 1700 },
+      { type: 'canalMule', x: 4200 },
+      { type: 'shipContainer', x: 6100 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 33. 哥倫比亞 · 卡塔赫納 —— 加勒比海的城牆老城：抓著海盜的盪繩飛過水道
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1055,
+    id: 'CO', country: '哥倫比亞', city: '卡塔赫納', region: 'america',
+    flag: ['#FCD116', '#003893', '#CE1126'], flagDir: 'colombia',
+    landmark: 'cartagena',
+    fact: '卡塔赫納的老城被 11 公里長的城牆圍住，是西班牙人為了擋加勒比海的海盜一段一段蓋起來的。',
+    sky: ['#82c8f0', '#fbe6c8'], hill: '#c88a5a',
+    groundTop: '#d8b878', groundBody: '#8a6440',
+    deco: 'palm',
+    layout: 'flat',       // 寬水道（channels）要平地才拓得出來
+    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    water: true,          // 城牆外的護城河、海
+    // 三道約 300 寬的水道，跳不過去
+    channels: { at: [0.3, 0.52, 0.74], width: 300 },
+    // 招牌：海盜盪繩 —— 水道上方吊著來回盪的繩子，跳起來抓住、盪到前面按跳躍放手飛過去
+    features: [{ type: 'ropes' }],
+    secretHint: '城牆底下的地道，當年守軍從這裡偷運火藥',
+    secretNear: 0.5,
+    props: [
+      { type: 'balcony', x: 800 },
+      { type: 'coffeeSacks', x: 1800 },
+      { type: 'balcony', x: 3100 },
+      { type: 'balcony', x: 4700 },
+      { type: 'coffeeSacks', x: 6100 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 34. 巴西 · 里約熱內盧 —— ⚔ 美洲篇最終魔王：亞馬遜大蛇 Boiúna
+  // ────────────────────────────────────────────────────────────
+  list.push(bossLevel({
+    id: 'BR', country: '巴西', city: '里約熱內盧', region: 'america',
+    finale: true,     // 美洲篇最後一關
+    flag: ['#009C3B', '#FFDF00', '#002776'], flagDir: 'brazil',
+    landmark: 'sugarloaf',
+    fact: '亞馬遜的傳說裡，河底住著一條叫 Boiúna 的巨大黑蛇，夜裡浮上來，眼睛亮得像兩盞船燈。',
+    sky: ['#f0a070', '#fde0b0'], hill: '#3a7a4a',
+    groundTop: '#e8d098', groundBody: '#a07848',
+    deco: 'palm',
+    boss: {
+      name: '亞馬遜大蛇 Boiúna',
+      kind: 'boiuna',
+      /*
+       * 大蛇（pattern 'boiuna'，見 entities.js）：
+       *   鑽進地底 → 地上冒出一道虛線弧（預告）→ 從地底竄出來，沿著那道弧線跳過場地，再鑽回地底；
+       *   最後在落點探出頭來（破綻期，踩頭）。狂暴時連竄兩次。
+       * 前面沒有魔王是「整條身體從地底畫一道弧」的：要看虛線，站到弧線外面或弧線底下的空檔。
+       */
+      pattern: 'boiuna',
+      x: 760, w: 70, h: 76,
+      hp: 4,
+      rageAt: 2,
+      left: 260, right: 940,
+      speed: 1.2,
+      recoverTime: 150,
+      idleTime: 70
+    },
+    equipAt: { x: 620, y: 380 },
+    props: [
+      { type: 'beachKiosk', x: 200 },
+      { type: 'beachKiosk', x: 1080 }
+    ],
+    platforms: [
+      { x: 50, y: 292, w: 150, h: 20 },
+      { x: 1070, y: 292, w: 150, h: 20 }
+    ],
+    coins: [
+      { x: 80, y: 250 }, { x: 114, y: 250 }, { x: 148, y: 250 },
+      { x: 1100, y: 250 }, { x: 1134, y: 250 }, { x: 1168, y: 250 },
       { x: 480, y: 332 }, { x: 514, y: 332 }, { x: 548, y: 332 }, { x: 582, y: 332 }
     ]
   }));

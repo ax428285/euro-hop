@@ -235,6 +235,49 @@ const Equipment = (function () {
       desc: '站得穩：被打到只退一半，不容易被撞下平台；受傷後的無敵時間也稍微延長',
       note: '冰島羊毛衣 lopapeysa 用沒染色的冰島羊毛織成，領口一圈花紋；羊毛防水又保暖，漁夫出海都穿它。',
       apply: function (s) { s.steady = true; s.invulnBonus += 20; }
+    },
+    // ── 美洲篇（v1.31）──
+    {
+      id: 'guayabera', level: 28, country: '古巴', icon: 'guayabera',
+      name: '古巴襯衫',
+      desc: '大浪打到不會痛：海堤的浪拍上來只會被推一下',
+      note: '古巴襯衫 guayabera 前面有四個口袋和兩排細褶，透氣涼快，在古巴是可以穿去正式場合的襯衫。',
+      apply: function (s) { s.waveProof = true; }
+    },
+    {
+      id: 'rastacap', level: 29, country: '牙買加', icon: 'rastacap',
+      name: '雷鬼毛線帽',
+      desc: '彈跳墊彈得更高：雷鬼音響、法國遮陽篷都適用',
+      note: '紅、黃、綠三色的毛線帽是雷鬼音樂的招牌打扮；雷鬼樂 1960 年代在牙買加的金斯敦誕生。',
+      apply: function (s) { s.padBoost = true; }
+    },
+    {
+      id: 'jade', level: 30, country: '墨西哥', icon: 'jade',
+      name: '馬雅玉面具',
+      desc: '看得見密道：隱形磚遠遠就會微微發亮',
+      note: '馬雅的國王死後會戴上用綠色玉石片拼成的面具下葬；帕倫克的巴加爾王玉面具有兩百多片玉。',
+      apply: function (s) { s.secretSense = true; }
+    },
+    {
+      id: 'panama', level: 31, country: '巴拿馬', icon: 'panama',
+      name: '巴拿馬草帽',
+      desc: '跳躍力小幅提升',
+      note: '巴拿馬草帽其實是厄瓜多編的！當年賣給挖巴拿馬運河的工人，大家就叫它「巴拿馬帽」。',
+      apply: function (s) { s.jumpBoost += 0.6; }
+    },
+    {
+      id: 'coffee', level: 32, country: '哥倫比亞', icon: 'coffee',
+      name: '哥倫比亞咖啡',
+      desc: '提神醒腦：砲擊的紅圈提早出現（多半秒可以躲）',
+      note: '哥倫比亞的咖啡多半長在安地斯山的陡坡上，因為太陡機器上不去，咖啡豆幾乎都是一顆一顆用手摘的。',
+      apply: function (s) { s.earlyWarn = true; }
+    },
+    {
+      id: 'figa', level: 33, country: '巴西', icon: 'figa',
+      name: '巴西幸運手符',
+      desc: '每關第一次掉下去不扣愛心',
+      note: '巴西人常把一隻握拳的小手 figa 當護身符，掛在脖子或鑰匙圈上；據說別人送的才最靈驗。',
+      apply: function (s) { s.pitSave = true; }
     }
   ];
 
@@ -245,11 +288,11 @@ const Equipment = (function () {
    *    之後英國的板球「部位不空、不自動裝」→ 新玩家整個西歐篇都沒有遠程攻擊（touch-check 抓到的）。
    */
   const SLOTS = [
-    { id: 'head', name: '頭',   items: ['beret', 'laurel', 'tagelmust'] },
-    { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat', 'lopapeysa'] },
+    { id: 'head', name: '頭',   items: ['beret', 'laurel', 'tagelmust', 'rastacap', 'panama'] },
+    { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat', 'lopapeysa', 'guayabera'] },
     { id: 'hand', name: '手',   items: ['paprika', 'brolly', 'valaska'] },
     { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche', 'ghadames', 'nutukas'] },
-    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan', 'ankh', 'khamsa', 'lego', 'sunstone', 'bell'] }
+    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan', 'ankh', 'khamsa', 'lego', 'sunstone', 'bell', 'jade', 'coffee', 'figa'] }
   ];
 
   const byId = {};
@@ -298,6 +341,12 @@ const Equipment = (function () {
       iceGrip: false,     // 冰面不會滑（瑞典馴鹿皮靴）
       nightSight: false,  // 黑暗裡光圈變大（挪威維京太陽石）
       steady: false,      // 被打到只退一半（冰島毛衣）
+      // v1.31 美洲篇
+      waveProof: false,   // 大浪打到不痛（古巴襯衫）
+      padBoost: false,    // 彈跳墊彈更高（牙買加雷鬼毛線帽）
+      secretSense: false, // 隱形磚遠遠就看得到（墨西哥馬雅玉面具）
+      earlyWarn: false,   // 砲擊紅圈提早出現（哥倫比亞咖啡）
+      pitSave: false,     // 每關第一次掉下去不扣愛心（巴西幸運手符）
       // 以下由商店強化提供（Shop.resolve）
       magnet: 0,          // 金幣吸取半徑，0 = 沒有
       jumpBoost: 0,       // 跳躍力加成

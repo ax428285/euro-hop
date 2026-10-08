@@ -228,6 +228,68 @@ const Music = (function () {
                7, null, 6, 5, 4, null, 5, 4, 3, 1, 3, 4, 0, null, null, null],
       drum:   [1, 0.5, 0, 1, 0.5, 0, 1, 0.5, 1, 0.5, 0, 1, 1, 0.5, 1, 1]
     },
+    // ── 美洲篇（v1.31）──
+    // 古巴：頌樂 son 的切分節奏，明亮的大調
+    CU: {
+      bpm: 116, wave: 'square',
+      root: -5,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      bass: [0, 0, 4, 4, 3, 3, 4, 4],
+      melody: [4, null, 4, 5, null, 4, 2, null, 0, null, 2, 4, null, 2, null, null,
+               5, null, 5, 7, null, 5, 4, null, 2, null, 4, 2, 0, null, null, null],
+      drum:   [1, 0, 0, 0.6, 0, 0.6, 1, 0, 0, 0.6, 1, 0, 0.6, 0, 1, 0]
+    },
+    // 牙買加：雷鬼 —— 慢、反拍（鼓打在每拍的後半）
+    JM: {
+      bpm: 84, wave: 'triangle',
+      root: -7,
+      scale: [0, 2, 3, 5, 7, 9, 10],
+      bass: [0, 0, 0, 4, 3, 3, 3, 4],
+      melody: [null, 4, null, 4, null, 5, null, 4, null, 2, null, 2, null, 0, null, null,
+               null, 4, null, 5, null, 7, null, 5, null, 4, null, 2, null, 0, null, null],
+      drum:   [0.6, 0, 1, 0, 0.6, 0, 1, 0, 0.6, 0, 1, 0, 0.6, 0, 1, 0.5],
+      soft: true
+    },
+    // 墨西哥：馬利亞奇的小號，三拍子的感覺
+    MX: {
+      bpm: 132, wave: 'sawtooth',
+      root: -3,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      bass: [0, 4, 4, 0, 4, 4, 3, 4],
+      melody: [0, 2, 4, 4, null, 2, 4, 5, 7, null, 5, 4, 2, null, null, null,
+               4, 5, 7, 7, null, 5, 4, 2, 0, null, 2, 4, 0, null, null, null],
+      drum:   [1, 0, 0.5, 0, 0.5, 0, 1, 0, 0.5, 0, 0.5, 0, 1, 0, 0.5, 0]
+    },
+    // 巴拿馬：坦博里托 tamborito 的鼓
+    PA: {
+      bpm: 120, wave: 'square',
+      root: -8,
+      scale: [0, 2, 4, 5, 7, 9, 10],
+      bass: [0, 0, 3, 4, 0, 0, 3, 4],
+      melody: [4, 4, 5, null, 4, 2, 0, null, 2, 2, 4, null, 2, 0, null, null,
+               4, 4, 6, null, 5, 4, 2, null, 4, null, 2, null, 0, null, null, null],
+      drum:   [1, 0, 0.6, 1, 0, 0.6, 1, 0, 1, 0, 0.6, 1, 0, 0.6, 1, 0.6]
+    },
+    // 哥倫比亞：昆比亞 cumbia —— 拖拖拉拉的兩拍子
+    CO: {
+      bpm: 104, wave: 'triangle',
+      root: -2,
+      scale: [0, 2, 3, 5, 7, 8, 10],
+      bass: [0, 0, 4, 4, 3, 3, 4, 4],
+      melody: [0, null, 2, 3, null, 2, 0, null, 3, null, 4, 5, null, 4, 3, null,
+               5, null, 4, 3, null, 2, 0, null, 2, null, 3, 2, 0, null, null, null],
+      drum:   [1, 0, 0.6, 0.6, 1, 0, 0.6, 0.6, 1, 0, 0.6, 0.6, 1, 0.6, 0.6, 0.6]
+    },
+    // 巴西（最終魔王：亞馬遜大蛇）：快速的森巴，鼓點很密
+    BR: {
+      bpm: 150, wave: 'sawtooth',
+      root: -10,
+      scale: [0, 2, 3, 5, 7, 8, 10],
+      bass: [0, 0, 5, 5, 3, 3, 4, 4],
+      melody: [0, 3, 5, null, 7, 5, 3, null, 5, 7, 8, 7, 5, null, 3, null,
+               7, null, 8, 7, 5, null, 3, 5, 0, 2, 3, 2, 0, null, null, null],
+      drum:   [1, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 1, 0.5, 0.5, 1, 1, 0.5, 1, 1]
+    },
     // 亞特蘭提斯（潛水，v1.23.1）：慢、空靈的 Lydian（升四級），正弦波像水裡傳來的鐘聲
     ATL: {
       bpm: 88, wave: 'sine',

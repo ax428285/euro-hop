@@ -27,6 +27,20 @@ const WorldMap = (function () {
   const VIEW_H = 480 - TOP_BAR - BOTTOM_PANEL;   // = 352，畫面上看得到的地圖高度
   const WORLD_W = EuropeWorld.w;
   const WORLD_H = EuropeWorld.h;
+  /*
+   * v1.31 美洲篇：兩張地圖 —— 'eu' 歐洲（EuropeWorld）、'am' 新大陸（AmericaWorld，tools/build-america-map.js）。
+   * 兩張世界一樣大、比例尺相同（上面的 WORLD_W / WORLD_H 兩邊通用），
+   * 換地圖只要換國界資料與投影、再 build() 一次（Voyage 也要重烘陸地，見 Voyage.rebuild）。
+   * 歐洲專屬的東西（商店、港口、劇情人物、結界、扒手⋯⋯）都只在 'eu' 建、只在 'eu' 畫。
+   */
+  const WORLDS = {
+    eu: { id: 'eu', proj: EuropeWorld, geo: EuropeGeo, back: typeof EuropeBackdrop !== 'undefined' ? EuropeBackdrop : {} },
+    am: typeof AmericaWorld !== 'undefined'
+      ? { id: 'am', proj: AmericaWorld, geo: AmericaGeo, back: AmericaBackdrop } : null
+  };
+  let WD = WORLDS.eu;
+  /** 目前這張地圖的經緯度 → 世界座標 */
+  function project(lon, lat) { return WD.proj.project(lon, lat); }
   // 世界座標裡的可用範圍（貼著世界邊緣一點點不放東西）
   const MAP_TOP = 6;
   const MAP_BOTTOM = WORLD_H - 6;
@@ -166,6 +180,18 @@ const WorldMap = (function () {
    * 舊版為了擠空間做的偏移（捷克往北、奧地利往東、瑞士往東）都不需要了。
    * 保留這張表，之後真的有衝突再加。
    */
+  /*
+   * v1.31 新大陸：圖釘直接放在關卡城市的經緯度上（國土中心常常離城市很遠：
+   * 巴西的中心在內陸的馬托格羅索、墨西哥被地圖西緣切掉一大半）。
+   */
+  const PIN_LONLAT = {
+    CU: [-82.2, 22.9],    // 哈瓦那
+    JM: [-77.6, 18.3],    // 島的中間（地圖上的牙買加很小，東邊的藍山一帶放不下入口）
+    MX: [-88.6, 20.6],    // 奇琴伊察（猶加敦半島）
+    PA: [-79.3, 9.35],    // 運河北口（地峽很窄，再往南入口會落在海上）
+    CO: [-75.2, 10.2],    // 卡塔赫納
+    BR: [-43.4, -22.6]    // 里約熱內盧
+  };
   const PIN_NUDGE = {
     // v1.30 挪威：國土中心在峽灣附近，跟黃金獵犬、峽灣老漁夫擠在一起，國名被擠到很遠 → 往東南（奧斯陸那側）挪
     NO: [34, 14]
@@ -345,6 +371,7 @@ const WorldMap = (function () {
 
   function buildSpecials() {
     specials.length = 0;
+    if (WD.id !== 'eu') { buildAmericaSpecials(); return; }
     if (typeof EuropeBackdrop === 'undefined') return;
     SPECIAL_DEFS.forEach(function (d) {
       const geo = EuropeBackdrop[d.id];
@@ -401,6 +428,19 @@ const WorldMap = (function () {
         });
       });
     }
+  }
+
+  /** v1.31 新大陸地圖上的特殊地點（quests.js 的 AM_SPOTS，用美洲的投影） */
+  function buildAmericaSpecials() {
+    if (typeof Quests === 'undefined' || !Quests.AM_SPOTS) return;
+    Quests.AM_SPOTS.forEach(function (q) {
+      const p = project(q.lon, q.lat);
+      const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+      specials.push({
+        id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
+        def: { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+      });
+    });
   }
 
   /** 神祕商人：紫色斗篷 + 兜帽 + 提燈（燈會微微晃，遠遠就看得到） */
@@ -602,7 +642,7 @@ const WorldMap = (function () {
 
   function buildEast() {
     east.length = 0;
-    if (typeof EuropeBackdrop === 'undefined') return;
+    if (typeof EuropeBackdrop === 'undefined' || WD.id !== 'eu') return;
     EAST_DEFS.forEach(function (d) {
       const geo = EuropeBackdrop[d.id];
       if (!geo) return;
@@ -696,9 +736,11 @@ const WorldMap = (function () {
     nations.length = 0;
     Levels.list.forEach(function (lv, i) {
       // 東歐篇的國家國界在 EuropeBackdrop（產生器把它們當背景國），圖釘點在這裡算
-      const geo = EuropeGeo[lv.id] || EuropeBackdrop[lv.id];
+      // v1.31：只建「這張地圖上」的國家（美洲篇的國家只在新大陸地圖、歐洲的只在歐洲地圖）
+      const geo = WD.geo[lv.id] || WD.back[lv.id];
       if (!geo) return;   // 沒有地理資料的國家就不畫（不該發生，map-check 會抓）
-      const center = geo.center || innerPoint(geo.shapes[0]);
+      const ll = WD.id === 'am' && PIN_LONLAT[lv.id];
+      const center = ll ? project(ll[0], ll[1]) : (geo.center || innerPoint(geo.shapes[0]));
       const nudge = PIN_NUDGE[lv.id] || [0, 0];
       const cx = center[0] + nudge[0], cy = center[1] + nudge[1];
       nations.push({
@@ -782,7 +824,8 @@ const WorldMap = (function () {
     ctx.restore();
   }
   function drawCompass(ctx) {
-    const p = EuropeWorld.project(-13.5, 47.5);
+    // 羅盤：歐洲在比斯開灣外的大西洋，新大陸在小安地列斯群島東邊的大西洋
+    const p = WD.id === 'eu' ? project(-13.5, 47.5) : project(-42, 21);
     ctx.save();
     ctx.translate(p[0], p[1]);
     ctx.strokeStyle = 'rgba(80, 52, 24, 0.7)'; ctx.lineWidth = 1;
@@ -892,6 +935,7 @@ const WorldMap = (function () {
     ctx.closePath(); ctx.fill();
   }
   function drawPaintedNations(ctx, over) {
+    if (WD.id !== 'eu') return;
     PAINTED.forEach(function (d) {
       if (!!d.over !== !!over) return;
       const p = EuropeWorld.project(d.lon, d.lat);
@@ -915,9 +959,10 @@ const WorldMap = (function () {
   }
 
   function drawBackdrop(ctx) {
-    Object.keys(EuropeBackdrop).forEach(function (k) {
-      const eu = !!BACKDROP_EU[k];
-      EuropeBackdrop[k].shapes.forEach(function (sh) {
+    Object.keys(WD.back).forEach(function (k) {
+      // 新大陸：一律用跟關卡國同色系的灰綠（沒有沙漠色的國家）
+      const eu = WD.id !== 'eu' || !!BACKDROP_EU[k];
+      WD.back[k].shapes.forEach(function (sh) {
         poly(ctx, sh);
         ctx.fillStyle = eu ? PAL.euFill : PAL.bgFill;
         ctx.fill();
@@ -1043,9 +1088,24 @@ const WorldMap = (function () {
     { name: '撒哈拉沙漠', lon: 2, lat: 22.5, size: 14 }
   ];
 
+  // v1.31 新大陸
+  const SEAS_AM = [
+    { name: '加　勒　比　海', lon: -75, lat: 14.6, size: 20 },
+    { name: '墨西哥灣', lon: -91, lat: 25.2, size: 15 },
+    { name: '大　西　洋', lon: -38, lat: 10, size: 17, vertical: true },
+    { name: '太　平　洋', lon: -92, lat: 4, size: 17, vertical: true },
+    { name: '亞馬遜河口', lon: -46.5, lat: 1.6, size: 10 }
+  ];
+  const REGIONS_AM = [
+    { name: '南　美　洲', lon: -60, lat: -17, size: 30 },
+    { name: '中美洲', lon: -87.5, lat: 15.8, size: 13 },
+    { name: '亞馬遜雨林', lon: -62, lat: -5, size: 14 },
+    { name: '北　美　洲', lon: -94, lat: 31, size: 18 }
+  ];
+
   function drawRegionNames(ctx) {
-    REGIONS.forEach(function (r) {
-      const p = EuropeWorld.project(r.lon, r.lat);
+    (WD.id === 'eu' ? REGIONS : REGIONS_AM).forEach(function (r) {
+      const p = project(r.lon, r.lat);
       const rc = PAL.region || 'rgba(246, 232, 196, 0.32)';
       U.text(ctx, r.name, p[0], p[1], { size: r.size, weight: 800, color: rc, stroke: false });
       if (r.sub) U.text(ctx, r.sub, p[0], p[1] + r.size * 0.9, { size: 12, color: rc, stroke: false });
@@ -1053,8 +1113,8 @@ const WorldMap = (function () {
   }
 
   function drawSeaNames(ctx) {
-    SEAS.forEach(function (s) {
-      const p = EuropeWorld.project(s.lon, s.lat);
+    (WD.id === 'eu' ? SEAS : SEAS_AM).forEach(function (s) {
+      const p = project(s.lon, s.lat);
       ctx.save();
       ctx.translate(p[0], p[1]);
       if (s.angle) ctx.rotate(s.angle);
@@ -1148,7 +1208,7 @@ const WorldMap = (function () {
     // 羊皮紙：紙紋蓋在海和國土上、國名和圖釘之下（字要清楚）
     if (PAL.paper) { drawPaperGrain(ctx); drawCompass(ctx); }
     // v1.30：北歐的雷電結界（還沒解開時）、哥倫布出航後的美洲預告
-    if (typeof Quests !== 'undefined') { Quests.drawShield(ctx, t); Quests.drawMapExtras(ctx, t); }
+    if (typeof Quests !== 'undefined' && WD.id === 'eu') { Quests.drawShield(ctx, t); Quests.drawMapExtras(ctx, t); }
     drawPaintedNations(ctx, true);
     // 呼叫端要夾在「國土」與「國名」之間畫的東西（航海模式的運河）
     if (opts.afterLand) opts.afterLand();
@@ -1178,6 +1238,18 @@ const WorldMap = (function () {
     draw: draw,
     hitTest: hitTest,
     rebuild: build,
+    /** v1.31 目前是哪一張地圖：'eu' 歐洲、'am' 新大陸 */
+    world: function () { return WD.id; },
+    /** 換地圖（換完要 Voyage.rebuild()）；回傳有沒有換 */
+    useWorld: function (id) {
+      if (!WORLDS[id] || WD.id === id) return false;
+      WD = WORLDS[id];
+      build();
+      return true;
+    },
+    project: project,
+    /** 這張地圖所有國界資料（Voyage 烘陸地格子用） */
+    landSources: function () { return [WD.geo, WD.back]; },
     nations: nations,
     east: east,
     hitTestEast: hitTestEast,

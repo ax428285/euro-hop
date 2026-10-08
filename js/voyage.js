@@ -27,6 +27,10 @@
  *   Voyage.isLand(x, y)        這一點是陸地嗎（真實國界多邊形）
  *   Voyage.isNavigable(x, y)   開闊海面（離岸夠遠，海上怪物生成用）
  *   Voyage.ports()             各國入口（= 城市圖釘位置）
+ *   Voyage.rebuild()           v1.31 換地圖（WorldMap.useWorld）之後重烘陸地格子、重建港口
+ *
+ * v1.31 橫越大西洋：歐洲地圖開到最西邊、或新大陸地圖開到最東邊，還繼續往外開 →
+ *   update() 回傳 'edgeWest' / 'edgeEast'，由 game.js 決定要不要換地圖。
  */
 const Voyage = (function () {
 
@@ -69,14 +73,24 @@ const Voyage = (function () {
 
   function allLandShapes() {
     const out = [];
-    [EuropeGeo, typeof EuropeBackdrop !== 'undefined' ? EuropeBackdrop : {}].forEach(function (src) {
+    const srcs = WorldMap.landSources ? WorldMap.landSources()
+      : [EuropeGeo, typeof EuropeBackdrop !== 'undefined' ? EuropeBackdrop : {}];
+    srcs.forEach(function (src) {
       Object.keys(src).forEach(function (k) { src[k].shapes.forEach(function (sh) { out.push(sh); }); });
     });
     return out;
   }
 
+  // 每張地圖烘一次就記起來（來回橫越大西洋不用每次重算）
+  const baked = {};
   /** 烘陸地遮罩 + 每格海面離岸距離 */
   function bake() {
+    const wid = WorldMap.world ? WorldMap.world() : 'eu';
+    if (baked[wid]) { land = baked[wid].land; clear = baked[wid].clear; return; }
+    bakeNow();
+    baked[wid] = { land: land, clear: clear };
+  }
+  function bakeNow() {
     gridW = Math.ceil(W / CELL);
     gridH = Math.ceil(H / CELL);
     land = new Uint8Array(gridW * gridH);
@@ -199,6 +213,12 @@ const Voyage = (function () {
     ship.x += ship.vx;
     ship.y += ship.vy;
     clampToWorld();
+    // v1.31 橫越大西洋：開船頂著地圖的西邊（歐洲）／東邊（新大陸）還往外開
+    {
+      const wid = WorldMap.world ? WorldMap.world() : 'eu';
+      if (ship.mode === 'sea' && wid === 'eu' && ship.x <= 7 && ax < 0) events.push('edgeWest');
+      if (ship.mode === 'sea' && wid === 'am' && ship.x >= W - 7 && ax > 0) events.push('edgeEast');
+    }
     // v1.30 北歐的雷電結界（quests.js）：還沒解開時，船和人都進不了北歐的國土
     if (typeof Quests !== 'undefined' && Quests.blocked(ship.x, ship.y) && !Quests.blocked(px, py)) {
       ship.x = px; ship.y = py;
@@ -338,6 +358,7 @@ const Voyage = (function () {
 
   return {
     build: build,
+    rebuild: build,
     reset: reset,
     placeShip: placeShip,
     /** 外力推船（v1.27 卡律布狄斯大漩渦把船往中心吸） */

@@ -54,7 +54,9 @@ const LevelGen = (function () {
     graveStone: 26, deadTree: 60, branCastle: 300,
     roseBush: 56, sunflowers: 72, lavraProp: 340,
     // 北歐篇（v1.30）
-    mermaid: 64, dalaHorse: 50, runestone: 40, sauna: 96, reindeer: 76, lavaRock: 62
+    mermaid: 64, dalaHorse: 50, runestone: 40, sauna: 96, reindeer: 76, lavaRock: 62,
+    // 美洲篇（v1.31）
+    classicCar: 112, bongos: 40, soundSystem: 70, coffeeSacks: 64, canalMule: 76, shipContainer: 120, balcony: 84, beachKiosk: 80
   };
 
   /**
@@ -77,7 +79,8 @@ const LevelGen = (function () {
     phoneBox: 'fg', doubleDecker: 'fg', pianoBench: 'fg',
     branCastle: 'bg', lavraProp: 'bg', roseBush: 'fg', sunflowers: 'fg',
     wawelDragon: 'fg', paprikaStall: 'fg', thermalPool: 'fg', graveStone: 'fg', deadTree: 'fg',
-    mermaid: 'fg', dalaHorse: 'fg', runestone: 'fg', sauna: 'fg', reindeer: 'fg', lavaRock: 'fg'
+    mermaid: 'fg', dalaHorse: 'fg', runestone: 'fg', sauna: 'fg', reindeer: 'fg', lavaRock: 'fg',
+    classicCar: 'fg', bongos: 'fg', soundSystem: 'fg', coffeeSacks: 'fg', canalMule: 'fg', shipContainer: 'fg', balcony: 'fg', beachKiosk: 'fg'
   };
 
   /** 可重現的偽隨機 */
@@ -463,7 +466,8 @@ const LevelGen = (function () {
     });
     coins.forEach(function (c) { blockers.push({ x: c.x, y: c.y, w: 24, h: 24 }); });
     // 終點旗附近不放：旗杆會插在密室中間，而且玩家衝終點時根本不會停下來找
-    if (opts.goal != null) blockers.push({ x: opts.goal - 160, y: 0, w: 320, h: 600 });
+    // v1.31：終點後面也不放（碰到終點就過關了，後面的密室、裝備永遠拿不到）
+    if (opts.goal != null) blockers.push({ x: opts.goal - 160, y: 0, w: 100000, h: 600 });
     enemies.forEach(function (e) {
       // ⚠️ 地面敵人沒有 y（貼地走）。原本當成 y=0，擋的是畫面頂端，
       // 等於完全沒擋到 —— 密室會蓋在地面敵人的巡邏路線上。地面敵人整欄都擋。
@@ -580,7 +584,7 @@ const LevelGen = (function () {
     });
     // 金幣不擋：入口與空路上的主線金幣由呼叫端拿掉（見 clearZone），不然幾乎每段都放不下
     if (opts.goal != null) {
-      const gz = { x: opts.goal - 260, y: 0, w: 520, h: 600 };
+      const gz = { x: opts.goal - 260, y: 0, w: 100000, h: 600 };     // v1.31：連終點後面一起擋
       ground.push(gz); sky.push(gz);
     }
     enemies.forEach(function (e) {

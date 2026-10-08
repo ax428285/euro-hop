@@ -41,7 +41,14 @@ function runFlagCheck() {
     SE: { dir: 'nordic', field: 'blue', cross: 'gold' },
     NO: { dir: 'nordic', field: 'red', cross: 'white', inner: 'blue' },
     FI: { dir: 'nordic', field: 'white', cross: 'blue' },
-    IS: { dir: 'nordic', field: 'blue', cross: 'white', inner: 'red' }
+    IS: { dir: 'nordic', field: 'blue', cross: 'white', inner: 'red' },
+    // v1.31 美洲篇：取幾個特徵點驗顏色（points: [x 比例, y 比例, 顏色]）
+    CU: { dir: 'cuba', points: [[0.9, 0.1, 'blue'], [0.9, 0.3, 'white'], [0.06, 0.2, 'red'], [0.15, 0.5, 'white']] },        // 藍白五條＋紅三角白星
+    JM: { dir: 'jamaica', points: [[0.5, 0.06, 'green'], [0.5, 0.94, 'green'], [0.06, 0.5, 'black'], [0.94, 0.5, 'black'], [0.5, 0.5, 'gold']] },
+    MX: { dir: 'mexico', points: [[0.15, 0.5, 'green'], [0.5, 0.15, 'white'], [0.85, 0.5, 'red']] },                         // 綠白紅直條＋國徽
+    PA: { dir: 'panama', points: [[0.75, 0.25, 'red'], [0.25, 0.75, 'blue'], [0.05, 0.05, 'white'], [0.25, 0.25, 'blue'], [0.75, 0.75, 'red']] },
+    CO: { dir: 'colombia', points: [[0.5, 0.2, 'gold'], [0.5, 0.62, 'blue'], [0.5, 0.88, 'red']] },                          // 黃（一半）藍紅
+    BR: { dir: 'brazil', points: [[0.04, 0.06, 'green'], [0.3, 0.5, 'gold'], [0.5, 0.4, 'blue']] }                           // 綠底黃菱形藍球
   };
 
   const cv = document.createElement('canvas');
@@ -81,6 +88,10 @@ function runFlagCheck() {
     const W = 90, H = 60;
     c.clearRect(0, 0, cv.width, cv.height);
     Sprites.flagFace(c, 0, 0, W, H, lv.flag, lv.flagDir);
+    (exp.points || []).forEach(function (q) {
+      const got = name(px(W * q[0], H * q[1]));
+      if (got !== q[2]) issues.push(lv.country + ' 國旗 (' + q[0] + ', ' + q[1] + ') 應為 ' + q[2] + '，量到 ' + got);
+    });
 
     if (exp.dir === 'v') {
       // 直三色：橫向取三點應該是三種色，縱向同一欄應該同色

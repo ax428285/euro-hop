@@ -7,7 +7,8 @@
  *              跟他講過話 → 知道洛基躲在卡律布狄斯的漩渦底下；
  *              在「漩渦逃生」裡故意死掉 → 掉進冥界赫爾海姆（expedition.js 的豎井關），最底下遇到洛基；
  *              回來再找索爾 → 一段逗趣的對話，結界解開 = 北歐篇開放（取代原本的 700 EXP）。
- *   哥倫布     西班牙帕洛斯港外：委託你打敗西歐五國的戰艦（expedition.js 的戰艦海戰），完成 → 美洲預告。
+ *   哥倫布     塞維亞：委託你打敗西歐五國的戰艦（expedition.js 的戰艦海戰），完成 → 美洲篇開放（v1.31）。
+ *              美洲篇是另一張「新大陸」地圖：歐洲地圖往西開到底就橫越大西洋；哥倫布在他第一次上岸的小島等你（AM_SPOTS）。
  *   瑞士銀行   日內瓦：歐洲每一關的金幣都收滿過才能開戶；之後每分鐘生 1 枚金幣的利息（離開遊戲也算，最多一天份）。
  *   動物園     阿爾及爾：放撒哈拉動物大遷徙抓回來的動物，每過一天收一次門票。
  *   金字塔     吉薩：直接進「金字塔探險」（expedition.js）。
@@ -35,10 +36,20 @@ const Quests = (function () {
     { id: 'Q_cleopatra', npc: 'cleopatra', name: '埃及豔后', lon: CLEO_AT[0], lat: CLEO_AT[1], prompt: '按 Enter 晉見埃及豔后' }
   ];
 
+  /*
+   * v1.31 新大陸地圖上的地點（用美洲的投影，見 WorldMap.buildAmericaSpecials）。
+   *   哥倫布：聖薩爾瓦多島（巴哈馬），1492 年 10 月 12 日他第一次踏上美洲的地方。
+   */
+  const AM_SPOTS = [
+    { id: 'Q_columbusAm', npc: 'columbusAm', name: '哥倫布', lon: -74.5, lat: 24.1, prompt: '按 Enter 跟哥倫布說話' }
+  ];
+
   const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后' };
 
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
+  /** v1.31 美洲篇開放了嗎：完成哥倫布的委託（他出航之後） */
+  function americaOpen() { return flag('columbus') >= 2; }
   /** 卡律布狄斯的漩渦眼掉下去要不要接冥界：v1.30 玩家：進漩渦關掉下去一次就進得去 → 一律會（救出洛基後再去也行） */
   function helReady() { return true; }
 
@@ -145,7 +156,7 @@ const Quests = (function () {
         ctx.strokeStyle = 'rgba(255, 250, 190, 0.95)'; ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.moveTo(x + 9, y - 34); ctx.lineTo(x + 5, y - 28); ctx.lineTo(x + 9, y - 26); ctx.lineTo(x + 4, y - 20); ctx.stroke();
       }
-    } else if (kind === 'columbus') {
+    } else if (kind === 'columbus' || kind === 'columbusAm') {
       ring(ctx, x, y, t, near, 'rgba(255, 220, 150, 0.95)');
       // 哥倫布：黑外套、黑帽子，捧著一顆地球儀（他相信往西一直開就能到印度）
       tinyPerson(ctx, x, y, '#2a2a3a');
@@ -229,6 +240,7 @@ const Quests = (function () {
   /** 大地圖每帧呼叫：這一帧被偷了幾枚（0 = 沒事） */
   function pickpocket(ship) {
     if (typeof Save === 'undefined' || typeof EuropeWorld === 'undefined') return 0;
+    if (typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() !== 'eu') return 0;   // 新大陸沒有比利時
     const p = pickSpot(), d = Math.hypot(ship.x - p[0], ship.y - p[1]);
     const inBE = typeof EuropeBackdrop !== 'undefined' && EuropeBackdrop.BE &&
                  EuropeBackdrop.BE.shapes.some(function (sh) { return inPoly(ship.x, ship.y, sh); });
@@ -262,7 +274,7 @@ const Quests = (function () {
     ctx.save();
     const rc = 'rgba(120, 60, 30, 0.55)';
     U.text(ctx, '←　美　洲', p[0], p[1], { size: 22, weight: 800, color: rc, stroke: false });
-    U.text(ctx, '（篇章開發中）', p[0] + 6, p[1] + 22, { size: 12, color: rc, stroke: false });
+    U.text(ctx, '（一直往西開）', p[0] + 6, p[1] + 22, { size: 12, color: rc, stroke: false });
     // 往西航行的聖瑪利亞號（一直往左飄，飄出去再從右邊回來）
     const k = (t * 0.15) % 160;
     ctx.translate(p[0] + 90 - k, p[1] + 50);
@@ -400,7 +412,8 @@ const Quests = (function () {
     if (st >= 2) {
       return { who: 'columbus', lines: [
         L('columbus', '我回來了！大西洋的另一邊，真的有一片陸地。'),
-        L('columbus', '我還是覺得那裡是印度⋯⋯可是大家都說，那是一片新大陸。')
+        L('columbus', '我還是覺得那裡是印度⋯⋯可是大家都說，那是一片新大陸。'),
+        L('columbus', '你也去看看吧：從地圖最西邊一直往西開，就能橫越大西洋。')
       ] };
     }
     if (st === 1 && !left.length) {
@@ -412,7 +425,7 @@ const Quests = (function () {
       ], end: function () {
         Save.setFlag('columbus', 2);
         Save.addCoins(500);
-        return { sfx: 'fanfare', toast: { text: '哥倫布出航了！委託完成 +€ 500', sub: '地圖最西邊出現了「美洲」（篇章開發中）', life: 280 } };
+        return { sfx: 'fanfare', toast: { text: '哥倫布出航了！委託完成 +€ 500', sub: '美洲篇開放了！從地圖最西邊一直往西開，就能橫越大西洋', life: 300 } };
       } };
     }
     if (st === 1) {
@@ -529,7 +542,28 @@ const Quests = (function () {
     } };
   }
 
+  /** v1.31 新大陸的哥倫布：聖薩爾瓦多島，第一次上岸的地方 */
+  function talkColumbusAm() {
+    const cleared = Levels.list.filter(function (lv, i) { return lv.region === 'america' && Save.isCleared(i); }).length;
+    const total = Levels.list.filter(function (lv) { return lv.region === 'america'; }).length;
+    if (cleared >= total) {
+      return { who: 'columbus', lines: [
+        L('columbus', '你把整片新大陸都走遍了！比我還厲害。'),
+        L('columbus', '我到死都以為這裡是亞洲的邊緣⋯⋯所以這些島到今天還叫「西印度群島」。'),
+        L('columbus', '後來有個叫亞美利哥的佛羅倫斯人說：這是一塊新的大陸。地圖上就用了他的名字。')
+      ] };
+    }
+    return { who: 'columbus', lines: [
+      L('columbus', '你也來了！這裡是聖薩爾瓦多島 —— 1492 年 10 月 12 日，我們在這裡第一次上岸。'),
+      L('columbus', '我把住在這裡的人叫做「印地安人」，因為我以為這裡是印度。'),
+      L('columbus', '往南、往西還有好多國家：古巴、牙買加、墨西哥、巴拿馬、哥倫比亞，一直到巴西。'),
+      L('columbus', '聽說巴西的大河裡住著一條會發光的大黑蛇⋯⋯小心點，年輕的船長！'),
+      L('columbus', '想回歐洲的話，往東一直開到地圖最東邊就好。（目前走過 ' + cleared + ' / ' + total + ' 國）')
+    ] };
+  }
+
   function talk(id) {
+    if (id === 'columbusAm') return talkColumbusAm();
     if (id === 'cleopatra') return talkCleopatra();
     if (id === 'thor') return talkThor();
     if (id === 'loki') return talkLoki();
@@ -644,6 +678,8 @@ const Quests = (function () {
     NAMES: NAMES,
     ANIMALS: ANIMALS,
     northOpen: northOpen,
+    americaOpen: americaOpen,
+    AM_SPOTS: AM_SPOTS,
     helReady: helReady,
     blocked: blocked,
     drawShield: drawShield,

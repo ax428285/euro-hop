@@ -300,6 +300,8 @@ function runSecretCheck() {
       if (def.goal && s.room.x < def.goal + 150 && s.room.x + s.room.w > def.goal - 150) {
         issues.push(label + '：密室離終點旗太近（旗杆會插在密室上）');
       }
+      // v1.31：碰到終點就過關，終點後面的密室（還有裡面的裝備）永遠拿不到
+      if (def.goal && s.room.x > def.goal) issues.push(label + '：密室在終點後面（x=' + s.room.x + '，終點 ' + def.goal + '），拿不到');
       (def.platforms || []).forEach(function (pf) {
         const col = { x: s.block.x - 10, y: s.block.y, w: s.block.w + 20, h: Levels.GROUND_Y - s.block.y + 40 };
         if (rects(col, pf)) issues.push(label + '：隱形磚底下有平台擋著，跳不到');

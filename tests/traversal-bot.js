@@ -105,6 +105,8 @@ function runTraversalTest() {
  * 機器人：一直往右，在「站到邊緣」時才起跳。
  * 刻意跳得很晚 —— 提早起跳會落在斷崖中間，真人也是這樣玩。
  */
+// 盪繩：起跳後大約這麼多帧碰到把手（起跳時要預判那時候把手在哪）
+const bot_ROPE_LEAD = 14;
 function makeBot(state) {
   const held = { left: false, right: true, jump: false };
   let jumpEdge = false;
@@ -187,6 +189,31 @@ function makeBot(state) {
         const go = (ns.on && cs.left > 6) || (!ns.on && cs.on && cs.left <= 26);
         if (go) { jumpEdge = true; held.jump = true; held.right = true; stairTarget = next; }
         else held.jump = false;
+        return;
+      }
+
+      /*
+       * v1.31 哥倫比亞的海盜盪繩：真人的玩法 ——
+       *   走到水道邊停下，等把手盪回岸邊那一側、正要往回盪時起跳去抓；
+       *   抓住之後不動，等繩子盪過正中間、往前衝最快的那一下按跳躍放手。
+       */
+      if (p.swing) {
+        const v = Features.ropeVel(p.swing, t), h = Features.ropeHandle(p.swing, t);
+        held.right = false; held.jump = false;
+        if (v.vx > 0 && h.x >= p.swing.ax - 6) { jumpEdge = true; held.jump = true; }
+        return;
+      }
+      const rope = state.features ? state.features.list.filter(function (f) {
+        return f.type === 'rope' && p.x + p.w <= f.gx + 6 && f.gx - (p.x + p.w) < 140;
+      })[0] : null;
+      if (rope && p.onGround) {
+        const standX = rope.gx - p.w - 2;
+        if (p.x < standX - 4) { held.jump = false; return; }        // 先走到水道邊
+        held.right = false;
+        const ahead = Features.ropeHandle(rope, t + bot_ROPE_LEAD);
+        const back = Features.ropeVel(rope, t + bot_ROPE_LEAD).vx;
+        const go = ahead.x - rope.gx < 34 && back <= 0.6;
+        if (go) { jumpEdge = true; held.jump = true; held.right = true; } else held.jump = false;
         return;
       }
 

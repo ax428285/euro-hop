@@ -90,7 +90,11 @@ const Game = (function () {
       const vi = VEHICLE_INTRO[def.vehicle];
       toast = { text: vi[0], sub: vi[1], life: 260 };
     }
-    if (def.autorun) toast = { text: '坐上馴鹿雪橇！', sub: '雪橇會自己往前衝、停不下來 —— 只要按跳躍・冰面上會越滑越快', life: 280 };
+    if (def.autorun) {
+      toast = def.ride === 'car'
+        ? { text: '坐上古巴老爺車！', sub: '車子會自己往前開、停不下來 —— 只要按跳躍・海堤後面捲起浪頭就準備跳', life: 280 }
+        : { text: '坐上馴鹿雪橇！', sub: '雪橇會自己往前衝、停不下來 —— 只要按跳躍・冰面上會越滑越快', life: 280 };
+    }
     state = buildLevelState(def, i, sv.equipment, stats, coop);
     // 海神夥伴（消耗品）：有的話魔王關自動出戰，第一次出手才扣掉一個（還沒出手就輸了不算）
     if (def.isBoss && Save.get().allies > 0) {
@@ -200,6 +204,8 @@ const Game = (function () {
     // 連線：離開關卡了，下一關開始時再整份重傳（朋友那邊會收到 'wait' 回等待畫面）
     net.levelLive = false;
     cursor = U.clamp(cursor, 0, Save.get().unlocked - 1);
+    // v1.31：回到「這一國所在的那張地圖」（美洲篇的國家在新大陸地圖上）。打完遭遇戰回來（shipBack）不換。
+    if (!shipBack) worldFor(cursor);
     sceneTimer = 0;
     // 從關卡或海戰回來 = 過了一天（貿易行情、懸賞跟著換）
     if (state) Save.nextDay();
@@ -229,6 +235,44 @@ const Game = (function () {
     if (pendingReveal) openMystery(pendingReveal, true);
     // v1.30：冥界最底下的洛基
     else if (pendingTalk) { const w = pendingTalk; pendingTalk = null; openTalk(w); }
+  }
+
+  // ── 兩張地圖（v1.31 美洲篇）──────────────────────────
+  // 歐洲地圖往西開到底 → 新大陸；新大陸往東開到底 → 回歐洲。兩邊各記得上次停在哪一國（cursor）。
+  const lastCursor = { eu: 0, am: -1 };
+  let crossToastT = 0;
+  function worldOfLevel(i) { return Levels.list[i] && Levels.list[i].region === 'america' ? 'am' : 'eu'; }
+  function switchWorld(id) {
+    if (WorldMap.world() !== id) lastCursor[WorldMap.world()] = cursor;
+    if (!WorldMap.useWorld(id)) return false;
+    Voyage.rebuild();
+    Encounter.clear();          // 海上的怪是在另一張地圖上生的
+    return true;
+  }
+  /** 地圖切到第 i 關所在的那一張 */
+  function worldFor(i) { switchWorld(worldOfLevel(i)); }
+  /** 船開到地圖邊緣：to = 'am'（往西到新大陸）／'eu'（往東回歐洲） */
+  function crossAtlantic(to) {
+    switchWorld(to);
+    // 入口：新大陸在小安地列斯群島東邊的大西洋；歐洲在加那利群島西北的大西洋
+    const p = to === 'am' ? WorldMap.project(-31.2, 15) : WorldMap.project(-25.6, 31);
+    let at = null;
+    for (let r = 0; r <= 200 && !at; r += 8) {
+      for (let k = 0; k < 16 && !at; k++) {
+        const a = k * Math.PI / 8, x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
+        if (Voyage.isNavigable(x, y)) at = { x: x, y: y };
+        if (r === 0) break;
+      }
+    }
+    at = at || { x: p[0], y: p[1] };
+    Voyage.placeShip(at.x, at.y);
+    WorldMap.follow(at.x, at.y, true);
+    const firstAm = Levels.list.findIndex(function (lv) { return lv.region === 'america'; });
+    cursor = to === 'am' ? (lastCursor.am >= 0 ? lastCursor.am : firstAm) : lastCursor.eu;
+    Sfx.fanfare();
+    toast = to === 'am'
+      ? { text: '橫越大西洋，抵達新大陸！', sub: '1492 年哥倫布也是這樣一路往西開・往東開到地圖最東邊就回歐洲', life: 280 }
+      : { text: '回到歐洲', sub: '想再去新大陸：往西開到地圖最西邊', life: 200 };
   }
 
   // ── 劇情對話（v1.30，quests.js）────────────────────────
@@ -798,6 +842,21 @@ const Game = (function () {
         ? { text: '雷神的結界擋住了去路', sub: '索爾說：南方溫暖的海，有一張「吞下船的嘴」⋯⋯', life: 170 }
         : { text: '雷神的結界擋住了去路', sub: '北海上的雷神索爾好像在等人 —— 去找他問問', life: 170 };
     }
+    // v1.31 橫越大西洋（Voyage 在船頂著地圖邊緣還往外開時回報）
+    if (crossToastT > 0) crossToastT--;
+    if (events.indexOf('edgeWest') >= 0 || events.indexOf('edgeEast') >= 0) {
+      const toAm = events.indexOf('edgeWest') >= 0;
+      if (toAm && !Quests.americaOpen()) {
+        if (crossToastT === 0) {
+          crossToastT = 180;
+          Sfx.clang();
+          toast = { text: '大西洋的另一頭⋯⋯', sub: Save.flag('columbus') ? '還沒有人開過去 —— 先完成哥倫布的委託，讓他出航' : '還沒有人開過去 —— 塞維亞的哥倫布好像想往西航行', life: 200 };
+        }
+      } else {
+        crossAtlantic(toAm ? 'am' : 'eu');
+        return;
+      }
+    }
     const shipNow = Voyage.shipPos();
     // v1.30 比利時的扒手：船開到比利時海岸就被扒走金幣
     {
@@ -929,7 +988,9 @@ const Game = (function () {
       if (!regionUnlocked(rg)) {
         Sfx.clang();
         const reg = Encounter.regionOf(rg);
-        toast = reg.quest
+        toast = rg === 'america'
+          ? { text: reg.name + '還沒開放', sub: '先完成塞維亞哥倫布的委託', life: 170 }
+          : reg.quest
           ? { text: reg.name + '被雷神的結界罩住了', sub: '北海上的雷神索爾好像知道怎麼解開', life: 170 }
           : { text: reg.name + '還沒解鎖',
               sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + reg.exp, life: 170 };
@@ -969,7 +1030,12 @@ const Game = (function () {
     brick: ['樂高積木階梯', '紅、藍積木輪流出現 —— 腳下的積木開始閃就起跳，落下時另一色剛好出來'],
     ice: ['結冰的湖面', '雪橇在冰上越滑越快、跳得更遠 —— 斷崖前要算準起跳點，別跳過頭'],
     floe: ['峽灣的浮冰', '冰海跳不過去，要踩浮冰 —— 浮冰站一下就會往下沉，別停，一塊接一塊跳'],
-    aurora: ['北極圈的極夜', '只看得到身邊 —— 等天上的極光亮起來，整片雪地就看得清楚了']
+    aurora: ['北極圈的極夜', '只看得到身邊 —— 等天上的極光亮起來，整片雪地就看得清楚了'],
+    // v1.31 美洲篇
+    waves: ['馬雷貢海堤的大浪', '海堤後面捲起浪頭就準備跳 —— 浪拍上路面的那一下，人要在半空中'],
+    beatpad: ['雷鬼音響', '站在喇叭上等紅黃綠燈亮完 ——「咚」的那一下才會把你彈上天'],
+    lock: ['巴拿馬運河的船閘', '中間的閘門跳不過去 —— 站上小船等它升上去，再翻過閘門跳到另一邊'],
+    rope: ['海盜盪繩', '跳起來抓住繩子，盪到往前衝的那一下按跳躍放手，就能飛過水道']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -1157,6 +1223,13 @@ const Game = (function () {
         case 'fall': {
           const faller = state.players[pid || 0];
           if (faller && faller.mount) Features.dismount(state, faller);
+          // v1.31 巴西幸運手符：每關第一次掉下去不扣愛心
+          if (faller && faller.stats && faller.stats.pitSave && !(state.pitUsed && state.pitUsed[pid || 0])) {
+            state.pitUsed = state.pitUsed || {};
+            state.pitUsed[pid || 0] = true;
+            lives[pid || 0]++;
+            toast = { text: '幸運手符救了你！', sub: '掉下去不扣愛心（這一關只有一次）', life: 160 };
+          }
           Sfx.hurt(); shake = 14; loseLife(true, pid); break;
         }
         case 'mount': Sfx.equip(); break;
@@ -1210,6 +1283,9 @@ const Game = (function () {
         case 'minifail': onMiniFail(); break;
         case 'helfall': startHel(); break;
         case 'cannon': Sfx.stomp(); shake = 8; break;
+        case 'waveWarn': Sfx.land(); break;           // v1.31 古巴：浪頭在海堤後面捲起來了
+        case 'beat': Sfx.stomp(); break;              // v1.31 牙買加：重低音「咚」
+        case 'grab': Sfx.select(); break;             // v1.31 哥倫比亞：抓住盪繩
         case 'creak': Sfx.clang(); break;
         case 'collapse': Sfx.land(); shake = 4; break;
         case 'wave':
@@ -2442,6 +2518,8 @@ const Game = (function () {
       if (sc.block) {
         const d = Math.abs(state.player.x + state.player.w / 2 - (sc.block.x + sc.block.w / 2));
         sc.near = U.clamp(1 - (d - 50) / 230, 0, 1);
+        // v1.31 馬雅玉面具：隱形磚遠遠就看得到（微微閃）
+        if (stats && stats.secretSense && !sc.revealed) sc.near = Math.max(sc.near, 0.5 + Math.sin(t * 0.1) * 0.2);
       }
       Sprites.secretRoom(ctx, sc, def, t, camX);
     });
@@ -2555,7 +2633,9 @@ const Game = (function () {
       Sprites.shot(ctx, { x: sx, y: s.y, w: s.w, h: s.h, wave: s.wave, fire: s.fire, debris: s.debris,
         spear: s.spear, bat: s.bat, vx: s.vx, vy: s.vy,
         pillar: s.pillar, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember,
-        slash: s.slash, lava: s.lava }, t);
+        slash: s.slash, lava: s.lava,
+        serpent: s.serpent, seg: s.seg, ang: s.ang, dirX: s.dirX, arc: s.arc,          // v1.31 亞馬遜大蛇
+        arcMark: s.arcMark ? { x0: s.arcMark.x0 - camX, x1: s.arcMark.x1 - camX, h: s.arcMark.h, from: s.arcMark.from } : null }, t);
     });
 
     // 玩家的遠程攻擊（板球／辣椒火球）
@@ -2581,7 +2661,7 @@ const Game = (function () {
       // 騎駱駝（非洲關坐騎）：駱駝蓋在玩家腿上
       if (p.mount) Features.drawMount(ctx, p, p.x - camX, t);
       // 瑞典馴鹿雪橇（v1.30）：雪橇墊在腳下、馴鹿在前面拉
-      if (state.def.autorun && !p.out) Features.drawSled(ctx, p, p.x - camX, t);
+      if (state.def.autorun && !p.out) (state.def.ride === 'car' ? Features.drawCar : Features.drawSled)(ctx, p, p.x - camX, t);
       drawChargeBar(p, p.x - camX);
     });
     // 海神夥伴（魔王關）與牠丟出去的三叉戟
@@ -2985,7 +3065,7 @@ const Game = (function () {
     ctx.fillRect(0, 0, W, 40);
     ctx.fillStyle = 'rgba(212, 162, 58, 0.7)';
     ctx.fillRect(0, 39, W, 1.5);
-    U.text(ctx, '世界地圖', 16, 20,
+    U.text(ctx, WorldMap.world() === 'am' ? '新大陸' : '世界地圖', 16, 20,
       { size: 18, color: '#ffd166', align: 'left' });
 
     /*
@@ -3776,7 +3856,7 @@ const Game = (function () {
     const sv = Save.get();
     // 依剛打完的是哪一篇顯示（西歐篇 / 東歐篇 / 非洲篇 / 北歐篇）
     const region = (Levels.list[levelIndex] && Levels.list[levelIndex].region) || 'west';
-    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！', north: '北歐篇完成！' };
+    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！', north: '北歐篇完成！', america: '美洲篇完成！' };
     U.text(ctx, WIN_TITLE[region] || WIN_TITLE.west, W / 2, 124, { size: 42, color: '#ffd166' });
     // 路線由關卡資料組出來，加關卡不用改這裡。
     // 10 個城市一行會太長，拆兩行。
