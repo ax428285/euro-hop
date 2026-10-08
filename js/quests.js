@@ -233,12 +233,12 @@ const Quests = (function () {
   /** 地圖上額外的東西：美洲預告（往西的箭頭＋字），哥倫布出航後才有 */
   // ── 比利時的扒手 ───────────────────────────────────────
   /*
-   * v1.30 玩家：新增比利時，到那邊會被偷錢 100 元（歐洲扒手多）。
+   * v1.30 玩家：新增比利時，到那邊會被偷錢 100 元（歐洲扒手多）。v1.31.2 玩家：偷 50 就好。
    * 比利時不是關卡國，只在地圖上標國名＋國旗；走進比利時的國土、或船開進奧斯坦德前面那個小海灣的底（PICK_R 以內），
    * 就被扒走 PICK_COINS 枚（海灣的範圍刻意小：去荷蘭港口的船停在海灣東側，碰不到）。
    * 錢包不夠就全拿。離開比利時、也離海灣夠遠（PICK_REARM 以外）才會再被偷一次，不會停在那邊一直扣。
    */
-  const PICK_AT = [2.6, 51.35], PICK_OFF = [-3, -8], PICK_R = 18, PICK_REARM = 60, PICK_COINS = 100;
+  const PICK_AT = [2.6, 51.35], PICK_OFF = [-3, -8], PICK_R = 18, PICK_REARM = 60, PICK_COINS = 50;
   let pickArmed = true;
   function pickSpot() { const p = EuropeWorld.project(PICK_AT[0], PICK_AT[1]); return [p[0] + PICK_OFF[0], p[1] + PICK_OFF[1]]; }
   /** 大地圖每帧呼叫：這一帧被偷了幾枚（0 = 沒事） */

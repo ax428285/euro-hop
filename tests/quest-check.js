@@ -166,17 +166,19 @@ function runQuestCheck() {
     Quests.pickpocket(far);
     const p = EuropeWorld.project(2.6, 51.35), at = { x: p[0] - 3, y: p[1] - 8 };
     if (!Voyage.isNavigable(at.x, at.y)) issues.push('比利時扒手的位置船開不到');
-    sv.wallet = 150;
-    if (Quests.pickpocket(at) !== 100 || sv.wallet !== 50) issues.push('開到比利時沒有被偷 100 枚（錢包剩 ' + sv.wallet + '）');
-    if (Quests.pickpocket(at) !== 0 || sv.wallet !== 50) issues.push('停在比利時會一直被偷');
+    const PC = Quests.PICK_COINS;
+    if (PC !== 50) issues.push('比利時扒手應該偷 50 枚（現在 ' + PC + '）');
+    sv.wallet = PC + 30;
+    if (Quests.pickpocket(at) !== PC || sv.wallet !== 30) issues.push('開到比利時沒有被偷 ' + PC + ' 枚（錢包剩 ' + sv.wallet + '）');
+    if (Quests.pickpocket(at) !== 0 || sv.wallet !== 30) issues.push('停在比利時會一直被偷');
     Quests.pickpocket(far);
-    if (Quests.pickpocket(at) !== 50 || sv.wallet !== 0) issues.push('錢包不到 100 枚時沒有全拿');
+    if (Quests.pickpocket(at) !== 30 || sv.wallet !== 0) issues.push('錢包不到 ' + PC + ' 枚時沒有全拿');
     Quests.pickpocket(far);
     if (Quests.pickpocket(at) !== -1) issues.push('錢包空空時扒手應該摸個空');
     // 走進比利時（布魯塞爾）也會被偷
     Quests.pickpocket(far); sv.wallet = 300;
     const bxl = EuropeWorld.project(4.35, 50.85);
-    if (Quests.pickpocket({ x: bxl[0], y: bxl[1] }) !== 100) issues.push('走進比利時沒有被偷');
+    if (Quests.pickpocket({ x: bxl[0], y: bxl[1] }) !== PC) issues.push('走進比利時沒有被偷');
     // 去荷蘭靠港：圖釘本身、港口 DOCK_RANGE 內海上的點都不該被偷
     const nl0 = Voyage.ports().filter(function (q) { return q.id === 'NL'; })[0];
     Quests.pickpocket(far);
