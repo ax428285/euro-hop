@@ -58,6 +58,8 @@ const Race = (function () {
   function plan(cfg) {
     // v1.31 古巴改成上帝視角（view: 'top'，見 topdown.js）
     if (cfg.view === 'top') return TopRace.plan(cfg);
+    if (cfg.view === 'ski') return Ski.plan(cfg);                 // v1.31 塞爾維亞滑雪（ski.js）
+    if (cfg.view === 'badminton') return Badminton.plan(cfg);     // v1.31 保加利亞羽球（badminton.js）
     const r = rng(cfg.seed || 1);
     const segs = [];
     let y = 0;
@@ -158,6 +160,8 @@ const Race = (function () {
   function makeState(def) {
     const pl = def.race;
     if (pl.view === 'top') return TopRace.makeState(def);
+    if (pl.view === 'ski') return Ski.makeState(def);
+    if (pl.view === 'badminton') return Badminton.makeState(def);
     const r = rng(pl.seed + 7);
     // 古巴：路上慢慢開的老爺車（跟你同方向，比你慢）
     const cars = [];
@@ -176,6 +180,8 @@ const Race = (function () {
 
   function update(state, input, t) {
     if (state.def.race.view === 'top') return TopRace.update(state, input, t);
+    if (state.def.race.view === 'ski') return Ski.update(state, input, t);
+    if (state.def.race.view === 'badminton') return Badminton.update(state, input, t);
     const events = [];
     const def = state.def, pl = def.race, rs = state.race, p = state.player;
     const st = p.stats || {};
@@ -562,6 +568,8 @@ const Race = (function () {
 
   function draw(ctx, state, t, W, H) {
     if (state.def.race.view === 'top') { TopRace.draw(ctx, state, t, W, H); return; }
+    if (state.def.race.view === 'ski') { Ski.draw(ctx, state, t, W, H); return; }
+    if (state.def.race.view === 'badminton') { Badminton.draw(ctx, state, t, W, H); return; }
     const def = state.def, pl = def.race, rs = state.race, th = THEME[pl.theme];
     drawBackdrop(ctx, pl, rs, t, W, H);
     const base = segAt(pl, rs.pos);

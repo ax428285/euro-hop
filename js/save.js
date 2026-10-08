@@ -298,6 +298,18 @@ const Save = (function () {
 
     isCleared: function (i) { return data.cleared.indexOf(i) >= 0; },
 
+    /**
+     * 把一關變回「還沒破」（v1.31 塞爾維亞、保加利亞換了新玩法，已經破過的玩家也要能再玩到）：
+     * 拿掉通關、最佳紀錄、這關的密道紀錄。裝備不收回。
+     */
+    resetLevel: function (i) {
+      data.cleared = data.cleared.filter(function (k) { return k !== i; });
+      delete data.best[i];
+      data.secrets = data.secrets.filter(function (k) { return k.indexOf(i + ':') !== 0; });
+      data.bosses = data.bosses.filter(function (k) { return k !== i; });
+      persist();
+    },
+
     /** 密道發現紀錄。key = "關index:密道index" */
     secretKey: function (lv, si) { return lv + ':' + si; },
 

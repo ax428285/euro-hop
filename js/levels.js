@@ -1063,51 +1063,45 @@ const Levels = (function () {
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 16. 塞爾維亞 · 貝爾格勒 —— 🚂 東方快車（v1.20）：車廂之間的連結板，踩了會塌
+  // 16. 塞爾維亞 · 科帕奧尼克 —— ⛷ 滑雪（v1.31 玩家：換成滑雪玩法；原本是東方快車的斷橋）
   // ────────────────────────────────────────────────────────────
-  list.push(makeLevel({
+  list.push(raceLevel({
     seed: 1023,
-    id: 'RS', country: '塞爾維亞', city: '貝爾格勒', region: 'east',
+    id: 'RS', country: '塞爾維亞', city: '科帕奧尼克', region: 'east',
     flag: ['#C6363C', '#0C4076', '#FFFFFF'], flagDir: 'h',
     landmark: 'stsava',
-    fact: '貝爾格勒位在薩瓦河匯入多瑙河的地方，歷史上被摧毀又重建了將近 40 次。',
-    sky: ['#8ab0d0', '#e8d8c0'], hill: '#6a7a8a',
-    groundTop: '#9a9478', groundBody: '#5a5040',
+    fact: '科帕奧尼克是塞爾維亞最大的滑雪場，最高的潘契奇峰海拔 2017 公尺，一年有兩百天看得到太陽。',
+    sky: ['#6aa8e0', '#d8ecf8'], hill: '#9ab4d0',
+    groundTop: '#f6fafe', groundBody: '#c8dcf0',
     deco: 'tree',
-    layout: 'flat',
-    vehicle: 'train',
-    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
-    airTypes: ['flyer', 'chaser'],
-    density: 1.15,
-    // 招牌：會塌的木橋 → 火車上是「車廂之間的連結板」，站上去搖一搖就掉下去
-    features: [{ type: 'bridges', count: 6 }],
-    secretHint: '餐車底下的儲藏格，傳說藏過國王的酒',
-    secretNear: 0.6,
-    props: []
+    view: 'ski',
+    /*
+     * 從側面看的下坡雪道（ski.js）：人自己往下滑，坡越陡越快。
+     * 石頭、雪人、倒下的樹幹要跳；低低的纜車椅要按住 ↓ 壓低鑽過去；跳台會把人拋上天（空中有金幣）。
+     */
+    length: 22000,
+    obsEvery: 520,
+    intro: ['科帕奧尼克滑雪場！人會自己往下滑', '按住 ↓ 壓低滑得更快、按 ← 剎車、跳躍跳過石頭和雪人；纜車椅要壓低鑽過去']
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 17. 保加利亞 · 玫瑰谷 —— 🚂 東方快車（v1.20）：載滿玫瑰的貨車廂，荊棘定時冒出
+  // 17. 保加利亞 · 玫瑰谷 —— 🏸 羽球對決（v1.31 玩家：換成羽球玩法；原本是東方快車的玫瑰荊棘）
   // ────────────────────────────────────────────────────────────
-  list.push(makeLevel({
+  list.push(raceLevel({
     seed: 1024,
     id: 'BG', country: '保加利亞', city: '玫瑰谷', region: 'east',
     flag: ['#FFFFFF', '#00966E', '#D62612'], flagDir: 'h',
     landmark: 'rila',
-    fact: '玫瑰谷每年五、六月採收大馬士革玫瑰，要在清晨露水還沒乾時用手摘。',
-    sky: ['#a8c8e8', '#f8e4e8'], hill: '#7a8a6a',
-    groundTop: '#7aa85a', groundBody: '#5a4a3a',
+    fact: '玫瑰谷每年五、六月採收大馬士革玫瑰，要在清晨露水還沒乾時用手摘；採收季還有玫瑰節。',
+    sky: ['#9ac8ec', '#fbe6ec'], hill: '#8a9a8a',
+    groundTop: '#3a8a5a', groundBody: '#2f7a4a',
     deco: 'tree',
-    layout: 'flat',
-    vehicle: 'train',
-    groundTypes: ['walker', 'spiker', 'guard', 'charger'],
-    airTypes: ['flyer', 'chaser'],
-    density: 1.1,
-    // 招牌：玫瑰荊棘 → 長在載玫瑰的車廂頂上，定時冒刺
-    features: [{ type: 'thorns', count: 9 }],
-    secretHint: '玫瑰貨車廂的木箱後面，聞得到花香',
-    secretNear: 0.45,
-    props: []
+    view: 'badminton',
+    /*
+     * 玫瑰節的露天羽球場（badminton.js）：跟玫瑰谷的羽球隊長比一場，先拿 5 分贏。
+     * 球過來自動揮拍：一般是高遠球、按住 ↓ 是網前小球、跳起來打是殺球。
+     */
+    intro: ['玫瑰谷羽球對決！先拿 5 分就贏了', '←→ 跑位，球過來會自動揮拍；按住 ↓ 打網前小球，跳起來打是殺球']
   }));
 
   // ────────────────────────────────────────────────────────────

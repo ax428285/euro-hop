@@ -8,6 +8,7 @@
  *   D) 大浪打到會痛（v1.31 古巴襯衫拿掉了，浪一定要躲）
  *   E) 上帝視角（v1.31 古巴，topdown.js）：路一直在畫面範圍內、終點後面沒有障礙；大浪前有預告、浪只蓋左邊（右車道安全）；
  *      會開車的機器人（看前面選車道、浪來就往右）開得到終點、受傷不超過 2 次；完全不轉向一定會撞到；浪打到會痛
+ *   F) 塞爾維亞滑雪、保加利亞羽球（v1.31，runRemakeCheck）：機器人過得了、不操作過不了
  */
 function runRaceCheck() {
   const issues = [];
@@ -15,6 +16,7 @@ function runRaceCheck() {
   Levels.list.forEach(function (def, li) {
     if (def.layout !== 'race') return;
     if (def.race.view === 'top') { topCheck(def, li, issues, report); return; }
+    if (def.race.view === 'ski' || def.race.view === 'badminton') return;   // F) 由 runRemakeCheck 驗
     const pl = def.race, tag = def.country;
     // ── A) ──
     if (!(pl.finish > 100 && pl.finish < pl.total)) issues.push(tag + '：終點位置不對（' + pl.finish + ' / ' + pl.total + '）');
@@ -92,6 +94,9 @@ function runRaceCheck() {
     }
   });
   if (!Object.keys(report).length) issues.push('沒有任何賽道關');
+  const rm = runRemakeCheck();
+  rm.issues.forEach(function (x) { issues.push(x); });
+  report.remake = rm.report;
   return { issueCount: issues.length, issues: issues, report: report };
 }
 
@@ -156,4 +161,110 @@ function topCheck(def, li, issues, report) {
   st.race.cars = [];
   const ev = TopRace.update(st, { isDown: function () { return false; }, once: function () { return false; } }, 1);
   if (!ev.some(function (e) { return /hurt$/.test(e); })) issues.push(tag + '：大浪打到不會痛');
+}
+
+/*
+ * v1.31 塞爾維亞滑雪（ski.js）：
+ *   會滑雪的機器人（前面有石頭、雪人、樹幹就跳，纜車椅就壓低，其他時候壓低加速）沒有裝備也滑得到終點、摔倒不超過 2 次；
+ *   完全不操作一定會撞到；纜車椅站著過去會撞、壓低過得去；跳台後面的金幣飛得到；終點後面沒有障礙
+ */
+function skiBot(def, li, smart) {
+  const st = buildLevelState(def, li, [], Equipment.resolve([]));
+  const pl = def.race, rs = st.race;
+  let hurts = 0, frames = 0, cleared = false, jumpNow = false, down = false;
+  const input = { isDown: function (a) { return a === 'down' && down; }, once: function (a) { return a === 'jump' && jumpNow; } };
+  for (; frames < 9000 && !cleared; frames++) {
+    jumpNow = false; down = false;
+    if (smart) {
+      down = true;
+      const lead = rs.vx * 11 + 24;
+      pl.obs.forEach(function (o) {
+        const dx = o.x - rs.x;
+        if (o.low) { if (dx > -30 && dx < rs.vx * 18 + 60) down = true; }
+        else if (!rs.air && dx > lead - rs.vx && dx <= lead) jumpNow = true;
+      });
+      // 纜車椅就在前面的時候不要起跳（會撞到椅子）
+      if (pl.obs.some(function (o) { return o.low && o.x - rs.x > -30 && o.x - rs.x < 360; })) jumpNow = false;
+    }
+    const ev = Race.update(st, input, frames);
+    ev.forEach(function (e) { if (/hurt$/.test(e)) hurts++; if (e === 'clear') cleared = true; });
+  }
+  return { cleared: cleared, hurts: hurts, frames: frames, coins: st.coinsGot, total: pl.coins.length };
+}
+
+function badmintonBot(def, li, smart) {
+  const st = buildLevelState(def, li, [], Equipment.resolve([]));
+  const rs = st.race;
+  let hurts = 0, frames = 0, cleared = false, jumpNow = false, held = {};
+  const input = { isDown: function (a) { return !!held[a]; }, once: function (a) { return a === 'jump' && jumpNow; } };
+  for (; frames < 30000 && !cleared; frames++) {
+    jumpNow = false; held = {};
+    const sh = rs.sh;
+    if (smart && sh) {
+      if (sh.held && rs.server === 'me') jumpNow = frames % 30 === 0;
+      else if (!sh.held && rs.last !== 'me') {
+        const pr = Badminton.predict(sh);
+        const tx = Math.min(Badminton.NET_X - 30, pr.x - 14);
+        // 對手站在後場 → 打網前小球
+        if (rs.ai.x > 700) held.down = true;
+        if (rs.me.x < tx - 4) held.right = true;
+        else if (rs.me.x > tx + 4) held.left = true;
+        // 球高高地落到身邊：跳起來殺
+        if (sh.vy > 0 && sh.x < Badminton.NET_X && Math.abs(sh.x - rs.me.x) < 60 && sh.y < rs.me.y - 120 && sh.y > rs.me.y - 150 && !rs.me.air) jumpNow = true;
+      } else {
+        if (rs.me.x < 240) held.right = true; else if (rs.me.x > 260) held.left = true;
+      }
+    }
+    const ev = Race.update(st, input, frames);
+    ev.forEach(function (e) { if (/hurt$/.test(e)) hurts++; if (e === 'clear') cleared = true; });
+  }
+  return { cleared: cleared, hurts: hurts, frames: frames, coins: st.coinsGot, score: rs.score.join(':'), lost: rs.lostMatches };
+}
+
+function runRemakeCheck() {
+  const issues = [], report = {};
+  const rsI = Levels.list.findIndex(function (l) { return l.id === 'RS'; }), bgI = Levels.list.findIndex(function (l) { return l.id === 'BG'; });
+  const rsDef = Levels.list[rsI], bgDef = Levels.list[bgI];
+  if (!rsDef || rsDef.layout !== 'race' || rsDef.race.view !== 'ski') issues.push('塞爾維亞不是滑雪關');
+  if (!bgDef || bgDef.layout !== 'race' || bgDef.race.view !== 'badminton') issues.push('保加利亞不是羽球關');
+  if (issues.length) return { issueCount: issues.length, issues: issues };
+  // ── 滑雪 ──
+  const pl = rsDef.race;
+  if (pl.obs.some(function (o) { return o.x > pl.finish - 200; })) issues.push('滑雪：終點附近還有障礙');
+  if (!pl.obs.some(function (o) { return o.low; })) issues.push('滑雪：沒有要壓低的纜車椅');
+  if (pl.kickers.length < 3) issues.push('滑雪：跳台太少（' + pl.kickers.length + '）');
+  const sk = skiBot(rsDef, rsI, true);
+  report.ski = sk;
+  if (!sk.cleared) issues.push('滑雪：機器人滑不到終點');
+  else if (sk.hurts > 2) issues.push('滑雪：機器人摔了 ' + sk.hurts + ' 次，可能太難');
+  if (sk.frames < 1500) issues.push('滑雪：太短了（' + sk.frames + ' 帧）');
+  if (sk.coins < sk.total * 0.6) issues.push('滑雪：機器人只拿到 ' + sk.coins + ' / ' + sk.total + ' 枚金幣（空中的金幣飛不到？）');
+  const idle = skiBot(rsDef, rsI, false);
+  report.skiIdle = idle;
+  if (idle.hurts === 0) issues.push('滑雪：完全不操作也不會撞到，沒有挑戰性');
+  // 纜車椅：站著會撞、壓低過得去
+  const chair = pl.obs.filter(function (o) { return o.low; })[0];
+  [false, true].forEach(function (duck) {
+    const st = buildLevelState(rsDef, rsI, [], Equipment.resolve([]));
+    st.race.x = chair.x - 60; st.race.y = Ski.groundAt(pl, st.race.x); st.race.vx = 8;
+    let hurt = false;
+    for (let f = 0; f < 20; f++) {
+      const ev = Race.update(st, { isDown: function (a) { return duck && a === 'down'; }, once: function () { return false; } }, f);
+      if (ev.some(function (e) { return /hurt$/.test(e); })) hurt = true;
+    }
+    if (duck && hurt) issues.push('滑雪：壓低還是撞到纜車椅');
+    if (!duck && !hurt) issues.push('滑雪：站著過纜車椅不會撞到（那就不用壓低了）');
+  });
+  // ── 羽球 ──
+  const bd = badmintonBot(bgDef, bgI, true);
+  report.badminton = bd;
+  if (!bd.cleared) issues.push('羽球：機器人打不贏（' + bd.score + '）');
+  else if (bd.hurts > 2) issues.push('羽球：機器人輸了 ' + bd.hurts + ' 局，可能太難');
+  if (bd.frames < 1200) issues.push('羽球：太快就打完了（' + bd.frames + ' 帧），對手太弱');
+  const bi = badmintonBot(bgDef, bgI, false);
+  report.badmintonIdle = bi;
+  if (bi.cleared) issues.push('羽球：站著不動也會贏');
+  if (bi.hurts === 0) issues.push('羽球：站著不動也不會輸掉任何一局');
+  // 舊存檔：破過的塞爾維亞、保加利亞要變回還沒破
+  return { issueCount: issues.length, issues: issues, report: report };
 }

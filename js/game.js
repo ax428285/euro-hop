@@ -1044,6 +1044,11 @@ const Game = (function () {
     race_wave: ['大浪要打上來了！', '浪會蓋住整條路 —— 快到的時候按跳躍，從浪上面飛過去'],
     topwave: ['大浪要打上來了！', '海堤冒水花 = 浪要從左邊打上路面，蓋住左邊三分之二的馬路 —— 快開到最右邊的車道'],
     race_crates: ['走私卡車丟下木箱！', '一整排木箱擋住整條路 —— 按跳躍飛過去'],
+    // v1.31 東歐換新玩法：塞爾維亞滑雪、保加利亞羽球
+    ski: ['科帕奧尼克滑雪場', '按住 ↓ 壓低滑得更快、按 ← 剎車；石頭、雪人、樹幹要跳過去'],
+    ski_kick: ['跳台！', '衝上跳台會飛起來 —— 空中的金幣只有飛過去才拿得到'],
+    ski_chair: ['低低的纜車椅！', '跳不過去 —— 按住 ↓ 壓低身體，從椅子底下鑽過去'],
+    badminton: ['玫瑰谷羽球對決', '球飛過來就自動揮拍：按住 ↓ 打網前小球，跳起來打是殺球。先拿 5 分獲勝！'],
     rope: ['海盜盪繩', '跳起來抓住繩子，盪到往前衝的那一下按跳躍放手，就能飛過水道']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
@@ -1298,7 +1303,11 @@ const Game = (function () {
         case 'minifail': onMiniFail(); break;
         case 'helfall': startHel(); break;
         case 'cannon': Sfx.stomp(); shake = 8; break;
-        case 'waveWarn': Sfx.land(); break;           // v1.31 古巴：浪頭在海堤後面捲起來了
+        case 'waveWarn': Sfx.land(); break;
+        case 'bad:hit': Sfx.select(); break;                 // v1.31 羽球：揮拍
+        case 'bad:smash': Sfx.shoot(); shake = 4; break;
+        case 'bad:point': Sfx.coin(); runScore += 100; break;
+        case 'bad:lose': Sfx.clang(); break;           // v1.31 古巴：浪頭在海堤後面捲起來了
         case 'pour': Sfx.land(); break;               // v1.31 牙買加：細口壺開始沖水
         // v1.31 巴西足球
         case 'kick': Sfx.stomp(); break;
@@ -3724,11 +3733,6 @@ const Game = (function () {
         W / 2, H - 44, { size: 13, color: bits.length ? '#8fe3a0' : '#9aa7c7' });
     }
 
-    // 葡萄牙商店：提醒其他強化要去找神祕商人（不然玩家會以為東西變少了）
-    if (!mystic) {
-      U.text(ctx, '其他強化（磁鐵、護符、彈簧鞋、幸運徽章）在地圖上的神祕商人那裡 —— 找找看紫色的斗篷', W / 2, sy + Math.ceil(list.length / cols) * (ch + gapY) + 6,
-        { size: 13, color: '#d8b8ff' });
-    }
     U.text(ctx, '方向鍵 選擇　Enter 購買　B 或 Esc 返回地圖',
       W / 2, H - 18, { size: 13, color: '#9aa7c7' });
   }
@@ -4497,9 +4501,23 @@ const Game = (function () {
     requestAnimationFrame(frame);
   }
 
+  /*
+   * v1.31 玩家：塞爾維亞換成滑雪、保加利亞換成羽球 →「已破關的玩家變回還沒破的關卡，這樣他才能體驗到」。
+   * 每個存檔只做一次（旗標 remake131）。
+   */
+  function remakeReset() {
+    if (Save.flag('remake131')) return;
+    ['RS', 'BG'].forEach(function (id) {
+      const i = Levels.list.findIndex(function (lv) { return lv.id === id; });
+      if (i >= 0) Save.resetLevel(i);
+    });
+    Save.setFlag('remake131', 1);
+  }
+
   function init(canvas) {
     ctx = canvas.getContext('2d');
     Save.load();
+    remakeReset();
     stats = Equipment.resolve(Save.wornIds());
     maxLives = stats.maxLives;
     netTapFx();
