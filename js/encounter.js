@@ -95,9 +95,9 @@ const Encounter = (function () {
    * 雙人試煉（v1.28）：入口是 worldmap.js 的港口（PORT_DEFS，scene: 'duo'），關卡在 duo.js。
    * 要兩位玩家（同機按 C，或連線找朋友當 2P）才進得去；第一次過關的獎勵記在 Save.seaBosses。
    */
-  KINDS.duoTwins = { name: '雙子燈塔', lv: '雙人', exp: 80, bossExp: 180, bossCoins: 250, game: '雙人試煉', duo: 'twins', track: 'IT', tags: '壓力板・閘門・吊橋・雙開關',
+  KINDS.duoTwins = { name: '哈圖沙獅子門', lv: '雙人', exp: 80, bossExp: 180, bossCoins: 250, game: '雙人試煉', duo: 'twins', track: 'IT', tags: '壓力板・閘門・吊橋・雙開關',
                      goal: '一人踩住壓板，另一人才過得了閘門和吊橋・最後兩塊壓板要同時有人站' };
-  KINDS.duoMaze = { name: '米諾斯迷宮', lv: '雙人', exp: 80, bossExp: 200, bossCoins: 300, game: '雙人試煉', duo: 'maze', track: 'GR', tags: '疊羅漢・拉桿・雙開關・閘門',
+  KINDS.duoMaze = { name: '代林庫尤地下城', lv: '雙人', exp: 80, bossExp: 200, bossCoins: 300, game: '雙人試煉', duo: 'maze', track: 'GR', tags: '疊羅漢・拉桿・雙開關・閘門',
                     goal: '站到隊友頭上再跳，上得了高台（疊羅漢）・上去的人拉桿子放踏板給隊友' };
   /** 沉船的寶物（Save.relics 記撈過哪些；mechanism 是終點自動拿到） */
   const RELICS = [

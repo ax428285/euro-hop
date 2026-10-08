@@ -32,7 +32,7 @@ const Duo = (function () {
    * 不切的話會被送回已經關上的閘門前面。
    */
   const LAYOUTS = {
-    // 雙子燈塔：壓板＋閘門、壓板＋吊橋、最後一道雙開關石門
+    // 哈圖沙獅子門：壓板＋閘門、壓板＋吊橋、最後一道雙開關石門
     twins: {
       width: 3660, goal: 3380,
       segs: [
@@ -52,7 +52,7 @@ const Duo = (function () {
       enemies: [{ type: 'walker', x: 2000, left: 1880, right: 2180 }, { type: 'walker', x: 3050, left: 2900, right: 3250 }],
       coins: [[300, 340, 4], [960, 330, 3], [1340, 300, 6], [1800, 340, 5], [2380, 320, 4], [2900, 340, 5]]
     },
-    // 米諾斯迷宮：疊羅漢上高台＋拉桿放踏板、高柱上的雙開關、閘門接力、疊羅漢登上終點王座
+    // 代林庫尤地下城：疊羅漢上高台＋拉桿放踏板、高柱上的雙開關、閘門接力、疊羅漢登上終點王座
     maze: {
       width: 3560, goal: 3330,
       segs: [
@@ -80,15 +80,15 @@ const Duo = (function () {
 
   const THEMES = {
     twins: {
-      id: 'DUO1', country: '雙子燈塔', city: '博尼法喬海峽',
+      id: 'DUO1', country: '哈圖沙獅子門', city: '土耳其中部',
       flag: ['#2a4a7a', '#f2e6c8', '#c84a3a'], flagDir: 'v',
-      fact: '博尼法喬海峽隔開科西嘉島（法國）和薩丁尼亞島（義大利），最窄的地方只有約 11 公里。',
+      fact: '哈圖沙是三千多年前西臺帝國的首都，城牆的「獅子門」兩旁各刻著一頭石獅守門。',
       sky: ['#3a6fa8', '#9fd0ea'], hill: '#5a7a8a', groundTop: '#c8b890', groundBody: '#7a6a58', deco: 'olive'
     },
     maze: {
-      id: 'DUO2', country: '米諾斯迷宮', city: '克里特島克諾索斯',
+      id: 'DUO2', country: '代林庫尤地下城', city: '卡帕多奇亞',
       flag: ['#8a2a2a', '#e8d0a0', '#8a2a2a'], flagDir: 'h',
-      fact: '希臘神話：忒修斯靠阿里阿德涅給的線團，才走出關著牛頭人米諾陶洛斯的迷宮。',
+      fact: '代林庫尤地下城往下挖了十幾層、約 85 公尺深，每層入口用一個大石輪滾過去封住。',
       sky: ['#c87a3a', '#f2c88a'], hill: '#9a6a4a', groundTop: '#d8a868', groundBody: '#8a5a3a', deco: 'olive'
     }
   };

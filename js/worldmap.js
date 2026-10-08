@@ -272,13 +272,14 @@ const WorldMap = (function () {
       prompt: '按 Enter 潛到安提基特拉沉船（撈兩千年前的寶物）' },
     /*
      * 雙人試煉（v1.28，關卡在 duo.js）：選擇性地點，不擋主線。
-     *   雙子燈塔：科西嘉島和薩丁尼亞島之間的博尼法喬海峽（兩座島隔著海峽對望，像一對雙胞胎）
-     *   米諾斯迷宮：克里特島的克諾索斯王宮遺跡（圖釘放在島的東南外海：島上北邊是沉船、東北是羅德島，字會疊在一起）
+     *   v1.28.1 玩家：地中海太擠 → 兩個都搬到土耳其（內陸很空），主題也換成土耳其的古蹟
+     *   哈圖沙獅子門：西臺帝國的首都（安卡拉東邊）
+     *   代林庫尤地下城：卡帕多奇亞的地下城（哈圖沙南邊；兩個圖釘上下要拉開，不然字會壓到另一個圖釘）
      */
-    { id: 'P_duo1', kind: 'duoTwins', name: '雙子燈塔', lon: 9.25, lat: 41.3, scene: 'duo', duo: true,
-      prompt: '按 Enter 挑戰雙子燈塔（需雙人）' },
-    { id: 'P_duo2', kind: 'duoMaze', name: '米諾斯迷宮', lon: 26.1, lat: 34.7, scene: 'duo', duo: true,
-      prompt: '按 Enter 挑戰米諾斯迷宮（需雙人）' }
+    { id: 'P_duo1', kind: 'duoTwins', name: '哈圖沙獅子門', lon: 34.0, lat: 40.7, scene: 'duo', duo: true,
+      prompt: '按 Enter 挑戰哈圖沙獅子門（需雙人）' },
+    { id: 'P_duo2', kind: 'duoMaze', name: '代林庫尤地下城', lon: 35.2, lat: 38.0, scene: 'duo', duo: true,
+      prompt: '按 Enter 挑戰代林庫尤地下城（需雙人）' }
   ];
   const specials = [];
 
