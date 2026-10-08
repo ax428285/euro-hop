@@ -85,6 +85,16 @@ const WorldMap = (function () {
    */
   const BACKDROP_FILL = '#4a4535';
   const BACKDROP_EDGE = 'rgba(214, 204, 170, 0.55)';
+  /*
+   * v1.29.3 玩家：歐洲、東歐的地圖開了，中間還夾著咖啡色的國家很醜。
+   * → 歐洲的背景國改成灰綠色（跟關卡國同色系、灰一點，有沒有圖釘一看就分得出來），
+   *   北非、中東、土耳其這些沙漠地帶維持沙褐色。跟海（#1d3a5c）的色距還是夠大，看得出是陸地。
+   */
+  const BACKDROP_EU_FILL = '#56684f';
+  const BACKDROP_EU_EDGE = 'rgba(225, 238, 255, 0.38)';
+  const BACKDROP_EU = { AL: 1, BA: 1, BE: 1, BG: 1, BY: 1, DK: 1, EE: 1, FI: 1, HR: 1, HU: 1, IE: 1, LT: 1, LU: 1,
+                        LV: 1, MD: 1, ME: 1, MK: 1, NO: 1, PL: 1, PT: 1, RO: 1, RS: 1, RU: 1, SE: 1, SI: 1, SK: 1,
+                        UA: 1, XK: 1 };
 
   /**
    * 標籤擺放：國名直接印在自己的國土上。
@@ -753,11 +763,12 @@ const WorldMap = (function () {
 
   function drawBackdrop(ctx) {
     Object.keys(EuropeBackdrop).forEach(function (k) {
+      const eu = !!BACKDROP_EU[k];
       EuropeBackdrop[k].shapes.forEach(function (sh) {
         poly(ctx, sh);
-        ctx.fillStyle = BACKDROP_FILL;
+        ctx.fillStyle = eu ? BACKDROP_EU_FILL : BACKDROP_FILL;
         ctx.fill();
-        ctx.strokeStyle = BACKDROP_EDGE;
+        ctx.strokeStyle = eu ? BACKDROP_EU_EDGE : BACKDROP_EDGE;
         ctx.lineWidth = 1;
         ctx.stroke();
       });
