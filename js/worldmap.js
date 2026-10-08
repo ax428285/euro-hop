@@ -52,7 +52,15 @@ const WorldMap = (function () {
     ctx.translate(-Math.round(cam.x), VIEW_TOP - Math.round(cam.y));
   }
 
-  function endView(ctx) { ctx.restore(); }
+  function endView(ctx) {
+    ctx.restore();
+    if (PAL.paper) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, VIEW_TOP, 960, VIEW_H); ctx.clip();
+      drawPaperVignette(ctx);
+      ctx.restore();
+    }
+  }
 
   /** 畫面座標（滑鼠點擊）→ 世界座標 */
   function toWorld(sx, sy) {
@@ -75,11 +83,18 @@ const WorldMap = (function () {
                open: '#5f8052', done: '#47795d', locked: '#444f68', eastLocked: '#524870', eastOpen: '#6b5a8e',
                edge: 'rgba(225, 238, 255, 0.5)', euFill: '#56684f', euEdge: 'rgba(225, 238, 255, 0.38)',
                bgFill: '#4a4535', bgEdge: 'rgba(214, 204, 170, 0.55)', seaName: 'rgba(170, 205, 240, 0.5)' },
-    // A 古地圖：羊皮紙陸地、灰藍綠的海、深褐國界
-    parchment: { sea: '#4f7f8c', seaDeep: '#3b6370', wave: 'rgba(230, 240, 235, 0.14)',
-                 open: '#d8c38e', done: '#b9c486', locked: '#a99a7e', eastLocked: '#a48fa8', eastOpen: '#c4a9c4',
-                 edge: 'rgba(90, 60, 30, 0.7)', euFill: '#c9b88e', euEdge: 'rgba(90, 60, 30, 0.45)',
-                 bgFill: '#bca77d', bgEdge: 'rgba(90, 60, 30, 0.4)', seaName: 'rgba(225, 240, 235, 0.6)' },
+    // A 古地圖（v1.29.8 玩家：顏色太亂，改用古地圖，羊皮紙感要出來）：
+    //   泛黃的紙＋紙紋與污漬、四周燒黃的暈邊、灰綠的海上刻線波紋、深褐墨水的國界和字、角落一個羅盤
+    parchment: { sea: '#bcd3c6', seaDeep: '#a9c4b6', wave: 'rgba(60, 80, 70, 0.22)',
+                 open: '#f3e2b2', done: '#dcd79c', locked: '#cdbd9b', eastLocked: '#cdbd9b', eastOpen: '#d9c39a',
+                 lockedEdge: 'rgba(110, 80, 50, 0.55)', doneEdge: 'rgba(150, 95, 20, 0.95)',
+                 edge: 'rgba(90, 58, 28, 0.85)', euFill: '#e9d7aa', euEdge: 'rgba(90, 58, 28, 0.5)',
+                 bgFill: '#e0c896', bgEdge: 'rgba(90, 58, 28, 0.45)', seaName: 'rgba(50, 66, 58, 0.62)',
+                 label: '#3a2410', labelSel: '#a3260f', labelLocked: '#6e5a40', labelStroke: 'rgba(250, 238, 205, 0.85)',
+                 spLabel: '#3a2410', merchantLabel: '#4a2a5a', portLabel: '#1e4a52', region: 'rgba(90, 58, 28, 0.28)',
+                 spFill: { PT: '#ead08f', IE: '#efc596' }, lockIcon: '#6e4a2a', lockedPin: '#9a7d55',
+                 // 破完的圖釘點：紅色封蠟＋米白打勾（綠色跟羊皮紙不搭）
+                 donePin: '#a8321e', doneCheck: '#f6e7c0', bossDone: '#c8962e', paper: true },
     // B 明亮卡通：亮藍海、鮮綠陸地
     cartoon: { sea: '#2f86c8', seaDeep: '#1d63a0', wave: 'rgba(255, 255, 255, 0.16)',
                open: '#7cc25e', done: '#4caf7a', locked: '#8b94a8', eastLocked: '#9a86c0', eastOpen: '#b49ce0',
@@ -99,8 +114,8 @@ const WorldMap = (function () {
              edge: 'rgba(130, 225, 255, 0.6)', euFill: '#2c4152', euEdge: 'rgba(130, 225, 255, 0.3)',
              bgFill: '#3a352c', bgEdge: 'rgba(230, 200, 140, 0.35)', seaName: 'rgba(130, 200, 240, 0.55)' }
   };
-  // 玩家選了 C 地中海暖陽（current 是 v1.29.3 以前的配色，留著對照）
-  let PAL = PALETTES.sunny;
+  // v1.29.8 玩家改選 A 古地圖（羊皮紙版）；sunny 是 v1.29.4～1.29.7 的配色、current 是 v1.29.3 以前的，留著對照
+  let PAL = PALETTES.parchment;
 
   /*
    * 背景國（不可進入的鄰國）的填色。
@@ -456,7 +471,7 @@ const WorldMap = (function () {
     specials.forEach(function (s) {
       s.shapes.forEach(function (sh) {
         poly(ctx, sh);
-        ctx.fillStyle = s.def.fill;
+        ctx.fillStyle = (PAL.spFill && PAL.spFill[s.id]) || s.def.fill;
         ctx.fill();
         ctx.strokeStyle = s.id === nearId ? '#ffd166' : s.def.edge;
         ctx.lineWidth = s.id === nearId ? 2.5 : 1.2;
@@ -525,10 +540,11 @@ const WorldMap = (function () {
       const bare = s.def.merchant || s.def.port || s.def.dog;     // 沒有國土的地點：只印名字
       U.text(ctx, bare ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
         size: near ? LABEL_SIZE_SEL : (bare ? 11 : 12),
-        color: near ? '#ffd166' : (s.def.merchant ? '#e6d8ff' : s.def.port ? '#bdf0ff' : '#fff4dc'),
+        color: near ? (PAL.labelSel || '#ffd166') : (s.def.merchant ? (PAL.merchantLabel || '#e6d8ff')
+          : s.def.port ? (PAL.portLabel || '#bdf0ff') : (PAL.spLabel || '#fff4dc')),
         align: 'center',
         strokeWidth: 3,
-        strokeColor: 'rgba(16, 24, 18, 0.75)'
+        strokeColor: PAL.labelStroke || 'rgba(16, 24, 18, 0.75)'
       });
     });
   }
@@ -600,10 +616,10 @@ const WorldMap = (function () {
   /** 小鎖頭（不用 emoji：Segoe UI 沒有，會被換字型、基線跑掉） */
   function lockIcon(ctx, x, y) {
     ctx.save();
-    ctx.strokeStyle = '#b9b0d6';
+    ctx.strokeStyle = PAL.lockIcon || '#b9b0d6';
     ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.arc(x, y - 2, 2.6, Math.PI, 0); ctx.stroke();
-    ctx.fillStyle = '#b9b0d6';
+    ctx.fillStyle = PAL.lockIcon || '#b9b0d6';
     ctx.fillRect(x - 3.6, y - 2, 7.2, 5.5);
     ctx.restore();
   }
@@ -699,6 +715,81 @@ const WorldMap = (function () {
     ctx.closePath();
   }
 
+  /*
+   * 羊皮紙（PAL.paper）：
+   *   紙紋 —— 一張 256×256 的雜點＋淡污漬貼圖，用 multiply 蓋在海和陸地上（跟著地圖捲動，像印在同一張紙上）
+   *   暈邊 —— 畫面四周燒黃變深（endView 畫，固定在畫面上）
+   *   羅盤 —— 大西洋上一個古地圖的羅盤玫瑰
+   * 貼圖用固定種子產生，每次開遊戲都一樣。
+   */
+  let paperTex = null;
+  function paperPattern(ctx) {
+    if (paperTex) return paperTex;
+    if (typeof document === 'undefined') return null;
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, 256, 256);
+    let seed = 7;
+    const rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    // 大塊淡污漬
+    for (let i = 0; i < 9; i++) {
+      const x = rnd() * 256, y = rnd() * 256, r = 30 + rnd() * 60;
+      const rg = g.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, 'rgba(150, 110, 60, 0.22)');
+      rg.addColorStop(1, 'rgba(150, 110, 60, 0)');
+      g.fillStyle = rg;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // 細紙纖維雜點
+    for (let i = 0; i < 2600; i++) {
+      const a = 0.05 + rnd() * 0.12;
+      g.fillStyle = 'rgba(110, 80, 40, ' + a.toFixed(3) + ')';
+      g.fillRect(rnd() * 256, rnd() * 256, 1 + rnd() * 1.4, 1);
+    }
+    paperTex = ctx.createPattern(c, 'repeat');
+    return paperTex;
+  }
+  function drawPaperGrain(ctx) {
+    const pat = paperPattern(ctx);
+    if (!pat) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = pat;
+    ctx.fillRect(cam.x - 2, cam.y - 2, 964, VIEW_H + 4);
+    ctx.restore();
+  }
+  function drawCompass(ctx) {
+    const p = EuropeWorld.project(-13.5, 47.5);
+    ctx.save();
+    ctx.translate(p[0], p[1]);
+    ctx.strokeStyle = 'rgba(80, 52, 24, 0.7)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4, long = i % 2 === 0, r = long ? 30 : 18;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(120, 40, 20, 0.75)' : 'rgba(80, 52, 24, 0.55)';
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.lineTo(Math.cos(a + 0.35) * 5, Math.sin(a + 0.35) * 5);
+      ctx.lineTo(0, 0);
+      ctx.closePath(); ctx.fill();
+    }
+    U.text(ctx, 'N', 0, -37, { size: 11, weight: 800, color: 'rgba(90, 30, 15, 0.85)', stroke: false });
+    ctx.restore();
+  }
+  function drawPaperVignette(ctx) {
+    const g = ctx.createRadialGradient(480, VIEW_TOP + VIEW_H / 2, VIEW_H * 0.45, 480, VIEW_TOP + VIEW_H / 2, 620);
+    g.addColorStop(0, 'rgba(120, 70, 20, 0)');
+    g.addColorStop(1, 'rgba(110, 60, 15, 0.28)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, VIEW_TOP, 960, VIEW_H);
+    ctx.strokeStyle = 'rgba(90, 55, 20, 0.6)'; ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, VIEW_TOP + 1.5, 957, VIEW_H - 3);
+  }
+
   function drawSea(ctx, W, H, t) {
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, PAL.sea);
@@ -782,7 +873,7 @@ const WorldMap = (function () {
       ctx.strokeRect(-PF_W / 2, -PF_H / 2, PF_W, PF_H);
       ctx.restore();
       U.text(ctx, d.name, p[0], p[1] + 12, {
-        size: 11, color: '#e8e0d0', align: 'center', strokeWidth: 3, strokeColor: 'rgba(16, 24, 18, 0.75)'
+        size: 11, color: PAL.label || '#e8e0d0', align: 'center', strokeWidth: 3, strokeColor: PAL.labelStroke || 'rgba(16, 24, 18, 0.75)'
       });
     });
   }
@@ -849,21 +940,21 @@ const WorldMap = (function () {
 
     // 魔王關的旗杆頂加一點紅，掃一眼就知道哪幾關是魔王
     if (lv.isBoss) {
-      ctx.fillStyle = st === 'done' ? '#8fe3a0' : '#e0526b';
+      ctx.fillStyle = st === 'done' ? (PAL.bossDone || '#8fe3a0') : '#e0526b';
       ctx.beginPath();
       ctx.arc(x, y - 28 + bob, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // 底座
-    ctx.fillStyle = st === 'locked' ? '#79839a' : (st === 'done' ? '#8fe3a0' : '#ffd166');
+    ctx.fillStyle = st === 'locked' ? (PAL.lockedPin || '#79839a') : (st === 'done' ? (PAL.donePin || '#8fe3a0') : '#ffd166');
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(12,18,30,0.75)';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.stroke();
 
     if (st === 'done') {
-      ctx.strokeStyle = '#17331f';
+      ctx.strokeStyle = PAL.doneCheck || '#17331f';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(x - 2.5, y); ctx.lineTo(x - 0.5, y + 2); ctx.lineTo(x + 3, y - 2.5);
@@ -875,13 +966,13 @@ const WorldMap = (function () {
 
   /** 國名印在國土上：字小一點、描邊細一點，像地圖上的印刷字而不是浮標 */
   function drawLabel(ctx, n, lv, st, selected) {
-    const color = st === 'locked' ? '#aeb6c8' : (selected ? '#ffd166' : '#f2f5fb');
+    const color = st === 'locked' ? (PAL.labelLocked || '#aeb6c8') : (selected ? (PAL.labelSel || '#ffd166') : (PAL.label || '#f2f5fb'));
     U.text(ctx, lv.country, n.label[0], n.label[1], {
       size: selected ? LABEL_SIZE_SEL : LABEL_SIZE,
       color: color,
       align: 'center',
       strokeWidth: 3,
-      strokeColor: 'rgba(16, 24, 18, 0.7)'
+      strokeColor: PAL.labelStroke || 'rgba(16, 24, 18, 0.7)'
     });
   }
 
@@ -916,8 +1007,9 @@ const WorldMap = (function () {
   function drawRegionNames(ctx) {
     REGIONS.forEach(function (r) {
       const p = EuropeWorld.project(r.lon, r.lat);
-      U.text(ctx, r.name, p[0], p[1], { size: r.size, weight: 800, color: 'rgba(246, 232, 196, 0.32)', stroke: false });
-      if (r.sub) U.text(ctx, r.sub, p[0], p[1] + r.size * 0.9, { size: 12, color: 'rgba(246, 232, 196, 0.32)', stroke: false });
+      const rc = PAL.region || 'rgba(246, 232, 196, 0.32)';
+      U.text(ctx, r.name, p[0], p[1], { size: r.size, weight: 800, color: rc, stroke: false });
+      if (r.sub) U.text(ctx, r.sub, p[0], p[1] + r.size * 0.9, { size: 12, color: rc, stroke: false });
     });
   }
 
@@ -1014,6 +1106,8 @@ const WorldMap = (function () {
         ctx.stroke();
       });
     });
+    // 羊皮紙：紙紋蓋在海和國土上、國名和圖釘之下（字要清楚）
+    if (PAL.paper) { drawPaperGrain(ctx); drawCompass(ctx); }
     // 呼叫端要夾在「國土」與「國名」之間畫的東西（航海模式的運河）
     if (opts.afterLand) opts.afterLand();
     if (opts.east) drawEastLabels(ctx, opts.east.unlocked);
