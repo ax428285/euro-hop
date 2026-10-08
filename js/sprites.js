@@ -2762,6 +2762,8 @@ const Sprites = (function () {
 
   /** 彈射物 */
   function shot(ctx, s, t) {
+    if (s.slash) { flameSlash(ctx, s, t); return; }
+    if (s.lava) { lavaBomb(ctx, s, t); return; }
     if (s.pillar) { sandPillar(ctx, s, t); return; }
     if (s.patch) { firePatch(ctx, s, t); return; }
     if (s.ember) {
@@ -3038,6 +3040,26 @@ const Sprites = (function () {
       for (let i = 0; i < 3; i++) {
         ctx.fillStyle = colors[i];
         ctx.fillRect(x, y + i * (h / 3), w, h / 3 + 0.5);
+      }
+      return;
+    }
+
+    if (d === 'nordic') {
+      /*
+       * v1.30 北歐十字旗：直條偏旗桿那側（中心約在 36%）。
+       * colors = [底色, 十字, 內十字]；有內十字（挪威、冰島）時外十字當白邊，內十字細一半。
+       */
+      const cx = x + w * 0.36, cy = y + h / 2;
+      const tw = h * (colors[2] ? 0.26 : 0.2);
+      ctx.fillStyle = colors[0]; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = colors[1];
+      ctx.fillRect(cx - tw / 2, y, tw, h);
+      ctx.fillRect(x, cy - tw / 2, w, tw);
+      if (colors[2]) {
+        const ti = tw * 0.5;
+        ctx.fillStyle = colors[2];
+        ctx.fillRect(cx - ti / 2, y, ti, h);
+        ctx.fillRect(x, cy - ti / 2, w, ti);
       }
       return;
     }
@@ -6329,6 +6351,580 @@ const Sprites = (function () {
     ctx.fillStyle = '#ff3b4a';
     ctx.fillRect(-2, -1, 1.5, 1.5); ctx.fillRect(1, -1, 1.5, 1.5);
     ctx.restore();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // v1.30 北歐篇：丹麥、瑞典、挪威、芬蘭、冰島
+  // ════════════════════════════════════════════════════════════
+
+  // ── 地標（遠景，半透明）──
+
+  /** 丹麥：新港運河邊一排彩色的山牆房子＋帆船桅杆 */
+  function nyhavnLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    const cols = ['rgba(230, 170, 60, 0.7)', 'rgba(200, 80, 60, 0.7)', 'rgba(70, 120, 170, 0.7)',
+                  'rgba(240, 200, 120, 0.7)', 'rgba(110, 160, 110, 0.7)', 'rgba(220, 120, 90, 0.7)'];
+    for (let k = 0; k < 6; k++) {
+      const hx = (-180 + k * 60) * s, hh = (120 + (k % 3) * 18) * s;
+      ctx.fillStyle = cols[k];
+      ctx.fillRect(hx, -hh, 56 * s, hh);
+      ctx.beginPath(); ctx.moveTo(hx, -hh); ctx.lineTo(hx + 28 * s, -hh - 26 * s); ctx.lineTo(hx + 56 * s, -hh); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 255, 240, 0.55)';
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) ctx.fillRect(hx + (10 + c * 24) * s, -hh + (14 + r * 32) * s, 10 * s, 14 * s);
+    }
+    // 運河邊的帆船桅杆
+    ctx.strokeStyle = 'rgba(80, 60, 40, 0.6)'; ctx.lineWidth = 2 * s;
+    [-150, -40, 90].forEach(function (mx) {
+      ctx.beginPath(); ctx.moveTo(mx * s, 0); ctx.lineTo(mx * s, -170 * s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx * s, -160 * s); ctx.lineTo((mx + 30) * s, -20 * s); ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  /** 瑞典：冰旅館 —— 一整排用冰磚砌成的圓拱，入口掛著馴鹿皮 */
+  function icehotelLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(210, 232, 248, 0.75)';
+    ctx.beginPath(); ctx.moveTo(-200 * s, 0); ctx.lineTo(-200 * s, -70 * s);
+    ctx.quadraticCurveTo(0, -150 * s, 200 * s, -70 * s); ctx.lineTo(200 * s, 0); ctx.closePath(); ctx.fill();
+    // 冰磚縫
+    ctx.strokeStyle = 'rgba(140, 190, 225, 0.6)'; ctx.lineWidth = 1.5 * s;
+    for (let r = 1; r < 4; r++) { ctx.beginPath(); ctx.moveTo(-200 * s, -r * 20 * s); ctx.lineTo(200 * s, -r * 20 * s); ctx.stroke(); }
+    // 拱門入口
+    ctx.fillStyle = 'rgba(90, 140, 190, 0.55)';
+    ctx.beginPath(); ctx.moveTo(-34 * s, 0); ctx.lineTo(-34 * s, -60 * s); ctx.arc(0, -60 * s, 34 * s, Math.PI, 0); ctx.lineTo(34 * s, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(150, 110, 70, 0.6)';
+    ctx.fillRect(-26 * s, -70 * s, 52 * s, 60 * s);
+    // 兩旁的冰柱
+    ctx.fillStyle = 'rgba(230, 245, 255, 0.7)';
+    [-120, 120].forEach(function (px) { ctx.fillRect((px - 8) * s, -110 * s, 16 * s, 110 * s); });
+    ctx.restore();
+  }
+
+  /** 挪威：峽灣兩岸的峭壁，七姊妹瀑布從崖頂分成七道落下 */
+  function fjordLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(70, 86, 100, 0.65)';
+    ctx.beginPath(); ctx.moveTo(-220 * s, 0); ctx.lineTo(-210 * s, -230 * s); ctx.lineTo(-150 * s, -250 * s); ctx.lineTo(-60 * s, -236 * s);
+    ctx.lineTo(-40 * s, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(40 * s, 0); ctx.lineTo(70 * s, -210 * s); ctx.lineTo(160 * s, -240 * s); ctx.lineTo(230 * s, -200 * s);
+    ctx.lineTo(240 * s, 0); ctx.closePath(); ctx.fill();
+    // 崖頂的雪
+    ctx.fillStyle = 'rgba(240, 246, 250, 0.7)';
+    ctx.beginPath(); ctx.moveTo(-210 * s, -230 * s); ctx.lineTo(-150 * s, -250 * s); ctx.lineTo(-60 * s, -236 * s); ctx.lineTo(-120 * s, -226 * s); ctx.closePath(); ctx.fill();
+    // 七道瀑布
+    ctx.strokeStyle = 'rgba(235, 248, 255, 0.75)'; ctx.lineWidth = 2.4 * s;
+    for (let k = 0; k < 7; k++) {
+      const wx = (-190 + k * 18) * s;
+      ctx.beginPath(); ctx.moveTo(wx, -228 * s); ctx.quadraticCurveTo(wx + 4 * s, -120 * s, wx + 8 * s, 0); ctx.stroke();
+    }
+    // 峽灣的水
+    ctx.fillStyle = 'rgba(40, 90, 130, 0.5)';
+    ctx.fillRect(-60 * s, -12 * s, 120 * s, 12 * s);
+    ctx.restore();
+  }
+
+  /** 芬蘭：聖誕老人村的木屋（尖屋頂積雪），地上一條白線就是北極圈 */
+  function santaVillageLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(120, 70, 40, 0.7)';
+    ctx.fillRect(-110 * s, -90 * s, 220 * s, 90 * s);
+    ctx.fillStyle = 'rgba(70, 40, 30, 0.75)';
+    ctx.beginPath(); ctx.moveTo(-130 * s, -88 * s); ctx.lineTo(0, -170 * s); ctx.lineTo(130 * s, -88 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(245, 248, 255, 0.85)';
+    ctx.beginPath(); ctx.moveTo(-130 * s, -88 * s); ctx.lineTo(0, -170 * s); ctx.lineTo(130 * s, -88 * s); ctx.lineTo(110 * s, -96 * s); ctx.lineTo(0, -156 * s); ctx.lineTo(-110 * s, -96 * s); ctx.closePath(); ctx.fill();
+    // 窗戶的暖光
+    ctx.fillStyle = 'rgba(255, 210, 120, 0.8)';
+    [-70, 50].forEach(function (wx) { ctx.fillRect(wx * s, -64 * s, 26 * s, 22 * s); });
+    ctx.fillStyle = 'rgba(60, 30, 20, 0.6)';
+    ctx.fillRect(-16 * s, -50 * s, 32 * s, 50 * s);
+    // 北極圈的白線＋路牌
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(-240 * s, -3 * s, 480 * s, 3 * s);
+    ctx.fillStyle = 'rgba(90, 60, 40, 0.75)';
+    ctx.fillRect(160 * s, -80 * s, 4 * s, 80 * s);
+    ctx.fillRect(140 * s, -84 * s, 60 * s, 16 * s);
+    ctx.restore();
+  }
+
+  /** 冰島：哈爾格林姆教堂 —— 像玄武岩柱一樣一階一階往上的白色高塔 */
+  function hallgrimsLm(ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = 'rgba(220, 220, 214, 0.7)';
+    for (let k = 0; k < 6; k++) {
+      const hh = (40 + k * 22) * s, ww = 16 * s;
+      ctx.fillRect((-120 + k * 16) * s, -hh, ww, hh);
+      ctx.fillRect((104 - k * 16) * s, -hh, ww, hh);
+    }
+    ctx.fillRect(-24 * s, -250 * s, 48 * s, 250 * s);
+    ctx.beginPath(); ctx.moveTo(-24 * s, -250 * s); ctx.lineTo(0, -290 * s); ctx.lineTo(24 * s, -250 * s); ctx.fill();
+    ctx.fillStyle = 'rgba(120, 120, 120, 0.5)';
+    ctx.fillRect(-6 * s, -220 * s, 12 * s, 18 * s);
+    ctx.restore();
+  }
+
+  landmarks.nyhavn = nyhavnLm;
+  landmarks.icehotel = icehotelLm;
+  landmarks.fjord = fjordLm;
+  landmarks.santaVillage = santaVillageLm;
+  landmarks.hallgrims = hallgrimsLm;
+
+  // ── 遠景 ──
+  // 丹麥：港口的水＋一排彩色房子
+  skylines.DK = function (ctx, camX, gy, W, def, t) {
+    seaBand(ctx, gy, W, gy - 40, 'rgba(70, 130, 180, 0.5)', t);
+    tiled(ctx, camX, 0.2, 420, W, function (x0) {
+      const cols = ['rgba(220, 160, 70, 0.5)', 'rgba(190, 80, 70, 0.5)', 'rgba(80, 120, 170, 0.5)', 'rgba(230, 200, 130, 0.5)'];
+      for (let k = 0; k < 4; k++) {
+        const hx = x0 + 60 + k * 44, hh = 70 + (k % 2) * 16;
+        ctx.fillStyle = cols[k];
+        ctx.fillRect(hx, gy - 40 - hh, 40, hh);
+        ctx.beginPath(); ctx.moveTo(hx, gy - 40 - hh); ctx.lineTo(hx + 20, gy - 58 - hh); ctx.lineTo(hx + 40, gy - 40 - hh); ctx.fill();
+      }
+    });
+  };
+  // 瑞典：拉普蘭的雪山＋結冰的湖面
+  skylines.SE = function (ctx, camX, gy, W, def, t) {
+    ridge(ctx, camX, 0.04, gy - 40, W, 'rgba(150, 172, 200, 0.55)', 190, 14, 37);
+    ridge(ctx, camX, 0.08, gy - 40, W, 'rgba(196, 212, 232, 0.8)', 150, 8, 31);
+    ctx.fillStyle = 'rgba(226, 240, 250, 0.7)';
+    ctx.fillRect(0, gy - 44, W, 44);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    for (let i = 0; i < 8; i++) ctx.fillRect(((i * 173 - camX * 0.2) % (W + 80) + W + 80) % (W + 80) - 40, gy - 30 + (i % 3) * 8, 40, 2);
+    ridge(ctx, camX, 0.3, gy, W, 'rgba(240, 246, 252, 0.8)', 40, 0, 7);
+  };
+  // 挪威：峽灣高聳的峭壁（崖頂有雪）＋水面
+  skylines.NO = function (ctx, camX, gy, W, def, t) {
+    ridge(ctx, camX, 0.06, gy - 30, W, 'rgba(90, 110, 130, 0.7)', 230, 24, 41);
+    seaBand(ctx, gy, W, gy - 30, 'rgba(40, 90, 130, 0.6)', t);
+    ridge(ctx, camX, 0.2, gy - 30, W, 'rgba(60, 80, 96, 0.6)', 90, 10, 9);
+  };
+  // 芬蘭：極夜的森林剪影＋雪丘
+  skylines.FI = function (ctx, camX, gy, W) {
+    ridge(ctx, camX, 0.08, gy - 20, W, 'rgba(60, 76, 120, 0.6)', 80, 0, 17);
+    tiled(ctx, camX, 0.22, 300, W, function (x0) {
+      ctx.fillStyle = 'rgba(16, 26, 44, 0.85)';
+      for (let k = 0; k < 6; k++) {
+        const px = x0 + k * 50 + (k % 2) * 10, ph = 70 + (k * 37) % 40;
+        ctx.beginPath(); ctx.moveTo(px - 16, gy - 20); ctx.lineTo(px, gy - 20 - ph); ctx.lineTo(px + 16, gy - 20); ctx.fill();
+      }
+    });
+    ridge(ctx, camX, 0.3, gy, W, 'rgba(200, 214, 236, 0.5)', 30, 0, 3);
+  };
+  // 冰島：冒煙的火山（火山口發紅光）＋冰河
+  skylines.IS = function (ctx, camX, gy, W, def, t) {
+    ridge(ctx, camX, 0.05, gy - 20, W, 'rgba(220, 230, 240, 0.45)', 90, 2, 23);
+    tiled(ctx, camX, 0.12, 760, W, function (x0) {
+      const vx = x0 + 380;
+      ctx.fillStyle = 'rgba(40, 34, 38, 0.85)';
+      ctx.beginPath(); ctx.moveTo(vx - 230, gy); ctx.lineTo(vx - 40, gy - 200); ctx.lineTo(vx + 40, gy - 200); ctx.lineTo(vx + 230, gy); ctx.fill();
+      const glow = 0.55 + Math.sin(t * 0.05) * 0.2;
+      ctx.fillStyle = 'rgba(255, 120, 40, ' + glow.toFixed(2) + ')';
+      ctx.beginPath(); ctx.ellipse(vx, gy - 200, 40, 8, 0, 0, Math.PI * 2); ctx.fill();
+      // 熔岩流
+      ctx.strokeStyle = 'rgba(255, 110, 40, 0.6)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(vx - 10, gy - 196); ctx.quadraticCurveTo(vx - 40, gy - 120, vx - 70, gy - 40); ctx.stroke();
+      // 煙
+      ctx.fillStyle = 'rgba(90, 80, 90, 0.4)';
+      for (let k = 0; k < 4; k++) {
+        const ph = (t * 0.2 + k * 30) % 120;
+        ctx.beginPath(); ctx.arc(vx + Math.sin(k + t * 0.01) * 20 + ph * 0.3, gy - 215 - ph, 18 + ph * 0.2, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+  };
+
+  // ── 前景道具 ──
+  /** 丹麥：小美人魚銅像，坐在岸邊的大石頭上 */
+  props.mermaid = function (ctx, x, baseY) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#6a6a66';
+    ctx.beginPath(); ctx.ellipse(0, -10, 30, 14, 0, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-30, -10, 60, 10);
+    ctx.fillStyle = '#4f8a78';
+    // 魚尾
+    ctx.beginPath(); ctx.moveTo(-4, -22); ctx.quadraticCurveTo(18, -20, 22, -14); ctx.lineTo(30, -20); ctx.lineTo(28, -10); ctx.quadraticCurveTo(10, -14, -6, -14); ctx.fill();
+    // 身體＋頭
+    ctx.beginPath(); ctx.moveTo(-10, -20); ctx.quadraticCurveTo(-14, -40, -6, -50); ctx.lineTo(0, -48); ctx.quadraticCurveTo(-2, -36, 2, -20); ctx.fill();
+    ctx.beginPath(); ctx.arc(-3, -54, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3f7262';
+    ctx.beginPath(); ctx.moveTo(-8, -58); ctx.quadraticCurveTo(-14, -48, -10, -38); ctx.lineTo(-6, -46); ctx.fill();
+    ctx.restore();
+  };
+  /** 瑞典：紅色的達拉木馬 */
+  props.dalaHorse = function (ctx, x, baseY) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#5a4030'; ctx.fillRect(-20, -6, 40, 6);
+    ctx.fillStyle = '#c8202a';
+    ctx.fillRect(-14, -26, 6, 20); ctx.fillRect(8, -26, 6, 20);
+    U.roundRect(ctx, -16, -40, 32, 16, 5); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(8, -40); ctx.lineTo(14, -58); ctx.lineTo(24, -54); ctx.lineTo(20, -46); ctx.lineTo(16, -36); ctx.fill();
+    ctx.fillStyle = '#1e3a8a'; ctx.fillRect(10, -58, 8, 6);
+    // 花紋
+    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(-4, -32, 5, Math.PI, 0); ctx.stroke();
+    ctx.fillStyle = '#2f8a5a'; ctx.fillRect(-12, -30, 4, 3);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-16, -26, 32, 2);
+    ctx.restore();
+  };
+  /** 瑞典、挪威：維京人的盧恩石碑（刻著一圈紅色的蛇紋） */
+  props.runestone = function (ctx, x, baseY) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#8a8a86';
+    ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-18, -56); ctx.quadraticCurveTo(-4, -76, 14, -60); ctx.lineTo(16, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#b8402a'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-12, -52); ctx.quadraticCurveTo(-2, -66, 8, -54); ctx.lineTo(10, -4); ctx.stroke();
+    ctx.strokeStyle = 'rgba(40, 40, 40, 0.6)'; ctx.lineWidth = 1.2;
+    for (let k = 0; k < 4; k++) {
+      const y = -44 + k * 10;
+      ctx.beginPath(); ctx.moveTo(-5, y); ctx.lineTo(-1, y - 5); ctx.lineTo(3, y); ctx.moveTo(-1, y - 5); ctx.lineTo(-1, y + 4); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  /** 芬蘭、瑞典：湖邊的小木屋三溫暖，煙囪冒煙 */
+  props.sauna = function (ctx, x, baseY, t) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#8a3020';
+    ctx.fillRect(-40, -46, 80, 46);
+    ctx.fillStyle = '#5a2418';
+    for (let k = 0; k < 4; k++) ctx.fillRect(-40, -40 + k * 11, 80, 2);
+    ctx.fillStyle = '#3a2a24';
+    ctx.beginPath(); ctx.moveTo(-46, -44); ctx.lineTo(0, -70); ctx.lineTo(46, -44); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f4f8ff';
+    ctx.beginPath(); ctx.moveTo(-46, -44); ctx.lineTo(0, -70); ctx.lineTo(46, -44); ctx.lineTo(38, -48); ctx.lineTo(0, -64); ctx.lineTo(-38, -48); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a4a4a'; ctx.fillRect(20, -76, 8, 18);
+    ctx.fillStyle = '#ffd98a'; ctx.fillRect(-28, -32, 14, 12);
+    ctx.fillStyle = '#2a1a14'; ctx.fillRect(4, -30, 16, 30);
+    ctx.fillStyle = 'rgba(230, 230, 236, 0.6)';
+    for (let k = 0; k < 3; k++) {
+      const ph = ((t || 0) * 0.4 + k * 14) % 42;
+      ctx.beginPath(); ctx.arc(24 + ph * 0.3, -80 - ph, 4 + ph * 0.12, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  };
+  /** 芬蘭、瑞典：馴鹿（低頭吃苔蘚） */
+  props.reindeer = function (ctx, x, baseY, t) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#7a6250';
+    [-18, -10, 12, 20].forEach(function (lx) { ctx.fillRect(lx, -24, 4, 24); });
+    ctx.beginPath(); ctx.ellipse(0, -30, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e8e0d0';
+    ctx.beginPath(); ctx.ellipse(18, -30, 9, 8, 0, 0, Math.PI * 2); ctx.fill();
+    const nod = Math.sin((t || 0) * 0.04) * 3;
+    ctx.fillStyle = '#7a6250';
+    ctx.beginPath(); ctx.moveTo(20, -36); ctx.lineTo(34, -22 + nod); ctx.lineTo(40, -24 + nod); ctx.lineTo(30, -40); ctx.fill();
+    ctx.strokeStyle = '#c8b090'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(30, -38); ctx.lineTo(26, -54); ctx.lineTo(20, -60); ctx.moveTo(27, -50); ctx.lineTo(34, -58); ctx.moveTo(26, -54); ctx.lineTo(30, -64); ctx.stroke();
+    ctx.restore();
+  };
+  /** 冰島：長著青苔的黑色熔岩石 */
+  props.lavaRock = function (ctx, x, baseY) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.fillStyle = '#2a2628';
+    ctx.beginPath(); ctx.moveTo(-28, 0); ctx.lineTo(-22, -22); ctx.lineTo(-6, -34); ctx.lineTo(14, -28); ctx.lineTo(28, -10); ctx.lineTo(30, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5a7a3a';
+    ctx.beginPath(); ctx.ellipse(-8, -30, 12, 5, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(16, -24, 9, 4, 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    [[-14, -14], [4, -18], [16, -8], [-2, -6]].forEach(function (h) { ctx.beginPath(); ctx.arc(h[0], h[1], 2, 0, Math.PI * 2); ctx.fill(); });
+    ctx.restore();
+  };
+
+  /** 積雪的松樹（瑞典、芬蘭） */
+  decos.snowPine = function (ctx, x, y, s) {
+    ctx.fillStyle = '#4a3527';
+    ctx.fillRect(x - 3 * s, y - 20 * s, 6 * s, 20 * s);
+    for (let i = 0; i < 3; i++) {
+      const yy = y - 20 * s - i * 18 * s;
+      const half = (24 - i * 6) * s;
+      ctx.fillStyle = '#2a5040';
+      ctx.beginPath(); ctx.moveTo(x - half, yy); ctx.lineTo(x + half, yy); ctx.lineTo(x, yy - 26 * s); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f4f8fc';
+      ctx.beginPath(); ctx.moveTo(x - half * 0.55, yy - 12 * s); ctx.lineTo(x, yy - 26 * s); ctx.lineTo(x + half * 0.55, yy - 12 * s);
+      ctx.lineTo(x + half * 0.2, yy - 15 * s); ctx.lineTo(x - half * 0.2, yy - 13 * s); ctx.closePath(); ctx.fill();
+    }
+  };
+
+  // ── 裝備圖示 ──
+  /** 樂高積木：紅色 2x4 積木，上面四顆凸點 */
+  icons.lego = function (ctx, s) {
+    ctx.fillStyle = '#d8262c';
+    ctx.fillRect(-14 * s, -4 * s, 28 * s, 14 * s);
+    ctx.fillStyle = '#a8161c';
+    ctx.fillRect(-14 * s, 7 * s, 28 * s, 3 * s);
+    for (let k = 0; k < 4; k++) {
+      ctx.fillStyle = '#e84a4a';
+      ctx.fillRect((-12 + k * 7) * s, -9 * s, 5 * s, 5 * s);
+    }
+  };
+  /** 馴鹿皮靴 nutukas：鞋尖往上翹，有紅黃藍的鞋帶 */
+  icons.nutukas = function (ctx, s) {
+    ctx.fillStyle = '#9a7a5a';
+    ctx.beginPath();
+    ctx.moveTo(-8 * s, -12 * s); ctx.lineTo(4 * s, -12 * s); ctx.lineTo(4 * s, 0);
+    ctx.quadraticCurveTo(12 * s, 2 * s, 16 * s, -6 * s); ctx.lineTo(14 * s, 6 * s); ctx.lineTo(-10 * s, 6 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f4f0e8'; ctx.fillRect(-9 * s, -14 * s, 14 * s, 4 * s);
+    ctx.fillStyle = '#c8202a'; ctx.fillRect(-8 * s, -6 * s, 12 * s, 2 * s);
+    ctx.fillStyle = '#1f4aa0'; ctx.fillRect(-8 * s, -3 * s, 12 * s, 2 * s);
+  };
+  /** 維京太陽石：透明的菱形冰洲石，裡面透出太陽 */
+  icons.sunstone = function (ctx, s) {
+    ctx.fillStyle = 'rgba(210, 236, 250, 0.9)';
+    ctx.beginPath(); ctx.moveTo(-12 * s, 4 * s); ctx.lineTo(-4 * s, -12 * s); ctx.lineTo(12 * s, -4 * s); ctx.lineTo(4 * s, 12 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#7ab0d0'; ctx.lineWidth = 1.5 * s; ctx.stroke();
+    ctx.fillStyle = '#ffc94a';
+    ctx.beginPath(); ctx.arc(0, 0, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillRect(-6 * s, -6 * s, 3 * s, 3 * s);
+  };
+  /** 馴鹿雪橇鈴：金色鈴鐺＋紅緞帶 */
+  icons.bell = function (ctx, s) {
+    ctx.fillStyle = '#e8b830';
+    ctx.beginPath(); ctx.moveTo(-10 * s, 8 * s); ctx.quadraticCurveTo(-10 * s, -10 * s, 0, -10 * s); ctx.quadraticCurveTo(10 * s, -10 * s, 10 * s, 8 * s); ctx.closePath(); ctx.fill();
+    ctx.fillRect(-12 * s, 6 * s, 24 * s, 3 * s);
+    ctx.fillStyle = '#8a6a18';
+    ctx.beginPath(); ctx.arc(0, 11 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c8202a';
+    ctx.beginPath(); ctx.moveTo(-6 * s, -12 * s); ctx.lineTo(0, -8 * s); ctx.lineTo(6 * s, -12 * s); ctx.lineTo(4 * s, -16 * s); ctx.lineTo(0, -12 * s); ctx.lineTo(-4 * s, -16 * s); ctx.closePath(); ctx.fill();
+  };
+  /** 冰島毛衣 lopapeysa：米白色毛衣，領口一圈咖啡色花紋 */
+  icons.lopapeysa = function (ctx, s) {
+    ctx.fillStyle = '#e8e0d0';
+    ctx.beginPath(); ctx.moveTo(-8 * s, -12 * s); ctx.lineTo(-16 * s, -6 * s); ctx.lineTo(-14 * s, 4 * s); ctx.lineTo(-9 * s, 2 * s);
+    ctx.lineTo(-9 * s, 12 * s); ctx.lineTo(9 * s, 12 * s); ctx.lineTo(9 * s, 2 * s); ctx.lineTo(14 * s, 4 * s); ctx.lineTo(16 * s, -6 * s); ctx.lineTo(8 * s, -12 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#6a4a30';
+    ctx.beginPath(); ctx.ellipse(0, -9 * s, 10 * s, 5 * s, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#e8e0d0';
+    for (let k = 0; k < 5; k++) ctx.fillRect((-8 + k * 4) * s, -8 * s, 2 * s, 2 * s);
+    ctx.fillStyle = '#6a4a30'; ctx.fillRect(-9 * s, 9 * s, 18 * s, 2 * s);
+  };
+
+  // ── 各國敵人 ──
+  COUNTRY_ENEMIES.DK = {
+    // 丹麥：安徒生《堅定的錫兵》（只有一條腿）＋《醜小鴨》長大的天鵝
+    walker: function (ctx, e, t) {
+      const cx = e.x + e.w / 2, by = e.y + e.h;
+      ctx.save(); squashed(ctx, e, cx, by);
+      const hop = Math.abs(Math.sin(t * 0.3)) * 3;
+      ctx.translate(0, -hop);
+      ctx.fillStyle = '#2a2a33'; ctx.fillRect(cx - 2, by - 10, 5, 10);           // 一條腿
+      ctx.fillStyle = '#1f3a8a'; ctx.fillRect(cx - 6, by - 12, 12, 4);
+      ctx.fillStyle = '#c8202a'; U.roundRect(ctx, cx - 7, by - 26, 14, 15, 3); ctx.fill();
+      ctx.fillStyle = '#f1f1f1'; ctx.fillRect(cx - 7, by - 21, 14, 2);
+      ctx.fillStyle = '#f0c49a'; ctx.beginPath(); ctx.arc(cx, by - 30, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16161c'; ctx.fillRect(cx - 5, by - 44, 10, 11);            // 高帽
+      ctx.fillRect(cx + e.dir * 2 - 1, by - 31, 2, 2);
+      ctx.strokeStyle = '#a0a6b0'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx + e.dir * 8, by - 12); ctx.lineTo(cx + e.dir * 8, by - 38); ctx.stroke();
+      ctx.restore();
+    },
+    flyer: function (ctx, e, t) {
+      bird(ctx, e, t, { body: '#f8f8f4', wing: '#e8e8e2', head: '#f8f8f4', beak: '#f08a30', beakLen: 6, span: 30, flapSpeed: 0.22 });
+    }
+  };
+  COUNTRY_ENEMIES.SE = {
+    // 瑞典：駝鹿寶寶（牠們真的會在路上亂晃）＋雪鴞
+    walker: function (ctx, e, t) {
+      quadruped(ctx, e, t, {
+        body: '#6a4a30', leg: '#4a3220', head: 7, neck: 14,
+        detail: function (ctx, cx, by, hx, hy, d) {
+          ctx.strokeStyle = '#d8c090'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(hx - d * 2, hy - 5); ctx.lineTo(hx - d * 8, hy - 12); ctx.lineTo(hx - d * 4, hy - 14);
+          ctx.moveTo(hx - d * 8, hy - 12); ctx.lineTo(hx - d * 12, hy - 10); ctx.stroke();
+          ctx.fillStyle = '#5a3a24';
+          ctx.beginPath(); ctx.ellipse(hx + d * 6, hy + 2, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+    },
+    flyer: function (ctx, e, t) {
+      bird(ctx, e, t, {
+        body: '#f4f4f0', wing: '#e0e0da', head: '#f4f4f0', beak: '#3a3a3a', beakLen: 2, flapSpeed: 0.26,
+        detail: function (ctx, cx, cy, d) {
+          ctx.fillStyle = '#4a4a4a';
+          for (let k = 0; k < 4; k++) ctx.fillRect(cx - 6 + k * 4, cy - 2 + (k % 2) * 3, 2, 2);
+          ctx.fillStyle = '#f1c40f'; ctx.fillRect(cx + d * 11 - 1, cy - 7, 3, 3);
+        }
+      });
+    }
+  };
+  COUNTRY_ENEMIES.NO = {
+    // 挪威：山裡的小山妖 troll（大鼻子、長尾巴）＋海鸚
+    walker: function (ctx, e, t) {
+      const cx = e.x + e.w / 2, by = e.y + e.h;
+      ctx.save(); squashed(ctx, e, cx, by);
+      const s = Math.sin(t * 0.3) * 2;
+      ctx.fillStyle = '#6a7a5a';
+      ctx.fillRect(cx - 8 + s, by - 7, 5, 7); ctx.fillRect(cx + 3 - s, by - 7, 5, 7);
+      ctx.beginPath(); ctx.ellipse(cx, by - 16, 12, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6a7a5a'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx - e.dir * 10, by - 12); ctx.quadraticCurveTo(cx - e.dir * 20, by - 10, cx - e.dir * 18, by - 22); ctx.stroke();
+      ctx.fillStyle = '#4a3a2a';
+      ctx.beginPath(); ctx.arc(cx - e.dir * 18, by - 23, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8a9a6a';
+      ctx.beginPath(); ctx.ellipse(cx + e.dir * 10, by - 18, 6, 4, 0, 0, Math.PI * 2); ctx.fill();   // 大鼻子
+      ctx.fillStyle = '#5a4a3a';
+      for (let k = 0; k < 3; k++) ctx.fillRect(cx - 6 + k * 4, by - 30, 2, 5);                        // 亂髮
+      ctx.fillStyle = '#16161c'; ctx.fillRect(cx + e.dir * 4 - 1, by - 22, 2, 2);
+      ctx.restore();
+    },
+    flyer: function (ctx, e, t) {
+      bird(ctx, e, t, {
+        body: '#1e1e24', wing: '#1e1e24', head: '#1e1e24', beak: '#f05a20', beakLen: 6, flapSpeed: 0.5, flapAmp: 5, span: 22,
+        detail: function (ctx, cx, cy, d) {
+          ctx.fillStyle = '#f4f4f0';
+          ctx.beginPath(); ctx.arc(cx + d * 10, cy - 3, 4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(cx, cy + 3, 6, 3, 0, 0, Math.PI); ctx.fill();
+        }
+      });
+    }
+  };
+  COUNTRY_ENEMIES.FI = {
+    // 芬蘭：雪兔（冬天整隻變白）＋西伯利亞松鴉（灰身體、橘尾巴）
+    walker: function (ctx, e, t) {
+      quadruped(ctx, e, t, {
+        body: '#f2f4f8', leg: '#dfe4ea', head: 6, bw: 12, bh: 8,
+        detail: function (ctx, cx, by, hx, hy, d) {
+          ctx.fillStyle = '#f2f4f8';
+          ctx.beginPath(); ctx.ellipse(hx - d * 2, hy - 10, 2.5, 7, -d * 0.2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(hx + d * 2, hy - 10, 2.5, 7, d * 0.2, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#2a2a30'; ctx.fillRect(hx - d * 2 - 1, hy - 17, 2, 3);
+          ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx - d * 13, by - 14, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+    },
+    flyer: function (ctx, e, t) {
+      bird(ctx, e, t, {
+        body: '#8a8a90', wing: '#7a7a80', head: '#5a5a60', beak: '#2a2a2a', beakLen: 3, flapSpeed: 0.34,
+        detail: function (ctx, cx, cy, d) {
+          ctx.fillStyle = '#e07a30';
+          ctx.beginPath(); ctx.moveTo(cx - d * 8, cy); ctx.lineTo(cx - d * 18, cy - 3); ctx.lineTo(cx - d * 18, cy + 4); ctx.closePath(); ctx.fill();
+        }
+      });
+    }
+  };
+
+  // ── 冰島最終魔王：火巨人蘇爾特 ──
+  /**
+   * 黑色玄武岩的巨人，身上的裂縫透出熔岩光，頭髮和鬍子是火焰。
+   * 揮劍蓄力時：劍舉過頭（高掃）或壓低貼地（低掃），前方同一個高度會亮起一條淡淡的火光帶 —— 劍光會從那裡掃過去。
+   */
+  function bossSurtr(ctx, b, t) {
+    const stunned = b.phase === 'recover';
+    const k = b.swingK || 0;
+    ctx.save();
+    ctx.translate(b.x + b.w / 2, b.y + b.h);
+    ctx.scale(b.dir < 0 ? -1 : 1, 1);
+    // 預告的火光帶（畫在最底下）
+    if (b.swing && k > 0) {
+      const a = (0.12 + 0.28 * k).toFixed(2);
+      const g = ctx.createLinearGradient(30, 0, 300, 0);
+      g.addColorStop(0, 'rgba(255, 140, 40, ' + a + ')');
+      g.addColorStop(1, 'rgba(255, 140, 40, 0)');
+      ctx.fillStyle = g;
+      // 畫在「從地面算」的高度：低掃 0~28、高掃 62~150（跟 entities.js makeSlash 一致；b.y+b.h 就是地面）
+      if (b.swing === 'high') ctx.fillRect(30, -150, 270, 88);
+      else ctx.fillRect(30, -28, 270, 28);
+    }
+    const H = b.h;
+    // 腿
+    ctx.fillStyle = '#2a2428';
+    const step = stunned ? 0 : Math.sin(t * 0.1) * 3;
+    ctx.fillRect(-24, -26, 16, 26 + step * 0.3);
+    ctx.fillRect(6, -26, 16, 26 - step * 0.3);
+    // 身體（癱倒時往前趴、比較矮）
+    ctx.save();
+    if (stunned) ctx.rotate(0.18);
+    ctx.fillStyle = '#332c30';
+    U.roundRect(ctx, -32, -H + 18, 64, H - 40, 12); ctx.fill();
+    // 熔岩裂縫
+    const pulse = 0.6 + Math.sin(t * 0.15) * 0.3;
+    ctx.strokeStyle = 'rgba(255, 120, 30, ' + pulse.toFixed(2) + ')'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-18, -H + 30); ctx.lineTo(-8, -H + 46); ctx.lineTo(-14, -H + 60);
+    ctx.moveTo(10, -H + 28); ctx.lineTo(4, -H + 44); ctx.lineTo(14, -H + 58); ctx.lineTo(8, -32);
+    ctx.stroke();
+    // 頭＋火焰頭髮與鬍子
+    const hy = -H + 10;
+    ctx.fillStyle = '#3a3236';
+    ctx.beginPath(); ctx.arc(4, hy, 14, 0, Math.PI * 2); ctx.fill();
+    for (let f = 0; f < 5; f++) {
+      const fx = -10 + f * 7, fl = 10 + Math.sin(t * 0.3 + f) * 4;
+      ctx.fillStyle = f % 2 ? '#ffb030' : '#ff6a20';
+      ctx.beginPath(); ctx.moveTo(fx - 4, hy - 8); ctx.lineTo(fx, hy - 8 - fl); ctx.lineTo(fx + 4, hy - 8); ctx.fill();
+    }
+    ctx.fillStyle = '#ff7a24';
+    ctx.beginPath(); ctx.moveTo(-6, hy + 6); ctx.lineTo(4, hy + 22 + Math.sin(t * 0.25) * 3); ctx.lineTo(16, hy + 6); ctx.fill();
+    ctx.fillStyle = stunned ? '#ffd166' : '#ffe08a';
+    ctx.fillRect(4, hy - 4, 5, 3); ctx.fillRect(12, hy - 4, 4, 3);
+    ctx.restore();
+    // 火焰劍：肩膀 (18, -H + 34) 為軸。平常斜舉；高掃蓄力舉到頭上往後；低掃蓄力壓到前方地面
+    let ang = -0.7;
+    if (b.swing === 'high') ang = -0.7 - 1.7 * k;
+    else if (b.swing === 'low') ang = -0.7 + 1.5 * k;      // 劍尖壓到貼地（再低就插進地裡了）
+    if (stunned) ang = 0.35;                                // 癱倒：劍垂在身前
+    ctx.save();
+    ctx.translate(18, -H + 34);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#4a3a30'; ctx.fillRect(-3, -4, 14, 8);           // 手臂
+    ctx.fillStyle = '#8a7040'; ctx.fillRect(10, -7, 4, 14);            // 護手
+    const fl = 0.75 + Math.sin(t * 0.4) * 0.25;
+    const g2 = ctx.createLinearGradient(14, 0, 78, 0);
+    g2.addColorStop(0, '#fff2b0'); g2.addColorStop(0.5, '#ffb030'); g2.addColorStop(1, '#ff4a20');
+    ctx.fillStyle = g2;
+    ctx.beginPath(); ctx.moveTo(14, -4); ctx.lineTo(74, -2); ctx.lineTo(82, 0); ctx.lineTo(74, 2); ctx.lineTo(14, 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 120, 30, ' + (0.35 * fl).toFixed(2) + ')';
+    ctx.beginPath(); ctx.ellipse(48, 0, 40, 9 + (b.swing ? 4 * k : 0), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  }
+  bossKinds.surtr = bossSurtr;
+
+  /** 火焰劍光：月牙形的火焰，朝飛行方向；高掃是一大片、低掃貼著地面 */
+  function flameSlash(ctx, s, t) {
+    const dir = s.vx < 0 ? -1 : 1;
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(dir, 1);
+    const hh = s.h / 2 + 4;
+    // 拖在後面的火星
+    ctx.fillStyle = 'rgba(255, 170, 60, 0.5)';
+    for (let k = 0; k < 4; k++) {
+      const ph = (t * 0.5 + k * 9) % 30;
+      ctx.beginPath(); ctx.arc(-14 - ph * 1.4, (k - 1.5) * hh * 0.45, 3 - ph * 0.08, 0, Math.PI * 2); ctx.fill();
+    }
+    // 外圈光暈（整個會痛的範圍都蓋到，一眼看得出這道劍光有多高）
+    ctx.fillStyle = 'rgba(255, 110, 30, 0.28)';
+    ctx.beginPath(); ctx.ellipse(2, 0, s.w / 2 + 10, hh + 2, 0, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createLinearGradient(-20, 0, 24, 0);
+    g.addColorStop(0, 'rgba(255, 80, 20, 0.25)');
+    g.addColorStop(0.55, 'rgba(255, 150, 40, 0.95)');
+    g.addColorStop(1, 'rgba(255, 244, 180, 1)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-10, -hh);
+    ctx.quadraticCurveTo(40, 0, -10, hh);
+    ctx.quadraticCurveTo(10, 0, -10, -hh);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 252, 230, 0.95)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-4, -hh + 4); ctx.quadraticCurveTo(32, 0, -4, hh - 4); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** 熔岩彈：發紅光的石塊＋煙，地上有一圈越來越明顯的落點 */
+  function lavaBomb(ctx, s, t) {
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    const gy = (typeof Levels !== 'undefined' ? Levels.GROUND_Y : 400);
+    const near = U.clamp(1 - (gy - cy) / 360, 0.15, 1);
+    ctx.fillStyle = 'rgba(255, 90, 40, ' + (0.25 + 0.45 * near).toFixed(2) + ')';
+    ctx.beginPath(); ctx.ellipse(cx, gy - 2, 10 + 10 * near, 3 + 2 * near, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(90, 80, 90, 0.45)';
+    ctx.beginPath(); ctx.arc(cx + Math.sin(t * 0.2) * 2, cy - 14, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3a2a24';
+    ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff7a24';
+    ctx.beginPath(); ctx.arc(cx - 2, cy - 1, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffe08a';
+    ctx.beginPath(); ctx.arc(cx - 3, cy - 2, 2, 0, Math.PI * 2); ctx.fill();
   }
 
   return {

@@ -199,6 +199,42 @@ const Equipment = (function () {
       desc: '愛心上限 +1',
       note: '上端是圓環的十字 ankh 在古埃及象形文字裡就是「生命」，法老和眾神的畫像常拿著它。',
       apply: function (s) { s.maxLives += 1; }
+    },
+    // ── 北歐篇（v1.30）──
+    {
+      id: 'lego', level: 23, country: '丹麥', icon: 'lego',
+      name: '樂高積木',
+      desc: '積木階梯不會拆開：紅色、藍色積木一直都踩得到',
+      note: '樂高 1932 年在丹麥比隆誕生，名字取自丹麥語 leg godt（好好玩）；1958 年才有現在這種卡得住的凸點積木。',
+      apply: function (s) { s.brickSolid = true; }
+    },
+    {
+      id: 'nutukas', level: 24, country: '瑞典', icon: 'nutukas',
+      name: '馴鹿皮靴',
+      desc: '冰面不會滑：結冰的湖面、瑞士冰岩都照常跑跳',
+      note: '拉普蘭的薩米人用馴鹿皮縫靴子，鞋尖往上翹，裡面塞乾草保暖，零下三十度也走得動。',
+      apply: function (s) { s.iceGrip = true; }
+    },
+    {
+      id: 'sunstone', level: 25, country: '挪威', icon: 'sunstone',
+      name: '維京太陽石',
+      desc: '黑暗裡看得比較遠：極夜、鹽礦的光圈變大',
+      note: '傳說維京人陰天出海時，會拿一塊透明的冰洲石對著天空，找出被雲擋住的太陽在哪個方向。',
+      apply: function (s) { s.nightSight = true; }
+    },
+    {
+      id: 'bell', level: 26, country: '芬蘭', icon: 'bell',
+      name: '馴鹿雪橇鈴',
+      desc: '吸引附近的金幣（範圍比領巾大）',
+      note: '芬蘭拉普蘭的馴鹿比人還多；冬天馴鹿雪橇掛著鈴鐺，在雪地裡老遠就聽得到。',
+      apply: function (s) { s.magnet = Math.max(s.magnet, 110); }
+    },
+    {
+      id: 'lopapeysa', level: 27, country: '冰島', icon: 'lopapeysa',
+      name: '冰島毛衣',
+      desc: '站得穩：被打到只退一半，不容易被撞下平台；受傷後的無敵時間也稍微延長',
+      note: '冰島羊毛衣 lopapeysa 用沒染色的冰島羊毛織成，領口一圈花紋；羊毛防水又保暖，漁夫出海都穿它。',
+      apply: function (s) { s.steady = true; s.invulnBonus += 20; }
     }
   ];
 
@@ -210,10 +246,10 @@ const Equipment = (function () {
    */
   const SLOTS = [
     { id: 'head', name: '頭',   items: ['beret', 'laurel', 'tagelmust'] },
-    { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat'] },
+    { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat', 'lopapeysa'] },
     { id: 'hand', name: '手',   items: ['paprika', 'brolly', 'valaska'] },
-    { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche', 'ghadames'] },
-    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan', 'ankh', 'khamsa'] }
+    { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche', 'ghadames', 'nutukas'] },
+    { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan', 'ankh', 'khamsa', 'lego', 'sunstone', 'bell'] }
   ];
 
   const byId = {};
@@ -257,6 +293,11 @@ const Equipment = (function () {
       stormProof: false,  // 風沙推不動、沙塵暴看得遠（阿爾及利亞頭巾）
       guardian: false,    // 每關擋一次致命傷（突尼西亞法蒂瑪之手）
       sandWalk: false,    // 流沙／鹽泥不會陷（利比亞皮靴）
+      // v1.30 北歐篇
+      brickSolid: false,  // 積木階梯一直都在（丹麥樂高積木）
+      iceGrip: false,     // 冰面不會滑（瑞典馴鹿皮靴）
+      nightSight: false,  // 黑暗裡光圈變大（挪威維京太陽石）
+      steady: false,      // 被打到只退一半（冰島毛衣）
       // 以下由商店強化提供（Shop.resolve）
       magnet: 0,          // 金幣吸取半徑，0 = 沒有
       jumpBoost: 0,       // 跳躍力加成

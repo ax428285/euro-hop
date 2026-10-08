@@ -117,7 +117,9 @@ function makeBot(state) {
   };
 
   function solidsAll(state) {
-    return state.def.ground.concat(state.def.platforms || [], state.movers);
+    // v1.30：挪威的浮冰也算落腳處（只加浮冰：木橋會塌、積木會消失，機器人照舊直接跳過去）
+    const extra = state.features ? Features.solids(state).filter(function (s) { return s.floe; }) : [];
+    return state.def.ground.concat(state.def.platforms || [], state.movers, extra);
   }
 
   /** 腳下 x 位置是否有可站立的表面 */

@@ -211,6 +211,56 @@ const Npcs = (function () {
       { name: '考古學家 Nour',
         look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#e8dcc0', pants: '#8a6a40', hat: 'straw', hatColor: '#d8c080', item: 'lamp' },
         lines: ['人面獅身會輪流出兩招：跳起來重壓就跳過沙浪，張嘴吐沙就左右閃！', '吉薩大金字塔用了大約 230 萬塊石頭。', '人面獅身的鼻子早就不見了，原因到現在還有爭議。'] }
+    ],
+    // ── 北歐篇（v1.30）──
+    DK: [
+      { at: 0.12, name: '積木設計師 Mette',
+        look: { skin: '#f3d6bc', hair: '#e8cf8a', shirt: '#d8262c', pants: '#2a3a6a', hat: 'beanie', hatColor: '#f1c40f', item: 'cube' },
+        lines: ['前面的紅色、藍色積木會輪流出現！', '看到腳下的積木開始閃就起跳，落下時另一色剛好出來。', '最上面那塊積木頂上有金幣喔。'] },
+      { at: 0.45, name: '說故事的 Hans',
+        look: { skin: '#f0cfb0', hair: '#8a6a4a', shirt: '#2a2a36', pants: '#2a2a36', hat: 'tricorn', hatColor: '#1e1e26', item: 'book' },
+        lines: ['安徒生寫了《小美人魚》《醜小鴨》《國王的新衣》。', '港口邊的小美人魚銅像 1913 年就站在那裡了。', '新港的彩色房子以前住的都是水手和商人。'] },
+      { at: 0.78, name: '單車郵差 Lars',
+        look: { skin: '#f3d6bc', hair: '#c8a060', shirt: '#2f8a5a', pants: '#3a3a44', hat: 'cap', hatColor: '#c8102e', item: 'map' },
+        lines: ['哥本哈根騎腳踏車的人比開車的還多。', '下雪天大家照樣騎，路上還有腳踏車專用的紅綠燈。', '丹麥國旗是世界上沿用最久的國旗之一。'] }
+    ],
+    SE: [
+      { at: 0.12, name: '冰湖釣客 Erik',
+        look: { skin: '#f3d6bc', hair: '#d8c8a0', shirt: '#2a5aa0', pants: '#3a3a44', hat: 'beanie', hatColor: '#fecc00', item: 'net' },
+        lines: ['湖面結冰了，踩上去會滑！', '冰上要提早放開方向鍵，不然會一路滑進斷崖。', '在冰上跳一下再落地，比較好控制。'] },
+      { at: 0.45, name: '薩米牧人 Áilu',
+        look: { skin: '#e8c4a0', hair: '#2a2220', shirt: '#1f4aa0', pants: '#2a2a36', hat: 'fur', hatColor: '#c8202a', item: 'crook' },
+        lines: ['薩米人在拉普蘭養馴鹿，已經好幾千年了。', '我們的傳統衣服 gákti 是藍色、紅色、黃色。', '馴鹿的蹄冬天會變硬，像冰爪一樣抓得住冰。'] },
+      { at: 0.78, name: '冰雕師傅 Ingrid',
+        look: { skin: '#f3d6bc', hair: '#f0e0b0', shirt: '#e8eef4', pants: '#4a5a7a', hat: 'beanie', hatColor: '#2a6ad0', item: 'brush' },
+        lines: ['冰旅館的床、杯子、整間教堂都是冰做的。', '房間裡大概零下五度，大家睡在馴鹿皮上。', '紅色的達拉木馬是瑞典最有名的紀念品。'] }
+    ],
+    NO: [
+      { at: 0.12, name: '漁夫 Olav',
+        look: { skin: '#e8c4a0', hair: '#c8a878', shirt: '#c8202a', pants: '#2a3a5a', hat: 'beanie', hatColor: '#00205b', item: 'oar' },
+        lines: ['前面的冰海太寬了，跳不過去！', '踩著浮冰過去 —— 浮冰站一下就會往下沉，別停！', '浮冰會漂來漂去，等它靠近了再跳。'] },
+      { at: 0.45, name: '維京故事迷 Sigrid',
+        look: { skin: '#f3d6bc', hair: '#e8cf8a', shirt: '#6a4a2a', pants: '#3a3020', hat: 'kerchief', hatColor: '#e8dcc0', item: 'spear' },
+        lines: ['維京人的長船很淺，可以一路開進河裡。', '真正的維京頭盔其實沒有角，那是後來的人畫的。', '一千年前，維京人就開船到過冰島和格陵蘭。'] },
+      { at: 0.78, name: '峽灣嚮導 Kari',
+        look: { skin: '#f0cfb0', hair: '#8a5a3a', shirt: '#2f8a5a', pants: '#3a3a44', hat: 'cap', hatColor: '#ba0c2f', item: 'map' },
+        lines: ['峽灣是冰河挖出來的山谷，後來海水灌進來。', '七姊妹瀑布對面有一道瀑布叫「求婚者」。', '挪威的海岸線拉直了，可以繞地球大半圈。'] }
+    ],
+    FI: [
+      { at: 0.24, name: '雪橇犬主人 Aino',
+        look: { skin: '#f3d6bc', hair: '#f0e0b0', shirt: '#e8eef4', pants: '#2a3a6a', hat: 'beanie', hatColor: '#002f6c', item: 'lamp' },
+        lines: ['前面是極夜，太陽一整天都不會出來！', '暗的時候只看得到身邊 —— 等天上的極光亮起來再看路。', '極光一亮，整片雪地都看得清清楚楚。'] },
+      { at: 0.1, name: '三溫暖老爹 Matti',
+        look: { skin: '#e8b090', hair: '#cfcfcf', shirt: '#ffffff', pants: '#ffffff', hat: 'kerchief', hatColor: '#ffffff', item: 'towel' },
+        lines: ['芬蘭有三百多萬間三溫暖，差不多每兩個人就有一間。', '蒸完三溫暖，跳進結冰的湖裡最過癮！', '三溫暖 sauna 這個字，就是從芬蘭語來的。'] },
+      { at: 0.9, name: '聖誕郵局職員 Leena',
+        look: { skin: '#f3d6bc', hair: '#c88a4a', shirt: '#c8202a', pants: '#2a2a36', hat: 'beanie', hatColor: '#c8202a', item: 'book' },
+        lines: ['全世界的小朋友，每年寄幾十萬封信給聖誕老人。', '寄到這裡的信都會蓋上北極圈的郵戳。', '這裡冬天的極光，一年可以看到兩百多個晚上。'] }
+    ],
+    IS: [
+      { name: '火山學家 Guðrún',
+        look: { skin: '#f3d6bc', hair: '#e8cf8a', shirt: '#e86a2a', pants: '#2a2a36', hat: 'helmet', hatColor: '#f1c40f', item: 'lamp' },
+        lines: ['看他的劍！舉到頭上就是高掃 —— 站著別跳；壓低貼地就跳過去！', '冰島底下有一百多座火山，平均四、五年就有一座噴發。', '冰島有一成的土地被冰河蓋住，冰底下還有火山。'] }
     ]
   };
 
@@ -236,7 +286,7 @@ const Npcs = (function () {
         return x > r.x - 70 && x < r.x + r.w + 70;
       })) return true;
       if ((ctx.features || []).some(function (f) {
-        if (f.type === 'dark') return x > f.x0 - 40 && x < f.x1 + 40;
+        if (f.type === 'dark' || f.type === 'aurora') return x > f.x0 - 40 && x < f.x1 + 40;   // 黑暗裡看不到泡泡
         if (f.type === 'flood') return x > f.x0 - 60 && x < f.x1 + 60;      // 泡在海裡講不了話
         // 石柱：倒下的範圍在柱子左邊 150（站那裡會被壓到）；駱駝：整段來回走的範圍
         if (f.type === 'column') return x > f.x - 230 && x < f.x + 100;
@@ -324,6 +374,13 @@ const Npcs = (function () {
       case 'beret':
         ctx.beginPath(); ctx.ellipse(hx + 1, hy - 7, 10, 4, -0.15, 0, Math.PI * 2); ctx.fill();
         ctx.fillRect(hx, hy - 12, 2, 3);
+        break;
+      case 'beanie':
+        // 北歐毛線帽（v1.30）：圓頂＋白色反摺邊＋頂上的毛球
+        ctx.beginPath(); ctx.arc(hx, hy - 6, 9, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = '#f4f4f0';
+        ctx.fillRect(hx - 9, hy - 7, 18, 4);
+        ctx.beginPath(); ctx.arc(hx, hy - 16, 3.5, 0, Math.PI * 2); ctx.fill();
         break;
       case 'chef':
         ctx.fillRect(hx - 7, hy - 10, 14, 5);

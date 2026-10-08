@@ -35,7 +35,13 @@ function runFlagCheck() {
     DZ: { dir: 'dz', order: null },                          // 左綠右白，中央紅新月＋紅星
     TN: { dir: 'tn', order: null },                          // 紅底，中央白圓盤裡紅新月＋紅星
     LY: { dir: 'ly', order: null },                          // 紅黑綠（1:2:1），黑帶裡白新月＋白星
-    EG: { dir: 'eg', order: null }                           // 紅白黑橫三色，中央金鷹
+    EG: { dir: 'eg', order: null },                          // 紅白黑橫三色，中央金鷹
+    // v1.30 北歐篇：北歐十字（直條偏旗桿那側）
+    DK: { dir: 'nordic', field: 'red', cross: 'white' },
+    SE: { dir: 'nordic', field: 'blue', cross: 'gold' },
+    NO: { dir: 'nordic', field: 'red', cross: 'white', inner: 'blue' },
+    FI: { dir: 'nordic', field: 'white', cross: 'blue' },
+    IS: { dir: 'nordic', field: 'blue', cross: 'white', inner: 'red' }
   };
 
   const cv = document.createElement('canvas');
@@ -218,6 +224,18 @@ function runFlagCheck() {
       let white = false;
       for (let x = W * 0.35; x < W * 0.65 && !white; x += 1) white = name(px(x, H / 2)) === 'white';
       if (!white) issues.push(lv.country + ' 黑帶中央應有白色新月');
+    } else if (exp.dir === 'nordic') {
+      // 北歐十字：四角是底色；十字中心、右臂、上臂是（內）十字色；十字偏左 → 右上半邊是底色
+      const inner = exp.inner || exp.cross;
+      const corner = name(px(4, 4));
+      if (corner !== exp.field) issues.push(lv.country + ' 底色應為 ' + exp.field + '，左上角量到 ' + corner);
+      const got = [px(W * 0.36, H / 2), px(W * 0.85, H / 2), px(W * 0.36, H * 0.08)].map(name);
+      if (got.some(function (n) { return n !== inner; })) issues.push(lv.country + ' 十字應為 ' + inner + '，量到 ' + got.join('/'));
+      if (name(px(W * 0.6, H * 0.12)) !== exp.field) issues.push(lv.country + ' 十字的直條應偏旗桿那側（右上應為底色）');
+      if (exp.inner) {
+        const border = name(px(W * 0.85, H / 2 - H * 0.1));
+        if (border !== exp.cross) issues.push(lv.country + ' 內十字外面應有一圈 ' + exp.cross + '，量到 ' + border);
+      }
     } else if (exp.dir === 'eg') {
       // 埃及：紅白黑橫三色（取樣避開中央的金鷹），中央是金色
       const got = [px(W * 0.15, H / 6), px(W * 0.15, H / 2), px(W * 0.15, H * 5 / 6)].map(name);
@@ -256,7 +274,7 @@ function runFlagCheck() {
   Object.keys(fingerprints.v || {}).forEach(function (id) {
     plainV.push(fingerprints.v[id]);
   });
-  ['uk', 'esp', 'cze', 'cross', 'greek', 'h', 'star', 'dz', 'tn', 'ly', 'eg'].forEach(function (dirKey) {
+  ['uk', 'esp', 'cze', 'cross', 'greek', 'h', 'star', 'dz', 'tn', 'ly', 'eg', 'nordic'].forEach(function (dirKey) {
     const group = fingerprints[dirKey];
     if (!group) return;
     Object.keys(group).forEach(function (id) {

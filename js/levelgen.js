@@ -52,7 +52,9 @@ const LevelGen = (function () {
     // 東歐篇
     wawelDragon: 60, paprikaStall: 80, thermalPool: 112,
     graveStone: 26, deadTree: 60, branCastle: 300,
-    roseBush: 56, sunflowers: 72, lavraProp: 340
+    roseBush: 56, sunflowers: 72, lavraProp: 340,
+    // 北歐篇（v1.30）
+    mermaid: 64, dalaHorse: 50, runestone: 40, sauna: 96, reindeer: 76, lavaRock: 62
   };
 
   /**
@@ -74,7 +76,8 @@ const LevelGen = (function () {
     plazaFountain: 'fg', guitar: 'fg', orangeTree: 'fg',
     phoneBox: 'fg', doubleDecker: 'fg', pianoBench: 'fg',
     branCastle: 'bg', lavraProp: 'bg', roseBush: 'fg', sunflowers: 'fg',
-    wawelDragon: 'fg', paprikaStall: 'fg', thermalPool: 'fg', graveStone: 'fg', deadTree: 'fg'
+    wawelDragon: 'fg', paprikaStall: 'fg', thermalPool: 'fg', graveStone: 'fg', deadTree: 'fg',
+    mermaid: 'fg', dalaHorse: 'fg', runestone: 'fg', sauna: 'fg', reindeer: 'fg', lavaRock: 'fg'
   };
 
   /** 可重現的偽隨機 */

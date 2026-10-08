@@ -12,6 +12,11 @@
  *   barrels   德國    滾動啤酒桶：從前方山坡滾下來，跳過去或踩碎
  *   dark      波蘭    維利奇卡鹽礦：一段漆黑的礦坑，只看得到自己身邊和礦燈
  *   geysers   匈牙利  溫泉間歇泉：定時噴發，站上去會被衝上天（可以拿來飛越河面）
+ *   （東歐、非洲篇的見 plan 裡各段註解）
+ *   bricks    丹麥    樂高積木階梯：紅、藍積木輪流出現，要抓節奏往上跳
+ *   ice       瑞典    結冰的湖面：加速慢、放開還會滑
+ *   floes     挪威    冰海水道上的浮冰：會漂、站上去會下沉
+ *   aurora    芬蘭    極夜：一片漆黑，極光亮起來才看得清楚
  *
  * 規劃（plan）在關卡定義時用固定 seed 跑，結果可重現、可測試；
  * 執行期（update）每帧處理碰撞，事件格式跟玩家事件一樣帶 'p0:' 前綴。
@@ -249,6 +254,47 @@ const Features = (function () {
           list.push({ type: 'column', x: sp.x + COL_FALL + 20, y: sp.y });
           ctx.avoid.push({ x: sp.x - 80, y: 0, w: COL_FALL + 200, h: 600 });
         }
+      } else if (c.type === 'bricks') {
+        /*
+         * 丹麥：樂高積木階梯。每座三塊積木往右上排（離地 66 / 130 / 194），紅藍交錯；
+         * 紅色亮著的時候藍色是虛線框（踩不到），一段時間後交換 —— 要抓「換色的那一下」跳過去。
+         * 最上面那塊頂上有一排金幣。整座要一大片頭頂淨空：那一欄的浮空平台拿掉（forceSpot）。
+         */
+        const n = c.count || 5;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.14 + 0.72 * i / Math.max(1, n - 1)), BRICK_STEP * 2 + BRICK_W, BRICK_RISE * 3 + 70, true);
+          if (!sp || sp.x < 700) continue;
+          for (let k = 0; k < 3; k++) {
+            list.push({ type: 'brick', x: sp.x + k * BRICK_STEP, y: sp.y - 66 - k * BRICK_RISE, w: BRICK_W, h: BRICK_H,
+                        color: k % 2, phase: (i * 53) % BRICK_CYCLE, passThru: true });
+          }
+          const top = sp.y - 66 - 2 * BRICK_RISE;
+          for (let q = 0; q < 3; q++) coins.push({ x: sp.x + 2 * BRICK_STEP + 4 + q * 20, y: top - 36 });
+          ctx.avoid.push({ x: sp.x - 60, y: 0, w: BRICK_STEP * 2 + BRICK_W + 120, h: 600 });
+        }
+      } else if (c.type === 'ice') {
+        // 瑞典：結冰的湖面。幾段區間內的地面是冰（只算地面，浮空平台照舊）
+        (c.zones || [[0.3, 0.6]]).forEach(function (z) {
+          list.push({ type: 'ice', x0: Math.round(W * z[0]), x1: Math.round(W * z[1]) });
+        });
+      } else if (c.type === 'floes') {
+        /*
+         * 挪威：冰海水道（Levels cfg.channels 拓寬過的斷崖，gap.channel）上放浮冰。
+         * 一道水放 2 塊，同一道水的浮冰一起漂（間距固定 ≈ 86，跳得過）；離岸的距離會變（19~67）。
+         */
+        ctx.gaps.filter(function (g) { return g.channel; }).forEach(function (g, gi) {
+          const ly = LevelGen.groundAt(ctx.segs, g.x - 4);
+          const n = Math.max(1, Math.round((g.w - 40) / 130));
+          const amp = Math.max(0, Math.min(FLOE_AMP, (g.w / n - FLOE_W) / 2 - 8));
+          for (let k = 0; k < n; k++) {
+            const cx = g.x + g.w * (k + 0.5) / n;
+            list.push({ type: 'floe', x: Math.round(cx - FLOE_W / 2), bx: Math.round(cx - FLOE_W / 2), by: ly + FLOE_DROP, w: FLOE_W, amp: amp, phase: gi * 97 });
+            coins.push({ x: Math.round(cx - 12), y: ly - 70 });
+          }
+        });
+      } else if (c.type === 'aurora') {
+        // 芬蘭：極夜。一段區間整片黑，極光週期性亮起
+        list.push({ type: 'aurora', x0: Math.round(W * (c.from || 0.3)), x1: Math.round(W * (c.to || 0.8)) });
       } else if (c.type === 'thorns') {
         // 保加利亞：玫瑰荊棘，定時從地裡冒出來
         const n = c.count || 8;
@@ -327,6 +373,40 @@ const Features = (function () {
     return { x: f.x1 - (k - 2 * CAMEL_PAUSE - walk) * CAMEL_SPEED, dir: -1, moving: true };
   }
 
+  /*
+   * 樂高積木（丹麥）：一輪 BRICK_CYCLE 帧，前半紅色在、後半藍色在；要消失前 BRICK_WARN 帧開始閃。
+   * 跳一次滯空約 40 帧：站在紅色上看它開始閃就起跳，落下時剛好換成藍色。
+   */
+  const BRICK_W = 64, BRICK_H = 18, BRICK_STEP = 84, BRICK_RISE = 64;
+  const BRICK_CYCLE = 220, BRICK_WARN = 44;
+  /** 這塊積木這一帧在不在（樂高積木裝備：一直都在） */
+  function brickState(f, t) {
+    const k = (t + f.phase) % BRICK_CYCLE, half = BRICK_CYCLE / 2;
+    const on = f.color === 0 ? k < half : k >= half;
+    const left = f.color === 0 ? half - k : BRICK_CYCLE - k;      // 亮著的話，再幾帧就要消失
+    return { on: on, warn: on && left <= BRICK_WARN };
+  }
+  /*
+   * 浮冰（挪威）：在水道裡左右漂（週期 FLOE_PERIOD）。有人站上去 FLOE_GRACE 帧後開始往下沉，
+   * 每帧沉 FLOE_SINK；浮冰頂比岸低 FLOE_DROP，水面比岸低 12 —— 沉超過 9px 腳就碰到水（掉進冰海）。
+   * 從站上去算起大約 68 帧（1 秒多）就會落水：不能停，要一直往前跳。沒人站就慢慢浮回來。
+   */
+  const FLOE_W = 64, FLOE_DROP = 3, FLOE_AMP = 24, FLOE_PERIOD = 260;
+  const FLOE_GRACE = 18, FLOE_SINK = 0.18, FLOE_RISE = 0.35, FLOE_MAX = 16;
+  function floeX(f, t) { return f.bx + Math.sin((t + f.phase) * Math.PI * 2 / FLOE_PERIOD) * f.amp; }
+  /*
+   * 極夜（芬蘭）：一輪 AURORA_CYCLE 帧 —— 漆黑 240 → 極光慢慢亮 50 → 全亮 90 → 慢慢暗 40。
+   * glow 0~1：0 = 只看得到身邊，1 = 整片看得清楚。
+   */
+  const AURORA_CYCLE = 420;
+  function auroraGlow(t) {
+    const k = t % AURORA_CYCLE;
+    if (k < 240) return 0;
+    if (k < 290) return (k - 240) / 50;
+    if (k < 380) return 1;
+    return 1 - (k - 380) / 40;
+  }
+
   const GUST_CYCLE = 320;     // 一輪：安靜 → 預告 → 颳風
   const GUST_PUSH = 1.5;      // 逆風時每帧把地面上的玩家往回推幾 px（空中不推：跳躍距離不受影響）
   const THORN_CYCLE = 150;
@@ -351,6 +431,10 @@ const Features = (function () {
       if (f.type === 'camel' && f.hump) out.push(f.hump);
       // 倒下的石柱：沒有人卡在裡面時才是實心（剛倒下壓到人時先不算，免得把人卡進牆裡）
       if (f.type === 'column' && f.state === 'down' && f.lying && !f.blocked) out.push(f.lying);
+      // 丹麥積木：亮著的那一色才踩得到（從下往上可以穿過，跟浮空平台一樣）
+      if (f.type === 'brick' && (f.on || fs.brickSolid)) out.push(f);
+      // 挪威浮冰：會漂、會沉的平台（有 dx/dy → entities.js 會載著站在上面的人）
+      if (f.type === 'floe' && f.box) out.push(f.box);
     });
     return out;
   }
@@ -367,6 +451,11 @@ const Features = (function () {
         if (f.type === 'bridge') { o.state = 'ok'; o.timer = 0; }
         if (f.type === 'column') { o.state = 'stand'; o.timer = 0; o.angle = 0; }
         if (f.type === 'mount') { o.state = 'wait'; o.timer = 0; }
+        if (f.type === 'brick') { o.on = brickState(o, 0).on; }
+        if (f.type === 'floe') {
+          o.depth = 0; o.rideT = 0;
+          o.box = { x: floeX(o, 0), y: o.by, w: o.w, h: 14, dx: 0, dy: 0, passThru: true, floe: true };
+        }
         if (f.type === 'camel') {
           const c0 = camelX(o, 0);
           o.cx = c0.x; o.dir = c0.dir;
@@ -388,8 +477,9 @@ const Features = (function () {
   function hurt(p, fromX, events, pid) {
     if (p.invuln > 0) return;
     p.invuln = 90 + (p.stats.invulnBonus || 0);
-    p.vy = -6;
-    p.vx = (fromX > p.x ? -1 : 1) * 4;
+    const kb = p.stats.steady ? 0.5 : 1;          // 冰島毛衣：被打到只退一半
+    p.vy = -6 * kb;
+    p.vx = (fromX > p.x ? -1 : 1) * 4 * kb;
     events.push('p' + pid + ':hurt');
   }
 
@@ -413,6 +503,8 @@ const Features = (function () {
     const lead = players.reduce(function (a, p) { return !a || p.x > a.x ? p : a; }, null);
     if (!lead) return events;
     players.forEach(function (p) { p.inSand = false; });
+    // 樂高積木裝備：有人戴著，積木就一直都在（雙人時隊友也踩得到）
+    fs.brickSolid = players.some(function (p) { return p.stats && p.stats.brickSolid; });
 
     fs.list.forEach(function (f) {
       // 第一次接近時發一個事件，game.js 顯示提示
@@ -593,6 +685,33 @@ const Features = (function () {
             p.sandLimit = f.limit || SAND_LIMIT;
           }
         });
+      } else if (f.type === 'brick') {
+        const bs = brickState(f, t);
+        f.on = bs.on; f.warn = bs.warn;
+      } else if (f.type === 'ice') {
+        // 站在這段的地面上 → 下一帧的水平移動用冰面物理（見 entities.js「水平輸入」）
+        players.forEach(function (p) {
+          if (!p.onGround || p.ridingMover || (p.stats && p.stats.iceGrip)) return;
+          const cx = p.x + p.w / 2;
+          if (cx < f.x0 || cx > f.x1) return;
+          const gy = groundTop(def, cx);
+          if (gy != null && Math.abs(p.y + p.h - gy) < 3) p.onIce = true;
+        });
+      } else if (f.type === 'floe') {
+        const nx = floeX(f, t);
+        const ridden = players.some(function (p) { return p.ridingMover === f.box && p.onGround; });
+        if (ridden) {
+          if (++f.rideT > FLOE_GRACE) f.depth = Math.min(FLOE_MAX, f.depth + FLOE_SINK);
+        } else {
+          f.rideT = 0;
+          f.depth = Math.max(0, f.depth - FLOE_RISE);
+        }
+        const ny = f.by + f.depth;
+        f.box.dx = nx - f.box.x; f.box.dy = ny - f.box.y;
+        f.box.x = nx; f.box.y = ny;
+        f.sinking = ridden && f.rideT > FLOE_GRACE;
+      } else if (f.type === 'aurora') {
+        f.glow = auroraGlow(t);
       } else if (f.type === 'thorn') {
         const k = (t + f.phase) % THORN_CYCLE;
         f.state = k < 80 ? 'bud' : k < 104 ? 'warn' : 'spike';
@@ -828,7 +947,8 @@ const Features = (function () {
     const fs = state.features;
     if (!fs) return;
     fs.list.forEach(function (f) {
-      if (layer && (layer === 'bg') !== (f.type === 'dark')) return;
+      // 背景層：鹽礦岩壁、極夜的星空與極光（要在建築後面）
+      if (layer && (layer === 'bg') !== (f.type === 'dark' || f.type === 'aurora')) return;
       if (f.type === 'pad') {
         const sx = f.x - camX;
         if (sx < -80 || sx > 1040) return;
@@ -1104,6 +1224,40 @@ const Features = (function () {
             ctx.beginPath(); ctx.arc(x, f.y - 8, 3, 0, Math.PI * 2); ctx.fill();
           }
         }
+      } else if (f.type === 'brick') {
+        const sx = f.x - camX;
+        if (sx < -80 || sx > 1040) return;
+        drawBrick(ctx, sx, f.y, f, t, fs.brickSolid);
+      } else if (f.type === 'ice') {
+        // 結冰的湖面：這段地面頂上蓋一層淡藍色的冰，帶反光
+        const a = f.x0 - camX, b = f.x1 - camX;
+        if (b < 0 || a > 960) return;
+        (state.def.groundSegs || []).forEach(function (g) {
+          const x0 = Math.max(g.x, f.x0) - camX, x1 = Math.min(g.x + g.w, f.x1) - camX;
+          if (x1 <= x0 || x1 < 0 || x0 > 960) return;
+          ctx.fillStyle = 'rgba(190, 228, 250, 0.9)';
+          ctx.fillRect(x0, g.y - 2, x1 - x0, 9);
+          ctx.fillStyle = 'rgba(120, 180, 220, 0.55)';
+          ctx.fillRect(x0, g.y + 6, x1 - x0, 3);
+          // 反光：斜斜的白線（跟著世界座標，不會跟著鏡頭飄）
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; ctx.lineWidth = 1.5;
+          for (let wx = Math.ceil((x0 + camX) / 46) * 46; wx < x1 + camX - 10; wx += 46) {
+            const sx = wx - camX;
+            ctx.beginPath(); ctx.moveTo(sx, g.y + 4); ctx.lineTo(sx + 9, g.y - 1); ctx.stroke();
+          }
+          // 冰上的小裂紋
+          ctx.strokeStyle = 'rgba(90, 150, 200, 0.5)'; ctx.lineWidth = 1;
+          for (let wx = Math.ceil((x0 + camX) / 130) * 130 + 60; wx < x1 + camX - 20; wx += 130) {
+            const sx = wx - camX;
+            ctx.beginPath(); ctx.moveTo(sx, g.y + 2); ctx.lineTo(sx + 6, g.y + 5); ctx.lineTo(sx + 14, g.y + 3); ctx.stroke();
+          }
+        });
+      } else if (f.type === 'floe') {
+        const bx = f.box.x - camX;
+        if (bx < -100 || bx > 1060) return;
+        drawFloe(ctx, bx, f.box.y, f, t);
+      } else if (f.type === 'aurora') {
+        drawAuroraSky(ctx, state, f, camX, t);
       } else if (f.type === 'dark') {
         // 鹽礦內部：岩壁 + 木頭支架 + 礦燈（畫在地形後面，當背景）
         const a = f.x0 - camX, b = f.x1 - camX;
@@ -1132,6 +1286,102 @@ const Features = (function () {
         });
       }
     });
+  }
+
+  /** 樂高積木：亮著 = 實心積木（上面四顆凸點）；沒亮 = 虛線外框；快消失時閃爍 */
+  function drawBrick(ctx, sx, y, f, t, always) {
+    const col = f.color === 0 ? ['#d8262c', '#a8161c', '#f25a5a'] : ['#1f6fd0', '#12489a', '#5a9af0'];
+    if (!(f.on || always)) {
+      // 沒亮：淡淡的底色＋深色虛線框（背景是彩色房子，太淡會看不出積木在哪）
+      ctx.fillStyle = f.color === 0 ? 'rgba(216, 38, 44, 0.16)' : 'rgba(31, 111, 208, 0.16)';
+      ctx.fillRect(sx, y, f.w, f.h);
+      ctx.strokeStyle = f.color === 0 ? 'rgba(200, 40, 40, 0.9)' : 'rgba(30, 90, 200, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(sx + 1, y + 1, f.w - 2, f.h - 2);
+      ctx.setLineDash([]);
+      return;
+    }
+    if (f.warn && !always && Math.floor(t / 5) % 2 === 0) ctx.globalAlpha = 0.45;
+    ctx.fillStyle = col[0];
+    ctx.fillRect(sx, y, f.w, f.h);
+    ctx.fillStyle = col[1];
+    ctx.fillRect(sx, y + f.h - 4, f.w, 4);
+    // 凸點
+    for (let k = 0; k < 4; k++) {
+      const cx = sx + 8 + k * 16;
+      ctx.fillStyle = col[1];
+      ctx.fillRect(cx - 5, y - 4, 10, 4);
+      ctx.fillStyle = col[2];
+      ctx.fillRect(cx - 5, y - 4, 10, 1.5);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(sx + 2, y + 2, f.w - 4, 2);
+    ctx.globalAlpha = 1;
+  }
+
+  /** 浮冰：白色冰塊，水面以下的部分畫成淡藍；下沉時邊緣冒水花 */
+  function drawFloe(ctx, sx, y, f, t) {
+    const bob = Math.sin(t * 0.08 + f.phase) * 1.2;
+    ctx.save();
+    ctx.translate(0, bob);
+    ctx.fillStyle = 'rgba(160, 210, 235, 0.55)';
+    ctx.beginPath(); ctx.ellipse(sx + f.w / 2, y + 14, f.w / 2 + 2, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4fbff';
+    ctx.beginPath();
+    ctx.moveTo(sx + 4, y); ctx.lineTo(sx + f.w - 6, y); ctx.lineTo(sx + f.w, y + 8);
+    ctx.lineTo(sx + f.w - 4, y + 14); ctx.lineTo(sx + 6, y + 14); ctx.lineTo(sx, y + 7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#bfe2f4';
+    ctx.fillRect(sx + 3, y + 8, f.w - 7, 6);
+    ctx.strokeStyle = 'rgba(120, 180, 215, 0.8)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx + 18, y + 2); ctx.lineTo(sx + 24, y + 6); ctx.lineTo(sx + 30, y + 4); ctx.stroke();
+    if (f.sinking) {
+      ctx.fillStyle = 'rgba(220, 245, 255, 0.9)';
+      for (let k = 0; k < 4; k++) {
+        const ph = (t * 0.3 + k * 1.7) % 3;
+        ctx.beginPath(); ctx.arc(sx + (k < 2 ? -2 - ph * 2 : f.w + 2 + ph * 2), y + 10 - ph * 3, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  /** 極夜的天空：星星＋綠紫色的極光簾幕（glow 越亮越明顯；畫在建築後面） */
+  function drawAuroraSky(ctx, state, f, camX, t) {
+    const p = state.player;
+    const near = U.clamp(Math.min(p.x - (f.x0 - 400), (f.x1 + 400) - p.x) / 400, 0, 1);
+    if (near <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = near;
+    // 星星（跟著遠景慢慢捲）
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    for (let i = 0; i < 40; i++) {
+      const sx = ((i * 197 - camX * 0.05) % 980 + 980) % 980;
+      const sy = 20 + (i * 71) % 200;
+      const tw = 0.5 + 0.5 * Math.sin(t * 0.05 + i);
+      ctx.globalAlpha = near * (0.3 + 0.5 * tw);
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+    // 極光：幾條上下飄動的光帶
+    const g = 0.12 + 0.55 * (f.glow || 0);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let b = 0; b < 3; b++) {
+      const grad = ctx.createLinearGradient(0, 30 + b * 30, 0, 230 + b * 20);
+      grad.addColorStop(0, 'rgba(160, 90, 220, 0)');
+      grad.addColorStop(0.35, b === 1 ? 'rgba(170, 110, 230, 0.6)' : 'rgba(90, 240, 170, 0.7)');
+      grad.addColorStop(1, 'rgba(60, 220, 160, 0)');
+      ctx.fillStyle = grad;
+      ctx.globalAlpha = near * g * (b === 1 ? 0.6 : 1);
+      ctx.beginPath();
+      const base = 60 + b * 34;
+      ctx.moveTo(-20, 260);
+      for (let x = -20; x <= 980; x += 30) {
+        const wx = x + camX * 0.08;
+        ctx.lineTo(x, base + Math.sin(wx * 0.006 + t * 0.012 + b * 2) * 26 + Math.sin(wx * 0.017 - t * 0.02) * 10);
+      }
+      ctx.lineTo(980, 260);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
   }
 
   /**
@@ -1324,6 +1574,25 @@ const Features = (function () {
         });
         return;
       }
+      if (f.type === 'aurora') {
+        /*
+         * 極夜：跟鹽礦一樣的低解析度暗幕，但沒有礦燈；極光亮起來時暗幕變淡（glow = 1 時幾乎看得清整片）。
+         * 維京太陽石（nightSight）：身邊的光圈比較大、暗幕淡一點。
+         */
+        const pa = state.player;
+        const pc = pa.x + pa.w / 2;
+        const ka = Math.min(U.clamp((pc - f.x0) / 200, 0, 1), U.clamp((f.x1 - pc) / 200, 0, 1));
+        if (ka <= 0) return;
+        const sight = state.players.some(function (q) { return !q.out && q.stats && q.stats.nightSight; });
+        const alpha = ((sight ? 0.82 : 0.94) - 0.72 * (f.glow || 0)) * ka;
+        if (alpha <= 0.02) return;
+        maskWithHoles(ctx, W, H, 'rgba(4, 8, 22, ' + alpha.toFixed(3) + ')', function (hole) {
+          state.players.forEach(function (q) {
+            if (!q.out) hole(q.x + q.w / 2 - camX, q.y + q.h / 2, (sight ? 230 : 135) + Math.sin(t * 0.1) * 4);
+          });
+        });
+        return;
+      }
       if (f.type !== 'dark') return;
       const p = state.player;
       const pcx = p.x + p.w / 2;
@@ -1351,8 +1620,10 @@ const Features = (function () {
         if (x + r < 0 || x - r > W) return;          // 畫面外不挖
         d.drawImage(holeImg, (x - r) * S, (y - r) * S, r * 2 * S, r * 2 * S);
       }
+      // 維京太陽石（v1.30 nightSight）：鹽礦裡也看得比較遠
+      const seeFar = state.players.some(function (q) { return !q.out && q.stats && q.stats.nightSight; });
       state.players.forEach(function (q) {
-        if (!q.out) hole(q.x + q.w / 2 - camX, q.y + q.h / 2, 150 + Math.sin(t * 0.1) * 4);
+        if (!q.out) hole(q.x + q.w / 2 - camX, q.y + q.h / 2, (seeFar ? 220 : 150) + Math.sin(t * 0.1) * 4);
       });
       f.lamps.forEach(function (lx) { hole(lx - camX, 108, 110); });
       d.globalCompositeOperation = 'source-over';
@@ -1411,6 +1682,11 @@ const Features = (function () {
     drawOverlay: drawOverlay,
     stormState: stormState,
     camelX: camelX,
+    brickState: brickState,
+    floeX: floeX,
+    auroraGlow: auroraGlow,
+    AURORA_CYCLE: AURORA_CYCLE,
+    BRICK_CYCLE: BRICK_CYCLE,
     BRINE_LIMIT: BRINE_LIMIT,
     CURRENT_PUSH: CURRENT_PUSH,
     AIR_MAX: AIR_MAX,

@@ -166,7 +166,10 @@ const WorldMap = (function () {
    * 舊版為了擠空間做的偏移（捷克往北、奧地利往東、瑞士往東）都不需要了。
    * 保留這張表，之後真的有衝突再加。
    */
-  const PIN_NUDGE = {};
+  const PIN_NUDGE = {
+    // v1.30 挪威：國土中心在峽灣附近，跟黃金獵犬、峽灣老漁夫擠在一起，國名被擠到很遠 → 往東南（奧斯陸那側）挪
+    NO: [34, 14]
+  };
 
   /**
    * 關卡國家。idx 對應 Levels.list 的索引，幾何資料來自 EuropeGeo。
@@ -275,7 +278,12 @@ const WorldMap = (function () {
           nations.forEach(function (o) { clash += boxOverlap(b, pinBox(o.pin)); });
           specials.forEach(function (o) { clash += boxOverlap(b, pinBox(o.pin)); });
           placed.forEach(function (pb) { clash += boxOverlap(b, pb); });
-          const base = insideFrac(b, n.shapes) * 100 - Math.hypot(x - mx, y - my) * 0.15;
+          /*
+           * v1.30：狹長的國家（挪威）外框中心離圖釘很遠，字會被拉到看不出是誰的地方 →
+           * 離自己的圖釘超過 100px 就大幅扣分（map-check 要求 110 以內）。
+           */
+          const farPin = Math.max(0, Math.hypot(x - fallbackPin[0], y - fallbackPin[1]) - 100);
+          const base = insideFrac(b, n.shapes) * 100 - Math.hypot(x - mx, y - my) * 0.15 - farPin * 2;
           if (clash === 0 && base > bestScore) { bestScore = base; best = [x, y]; }
           if (base - clash * 3 > softScore) { softScore = base - clash * 3; soft = [x, y]; }
         }
@@ -817,12 +825,9 @@ const WorldMap = (function () {
    * 只是裝飾：不進 specials、不算靠近、按 Enter 沒反應。
    */
   // v1.29.2 玩家：國旗再小一點；北歐也先印上去（冰島在地圖外面）
+  // v1.30 北歐篇：北歐五國有關卡了（地圖往西延伸、冰島也進來了）→ 改成關卡國的圖釘，這裡只剩土耳其
   const PAINTED = [
-    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' },
-    { id: 'NO', name: '挪威', lon: 10.0, lat: 60.8, flag: 'nordic', bg: '#ba0c2f', cross: '#ffffff', inner: '#00205b' },
-    { id: 'SE', name: '瑞典', lon: 15.8, lat: 62.8, flag: 'nordic', bg: '#006aa7', cross: '#fecc00' },
-    { id: 'FI', name: '芬蘭', lon: 26.0, lat: 62.8, flag: 'nordic', bg: '#ffffff', cross: '#002f6c' },
-    { id: 'DK', name: '丹麥', lon: 9.2, lat: 56.1, flag: 'nordic', bg: '#c8102e', cross: '#ffffff' }
+    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' }
   ];
   const PF_W = 20, PF_H = 13;     // 平貼國旗的大小（關卡國的旗子約 22×15，這個要比較低調）
   /** 北歐十字旗：直條偏旗桿那側（約 37%），inner = 挪威十字裡面那條藍 */
@@ -992,6 +997,9 @@ const WorldMap = (function () {
     { name: '第勒尼安海', lon: 11.8, lat: 40, size: 10 },
     // v1.9：北歐、非洲先畫出來（還沒有關卡）
     { name: '挪　威　海', lon: 1, lat: 67, size: 16 },
+    // v1.30：地圖往西延伸到冰島
+    { name: '格陵蘭海', lon: -10, lat: 70.2, size: 12 },
+    { name: '丹麥海峽', lon: -24.5, lat: 67.6, size: 10, angle: -0.5 },
     { name: '巴倫支海', lon: 38, lat: 71, size: 13 },
     { name: '波的尼亞灣', lon: 20.5, lat: 62.8, size: 10, angle: -1.2 },
     { name: '紅海', lon: 38.5, lat: 20.5, size: 11, angle: -1.0 }
@@ -999,7 +1007,7 @@ const WorldMap = (function () {
 
   /** 區域名稱（大而淡，像地圖上印的大字；還沒有關卡的標「篇章開發中」） */
   const REGIONS = [
-    { name: '北　歐', sub: '（篇章開發中）', lon: 17, lat: 65.5, size: 26 },
+    { name: '北　歐', lon: 17, lat: 65.5, size: 26 },
     { name: '非　洲', lon: 14, lat: 25, size: 30 },
     { name: '撒哈拉沙漠', lon: 2, lat: 22.5, size: 14 }
   ];

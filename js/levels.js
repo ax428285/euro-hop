@@ -178,6 +178,34 @@ const Levels = (function () {
       baseY: baseY,
       climb: climb
     });
+    /*
+     * v1.30 挪威峽灣（cfg.channels）：把中段幾道斷崖拓寬成「冰海水道」（約 300 寬，跳不過去），
+     * 只能踩水上的浮冰過去（浮冰由 Features 'floes' 放）。要在平台、敵人、金幣之前改，
+     * 後面的產生流程才會照拓寬後的地形擺東西。寬度從兩岸各借一半，地面段至少留 240。
+     */
+    const channels = [];
+    if (cfg.channels) {
+      (cfg.channels.at || []).forEach(function (k) {
+        const want = width * k;
+        let best = -1;
+        g.gaps.forEach(function (gp, i) {
+          if (gp.channel || i === 0) return;
+          const L = g.segs[i], R = g.segs[i + 1];       // 斷崖 i 的左岸是 segs[i]、右岸是 segs[i+1]
+          if (!L || !R || L.y !== R.y) return;          // 兩岸一樣高（浮冰在水面上，高低差跳不上去）
+          if (best < 0 || Math.abs(gp.x - want) < Math.abs(g.gaps[best].x - want)) best = i;
+        });
+        if (best < 0) return;
+        const gp = g.gaps[best], L = g.segs[best], R = g.segs[best + 1];
+        const extra = (cfg.channels.width || 300) - gp.w;
+        const takeL = Math.min(Math.ceil(extra / 2), L.w - 240), takeR = Math.min(extra - takeL, R.w - 240);
+        if (takeL < 0 || takeR < 0) return;
+        L.w -= takeL;
+        gp.x -= takeL; gp.w += takeL + takeR;
+        R.x += takeR; R.w -= takeR;
+        gp.channel = true;
+        channels.push({ x: gp.x, w: gp.w });
+      });
+    }
 
     const platforms = vehicle === 'train' ? [] : LevelGen.buildPlatforms(r, g.segs, {
       tiers: cfg.tiers || [92, 162]
@@ -351,6 +379,7 @@ const Levels = (function () {
       groundBody: cfg.groundBody,
       deco: cfg.deco,
       vehicle: vehicle,
+      channels: channels,           // v1.30 挪威冰海水道（要踩浮冰過，level-check 另外驗）
       width: width,
       height: worldH,
       layout: layout,
@@ -1198,6 +1227,187 @@ const Levels = (function () {
       { x: 100, y: 248 }, { x: 134, y: 248 }, { x: 168, y: 248 }, { x: 202, y: 248 },
       { x: 1080, y: 248 }, { x: 1114, y: 248 }, { x: 1148, y: 248 }, { x: 1182, y: 248 },
       { x: 520, y: 330 }, { x: 554, y: 330 }, { x: 588, y: 330 }, { x: 622, y: 330 }
+    ]
+  }));
+
+  // ════════════════════════════════════════════════════════════
+  // 北歐篇（v1.30，海上 EXP 700 解鎖，見 Encounter.REGIONS）
+  // 一定要接在最後面：存檔的通關紀錄、裝備是照關卡順序記的，插在中間會讓舊存檔整個錯位。
+  // 丹麥 → 瑞典 → 挪威 → 芬蘭 → 冰島（最終魔王）
+  // ════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────────
+  // 24. 丹麥 · 哥本哈根 —— 新港的彩色房子：會輪流拆開、組回來的積木階梯
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1041,
+    id: 'DK', country: '丹麥', city: '哥本哈根', region: 'north',
+    flag: ['#C8102E', '#FFFFFF'], flagDir: 'nordic',
+    landmark: 'nyhavn',
+    fact: '樂高 1932 年誕生在丹麥的比隆，名字來自丹麥語「leg godt」—— 好好玩。',
+    sky: ['#86b4e0', '#eef2f6'], hill: '#6a8a9a',
+    groundTop: '#8c9a88', groundBody: '#5a5048',
+    deco: 'tree',
+    layout: 'flat',
+    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.1,
+    // 招牌：樂高積木階梯 —— 紅色、藍色積木輪流出現，要抓節奏一階一階往上跳，頂上有金幣
+    features: [{ type: 'bricks', count: 6 }],
+    secretHint: '運河邊那間黃色房子的地下室，安徒生好像在這裡住過',
+    secretNear: 0.5,
+    props: [
+      { type: 'canalHouse', x: 700 },
+      { type: 'canalHouse', x: 2900 },
+      { type: 'canalHouse', x: 5200 },
+      { type: 'bike', x: 1300 },
+      { type: 'bike', x: 4300 },
+      { type: 'mermaid', x: 2100 },
+      { type: 'cafe', x: 3600 },
+      { type: 'lamp', x: 500 },
+      { type: 'lamp', x: 2500 },
+      { type: 'lamp', x: 4800 },
+      { type: 'fishBoat', x: 6000 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 25. 瑞典 · 拉普蘭 —— 結冰的湖面：會滑，要提早放開方向鍵
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1042,
+    id: 'SE', country: '瑞典', city: '拉普蘭', region: 'north',
+    flag: ['#006AA7', '#FECC00'], flagDir: 'nordic',
+    landmark: 'icehotel',
+    fact: '尤卡斯耶爾維的冰旅館每年冬天用托訥河的冰重新蓋一次，春天就融回河裡。',
+    sky: ['#9cc2e6', '#f0f4fa'], hill: '#9aaabc',
+    groundTop: '#eef4f8', groundBody: '#6a7482',
+    deco: 'snowPine',
+    layout: 'hills',
+    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    // 招牌：結冰的湖面 —— 冰上加速慢、放開還會滑一段，斷崖邊要提早放開
+    features: [{ type: 'ice', zones: [[0.16, 0.32], [0.42, 0.58], [0.68, 0.84]] }],
+    secretHint: '冰旅館後面的雪堆，裡面挖空了',
+    secretNear: 0.5,
+    props: [
+      { type: 'dalaHorse', x: 900 },
+      { type: 'runestone', x: 1900 },
+      { type: 'sauna', x: 3100 },
+      { type: 'dalaHorse', x: 4400 },
+      { type: 'runestone', x: 5600 },
+      { type: 'reindeer', x: 6300 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 26. 挪威 · 蓋倫格峽灣 —— 冰海水道跳不過去，要踩會漂、會沉的浮冰
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1043,
+    id: 'NO', country: '挪威', city: '蓋倫格峽灣', region: 'north',
+    flag: ['#BA0C2F', '#FFFFFF', '#00205B'], flagDir: 'nordic',
+    landmark: 'fjord',
+    fact: '蓋倫格峽灣的「七姊妹瀑布」從兩百多公尺高的峭壁上分成七道落進海裡。',
+    sky: ['#78a6d6', '#e2ecf4'], hill: '#4e5e6e',
+    groundTop: '#6f9a5e', groundBody: '#4a4a54',
+    deco: 'pine',
+    layout: 'flat',
+    water: true,          // 斷崖底下是峽灣的冰海
+    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    // 冰海水道：三道約 300 寬的水，只能踩浮冰過去
+    channels: { at: [0.3, 0.52, 0.74], width: 300 },
+    // 招牌：浮冰 —— 在水上漂來漂去，站上去會慢慢往下沉，不能久站
+    features: [{ type: 'floes' }],
+    secretHint: '峭壁上的維京人石洞，門口刻著盧恩文字',
+    secretNear: 0.42,
+    props: [
+      { type: 'runestone', x: 800 },
+      { type: 'fishBoat', x: 1500 },
+      { type: 'chalet', x: 2600 },
+      { type: 'runestone', x: 4600 },
+      { type: 'chalet', x: 6100 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 27. 芬蘭 · 羅瓦涅米 —— 北極圈的極夜：一片漆黑，極光亮起來才看得到路
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1044,
+    id: 'FI', country: '芬蘭', city: '羅瓦涅米', region: 'north',
+    flag: ['#FFFFFF', '#002F6C'], flagDir: 'nordic',
+    landmark: 'santaVillage',
+    fact: '羅瓦涅米的聖誕老人村正好跨在北極圈上，地上畫了一條白線，一步就能跨進北極圈。',
+    sky: ['#0a1430', '#2a3c6c'], hill: '#1c2846',
+    cloud: 'rgba(120, 140, 190, 0.28)',
+    groundTop: '#e2eaf4', groundBody: '#4a5468',
+    deco: 'snowPine',
+    layout: 'hills',
+    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.0,
+    // 招牌：極夜 —— 中段一大片黑，只看得到身邊；極光每隔一陣子亮起來，整片才看得清楚
+    features: [{ type: 'aurora', from: 0.3, to: 0.82 }],
+    secretHint: '聖誕老人郵局後門，堆滿了全世界寄來的信',
+    secretNear: 0.2,
+    props: [
+      { type: 'reindeer', x: 700 },
+      { type: 'sauna', x: 1500 },
+      { type: 'reindeer', x: 6100 },
+      { type: 'sauna', x: 6500 }
+    ]
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 28. 冰島 · 火山 —— ⚔ 北歐篇最終魔王：火巨人蘇爾特
+  // ────────────────────────────────────────────────────────────
+  list.push(bossLevel({
+    id: 'IS', country: '冰島', city: '赫克拉火山', region: 'north',
+    finale: true,     // 北歐篇最後一關
+    flag: ['#02529C', '#FFFFFF', '#DC1E35'], flagDir: 'nordic',
+    landmark: 'hallgrims',
+    fact: '1963 年冰島南邊的海底火山噴發，冒出一座新島，取名叫蘇爾特塞島 —— 用的就是火巨人蘇爾特的名字。',
+    sky: ['#2e2638', '#d8744a'], hill: '#2a2a30',
+    cloud: 'rgba(90, 80, 90, 0.45)',
+    groundTop: '#3c3a3e', groundBody: '#1e1c20',
+    boss: {
+      name: '火巨人 Surtr',
+      kind: 'surtr',
+      /*
+       * 火焰劍（pattern 'surtr'，見 entities.js）：
+       *   每一劍先舉劍蓄力 —— 劍舉到頭頂 = 高掃（站在地上別跳），劍壓低貼地 = 低掃（跳過去）。
+       *   一輪連揮三劍（狂暴四劍，還會從火山噴出熔岩彈從天上掉）。
+       * 前面沒有魔王是「要你讀高低、決定跳或不跳」的：不能看到東西飛來就反射性地跳。
+       */
+      pattern: 'surtr',
+      x: 760, w: 80, h: 92,
+      hp: 4,
+      rageAt: 2,
+      debris: 3,
+      left: 300, right: 920,
+      speed: 1.2,
+      recoverTime: 150,
+      idleTime: 80
+    },
+    equipAt: { x: 600, y: 380 },
+    props: [
+      { type: 'lavaRock', x: 180 },
+      { type: 'runestone', x: 470 },
+      { type: 'lavaRock', x: 900 },
+      { type: 'lavaRock', x: 1130 }
+    ],
+    platforms: [
+      { x: 40, y: 292, w: 150, h: 20 },
+      { x: 1060, y: 292, w: 150, h: 20 }
+    ],
+    coins: [
+      { x: 70, y: 250 }, { x: 104, y: 250 }, { x: 138, y: 250 },
+      { x: 1090, y: 250 }, { x: 1124, y: 250 }, { x: 1158, y: 250 },
+      { x: 480, y: 332 }, { x: 514, y: 332 }, { x: 548, y: 332 }, { x: 582, y: 332 }
     ]
   }));
 

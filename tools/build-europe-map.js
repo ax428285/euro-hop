@@ -39,7 +39,12 @@ const SCALE_LON_MIN = -12, SCALE_LON_MAX = 45, SCALE_W = 960;
  * 取景回到原本的範圍（南到撒哈拉、東到東經 45）。上面的非洲國家清單留著：取景外的會被 ringInBox 自動略過。
  * 之後真的要往南延伸，改這兩行就好（比例尺固定，歐洲座標不會變）。
  */
-const LON_MIN = -12, LON_MAX = 45;
+/*
+ * v1.30 北歐篇：往西延伸到西經 26 度，把冰島（西經 13.6 ~ 24.3）放進地圖。
+ * ⚠️ 這會讓所有國家的世界 x 座標整體往右移約 236px（比例尺不變）。遊戲裡的座標都是用經緯度
+ *   （EuropeWorld.project）或國界資料算的，存檔也沒有記船的世界座標，所以整體平移不影響。
+ */
+const LON_MIN = -26, LON_MAX = 45;
 // v1.9：往北到挪威北角（北歐）、往南到撒哈拉（非洲篇在地中海沿岸）
 const LAT_MIN = 19, LAT_MAX = 71.5;
 // x 相對 y 的拉伸（Mercator 在這個緯度帶看起來偏瘦，略拉寬比較像大家印象中的歐洲）
@@ -70,7 +75,9 @@ const BACKDROP_COUNTRIES = {
   NAM: 'NA', ZAF: 'ZA', LSO: 'LS', SWZ: 'SZ', MDG: 'MG', TZA: 'TZ', KEN: 'KE', UGA: 'UG',
   RWA: 'RW', BDI: 'BI', SDS: 'SS', ETH: 'ET', DJI: 'DJ', SOM: 'SO', SOL: 'XS',
   // 阿拉伯半島南部（取景往東延伸後進來的）
-  KWT: 'KW', QAT: 'QA', ARE: 'AE', OMN: 'OM'
+  KWT: 'KW', QAT: 'QA', ARE: 'AE', OMN: 'OM',
+  // v1.30 北歐篇：冰島（關卡國，跟東歐、非洲一樣由 worldmap 算圖釘）＋格陵蘭東岸（取景西北角）
+  ISL: 'IS', GRL: 'GL'
 };
 
 // 小國：簡化與最小面積放寬，不然會被濾掉（甘比亞、賴索托、史瓦帝尼、吉布地、盧安達、蒲隆地⋯⋯）

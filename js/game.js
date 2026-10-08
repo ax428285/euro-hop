@@ -821,7 +821,12 @@ const Game = (function () {
     clam: ['巨蚌', '一開一合，抖動之後就要夾起來了 —— 張開時裡面的珍珠可以拿'],
     relic: ['沉船寶物', '發光的就是兩千年前的寶物，沿路一共三件，終點船艙還有一件'],
     vent: ['海底氣泡噴口', '頭上的氣泡是你的空氣 —— 游進噴口冒出來的氣泡柱就能補滿'],
-    mount: ['駱駝坐騎', '碰一下就騎上去：跑得快、跳得高、不陷沙也不怕風沙；被打到駱駝會跑掉，但你不扣血']
+    mount: ['駱駝坐騎', '碰一下就騎上去：跑得快、跳得高、不陷沙也不怕風沙；被打到駱駝會跑掉，但你不扣血'],
+    // v1.30 北歐篇
+    brick: ['樂高積木階梯', '紅、藍積木輪流出現 —— 腳下的積木開始閃就起跳，落下時另一色剛好出來'],
+    ice: ['結冰的湖面', '冰上會滑：加速慢、放開還會滑一段，斷崖前要提早放開方向鍵'],
+    floe: ['峽灣的浮冰', '冰海跳不過去，要踩浮冰 —— 浮冰站一下就會往下沉，別停，一塊接一塊跳'],
+    aurora: ['北極圈的極夜', '只看得到身邊 —— 等天上的極光亮起來，整片雪地就看得清楚了']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -2369,7 +2374,8 @@ const Game = (function () {
         x: bx.x - camX, y: bx.y, w: bx.w, h: bx.h,
         dir: b.dir, kind: b.kind, phase: b.phase,
         hp: b.hp, hpMax: b.hpMax, hurtFlash: b.hurtFlash,
-        defeated: b.defeated, deathTimer: b.deathTimer, fade: b.fade
+        defeated: b.defeated, deathTimer: b.deathTimer, fade: b.fade,
+        swing: b.swing, swingK: b.swingK      // 冰島火巨人：劍舉高（高掃）還是壓低（低掃）
       }, t);
     }
 
@@ -2390,7 +2396,8 @@ const Game = (function () {
       if (sx > W + 30 || sx < -30) return;
       Sprites.shot(ctx, { x: sx, y: s.y, w: s.w, h: s.h, wave: s.wave, fire: s.fire, debris: s.debris,
         spear: s.spear, bat: s.bat, vx: s.vx, vy: s.vy,
-        pillar: s.pillar, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember }, t);
+        pillar: s.pillar, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember,
+        slash: s.slash, lava: s.lava }, t);
     });
 
     // 玩家的遠程攻擊（板球／辣椒火球）
@@ -2643,7 +2650,7 @@ const Game = (function () {
   const TITLE_GUIDE = [
     ['#ffd166', '開船環遊', '開到國家旁按 Enter 進城，跑到終點旗子過關'],
     ['#8fe3a0', '找裝備', '每關藏一件裝備，常在密道裡（往上頂出隱形磚）'],
-    ['#ff9aa8', '海上冒險', '打海上怪物拿 EXP，累積夠了解鎖東歐、非洲篇'],
+    ['#ff9aa8', '海上冒險', '打海上怪物拿 EXP，累積夠了解鎖東歐、非洲、北歐篇'],
     ['#9cd0c8', '港口', 'B 商店・造船廠升級船・貿易港低買高賣接懸賞'],
     ['#e2c8ff', '兩人一起', 'C 同機雙人，或 ☰ 選單「連線」；土耳其有雙人關'],
     ['#f6d98a', '世界之謎', '每過一關得一條線索（N 查看），集滿揭開祕密']
@@ -3596,9 +3603,9 @@ const Game = (function () {
     ctx.fill();
 
     const sv = Save.get();
-    // 依剛打完的是哪一篇顯示（西歐篇 / 東歐篇 / 非洲篇）
+    // 依剛打完的是哪一篇顯示（西歐篇 / 東歐篇 / 非洲篇 / 北歐篇）
     const region = (Levels.list[levelIndex] && Levels.list[levelIndex].region) || 'west';
-    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！' };
+    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！', north: '北歐篇完成！' };
     U.text(ctx, WIN_TITLE[region] || WIN_TITLE.west, W / 2, 124, { size: 42, color: '#ffd166' });
     // 路線由關卡資料組出來，加關卡不用改這裡。
     // 10 個城市一行會太長，拆兩行。
@@ -3613,10 +3620,13 @@ const Game = (function () {
       W / 2, 212, { size: 22, color: '#8fe3a0' });
 
     if (sv.equipment.length) {
+      // v1.30：裝備超過 20 件一排放不下（28 件 × 40 = 1120 > 畫面寬）→ 間距、大小跟著縮
       const n = sv.equipment.length;
-      const startX = W / 2 - (n - 1) * 40 / 2;
+      const gap = Math.min(40, (W - 200) / Math.max(1, n - 1));
+      const sc = Math.min(0.8, gap / 50);
+      const startX = W / 2 - (n - 1) * gap / 2;
       sv.equipment.forEach(function (id, i) {
-        Sprites.equipIcon(ctx, id, startX + i * 40, 268, 0.8);
+        Sprites.equipIcon(ctx, id, startX + i * gap, 268, sc);
       });
     }
     U.text(ctx, '明信片已經寄回家了。', W / 2, 322, { size: 15, color: '#c6d2e8' });

@@ -50,6 +50,13 @@ function runLevelCheck() {
         if (!ok) issues.push(tag + '：山谷 x=' + g.x + ' 寬 ' + g.w + ' 沒有兩頭都接得上月台的纜車');
         return;
       }
+      // v1.30 挪威冰海水道：本來就跳不過去，要踩浮冰（浮冰的間距由 feature-check 驗）
+      const ch = (def.channels || []).filter(function (c) { return Math.abs(c.x - g.x) < 2 && Math.abs(c.w - g.w) < 2; })[0];
+      if (ch) {
+        const floes = (def.features || []).filter(function (f) { return f.type === 'floe' && f.bx > g.x && f.bx < g.x + g.w; });
+        if (!floes.length) issues.push(tag + '：冰海水道 x=' + g.x + ' 寬 ' + g.w + ' 上面沒有浮冰');
+        return;
+      }
       if (!gapCrossable(g, solids, hazards, def)) {
         issues.push(tag + '：斷崖 x=' + g.x + ' 寬 ' + g.w +
           ' 找不到可行的跳躍軌跡（可能被上方平台擋住或太寬）');

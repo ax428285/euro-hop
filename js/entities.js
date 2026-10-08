@@ -122,6 +122,22 @@ function makeWave(x, dir, speed) {
  * 人面獅身的沙柱（v1.29.1）：先在地上冒流沙漩渦（warn 帧，不會痛），時間到從地底噴出一根沙柱。
  * fixed = 不移動、不做地形碰撞（柱子本來就插在地裡）。
  */
+/*
+ * 冰島火巨人的火焰劍光（v1.30）：從劍尖往前飛、貼著一個高度掃過整個競技場。
+ *   low  貼地（離地 0~28）：要跳過去
+ *   high 齊胸以上（離地 62~150）：站在地上就不會被打到，跳起來反而會撞上；兩側平台上也會被掃到
+ * 玩家站著頭頂離地 40，跳最高約 128 —— 兩種劍光不能用同一招躲。
+ */
+const SLASH_SPEED = 4.2;
+const SLASH_WINDUP = 34;      // 每一劍舉劍蓄力多久（看得出高低）
+const SLASH_GAP = 56;         // 兩劍之間隔多久（含蓄力）：劍光間距約 235px，跳過一道落地前下一道還沒到
+function makeSlash(x, dir, high) {
+  const G = Levels.GROUND_Y;
+  return high
+    ? { x: x, y: G - 150, w: 30, h: 88, vx: dir * SLASH_SPEED, vy: 0, life: 300, slash: 'high', fixed: true }
+    : { x: x, y: G - 28, w: 30, h: 28, vx: dir * SLASH_SPEED, vy: 0, life: 300, slash: 'low', fixed: true };
+}
+
 const PILLAR_WARN = 48, PILLAR_UP = 34;
 function makePillar(x) {
   return { x: x, y: Levels.GROUND_Y - 124, w: 44, h: 124, vx: 0, vy: 0,
@@ -141,6 +157,7 @@ function makeBoss(def) {
     //   blink  瞬移到背後 + 會追人的蝙蝠
     //   dive   空中斜線俯衝 + 沿路火星、落地火海
     //   sphinx 腳底下噴沙柱（看地上的漩渦走位）
+    //   surtr  火焰劍高掃／低掃（看劍舉高還壓低，決定跳或不跳）
     pattern: def.pattern || 'slam',
     shotsLeft: 0,
     shotCd: 0,
@@ -687,6 +704,33 @@ function updateBoss(state, t) {
         b.phase = 'act';
         events.push('act');
         switch (bossPatternOf(b)) {
+          case 'surtr': {
+            /*
+             * 火巨人：站定連揮三劍（狂暴四劍），高低交錯。順序固定（不用亂數，結果可重現），
+             * 但每一輪從哪一種開始輪流換 —— 玩家要看劍，不能背順序。
+             * 狂暴時火山同時噴出熔岩彈，從天上掉在玩家附近（跟荷蘭風車碎片同一套：看影子躲）。
+             */
+            const rage = bossEnraged(b);
+            b.round = (b.round || 0) + 1;
+            const first = b.round % 2 === 0;           // true = 這輪先高掃
+            b.slashes = [];
+            for (let k = 0; k < (rage ? 4 : 3); k++) b.slashes.push((k % 2 === 0) === first);
+            b.swingT = 0;
+            b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
+            b.timer = 60 + b.slashes.length * SLASH_GAP + 60;
+            if (rage && b.debris > 0) {
+              const ar = state.def.bossArena || { x: 0, w: state.def.width };
+              for (let k = 0; k < b.debris; k++) {
+                const dx = (k - (b.debris - 1) / 2) * 150;
+                const sx = U.clamp(pcx + dx, ar.x + 10, ar.x + ar.w - 24);
+                const sh = makeShot(sx, 30 - k * 40, 0, 2.6);
+                sh.debris = true; sh.lava = true; sh.w = sh.h = 16;
+                state.shots.push(sh);
+              }
+              events.push('shoot');
+            }
+            break;
+          }
           case 'sphinx':
             // 人面獅身：坐定唸咒，連噴三根沙柱（狂暴五根），每根瞄玩家當下的位置
             b.pillarsLeft = bossEnraged(b) ? 5 : 3;
@@ -783,6 +827,35 @@ function updateBoss(state, t) {
 
     case 'act': {
       switch (bossPatternOf(b)) {
+        case 'surtr': {
+          /*
+           * 每一劍：前 SLASH_WINDUP 帧舉劍（b.swing = 'high' / 'low'，畫面上劍的位置不一樣），
+           * 時間到從劍尖放出劍光；接著等到 SLASH_GAP 再揮下一劍。揮的方向在每一劍蓄力開始時對準玩家。
+           */
+          const k = b.swingT % SLASH_GAP;
+          const idx = Math.floor(b.swingT / SLASH_GAP);
+          if (idx < b.slashes.length) {
+            const high = b.slashes[idx];
+            if (k === 0) { b.dir = pcx < b.x + b.w / 2 ? -1 : 1; events.push('throw'); }
+            b.swing = high ? 'high' : 'low';
+            b.swingK = Math.min(1, k / SLASH_WINDUP);
+            if (k === SLASH_WINDUP) {
+              const sx = b.dir > 0 ? b.x + b.w : b.x - 30;
+              state.shots.push(makeSlash(sx, b.dir, high));
+              events.push('shoot');
+            }
+          } else {
+            b.swing = null;
+            if (b.swingT >= b.slashes.length * SLASH_GAP + 24) {
+              b.phase = 'recover';
+              b.timer = b.recoverTime;
+              events.push('slam');
+            }
+          }
+          b.swingT++;
+          break;
+        }
+
         case 'sphinx': {
           /*
            * 沙柱：每 42 帧在玩家腳下放一個流沙漩渦，48 帧後噴出沙柱。
@@ -1079,6 +1152,7 @@ function updateBoss(state, t) {
 
     case 'recover': {
       // 破綻期：不動，可被打
+      b.swing = null;
       if (b.timer <= 0) {
         b.phase = 'idle';
         b.timer = b.idleTime;
@@ -1547,8 +1621,8 @@ function updatePlayer(state, input, t, who) {
     if (sf) {
       const spec = Shaft.TYPES[sf.type] || Shaft.TYPES.normal;
 
-      // 冰面：下一帧的水平移動會讀這個（見「水平輸入」）
-      if (spec.ice) p.onIce = true;
+      // 冰面：下一帧的水平移動會讀這個（見「水平輸入」）；v1.30 馴鹿皮靴（iceGrip）不會滑
+      if (spec.ice && !st.iceGrip) p.onIce = true;
 
       if (!sf.touched) {
         sf.touched = true;
@@ -1670,8 +1744,10 @@ function updatePlayer(state, input, t, who) {
     if (p.invuln > 0) return;
     events.push('hurt');
     p.invuln = 90 + st.invulnBonus;
-    p.vy = -5.5;
-    p.vx = (fromX != null && fromX > p.x ? -1 : 1) * 3.5;
+    // 冰島毛衣（v1.30 steady）：被打到只退一半，不容易被撞下平台、撞進海裡
+    const kb = st.steady ? 0.5 : 1;
+    p.vy = -5.5 * kb;
+    p.vx = (fromX != null && fromX > p.x ? -1 : 1) * 3.5 * kb;
   }
 
   state.enemies.forEach(function (e) {

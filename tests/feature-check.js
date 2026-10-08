@@ -6,6 +6,11 @@
  *   C) 彈跳墊、間歇泉頭上淨空（有平台會撞頭彈回來），獎勵金幣彈得到
  *   D) 啤酒桶真的會滾到玩家面前（曾經因為生在斷崖上、滾進坑裡，整關一個都碰不到）
  *   E) 鹽礦黑暗區裡有礦燈
+ *   v1.30 北歐篇：
+ *   I) 丹麥積木：紅藍輪流（同一時間只有一色在）、戴樂高積木一直都在、頂上的金幣跳得到
+ *   J) 瑞典冰面：站在冰上會滑（放開後滑得比平地遠），馴鹿皮靴不會滑
+ *   K) 挪威浮冰：每道冰海水道都有浮冰、浮冰之間跳得過去；站著不動會沉進海裡
+ *   L) 芬蘭極夜：極光會亮也會暗
  */
 function runFeatureCheck() {
   const issues = [];
@@ -140,6 +145,104 @@ function runFeatureCheck() {
       p.x = col.x - COLUMN_FAR; p.invuln = 0;
       Features.update(st, 200);
       if (Features.solids(st).indexOf(col.lying) < 0) issues.push(tag + '：倒下的石柱沒有變成可以踩的地形');
+    }
+
+    // I) 丹麥積木
+    if (fs.some(function (f) { return f.type === 'brick'; })) {
+      const bricks = fs.filter(function (f) { return f.type === 'brick'; });
+      if (bricks.length < 9) issues.push(tag + '：積木階梯只放了 ' + bricks.length / 3 + ' 座');
+      const a = bricks[0], b = bricks[1];
+      let both = 0, onA = 0, onB = 0;
+      for (let t = 0; t < Features.BRICK_CYCLE; t++) {
+        const sa = Features.brickState(a, t).on, sb = Features.brickState(b, t).on;
+        if (sa && sb) both++;
+        if (sa) onA++;
+        if (sb) onB++;
+      }
+      if (both) issues.push(tag + '：紅藍積木有 ' + both + ' 帧同時都在，不用抓節奏');
+      if (!onA || !onB) issues.push(tag + '：有一色的積木從來不出現');
+      const st = buildLevelState(def, li, ['lego'], Equipment.resolve(['lego']));
+      Features.update(st, a.color === 0 ? Features.BRICK_CYCLE - 1 : 0);    // 這一帧 a 是沒亮的
+      const sol = Features.solids(st);
+      const live = st.features.list.filter(function (f) { return f.type === 'brick' && f.x === a.x && f.y === a.y; })[0];
+      if (sol.indexOf(live) < 0) issues.push(tag + '：戴著樂高積木，沒亮的積木還是踩不到');
+      // 最上面那塊頂上的金幣：從那塊積木跳得到
+      const top = bricks[2];
+      const rise = PHYS.JUMP_V * PHYS.JUMP_V / (2 * G);
+      const cs = def.coins.filter(function (c) { return c.x > top.x - 10 && c.x < top.x + top.w + 10 && c.y < top.y; });
+      if (!cs.length) issues.push(tag + '：積木階梯頂上沒有金幣');
+      cs.forEach(function (c) { if (c.y + 24 < top.y - 40 - rise) issues.push(tag + '：積木頂上的金幣跳不到 (y=' + c.y + ')'); });
+    }
+
+    // J) 瑞典冰面：同樣全速跑、同時放開，冰上要滑得比較遠；穿馴鹿皮靴就跟平地一樣
+    if (fs.some(function (f) { return f.type === 'ice'; })) {
+      const zone = fs.filter(function (f) { return f.type === 'ice'; })[0];
+      function slide(owned) {
+        const st = buildLevelState(def, li, owned, Equipment.resolve(owned));
+        st.enemies = [];
+        const p = st.player;
+        const seg = def.groundSegs.filter(function (g) { return g.x + g.w > zone.x0 + 300 && g.x < zone.x1 && g.w > 380; })[0];
+        if (!seg) return null;
+        p.x = Math.max(seg.x, zone.x0) + 20; p.y = seg.y - p.h; p.vy = 0; p.onGround = true;
+        const run = { isDown: function (k) { return k === 'right'; }, once: function () { return false; }, endFrame: function () {} };
+        const stop = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+        for (let f = 0; f < 40; f++) { updatePlayer(st, run, f); Features.update(st, f); }
+        const x0 = p.x;
+        for (let f = 40; f < 160; f++) { updatePlayer(st, stop, f); Features.update(st, f); }
+        return p.x - x0;
+      }
+      const ice = slide([]), grip = slide(['nutukas']);
+      if (ice == null) issues.push(tag + '：冰面區間裡找不到夠長的地面');
+      else {
+        if (ice < 30) issues.push(tag + '：站在冰上放開方向鍵只滑了 ' + Math.round(ice) + 'px，感覺不到冰');
+        if (!(grip < ice - 20)) issues.push(tag + '：穿馴鹿皮靴還是一樣滑（' + Math.round(grip) + ' vs ' + Math.round(ice) + '）');
+      }
+    }
+
+    // K) 挪威浮冰
+    if (fs.some(function (f) { return f.type === 'floe'; })) {
+      (def.channels || []).forEach(function (ch) {
+        const fl = fs.filter(function (f) { return f.type === 'floe' && f.bx > ch.x && f.bx < ch.x + ch.w; })
+          .sort(function (a, b) { return a.bx - b.bx; });
+        if (!fl.length) { issues.push(tag + '：冰海水道 x=' + ch.x + ' 上面沒有浮冰，過不去'); return; }
+        // 每一跳（岸 → 浮冰 → 浮冰 → 岸）在浮冰漂得最遠的時候都要跳得過
+        const pts = [ch.x];
+        fl.forEach(function (f) { pts.push(f.bx - f.amp, f.bx + f.w + f.amp); });
+        pts.push(ch.x + ch.w);
+        for (let k = 0; k + 1 < pts.length; k += 2) {
+          if (pts[k + 1] - pts[k] > 130) issues.push(tag + '：冰海水道 x=' + ch.x + ' 有一跳要 ' + Math.round(pts[k + 1] - pts[k]) + 'px，太遠');
+        }
+      });
+      if (!(def.channels || []).length) issues.push(tag + '：有浮冰但沒有冰海水道');
+      // 站在浮冰上不動：要沉進海裡（不能當成一般平台）
+      const st = buildLevelState(def, li, [], Equipment.resolve([]));
+      st.enemies = [];
+      const p = st.player;
+      const floe = st.features.list.filter(function (f) { return f.type === 'floe'; })[0];
+      Features.update(st, 0);
+      p.x = floe.box.x + 20; p.y = floe.box.y - p.h; p.vy = 0;
+      const idle = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+      let fell = false, rodeAt = -1;
+      for (let f = 1; f < 200 && !fell; f++) {
+        const ev = updatePlayer(st, idle, f);
+        Features.update(st, f);
+        if (rodeAt < 0 && p.ridingMover === floe.box) rodeAt = f;
+        if (ev.indexOf('fall') >= 0) fell = true;
+      }
+      if (rodeAt < 0) issues.push(tag + '：站到浮冰上沒有被當成可以站的平台');
+      if (!fell) issues.push(tag + '：站在浮冰上 200 帧都沒沉下去，浮冰等於普通平台');
+    }
+
+    // L) 芬蘭極夜
+    if (fs.some(function (f) { return f.type === 'aurora'; })) {
+      let dark = 0, bright = 0;
+      for (let t = 0; t < Features.AURORA_CYCLE; t++) {
+        const g = Features.auroraGlow(t);
+        if (g === 0) dark++;
+        if (g === 1) bright++;
+      }
+      if (!dark || !bright) issues.push(tag + '：極光沒有亮暗交替（暗 ' + dark + '、亮 ' + bright + ' 帧）');
+      if (bright < 60) issues.push(tag + '：極光亮的時間太短，來不及看路');
     }
   });
   return { issueCount: issues.length, issues: issues, kinds: seenTypes };
