@@ -85,7 +85,7 @@ const Encounter = (function () {
   KINDS.atlantis = { name: '亞特蘭提斯', lv: '遺跡', exp: 120, bossExp: 200, bossCoins: 250, game: '潛水探險',
                      goal: '往下潛到最底層的神殿！跳躍 = 往上游・頭上的氣泡用完會嗆水，游進噴口的氣泡柱補氣', dive: true };
   /** 地圖上固定的地點（經緯度；不能航行的話往附近找開闊海面）：海上魔王＋亞特蘭提斯 */
-  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -10.8, lat: 33.4 }];
+  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -9.4, lat: 33.4 }];
 
   let monsters = [];
   let spawnTimer = 120;
@@ -343,8 +343,9 @@ const Encounter = (function () {
           ctx.beginPath(); ctx.arc(-8 + k * 8, -6 - ph, 1.6 + k * 0.4, 0, Math.PI * 2); ctx.stroke();
         }
         ctx.fillStyle = 'rgba(10, 60, 80, 0.9)';
-        U.roundRect(ctx, -26, -44, 52, 14, 4); ctx.fill();
-        U.text(ctx, been ? '再潛一次' : '海底遺跡', 0, -37, { size: 10, color: '#a8f0e8', stroke: false });
+        // v1.25.2 玩家：用本名顯示（原本寫「海底遺跡」）
+        U.roundRect(ctx, -30, -44, 60, 14, 4); ctx.fill();
+        U.text(ctx, '亞特蘭提斯', 0, -37, { size: 10, color: been ? '#7fb8b0' : '#a8f0e8', stroke: false });
         ctx.restore();
         return;
       }
@@ -363,8 +364,9 @@ const Encounter = (function () {
         ctx.beginPath(); ctx.arc(0, -2, pulse, 0, Math.PI * 2); ctx.stroke();
         drawScyllaMap(ctx, t);
         ctx.fillStyle = beaten ? 'rgba(50, 40, 60, 0.9)' : 'rgba(120, 10, 24, 0.92)';
-        U.roundRect(ctx, -20, -46, 40, 14, 4); ctx.fill();
-        U.text(ctx, beaten ? '再戰' : '魔王', 0, -39, { size: 10, color: beaten ? '#c8b8e0' : '#ffd0d6', stroke: false });
+        // v1.25.2 玩家：魔王用本名顯示（原本只寫「魔王」）；打倒過的牌子變灰
+        U.roundRect(ctx, -32, -46, 64, 14, 4); ctx.fill();
+        U.text(ctx, m.def.name, 0, -39, { size: 10, color: beaten ? '#c8b8e0' : '#ffd0d6', stroke: false });
         ctx.restore();
         return;
       }

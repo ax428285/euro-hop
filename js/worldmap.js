@@ -255,10 +255,10 @@ const WorldMap = (function () {
    *   駱駝商隊  撒哈拉：阿爾及利亞內陸的綠洲（上岸用走的）
    */
   const MERCHANT_DEFS = [
-    { id: 'M_isle', seller: 'isle', lon: 14.2, lat: 35.4, prompt: '按 Enter 跟地中海的藥草婆婆交易' },
-    { id: 'M_fjord', seller: 'fjord', lon: 3.6, lat: 62.6, prompt: '按 Enter 跟峽灣的老漁夫交易' },
+    { id: 'M_isle', seller: 'isle', name: '藥草婆婆', lon: 14.2, lat: 35.4, prompt: '按 Enter 跟地中海的藥草婆婆交易' },
+    { id: 'M_fjord', seller: 'fjord', name: '峽灣老漁夫', lon: 3.6, lat: 62.6, prompt: '按 Enter 跟峽灣的老漁夫交易' },
     // v1.23：阿爾及利亞變成關卡，圖釘落在國土中央 → 商隊往西南挪，不然兩個圖釘疊在一起
-    { id: 'M_oasis', seller: 'oasis', lon: -1.5, lat: 26.6, prompt: '按 Enter 跟綠洲的駱駝商隊交易' }
+    { id: 'M_oasis', seller: 'oasis', name: '駱駝商隊', lon: -1.5, lat: 26.6, prompt: '按 Enter 跟綠洲的駱駝商隊交易' }
   ];
   const specials = [];
 
@@ -276,7 +276,8 @@ const WorldMap = (function () {
       const p = EuropeWorld.project(m.lon, m.lat);
       const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
       specials.push({
-        id: m.id, name: '神祕商人', shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
+        // v1.25.2 玩家：神祕商人要用本名顯示在地圖上（原本三位都只寫「神祕商人」）
+        id: m.id, name: m.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
         def: { role: '神祕商人', scene: 'shop', seller: m.seller, merchant: true, prompt: m.prompt }
       });
     });
