@@ -339,7 +339,16 @@ const Input = (function () {
     el.addEventListener('pointerup', function () { set(ui, 'confirm', false); });
   }
 
-  /** 把點擊位置換算成畫布座標，地圖選國家用 */
+  /**
+   * 把點擊位置換算成畫布座標，地圖選國家用。
+   *
+   * ⚠️ v1.27.2 修正（玩家：放棄關卡回大地圖後，人物不在原本的關卡上）：
+   * 點擊只有地圖等畫面會讀（takeClick），關卡裡沒人讀 —— 手機上拇指在按鈕旁邊點到畫面是常有的事，
+   * 那一下就一直留著，回到地圖的第一帧被當成「點地圖」，船直接被傳送到那個位置的國家。
+   * 所以點擊會過期：讀的畫面每帧都會讀（1/60 秒），超過 CLICK_TTL 還沒被讀走的一定是別的畫面留下來的。
+   * 回地圖時 game.js 也會主動清掉（clearClick）。
+   */
+  const CLICK_TTL = 300;
   let lastClick = null;
   function bindCanvasClick(canvas, logicalW, logicalH) {
     if (!canvas) return;
@@ -353,7 +362,14 @@ const Input = (function () {
         x: (e.clientX - r.left) / r.width * logicalW,
         y: (e.clientY - r.top) / r.height * logicalH
       };
+      lastClick.at = Date.now();
     });
+  }
+  function takeClick() {
+    const c = lastClick;
+    lastClick = null;
+    if (!c || Date.now() - c.at > CLICK_TTL) return null;
+    return c;
   }
 
   /**
@@ -372,7 +388,9 @@ const Input = (function () {
     bindPad: bindPad,
     bindTapConfirm: bindTapConfirm,
     bindCanvasClick: bindCanvasClick,
-    takeClick: function () { const c = lastClick; lastClick = null; return c; },
+    takeClick: takeClick,
+    /** 丟掉還沒被讀走的點擊（切換畫面時用，別讓上一個畫面的點擊被下一個畫面拿去用） */
+    clearClick: function () { lastClick = null; },
     /** 程式觸發一次 UI 動作（等同按一下就放開），例如手機 ☰ 在子畫面當「回地圖」 */
     press: function (action) { set(ui, action, true); set(ui, action, false); },
     /**

@@ -94,6 +94,44 @@ function runBalanceCheck() {
       else if (Game.debug.getCursor() !== o.i) issues.push(o.def.country + '：資訊卡顯示的不是這一國');
     });
     report.clearReturnChecked = picks.map(function (o) { return o.def.country; });
+
+    // ── 4. 放棄關卡回地圖：關卡裡點過畫面，回地圖船也不能被傳走（v1.27.2）──
+    // 重現方式：在關卡裡點畫面上「地圖會是別國」的位置，再放棄關卡。修正前船會跑到那一國。
+    {
+      const keyQ = function (code) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: code })); Game.debug.step(1);
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: code })); Game.debug.step(1);
+      };
+      const canvas = document.getElementById('game');
+      const home = picks[picks.length - 1].i;
+      Game.debug.setScene('map'); Voyage.reset(home); Game.debug.setCursor(home); Game.debug.step(3);
+      // 回到這一國時的地圖鏡頭下，找畫面上是「別的國家」的一點
+      let spot = null;
+      for (let fy = 0.2; fy < 0.8 && !spot; fy += 0.04) {
+        for (let fx = 0.05; fx < 0.95 && !spot; fx += 0.04) {
+          const w = WorldMap.toWorld(fx * 960, fy * 480);
+          const h = WorldMap.hitTest(w.x, w.y);
+          if (h >= 0 && h !== home && h < Save.get().unlocked) spot = { fx: fx, fy: fy, other: h };
+        }
+      }
+      if (!spot) issues.push('找不到可以測「關卡裡點畫面」的位置');
+      else {
+        keyQ('Enter');                                   // 進關卡
+        const r = canvas.getBoundingClientRect();
+        canvas.dispatchEvent(new PointerEvent('pointerdown', {
+          clientX: r.left + r.width * spot.fx, clientY: r.top + r.height * spot.fy, bubbles: true }));
+        Game.debug.step(10);
+        keyQ('KeyQ'); keyQ('KeyQ');                      // 放棄這一關 → 確認
+        Game.debug.step(2);
+        const at = Voyage.nearbyLevel();
+        if (Game.debug.getScene() !== 'map') issues.push('放棄關卡後沒回到地圖');
+        else if (at !== home) {
+          issues.push('放棄' + Levels.list[home].country + '關卡後，船跑到了' +
+                      (at >= 0 ? Levels.list[at].country : '別的地方') + '（關卡裡點過的畫面被當成點地圖）');
+        }
+        report.quitReturn = Levels.list[home].country + '（關卡裡點了' + Levels.list[spot.other].country + '的位置）';
+      }
+    }
   } finally {
     if (backup === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, backup);
     Save.load();

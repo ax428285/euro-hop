@@ -145,6 +145,9 @@ const Game = (function () {
 
   function toMap() {
     scene = 'map';
+    // 關卡裡在畫面上點的那幾下不能帶到地圖：不然回地圖第一帧就被當成「點國家」，船被傳走
+    // （v1.27.2 玩家：放棄關卡回大地圖後人物不在原本關卡上）
+    Input.clearClick();
     // 連線：離開關卡了，下一關開始時再整份重傳（朋友那邊會收到 'wait' 回等待畫面）
     net.levelLive = false;
     cursor = U.clamp(cursor, 0, Save.get().unlocked - 1);
