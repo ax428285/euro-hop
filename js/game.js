@@ -90,6 +90,7 @@ const Game = (function () {
       const vi = VEHICLE_INTRO[def.vehicle];
       toast = { text: vi[0], sub: vi[1], life: 260 };
     }
+    if (def.autorun) toast = { text: '坐上馴鹿雪橇！', sub: '雪橇會自己往前衝、停不下來 —— 只要按跳躍・冰面上會越滑越快', life: 280 };
     state = buildLevelState(def, i, sv.equipment, stats, coop);
     // 海神夥伴（消耗品）：有的話魔王關自動出戰，第一次出手才扣掉一個（還沒出手就輸了不算）
     if (def.isBoss && Save.get().allies > 0) {
@@ -131,7 +132,7 @@ const Game = (function () {
     skirmish = m;
     // 造船廠的加厚船身（v1.26）：海上遭遇戰多幾顆愛心（潛水是人下水，不算）
     if (!m.def.dive && !m.def.duo && !m.def.quest && typeof Shipyard !== 'undefined') {
-      maxLives += Shipyard.hullBonus(Save.ship());
+      maxLives = Math.min(Equipment.MAX_LIVES, maxLives + Shipyard.hullBonus(Save.ship()));
       lives = [maxLives, maxLives];
     }
     // 雙人試煉：二段跳、蹬牆跳、滑翔、跳躍強化封印（不然一個人就上得了高台，見 duo.js）
@@ -296,6 +297,19 @@ const Game = (function () {
   /** 從地圖直接開始的探險（金字塔；冥界從卡律布狄斯接過去） */
   function startQuestLevel(kind, at) {
     startSkirmish(Expedition.questMonster(kind, at || Voyage.shipPos()));
+  }
+
+  /*
+   * v1.30：卡律布狄斯的漩渦逃生裡掉進中間的漩渦眼（還沒救出洛基時）→ 不是被甩回來，
+   * 而是被漩渦吞到底、沉進冥界赫爾海姆（雷神索爾謎語裡「吞下船的嘴」）。玩家：掉下去就可以了，不用到沒血。
+   */
+  function startHel() {
+    const at = { x: skirmish.x, y: skirmish.y };
+    Music.stop();
+    Sfx.bossRoar();
+    startQuestLevel('hel', at);
+    shipBack = at;
+    toast = { text: '被漩渦吞下去了⋯⋯', sub: '一路往下沉、往下沉 —— 這裡是哪裡？', life: 220 };
   }
 
   // ── 世界之謎 ──────────────────────────────────────────
@@ -929,7 +943,7 @@ const Game = (function () {
     mount: ['駱駝坐騎', '碰一下就騎上去：跑得快、跳得高、不陷沙也不怕風沙；被打到駱駝會跑掉，但你不扣血'],
     // v1.30 北歐篇
     brick: ['樂高積木階梯', '紅、藍積木輪流出現 —— 腳下的積木開始閃就起跳，落下時另一色剛好出來'],
-    ice: ['結冰的湖面', '冰上會滑：加速慢、放開還會滑一段，斷崖前要提早放開方向鍵'],
+    ice: ['結冰的湖面', '雪橇在冰上越滑越快、跳得更遠 —— 斷崖前要算準起跳點，別跳過頭'],
     floe: ['峽灣的浮冰', '冰海跳不過去，要踩浮冰 —— 浮冰站一下就會往下沉，別停，一塊接一塊跳'],
     aurora: ['北極圈的極夜', '只看得到身邊 —— 等天上的極光亮起來，整片雪地就看得清楚了']
   };
@@ -1166,6 +1180,7 @@ const Game = (function () {
         case 'boom': Sfx.stomp(); shake = 8; break;
         case 'catch': Sfx.coin(); runScore += 100; break;
         case 'minifail': onMiniFail(); break;
+        case 'helfall': startHel(); break;
         case 'cannon': Sfx.stomp(); shake = 8; break;
         case 'creak': Sfx.clang(); break;
         case 'collapse': Sfx.land(); shake = 4; break;
@@ -1740,19 +1755,6 @@ const Game = (function () {
           sub: '隊友還能繼續 —— 撐到終點就好',
           life: 160
         };
-        return;
-      }
-      /*
-       * v1.30：卡律布狄斯的漩渦逃生把命用完（還沒找到洛基時）→ 不是「旅程中斷」，
-       * 而是被漩渦吞到底、沉進冥界赫爾海姆（雷神索爾給的線索）。
-       */
-      if (skirmish && skirmish.kind === 'charybdis' && Quests.helReady()) {
-        const at = { x: skirmish.x, y: skirmish.y };
-        Music.stop();
-        Sfx.bossRoar();
-        startQuestLevel('hel', at);
-        shipBack = at;
-        toast = { text: '被漩渦吞下去了⋯⋯', sub: '一路往下沉、往下沉 —— 這裡是冥界赫爾海姆？', life: 220 };
         return;
       }
       Sfx.gameover();
@@ -2548,6 +2550,8 @@ const Game = (function () {
       }, t);
       // 騎駱駝（非洲關坐騎）：駱駝蓋在玩家腿上
       if (p.mount) Features.drawMount(ctx, p, p.x - camX, t);
+      // 瑞典馴鹿雪橇（v1.30）：雪橇墊在腳下、馴鹿在前面拉
+      if (state.def.autorun && !p.out) Features.drawSled(ctx, p, p.x - camX, t);
     });
     // 海神夥伴（魔王關）與牠丟出去的三叉戟
     if (state.ally) {

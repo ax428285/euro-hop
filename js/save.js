@@ -114,7 +114,7 @@ const Save = (function () {
     if (d.zoo && typeof d.zoo === 'object') {
       Object.keys(d.zoo).forEach(function (k) {
         const n = parseInt(d.zoo[k], 10) || 0;
-        if (n > 0 && /^[a-z]+$/.test(k)) out.zoo[k] = Math.min(n, 99);
+        if (n > 0 && /^[a-z]+$/.test(k)) out.zoo[k] = 1;
       });
     }
     out.zooDay = Math.max(0, parseInt(d.zooDay, 10) || 0);
@@ -443,7 +443,8 @@ const Save = (function () {
     setFlag: function (k, v) { data.flags[k] = v; persist(); },
     bank: function () { return data.bank; },
     zoo: function () { return data.zoo; },
-    addAnimal: function (id, n) { data.zoo[id] = Math.min(99, (data.zoo[id] || 0) + (n || 1)); persist(); },
+    // v1.30 玩家：動物園每種動物一隻就好 → 回傳 true = 這種是新抓到的
+    addAnimal: function (id) { const fresh = !data.zoo[id]; data.zoo[id] = 1; persist(); return fresh; },
     reset: function () { data = blank(); persist(); }
   };
 })();

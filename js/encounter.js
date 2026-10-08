@@ -996,11 +996,14 @@ const Encounter = (function () {
         const dir = qx < cx ? 1 : -1;
         q.x += dir * (q.onGround ? 1.15 : 0.6) * (1 + mini.got * 0.12);
         // 掉進漩渦眼：痛一下、被甩回兩側
+        // v1.30：還沒救出洛基時，掉進漩渦眼就一路沉到冥界（不用把命用完，game.js 收到 'helfall' 接冥界）
+        if (q.y > GY + 30 && typeof Quests !== 'undefined' && Quests.helReady()) { mini.helfall = true; return; }
         if (q.y > GY + 30) {
           hurt(q, cx, events);
           q.x = qx < cx ? 90 : ARENA_W - 110; q.y = GY - 200; q.vy = 0;
         }
       });
+      if (mini.helfall) { mini.done = true; events.push('helfall'); return events; }
       // 救生圈：輪流出現在左右兩側的高處，碰到就算抓到一個
       if (!mini.buoy && --mini.next <= 0) {
         const left = mini.seq++ % 2 === 0;

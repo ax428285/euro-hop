@@ -191,11 +191,40 @@ function runFeatureCheck() {
         for (let f = 40; f < 160; f++) { updatePlayer(st, stop, f); Features.update(st, f); }
         return p.x - x0;
       }
+      if (def.autorun) {
+        /*
+         * v1.30 瑞典改成馴鹿雪橇（自動往前衝）：冰上要衝得比平地快；穿馴鹿皮靴就不會暴衝。
+         * 在冰面區間的地面上跑 120 帧，量最快的速度。
+         */
+        const top = function (owned, onIce) {
+          const st = buildLevelState(def, li, owned, Equipment.resolve(owned));
+          st.enemies = [];
+          const p = st.player;
+          const seg = def.groundSegs.filter(function (g) {
+            const inZone = g.x + g.w > zone.x0 + 300 && g.x < zone.x1;
+            return g.w > 380 && (onIce ? inZone : !def.features.some(function (z) { return z.type === 'ice' && g.x + g.w > z.x0 && g.x < z.x1; }));
+          })[0];
+          if (!seg) return null;
+          p.x = (onIce ? Math.max(seg.x, zone.x0) : seg.x) + 20; p.y = seg.y - p.h; p.vy = 0; p.onGround = true;
+          const idle = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+          let mx = 0;
+          for (let f = 0; f < 70; f++) { updatePlayer(st, idle, f); Features.update(st, f); mx = Math.max(mx, p.vx); }
+          return mx;
+        };
+        const iceV = top([], true), groundV = top([], false), gripV = top(['nutukas'], true);
+        if (iceV == null || groundV == null) issues.push(tag + '：雪橇測試找不到冰面／平地的地面');
+        else {
+          if (!(groundV > 3)) issues.push(tag + '：雪橇沒有自己往前衝（最快 ' + groundV.toFixed(1) + '）');
+          if (!(iceV > groundV * 1.15)) issues.push(tag + '：雪橇在冰上沒有比較快（' + iceV.toFixed(1) + ' vs ' + groundV.toFixed(1) + '）');
+          if (!(gripV < iceV - 0.3)) issues.push(tag + '：穿馴鹿皮靴，雪橇在冰上還是暴衝');
+        }
+      } else {
       const ice = slide([]), grip = slide(['nutukas']);
       if (ice == null) issues.push(tag + '：冰面區間裡找不到夠長的地面');
       else {
         if (ice < 30) issues.push(tag + '：站在冰上放開方向鍵只滑了 ' + Math.round(ice) + 'px，感覺不到冰');
         if (!(grip < ice - 20)) issues.push(tag + '：穿馴鹿皮靴還是一樣滑（' + Math.round(grip) + ' vs ' + Math.round(ice) + '）');
+      }
       }
     }
 

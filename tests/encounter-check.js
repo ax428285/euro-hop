@@ -10,6 +10,9 @@
 function runEncounterCheck() {
   const issues = [];
   const ship = Voyage.shipPos();
+  // v1.30：還沒救出洛基時，漩渦逃生掉進漩渦眼會直接沉到冥界 → 這裡驗「一般的漩渦逃生」，先當作已經救出
+  const flags = Save.get().flags, lokiWas = flags.loki;
+  flags.loki = 1;
 
   // ── A) ──
   Encounter.clear();
@@ -284,5 +287,6 @@ function runEncounterCheck() {
     if (!drown) issues.push('潛水關：一直沒補氣也不會嗆水，空氣系統沒作用');
   })();
 
+  flags.loki = lokiWas;
   return { issueCount: issues.length, issues: issues, report: report };
 }

@@ -328,15 +328,29 @@ function runSecretCheck() {
       if (early) issues.push(label + '：還沒頂磚，走過去就發現密道了（不夠隱晦）');
 
       // 1. 站在磚下跳
+      let bumped = false;
+      if (def.autorun) {
+        // v1.30 瑞典馴鹿雪橇：停不下來 → 改驗「衝過去時在磚前面起跳，頂得到」
+        p.x = s.block.x - 200; p.y = floorY - p.h; p.vy = 0; p.vx = PHYS.MAX_RUN;
+        let jumped = false;
+        for (let f = 0; f < 120 && !bumped; f++) {
+          const go = !jumped && p.onGround && p.x + p.w / 2 >= s.block.x - 24;
+          if (go) jumped = true;
+          held = { jump: jumped, jumpOnce: go };
+          const ev = updatePlayer(st, inp, 100 + f);
+          if (ev.indexOf('secretbump') >= 0) bumped = true;
+        }
+        if (!bumped) { issues.push(label + '：雪橇衝過去時在隱形磚前起跳，頂不到'); return; }
+      } else {
       p.x = s.block.x + s.block.w / 2 - p.w / 2; p.y = floorY - p.h; p.vy = 0; p.vx = 0;
       for (let f = 0; f < 5; f++) { held = {}; updatePlayer(st, inp, f); }
-      let bumped = false;
       for (let f = 0; f < 60 && !bumped; f++) {
         held = { jump: true, jumpOnce: f === 0 };
         const ev = updatePlayer(st, inp, 100 + f);
         if (ev.indexOf('secretbump') >= 0) bumped = true;
       }
       if (!bumped) { issues.push(label + '：站在隱形磚下面跳，頂不到'); return; }
+      }
 
       for (let f = 0; f < 60; f++) { held = {}; updatePlayer(st, inp, 200 + f); }
 

@@ -48,8 +48,20 @@ const Expedition = (function () {
                   clearTitle: '擊沉了' + w.country + '的戰艦！' };
   });
 
+  /*
+   * v1.30 玩家：動物園每種動物一隻就好、每次遷徙只會出一種 →
+   * 一群只有一種動物（優先出動物園還沒有的），其中每隔幾隻有一隻頭上發光的「落單小動物」：
+   * 跳到牠背上就抓到、這場就結束；踩到其他隻只會彈起來，被側面撞到會痛。
+   */
   K.herd = { name: '動物大遷徙', lv: '遷徙', exp: 60, game: '抓動物', custom: true,
-             goal: '跳到動物背上就抓到了！被撞到會痛・40 秒內至少抓 3 隻（最多 12 隻）', clearTitle: '抓到動物了！' };
+             goal: '跳到頭上發光的那一隻背上就抓到了！踩別隻只會彈起來，被撞到會痛', clearTitle: '抓到動物了！' };
+  const HERD_ORDER = ['zebra', 'wildebeest', 'gazelle', 'giraffe', 'lion', 'elephant'];
+  /** 這一群是哪一種：動物園還沒有的先出（依序），全都有了就隨機 */
+  function pickSpecies() {
+    const z = typeof Save !== 'undefined' ? Save.zoo() : {};
+    const missing = HERD_ORDER.filter(function (k) { return !z[k]; });
+    return missing.length ? missing[0] : HERD_ORDER[Math.floor(Math.random() * HERD_ORDER.length)];
+  }
   K.hel = { name: '冥界赫爾海姆', lv: '冥界', exp: 50, bossExp: 120, bossCoins: 100, game: '墜入冥界', custom: true, quest: true,
             goal: '一路往下掉到冥界最底層！上面的冰刺會追下來', clearTitle: '掉到冥界最底層了！' };
   /*
@@ -108,7 +120,7 @@ const Expedition = (function () {
       for (let k = 0; k < 60; k++) {
         const x = b.x0 + Math.random() * (b.x1 - b.x0), y = b.y0 + Math.random() * (b.y1 - b.y0);
         if (!Voyage.isLand(x, y)) continue;
-        monsters.push({ kind: 'herd', def: K.herd, x: x, y: y, heading: Math.random() * Math.PI * 2, life: Infinity, appear: 0, custom: true });
+        monsters.push({ kind: 'herd', def: K.herd, x: x, y: y, heading: Math.random() * Math.PI * 2, life: Infinity, appear: 0, custom: true, species: pickSpecies() });
         break;
       }
       herdCd = 120;
@@ -138,16 +150,19 @@ const Expedition = (function () {
       }
       ctx.fillStyle = 'rgba(200, 160, 100, 0.45)';
       ctx.beginPath(); ctx.ellipse(-4, 2, 20, 5, 0, 0, Math.PI * 2); ctx.fill();
-      [['zebra', -14, 0], ['wildebeest', -2, -3], ['gazelle', 9, 1]].forEach(function (a, i) {
+      const sp = m.species || 'zebra';
+      const big = sp === 'elephant' || sp === 'giraffe';
+      [[-14, 0], [-2, -3], [9, 1]].forEach(function (a, i) {
         ctx.save();
-        ctx.translate(a[1], a[2] + Math.abs(Math.sin(t * 0.25 + i)) * -1.5);
-        ctx.scale(0.28, 0.28);
-        drawAnimal(ctx, a[0], -30, 0, -1, t, true);
+        ctx.translate(a[0], a[1] + Math.abs(Math.sin(t * 0.25 + i)) * -1.5);
+        ctx.scale(big ? 0.22 : 0.28, big ? 0.22 : 0.28);
+        drawAnimal(ctx, sp, -30, 0, -1, t, true);
         ctx.restore();
       });
+      const name = Quests.ANIMALS[sp].name;
       ctx.fillStyle = 'rgba(90, 60, 20, 0.85)';
-      U.roundRect(ctx, -30, -30, 60, 13, 4); ctx.fill();
-      U.text(ctx, '動物大遷徙', 0, -23.5, { size: 9, color: '#ffe0a0', stroke: false });
+      U.roundRect(ctx, -34, -34, 68, 13, 4); ctx.fill();
+      U.text(ctx, name + '大遷徙' + (Save.zoo()[sp] ? '（已收藏）' : ''), 0, -27.5, { size: 9, color: '#ffe0a0', stroke: false });
       return;
     }
     const down = Save.seaBossDown(m.kind);
@@ -227,7 +242,10 @@ const Expedition = (function () {
   }
 
   function prompt(m) {
-    if (m.kind === 'herd') return '按 Enter 去抓動物（' + K.herd.exp + ' EXP，抓到的送進阿爾及爾動物園）';
+    if (m.kind === 'herd') {
+      const nm = Quests.ANIMALS[m.species || 'zebra'].name;
+      return '按 Enter 去抓' + nm + '（' + K.herd.exp + ' EXP' + (Save.zoo()[m.species] ? '・動物園已經有了' : '，抓到的送進阿爾及爾動物園') + '）';
+    }
     const down = Save.seaBossDown(m.kind);
     return '按 Enter 跟' + '★★★'.slice(0, m.def.warship.rank) + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ' EXP' : '首次 +' + m.def.bossExp + ' EXP、€' + m.def.bossCoins) + '）';
   }
@@ -292,7 +310,8 @@ const Expedition = (function () {
     const G = GY();
     if (m.kind === 'herd') {
       return arena(m, {
-        minigame: 'herd', duration: 40 * 60, spawnX: 200,
+        minigame: 'herd', duration: 35 * 60, spawnX: 200, species: m.species || 'zebra',
+        city: Quests.ANIMALS[m.species || 'zebra'].name + '大遷徙',
         sky: ['#f0b060', '#f8e4b0'], hill: '#c8963e', groundTop: '#c8b060', groundBody: '#7a5a30',
         fact: '每年有上百萬頭牛羚、斑馬跟著雨季遷徙找草吃，是地球上最壯觀的動物大移動。抓到的動物會送進阿爾及爾動物園。'
       });
@@ -328,7 +347,7 @@ const Expedition = (function () {
       mini.reload = 150;
       mini.balls = []; mini.shells = []; mini.volCd = 110; mini.marineCd = 420; mini.seq = 0; mini.shake = 0; mini.flash = 0;
     } else if (mini.kind === 'herd') {
-      mini.animals = []; mini.next = 50; mini.seq = 0; mini.caught = [];
+      mini.animals = []; mini.next = 50; mini.seq = 0; mini.caught = []; mini.species = state.def.species || 'zebra';
     }
   }
 
@@ -432,10 +451,14 @@ const Expedition = (function () {
 
     } else if (mini.kind === 'herd') {
       if (--mini.next <= 0) {
-        const id = HERD_SEQ[mini.seq++ % HERD_SEQ.length];
+        const id = mini.species;
         const sp = SPEC[id];
-        mini.next = 46 + (mini.seq % 3) * 16 + (id === 'elephant' ? 40 : 0);
-        mini.animals.push({ id: id, x: 990, w: sp.w, h: sp.h, sp: sp.sp * (1 + mini.elapsed / 7200) });
+        const n = mini.seq++;
+        mini.next = 40 + (n % 3) * 16 + (id === 'elephant' ? 36 : 0);
+        // 第 4 隻之後，每 5 隻有一隻是發光的落單小動物（要抓的就是牠）；小動物比較小、跑得快一點
+        const target = n >= 3 && n % 5 === 3;
+        mini.animals.push({ id: id, x: 990, w: Math.round(sp.w * (target ? 0.8 : 1)), h: Math.round(sp.h * (target ? 0.8 : 1)),
+                            sp: sp.sp * (target ? 1.15 : 1) * (1 + mini.elapsed / 7200), target: target, scale: target ? 0.8 : 1 });
       }
       mini.animals.forEach(function (a) {
         a.x -= a.sp;
@@ -443,19 +466,23 @@ const Expedition = (function () {
         players.forEach(function (q) {
           if (a.gone || !U.overlap(q, bx)) return;
           if (q.vy > 0 && (q.y + q.h) - bx.y < 20) {
-            a.gone = true;
-            mini.caught.push(a.id);
             q.vy = PHYS.STOMP_BOUNCE;
-            events.push('catch');
-            burst(state, a.x + a.w / 2, bx.y, '#ffe9a0', 14);
+            if (a.target) {
+              a.gone = true;
+              mini.caught.push(a.id);
+              events.push('catch');
+              burst(state, a.x + a.w / 2, bx.y, '#ffe9a0', 14);
+            } else {
+              events.push('shoo');         // 踩到大隻的：彈起來而已
+            }
           } else {
             hurt(q, a.x + a.w / 2, events);
           }
         });
       });
       mini.animals = mini.animals.filter(function (a) { return !a.gone && a.x > -140; });
-      if (mini.caught.length >= 12) win();         // 一次最多抓 12 隻
-      else if (!mini.done && mini.time <= 0) { if (mini.caught.length >= 3) win(); else fail(); }
+      if (mini.caught.length >= 1) win();
+      else if (!mini.done && mini.time <= 0) fail();
     }
   }
 
@@ -464,10 +491,15 @@ const Expedition = (function () {
     const out = {};
     if (skirmish.kind === 'herd') {
       herdCd = 900;
-      const cnt = {};
-      (state.mini.caught || []).forEach(function (id) { cnt[id] = (cnt[id] || 0) + 1; });
-      Object.keys(cnt).forEach(function (id) { Save.addAnimal(id, cnt[id]); });
-      out.note = '抓到：' + Object.keys(cnt).map(function (id) { return Quests.ANIMALS[id].name + ' ' + cnt[id]; }).join('、') + ' —— 已送到阿爾及爾動物園';
+      const id = (state.mini.caught || [])[0];
+      if (id) {
+        const nm = Quests.ANIMALS[id].name;
+        out.note = Save.addAnimal(id) ? '抓到一隻' + nm + ' —— 已經送到阿爾及爾動物園'
+                                      : '動物園已經有' + nm + '了，看牠開開心心跑回草原';
+      }
+      // 這一群走了，下一群換別種
+      const mm = Encounter.monsters().filter(function (q) { return q.kind === 'herd'; })[0];
+      if (mm) Encounter.remove(mm);
     }
     if (skirmish.kind === 'hel' && !Save.flag('loki')) {
       // 有鑰匙 → 救出洛基；沒有 → 隔著籠子聊兩句（提示鎖是哪裡的手藝），傳回大地圖
@@ -749,14 +781,29 @@ const Expedition = (function () {
       for (let i = 0; i < 8; i++) {
         ctx.beginPath(); ctx.arc(((i * 137 - t * 2.5) % 1100 + 1100) % 1100 - 70, G - 6 - (i % 3) * 6, 16 + (i % 3) * 6, 0, Math.PI * 2); ctx.fill();
       }
-      mini.animals.forEach(function (a) { drawAnimal(ctx, a.id, a.x, G, -1, t + a.x, true); });
+      mini.animals.forEach(function (a) {
+        if (a.target) {
+          // 落單的小動物：頭上一圈發光的圈＋往下指的箭頭
+          const cx = a.x + a.w / 2, top = G - a.h - (a.id === 'giraffe' ? 70 : 10);
+          ctx.fillStyle = 'rgba(255, 230, 120, ' + (0.35 + Math.sin(t * 0.2) * 0.15).toFixed(2) + ')';
+          ctx.beginPath(); ctx.ellipse(cx, G - a.h / 2, a.w * 0.7, a.h * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffd166';
+          const by = top - 18 + Math.sin(t * 0.25) * 4;
+          ctx.beginPath(); ctx.moveTo(cx - 7, by); ctx.lineTo(cx + 7, by); ctx.lineTo(cx, by + 10); ctx.closePath(); ctx.fill();
+          ctx.save(); ctx.translate(a.x + a.w / 2, G); ctx.scale(a.scale, a.scale); ctx.translate(-(a.x + a.w / 2), -G);
+          drawAnimal(ctx, a.id, a.x + a.w / 2 - SPEC[a.id].w / 2, G, -1, t + a.x, true);
+          ctx.restore();
+          return;
+        }
+        drawAnimal(ctx, a.id, a.x, G, -1, t + a.x, true);
+      });
     }
   }
 
   function hud(mini) {
     const sec = Math.max(0, Math.ceil(mini.time / 60));
     if (mini.kind === 'warship') return '敵艦船身 ' + mini.hp + ' / ' + mini.hpMax + '　剩 ' + sec + ' 秒（砲旁按 K 開砲・紅圈是落點）';
-    return '抓到 ' + mini.caught.length + ' 隻（至少 3 隻）　剩 ' + sec + ' 秒';
+    return '抓一隻' + Quests.ANIMALS[mini.species].name + '：跳到發光的那隻背上　剩 ' + sec + ' 秒';
   }
 
   // ── 冥界、金字塔的豎井美術（掛到 Sprites.shaftThemes）─────────────
@@ -865,6 +912,80 @@ const Expedition = (function () {
       ctx.fillStyle = '#4a5c60';
       U.roundRect(ctx, x, y, w, h, 4); ctx.fill();
       ctx.fillStyle = 'rgba(220, 245, 255, 0.5)'; ctx.fillRect(x + 2, y, w - 4, 3);
+      return true;
+    }
+  };
+
+  /*
+   * 丹麥的樂高積木塔（v1.30 玩家：積木一直往上跳，終點放在天上）：
+   * 兩側是彩色積木疊成的牆、平台是帶凸點的積木、越往上雲越多，最頂層是一朵雲上插著丹麥國旗。
+   */
+  const LEGO_COLS = ['#f2c230', '#2f9a4a', '#1f6fd0', '#f08a20', '#a04ac0', '#e8e8e0'];
+  function legoBrick(ctx, x, y, w, h, col) {
+    ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x, y + h - 3, w, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x + 2, y + 2, w - 4, 2);
+    for (let k = 8; k < w - 4; k += 16) {
+      ctx.fillStyle = col; ctx.fillRect(x + k - 5, y - 4, 10, 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x + k - 5, y - 4, 10, 1.5);
+    }
+  }
+  const legoTheme = {
+    backdrop: function (ctx, camY, t, W, H) {
+      ctx.save();
+      // 越往上（camY 越小）雲越多
+      const par = camY * 0.3;
+      for (let row = Math.floor(par / 180) - 1; row < Math.floor(par / 180) + 4; row++) {
+        const y0 = row * 180 - par;
+        const x = ((row * 263) % 900 + 900) % 900;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath(); ctx.arc(x, y0 + 40, 30, 0, Math.PI * 2); ctx.arc(x + 34, y0 + 30, 24, 0, Math.PI * 2); ctx.arc(x - 30, y0 + 46, 20, 0, Math.PI * 2); ctx.fill();
+      }
+      // 遠處漂浮的大積木（慢慢轉）
+      for (let k = 0; k < 5; k++) {
+        const x = 110 + k * 190, y = ((k * 157 - camY * 0.15) % (H + 120) + H + 120) % (H + 120) - 60;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t * 0.01 + k) * 0.3);
+        ctx.globalAlpha = 0.28;
+        legoBrick(ctx, -24, -9, 48, 18, LEGO_COLS[k % LEGO_COLS.length]);
+        ctx.restore();
+      }
+      ctx.restore();
+    },
+    wall: function (ctx, wall, camY, viewH) {
+      const bh = 22, start = Math.floor((camY - 30) / bh);
+      for (let i = 0; i < viewH / bh + 4; i++) {
+        const r = start + i, by = r * bh, st = (r % 2) * 20;
+        for (let bx = wall.x - 40 + st; bx < wall.x + wall.w; bx += 40) {
+          const col = LEGO_COLS[((r * 7 + Math.floor(bx / 40) * 3) % LEGO_COLS.length + LEGO_COLS.length) % LEGO_COLS.length];
+          ctx.save(); ctx.beginPath(); ctx.rect(wall.x, by - 6, wall.w, bh + 6); ctx.clip();
+          legoBrick(ctx, bx + 1, by + 1, 38, bh - 2, col);
+          ctx.restore();
+        }
+      }
+    },
+    ceiling: function (ctx, screenTop, h, w) {
+      ctx.fillStyle = '#d8262c'; ctx.fillRect(0, screenTop, w, h - 10);
+    },
+    floor: function (ctx, f, x, y, w, h, t) {
+      if (f.goal) {
+        // 雲端的終點：一大朵雲＋丹麥國旗＋彩虹
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 120, 120, 0.5)'; ctx.lineWidth = 6;
+        ['rgba(255,110,110,0.45)', 'rgba(255,210,90,0.45)', 'rgba(120,200,120,0.45)', 'rgba(110,160,255,0.45)'].forEach(function (c, k) {
+          ctx.strokeStyle = c; ctx.beginPath(); ctx.arc(x + w / 2, y + 10, 120 - k * 7, Math.PI, 0); ctx.stroke();
+        });
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x + 20, y + 6, 18, 0, Math.PI * 2); ctx.arc(x + w / 2, y, 26, 0, Math.PI * 2); ctx.arc(x + w - 20, y + 6, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(x, y, w, h + 4);
+        ctx.fillStyle = '#6b7280'; ctx.fillRect(x + w - 30, y - 70, 3, 70);
+        Sprites.flagFace(ctx, x + w - 27, y - 70, 30, 20, ['#C8102E', '#FFFFFF'], 'nordic');
+        ctx.restore();
+        return true;
+      }
+      if (f.type && f.type !== 'normal') return false;     // 會消失的紅積木等特殊樓層照預設畫法（看得出節拍）
+      legoBrick(ctx, x, y, w, h, LEGO_COLS[Math.abs(Math.round(f.rect.y / 84)) % LEGO_COLS.length]);
       return true;
     }
   };
@@ -979,6 +1100,7 @@ const Expedition = (function () {
   }
   if (typeof Sprites !== 'undefined' && Sprites.shaftThemes) {
     Sprites.shaftThemes.hel = helTheme;
+    Sprites.shaftThemes.lego = legoTheme;
     Sprites.shaftThemes.pyramid = pyramidTheme;
   }
 

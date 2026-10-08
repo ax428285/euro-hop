@@ -110,6 +110,7 @@ const Levels = (function () {
       groundBody: cfg.groundBody,
       deco: cfg.deco,
       theme: cfg.theme || null,
+      intro: cfg.intro || null,    // 開場提示（兩行），沒有就用預設
 
       layout: 'shaft',
       shaft: pl,                 // 整座井的資料（繪製與碰撞都讀它）
@@ -356,6 +357,24 @@ const Levels = (function () {
     const lastSeg = g.segs[g.segs.length - 1];
     const goal = Math.round(lastSeg.x + lastSeg.w * 0.62);
 
+    /*
+     * v1.30 玩家：斯洛伐克實測金幣吃不滿 —— 纜車山谷上那排弧形金幣是照「跳過斷崖」的高度擺的，
+     * 但山谷跳不過去、只能搭纜車，坐在纜車上跳起來，纜車會從腳下滑走。→ 降到「站在纜車裡就碰得到」的高度。
+     */
+    if (vehicle === 'cable') {
+      coins.forEach(function (c) {
+        const over = g.segs.some(function (sg) { return c.x + 12 > sg.x && c.x + 12 < sg.x + sg.w; });
+        if (!over) c.y = baseY - 36;
+      });
+    }
+    // v1.30 玩家：所有終點後不要再放怪物和金幣（過了旗子就過關了，後面的東西拿不到也打不到）
+    for (let i = coins.length - 1; i >= 0; i--) if (coins[i].x + 24 > goal - 16) coins.splice(i, 1);
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (e.x + 30 > goal - 40) { enemies.splice(i, 1); continue; }
+      if (e.right != null && e.right > goal - 40) e.right = goal - 40;
+    }
+
     // 會講話的當地居民（見 npcs.js）：避開斷崖、密道入口、招牌機制
     const npcs = Npcs.place(Npcs.specs(cfg.id), {
       segs: g.segs, gaps: g.gaps, platforms: platforms, secrets: secrets,
@@ -379,6 +398,7 @@ const Levels = (function () {
       groundBody: cfg.groundBody,
       deco: cfg.deco,
       vehicle: vehicle,
+      autorun: !!cfg.autorun,       // v1.30 瑞典馴鹿雪橇：自動往前衝，只能跳
       channels: channels,           // v1.30 挪威冰海水道（要踩浮冰過，level-check 另外驗）
       width: width,
       height: worldH,
@@ -1237,38 +1257,31 @@ const Levels = (function () {
   // ════════════════════════════════════════════════════════════
 
   // ────────────────────────────────────────────────────────────
-  // 24. 丹麥 · 哥本哈根 —— 新港的彩色房子：會輪流拆開、組回來的積木階梯
+  // 24. 丹麥 · 哥本哈根 —— 樂高積木高塔：一路往上跳，終點在雲端
+  //     （v1.30 玩家：北歐關卡跟之前差不多，要變化大一點；積木一直往上跳的想法不錯，終點就放在天上）
   // ────────────────────────────────────────────────────────────
-  list.push(makeLevel({
+  list.push(shaftLevel({
     seed: 1041,
     id: 'DK', country: '丹麥', city: '哥本哈根', region: 'north',
     flag: ['#C8102E', '#FFFFFF'], flagDir: 'nordic',
     landmark: 'nyhavn',
     fact: '樂高 1932 年誕生在丹麥的比隆，名字來自丹麥語「leg godt」—— 好好玩。',
-    sky: ['#86b4e0', '#eef2f6'], hill: '#6a8a9a',
+    sky: ['#cfeaff', '#5aa0e0'], hill: '#6a8a9a',
     groundTop: '#8c9a88', groundBody: '#5a5048',
     deco: 'tree',
-    layout: 'flat',
-    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
-    airTypes: ['flyer', 'chaser'],
-    density: 1.1,
-    // 招牌：樂高積木階梯 —— 紅色、藍色積木輪流出現，要抓節奏一階一階往上跳，頂上有金幣
-    features: [{ type: 'bricks', count: 6 }],
-    secretHint: '運河邊那間黃色房子的地下室，安徒生好像在這裡住過',
-    secretNear: 0.5,
-    props: [
-      { type: 'canalHouse', x: 700 },
-      { type: 'canalHouse', x: 2900 },
-      { type: 'canalHouse', x: 5200 },
-      { type: 'bike', x: 1300 },
-      { type: 'bike', x: 4300 },
-      { type: 'mermaid', x: 2100 },
-      { type: 'cafe', x: 3600 },
-      { type: 'lamp', x: 500 },
-      { type: 'lamp', x: 2500 },
-      { type: 'lamp', x: 4800 },
-      { type: 'fishBoat', x: 6000 }
-    ]
+    mode: 'climb',
+    // 美術主題：樂高積木塔（彩色積木牆、積木平台、雲端的終點，見 expedition.js 的 'lego'）
+    theme: 'lego',
+    // 紅色積木：第 3 拍會消失（Shaft 'beat'），抓節奏往上跳；底下是新港的海水在漲
+    extras: ['beat-lite'],
+    floors: 30,
+    gapY: 84,
+    platW: 108,
+    shaftW: 540,
+    scroll: [0.6, 1.2],
+    floodTint: ['#5aa0e0', '#2a5a8a'],
+    intro: ['往上爬到雲端！新港的海水會漲上來', '紅色積木第 3 拍會消失・平台可以從下面穿過去'],
+    equipAt: 'goal'
   }));
 
   // ────────────────────────────────────────────────────────────
@@ -1287,7 +1300,11 @@ const Levels = (function () {
     groundTypes: ['walker', 'charger', 'guard', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 1.05,
-    // 招牌：結冰的湖面 —— 冰上加速慢、放開還會滑一段，斷崖邊要提早放開
+    /*
+     * v1.30 玩家：北歐關卡要變化大一點 → 坐馴鹿雪橇：自動往前衝、不能停、只能跳。
+     * 招牌：結冰的湖面 —— 雪橇在冰上越滑越快（跳得更遠），斷崖前要算準起跳點
+     */
+    autorun: true,
     features: [{ type: 'ice', zones: [[0.16, 0.32], [0.42, 0.58], [0.68, 0.84]] }],
     secretHint: '冰旅館後面的雪堆，裡面挖空了',
     secretNear: 0.5,

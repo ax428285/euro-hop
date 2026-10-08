@@ -107,7 +107,8 @@ function runQuestCheck() {
     Encounter.updateSkirmish(st, input);
     for (let f = 0; f < 41 * 60 && !res; f++) {
       jumpNow = false; held.left = held.right = held.jump = false;
-      const a = st.mini.animals.filter(function (q) { return q.x + q.w > p.x; }).sort(function (q, r) { return q.x - r.x; })[0];
+      // 只對準發光的落單小動物跳（踩別隻沒用）
+      const a = st.mini.animals.filter(function (q) { return q.target && q.x + q.w > p.x; }).sort(function (q, r) { return q.x - r.x; })[0];
       if (p.onGround && a && a.x - (p.x + p.w) < 70 && a.x - (p.x + p.w) > 0) jumpNow = held.jump = true;
       if (!p.onGround) held.jump = true;
       if (p.x < 300) held.right = true;
@@ -115,7 +116,8 @@ function runQuestCheck() {
         if (e === 'clear') res = 'win'; if (e === 'minifail') res = 'fail';
       });
     }
-    if (res !== 'win') issues.push('動物大遷徙：機器人抓不到 3 隻（' + res + '，抓到 ' + st.mini.caught.length + '）');
+    if (res !== 'win') issues.push('動物大遷徙：機器人抓不到發光的那一隻（' + res + '）');
+    if (st.mini.animals.concat([]).some(function (q) { return q.id !== st.mini.species; })) issues.push('動物大遷徙：一群裡混了別種動物');
   })();
 
   // E) 銀行、動物園
@@ -125,11 +127,35 @@ function runQuestCheck() {
   sv.bank = { open: true, bal: 0, last: Date.now() - 3 * 24 * 3600 * 1000 };
   for (let k = 0; k < 61; k++) Quests.tick();
   if (sv.bank.bal !== 24 * 60) issues.push('銀行：離開三天應該只算一天份（1440），結果 ' + sv.bank.bal);
-  sv.zoo = { zebra: 2, lion: 1 }; sv.zooDay = sv.day - 2;
+  sv.zoo = { zebra: 1, lion: 1 }; sv.zooDay = sv.day - 2;
+  if (Save.addAnimal('zebra')) issues.push('動物園已經有斑馬了，再抓一隻還算新的');
+  if (Save.zoo().zebra !== 1) issues.push('動物園每種動物應該只有一隻（斑馬 ' + Save.zoo().zebra + '）');
   const fee = Quests.zooFee();
   const w0 = sv.wallet;
   tk = Quests.talk('zoo'); if (tk.end) tk.end();
   if (sv.wallet - w0 !== fee * 2) issues.push('動物園：兩天的門票應該是 ' + fee * 2 + '，結果 ' + (sv.wallet - w0));
+
+  // F) 愛心最多 5 顆；所有橫向關終點之後沒有金幣、怪物
+  const all = Equipment.defs.map(function (d) { return d.id; });
+  if (Equipment.resolve(all).maxLives > 5) issues.push('全部裝備穿上，愛心上限超過 5（' + Equipment.resolve(all).maxLives + '）');
+  Levels.list.forEach(function (def) {
+    if (def.layout === 'shaft' || def.isBoss) return;
+    const c = def.coins.filter(function (q) { return q.x + 24 > def.goal; }).length;
+    const e = def.enemies.filter(function (q) { return q.x > def.goal - 30 || (q.right != null && q.right > def.goal); }).length;
+    if (c || e) issues.push(def.country + '：終點後面還有 ' + c + ' 枚金幣、' + e + ' 隻怪物');
+  });
+
+  // G) 卡律布狄斯：還沒救出洛基時，掉進漩渦眼就接冥界（不用把命用完）
+  (function () {
+    sv.flags = {};
+    const m = { kind: 'charybdis', def: Encounter.KINDS.charybdis, x: 0, y: 0 };
+    const st = buildLevelState(Encounter.makeDef(m, Equipment.resolve([])), -1, [], Equipment.resolve([]));
+    const idle = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+    Encounter.updateSkirmish(st, idle);
+    st.player.x = 470; st.player.y = Levels.GROUND_Y + 40;
+    const ev = Encounter.updateSkirmish(st, idle);
+    if (ev.indexOf('helfall') < 0) issues.push('掉進卡律布狄斯的漩渦眼沒有接冥界');
+  })();
 
   // 還原存檔
   const restored = JSON.parse(backup);

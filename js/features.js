@@ -1669,9 +1669,48 @@ const Features = (function () {
     ctx.restore();
   }
 
+  /**
+   * 瑞典的馴鹿雪橇（v1.30 def.autorun）：紅色木雪橇墊在玩家腳下、彎彎的滑板，前面一頭馴鹿拉著跑。
+   * sx = 玩家左緣的螢幕座標；在冰上加速時馴鹿後面噴冰屑。
+   */
+  function drawSled(ctx, p, sx, t) {
+    ctx.save();
+    ctx.translate(sx + p.w / 2, p.y + p.h);
+    if (p.invuln > 0 && Math.floor(p.invuln / 4) % 2 === 0) ctx.globalAlpha = 0.5;
+    // 雪橇
+    ctx.fillStyle = '#b8282a';
+    U.roundRect(ctx, -20, -12, 36, 10, 3); ctx.fill();
+    ctx.fillStyle = '#e8c040'; ctx.fillRect(-20, -12, 36, 2);
+    ctx.strokeStyle = '#5a3a20'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(18, 0); ctx.quadraticCurveTo(26, 0, 24, -8); ctx.stroke();   // 滑板
+    ctx.beginPath(); ctx.moveTo(-14, -2); ctx.lineTo(-14, 0); ctx.moveTo(10, -2); ctx.lineTo(10, 0); ctx.stroke();
+    // 韁繩＋馴鹿
+    const run = p.onGround ? Math.sin(t * 0.45) * 5 : 3;
+    ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(14, -10); ctx.lineTo(34, -22); ctx.stroke();
+    ctx.fillStyle = '#7a6250';
+    [[30, run], [38, -run], [52, run], [58, -run]].forEach(function (l) { ctx.fillRect(l[0] + l[1] * 0.4, -14, 4, 14); });
+    ctx.beginPath(); ctx.ellipse(46, -20, 16, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(56, -24); ctx.lineTo(64, -34); ctx.lineTo(70, -32); ctx.lineTo(62, -20); ctx.fill();
+    ctx.fillStyle = '#e8e0d0'; ctx.beginPath(); ctx.ellipse(36, -20, 5, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c0281e'; ctx.beginPath(); ctx.arc(70, -32, 2, 0, Math.PI * 2); ctx.fill();   // 紅鼻子
+    ctx.strokeStyle = '#c8b090'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(64, -34); ctx.lineTo(60, -44); ctx.lineTo(56, -48); ctx.moveTo(61, -41); ctx.lineTo(66, -46); ctx.stroke();
+    // 冰上加速：後面噴出來的冰屑
+    if (p.onIce && p.onGround) {
+      ctx.fillStyle = 'rgba(220, 240, 255, 0.85)';
+      for (let k = 0; k < 4; k++) {
+        const ph = (t * 0.5 + k * 7) % 14;
+        ctx.beginPath(); ctx.arc(-24 - ph * 2, -2 - ph * 0.8, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
   return {
     dismount: dismount,
     drawMount: drawMount,
+    drawSled: drawSled,
     plan: plan,
     solids: solids,
     gustState: gustState,

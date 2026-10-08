@@ -227,7 +227,7 @@ const Npcs = (function () {
     SE: [
       { at: 0.12, name: '冰湖釣客 Erik',
         look: { skin: '#f3d6bc', hair: '#d8c8a0', shirt: '#2a5aa0', pants: '#3a3a44', hat: 'beanie', hatColor: '#fecc00', item: 'net' },
-        lines: ['湖面結冰了，踩上去會滑！', '冰上要提早放開方向鍵，不然會一路滑進斷崖。', '在冰上跳一下再落地，比較好控制。'] },
+        lines: ['坐穩了！馴鹿雪橇會自己往前衝，停不下來喔。', '你只要管跳：看到斷崖、看到怪物就跳！', '結冰的湖面上雪橇會越滑越快，跳得也更遠。'] },
       { at: 0.45, name: '薩米牧人 Áilu',
         look: { skin: '#e8c4a0', hair: '#2a2220', shirt: '#1f4aa0', pants: '#2a2a36', hat: 'fur', hatColor: '#c8202a', item: 'crook' },
         lines: ['薩米人在拉普蘭養馴鹿，已經好幾千年了。', '我們的傳統衣服 gákti 是藍色、紅色、黃色。', '馴鹿的蹄冬天會變硬，像冰爪一樣抓得住冰。'] },

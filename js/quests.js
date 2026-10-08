@@ -290,11 +290,11 @@ const Quests = (function () {
       L('thor', '洛基那個搗蛋鬼偷了我的雷神之鎚！在抓到他之前，誰都別想進去。'),
       L('me', '洛基在哪裡？'),
       L('thor', '烏鴉告訴我：他往南逃了，逃到一片溫暖的海，那裡有一張「吞下船的嘴」。'),
-      L('thor', '活人是進不去那裡的⋯⋯只有被吞到最深、連命都交出去的人，才會掉到他躲的地方。'),
+      L('thor', '活人是進不去那裡的⋯⋯除非你自己往那張嘴的正中央跳下去，一路被吞到最深的地方。'),
       L('thor', '⋯⋯喂，你那是什麼表情？我可沒叫你去送死喔。')
     ], end: function () {
       Save.setFlag('thorAsked', 1);
-      return { toast: { text: '索爾的謎語', sub: '南方溫暖的海，有一張「吞下船的嘴」⋯⋯被吞到最深的人才找得到洛基', life: 280 } };
+      return { toast: { text: '索爾的謎語', sub: '南方溫暖的海，有一張「吞下船的嘴」⋯⋯往它的正中央跳下去', life: 280 } };
     } };
   }
 
@@ -414,15 +414,16 @@ const Quests = (function () {
       return { who: 'keeper', lines: [
         L('keeper', '歡迎來到阿爾及爾動物園！⋯⋯雖然現在一隻動物都沒有。'),
         L('keeper', '聽說撒哈拉的邊緣有動物大遷徙，走路過去碰到牠們的話，跳到背上就抓得到！'),
-        L('keeper', '抓回來的動物會住在這裡，每過一天都會有遊客買門票。')
+        L('keeper', '每次遷徙只會經過一種動物。每種抓一隻回來就好，每過一天都會有遊客買門票。')
       ] };
     }
     const days = Math.max(0, sv.day - sv.zooDay);
     const fee = zooFee();
     const income = Math.min(days, 10) * fee;       // 太久沒來最多算 10 天
     const z = Save.zoo();
+    // v1.30 玩家：每種動物一隻就好
     const list = Object.keys(ANIMALS).filter(function (k) { return z[k]; })
-      .map(function (k) { return ANIMALS[k].name + ' ' + z[k]; }).join('、');
+      .map(function (k) { return ANIMALS[k].name; }).join('、');
     return { who: 'keeper', panel: 'zoo', lines: [
       L('keeper', '動物們都很好！現在園裡有：' + list + '。'),
       income > 0 ? L('keeper', '這 ' + Math.min(days, 10) + ' 天的門票收入一共 € ' + income + '，給你！')
@@ -526,7 +527,7 @@ const Quests = (function () {
       ctx.fillStyle = 'rgba(120, 160, 80, 0.35)';
       ctx.beginPath(); ctx.ellipse(x, y + 2, 50, 10, 0, 0, Math.PI * 2); ctx.fill();
       Expedition.drawAnimal(ctx, k, x - 30, y, 1, t, false);
-      U.text(ctx, ANIMALS[k].name + ' ×' + z[k], x, y + 24, { size: 14, color: '#ffffff' });
+      U.text(ctx, ANIMALS[k].name, x, y + 24, { size: 14, color: '#ffffff' });
     });
   }
 

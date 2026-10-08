@@ -204,14 +204,14 @@ const Equipment = (function () {
     {
       id: 'lego', level: 23, country: '丹麥', icon: 'lego',
       name: '樂高積木',
-      desc: '積木階梯不會拆開：紅色、藍色積木一直都踩得到',
+      desc: '積木不會消失：丹麥積木塔的紅積木一直都踩得到（其他豎井的節拍台也是）',
       note: '樂高 1932 年在丹麥比隆誕生，名字取自丹麥語 leg godt（好好玩）；1958 年才有現在這種卡得住的凸點積木。',
       apply: function (s) { s.brickSolid = true; }
     },
     {
       id: 'nutukas', level: 24, country: '瑞典', icon: 'nutukas',
       name: '馴鹿皮靴',
-      desc: '冰面不會滑：結冰的湖面、瑞士冰岩都照常跑跳',
+      desc: '冰面不會滑：瑞士冰岩照常跑跳、瑞典的雪橇在冰上不會暴衝',
       note: '拉普蘭的薩米人用馴鹿皮縫靴子，鞋尖往上翹，裡面塞乾草保暖，零下三十度也走得動。',
       apply: function (s) { s.iceGrip = true; }
     },
@@ -334,8 +334,11 @@ const Equipment = (function () {
       s.jumpBoost += b.jumpBoost;
       s.coinMul += b.coinBonus;
     }
+    // v1.30 玩家：整個遊戲的愛心上限太高 → 不管裝備、商店怎麼加，最多 5 顆
+    s.maxLives = Math.min(MAX_LIVES, s.maxLives);
     return s;
   }
+  const MAX_LIVES = 5;
 
   return {
     defs: defs,
@@ -345,6 +348,7 @@ const Equipment = (function () {
     slotOf: function (id) { return byId[id] ? byId[id].slot : null; },
     get: function (id) { return byId[id]; },
     forLevel: function (i) { return byLevel[i]; },
-    resolve: resolve
+    resolve: resolve,
+    MAX_LIVES: MAX_LIVES
   };
 })();

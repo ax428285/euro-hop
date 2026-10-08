@@ -1261,8 +1261,8 @@ function solidsOf(state) {
     const beatOn = Shaft.beatOn(state.shaft.frame);
     state.shaft.floors.forEach(function (f) {
       if (f.gone) return;
-      // 節拍台在第 3 拍消失（不是實心，站著的人會掉下去）
-      if (f.type === 'beat' && !beatOn) return;
+      // 節拍台在第 3 拍消失（不是實心，站著的人會掉下去）；v1.30 丹麥的樂高積木裝備：紅積木一直都在
+      if (f.type === 'beat' && !beatOn && !(state.player && state.player.stats && state.player.stats.brickSolid)) return;
       live.push(f.rect);
     });
     return live.concat(state.shaft.walls);
@@ -1329,11 +1329,17 @@ function updatePlayer(state, input, t, who) {
    */
   // 整關潛水（亞特蘭提斯）或游進淹水段（v1.25.1 西班牙，features 'flood' 設 p.inWater）
   const uw = !!state.def.underwater || !!p.inWater;
-  const maxRun = PHYS.MAX_RUN * st.speed * (p.mount ? 1.3 : 1) * (uw ? 0.8 : 1);
+  /*
+   * v1.30 瑞典馴鹿雪橇（def.autorun）：一直往右衝、不能停也不能往回走，只能跳；
+   * 冰面上雪橇越滑越快（極速 ×1.35，馴鹿皮靴 iceGrip 抓地 → 不會加速），跳得也更遠。
+   */
+  const auto = !!state.def.autorun;
+  const iceDash = auto && p.onIce && !st.iceGrip;
+  const maxRun = PHYS.MAX_RUN * st.speed * (p.mount ? 1.3 : 1) * (uw ? 0.8 : 1) * (iceDash ? 1.35 : 1);
   const accel = PHYS.ACCEL * (st.speed > 1 ? 1.15 : 1) * (onIce ? 0.3 : 1);
   const friction = onIce ? 0.95 : PHYS.FRICTION;
-  const left = input.isDown('left');
-  const right = input.isDown('right');
+  const left = !auto && input.isDown('left');
+  const right = auto || input.isDown('right');
   if (left && !right) { p.vx -= accel; p.facing = -1; }
   else if (right && !left) { p.vx += accel; p.facing = 1; }
   else { p.vx *= friction; if (Math.abs(p.vx) < 0.05) p.vx = 0; }
