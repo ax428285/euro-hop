@@ -79,6 +79,37 @@ const Shop = (function () {
       maxLevel: 2,
       cost: [240, 520],
       apply: function (b, lv) { b.coinBonus = lv * 0.5; }
+    },
+    // v1.31 玩家：葡萄牙商店只賣一樣商品也太空虛 → 多三樣跟葡萄牙有關的
+    {
+      id: 'cork',
+      name: '軟木救生圈',
+      icon: 'cork',
+      desc: '每關第一次掉下去不扣愛心',
+      note: '全世界一半的軟木塞都產自葡萄牙；軟木又輕又會浮，以前的救生圈就是用它做的。',
+      maxLevel: 1,
+      cost: [600],
+      apply: function (b) { b.pitSave = true; }
+    },
+    {
+      id: 'hold',
+      name: '卡拉維爾大船艙',
+      icon: 'hold',
+      desc: '貿易時船艙多放 1 箱貨',
+      note: '大航海時代葡萄牙的卡拉維爾帆船又小又快，迪亞士就是開著它繞過非洲南端的好望角。',
+      maxLevel: 2,
+      cost: [300, 650],
+      apply: function (b, lv) { b.hold = lv; }
+    },
+    {
+      id: 'astrolabe',
+      name: '航海家的星盤',
+      icon: 'astrolabe',
+      desc: '海上遭遇戰的 EXP 多 25%',
+      note: '葡萄牙的「航海家」亨利王子招募天文學家改良星盤，船員量星星的高度就知道自己在多南、多北。',
+      maxLevel: 2,
+      cost: [350, 750],
+      apply: function (b, lv) { b.expBonus = lv * 0.25; }
     }
   ];
 
@@ -174,7 +205,10 @@ const Shop = (function () {
       magnet: 0,
       invulnBonus: 0,
       jumpBoost: 0,
-      coinBonus: 0
+      coinBonus: 0,
+      pitSave: false,     // 軟木救生圈：每關第一次掉下去不扣愛心
+      hold: 0,            // 卡拉維爾大船艙：船艙多放幾箱
+      expBonus: 0         // 航海家的星盤：遭遇戰 EXP 加成
     };
     items.forEach(function (it) {
       if (!it.apply) return;           // 外觀商品沒有加成

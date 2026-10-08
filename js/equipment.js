@@ -299,6 +299,7 @@ const Equipment = (function () {
       iceGrip: false,     // 冰面不會滑（瑞典馴鹿皮靴）
       nightSight: false,  // 黑暗裡光圈變大（挪威維京太陽石）
       steady: false,      // 被打到只退一半（冰島毛衣）
+      pitSave: false,     // 每關第一次掉下去不扣愛心（v1.31 葡萄牙商店的軟木救生圈）
       // 以下由商店強化提供（Shop.resolve）
       magnet: 0,          // 金幣吸取半徑，0 = 沒有
       jumpBoost: 0,       // 跳躍力加成
@@ -334,6 +335,7 @@ const Equipment = (function () {
       s.magnet = Math.max(s.magnet, b.magnet);
       s.jumpBoost += b.jumpBoost;
       s.coinMul += b.coinBonus;
+      s.pitSave = s.pitSave || b.pitSave;
     }
     // v1.30 玩家：整個遊戲的愛心上限太高 → 不管裝備、商店怎麼加，最多 5 顆
     s.maxLives = Math.min(MAX_LIVES, s.maxLives);

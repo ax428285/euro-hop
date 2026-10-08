@@ -38,7 +38,15 @@ const WorldMap = (function () {
     am: typeof AmericaWorld !== 'undefined'
       ? { id: 'am', proj: AmericaWorld, geo: AmericaGeo, back: AmericaBackdrop } : null
   };
+  /*
+   * v1.31 玩家：南美地圖下方都空的 → 新大陸只用到南緯 27 度（再往南只剩阿根廷、智利的背景國，沒有關卡）。
+   * 世界資料還是一樣大（陸地格子、投影都不用改），只是相機和船到不了 h 以下。
+   */
+  if (WORLDS.am) WORLDS.am.h = Math.round(AmericaWorld.project(-40, -27)[1]);
   let WD = WORLDS.eu;
+  /** 目前這張地圖實際用到的高度（歐洲 = 整個世界） */
+  function worldH() { return WD.h || WORLD_H; }
+  function mapBottom() { return worldH() - 6; }
   /** 目前這張地圖的經緯度 → 世界座標 */
   function project(lon, lat) { return WD.proj.project(lon, lat); }
   // 世界座標裡的可用範圍（貼著世界邊緣一點點不放東西）
@@ -51,7 +59,7 @@ const WorldMap = (function () {
   /** 相機對準世界座標 (x, y)；snap = 直接跳過去（進地圖時），否則緩追 */
   function follow(x, y, snap) {
     const tx = U.clamp(x - 480, 0, Math.max(0, WORLD_W - 960));
-    const ty = U.clamp(y - VIEW_H / 2, 0, Math.max(0, WORLD_H - VIEW_H));
+    const ty = U.clamp(y - VIEW_H / 2, 0, Math.max(0, worldH() - VIEW_H));
     if (snap) { cam.x = tx; cam.y = ty; return; }
     cam.x += (tx - cam.x) * 0.1;
     cam.y += (ty - cam.y) * 0.1;
@@ -190,7 +198,7 @@ const WorldMap = (function () {
     MX: [-88.6, 20.6],    // 奇琴伊察（猶加敦半島）
     PA: [-79.3, 9.35],    // 運河北口（地峽很窄，再往南入口會落在海上）
     CO: [-75.2, 10.2],    // 卡塔赫納
-    BR: [-43.4, -22.6]    // 里約熱內盧
+    BR: [-44.6, -18.4]    // 里約熱內盧往內陸（v1.31 玩家：地圖下方裁掉一些，巴西的圖釘往上移）
   };
   const PIN_NUDGE = {
     // v1.30 挪威：國土中心在峽灣附近，跟黃金獵犬、峽灣老漁夫擠在一起，國名被擠到很遠 → 往東南（奧斯陸那側）挪
@@ -1322,6 +1330,8 @@ const WorldMap = (function () {
     VIEW_H: VIEW_H,
     MAP_TOP: MAP_TOP,
     MAP_BOTTOM: MAP_BOTTOM,
+    worldH: worldH,
+    mapBottom: mapBottom,
     TOP_BAR: TOP_BAR,
     BOTTOM_PANEL: BOTTOM_PANEL
   };

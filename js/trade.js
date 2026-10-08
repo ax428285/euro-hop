@@ -109,7 +109,7 @@ const Trade = (function () {
     if (b.type === 'hunt') return '擊退 ' + b.n + ' 隻海上怪物' + (b.got != null ? '（' + b.got + '/' + b.n + '）' : '');
     if (b.type === 'letter') return '限時把信送到' + port(b.to).name + '（' + Math.round(b.time / 60) + ' 秒）';
     if (b.type === 'cargo') return '把 ' + b.n + ' 箱' + good(b.good).name + '運到' + port(b.to).name;
-    if (b.type === 'golden') return '抓到閃金光的黃金海馬';
+    if (b.type === 'golden') return '抓到閃金光的黃金海馬（新大陸是黃金海龜）';
     if (b.type === 'scylla') return '打倒墨西拿海峽的海妖斯庫拉';
     return '';
   }

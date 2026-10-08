@@ -8,7 +8,7 @@
  *              在「漩渦逃生」裡故意死掉 → 掉進冥界赫爾海姆（expedition.js 的豎井關），最底下遇到洛基；
  *              回來再找索爾 → 一段逗趣的對話，結界解開 = 北歐篇開放（取代原本的 700 EXP）。
  *   哥倫布     塞維亞：委託你打敗西歐五國的戰艦（expedition.js 的戰艦海戰），完成 → 美洲篇開放（v1.31）。
- *              美洲篇是另一張「新大陸」地圖：歐洲地圖往西開到底就橫越大西洋；哥倫布在他第一次上岸的小島等你（AM_SPOTS）。
+ *              美洲篇是另一張「新大陸」地圖：歐洲地圖往西開到底就橫越大西洋；哥倫布在巴哈馬群島的安德羅斯島上等你（AM_SPOTS）。
  *   瑞士銀行   日內瓦：歐洲任意 10 國的金幣收滿過就能開戶（v1.31 從「全部」降到 10 國）；之後每分鐘生 1 枚金幣的利息（離開遊戲也算，最多一天份）。
  *   動物園     阿爾及爾：放撒哈拉動物大遷徙抓回來的動物，每過一天收一次門票。
  *   金字塔     吉薩：直接進「金字塔探險」（expedition.js）。
@@ -38,10 +38,11 @@ const Quests = (function () {
 
   /*
    * v1.31 新大陸地圖上的地點（用美洲的投影，見 WorldMap.buildAmericaSpecials）。
-   *   哥倫布：聖薩爾瓦多島（巴哈馬），1492 年 10 月 12 日他第一次踏上美洲的地方。
+   *   哥倫布：巴哈馬群島（1492 年 10 月 12 日他在群島東邊的聖薩爾瓦多島第一次踏上美洲）。
+   *     v1.31 玩家：放在海上好奇怪 → 聖薩爾瓦多島太小、地圖資料裡沒有，改站在群島最大的安德羅斯島上。
    */
   const AM_SPOTS = [
-    { id: 'Q_columbusAm', npc: 'columbusAm', name: '哥倫布', lon: -74.5, lat: 24.1, prompt: '按 Enter 跟哥倫布說話' },
+    { id: 'Q_columbusAm', npc: 'columbusAm', name: '哥倫布', lon: -77.95, lat: 24.4, prompt: '按 Enter 跟哥倫布說話' },
     // v1.31 玩家：除了能力想想還能買甚麼 → 兩家只賣外觀的店（shop.js 的 boutique / petshop）
     { id: 'M_boutique', seller: 'boutique', name: '聖胡安服裝店', lon: -66.1, lat: 18.4, prompt: '按 Enter 逛聖胡安服裝店' },
     { id: 'M_petshop', seller: 'petshop', name: '千里達寵物用品店', lon: -61.3, lat: 10.6, prompt: '按 Enter 逛千里達寵物用品店' }
@@ -546,7 +547,7 @@ const Quests = (function () {
     } };
   }
 
-  /** v1.31 新大陸的哥倫布：聖薩爾瓦多島，第一次上岸的地方 */
+  /** v1.31 新大陸的哥倫布：巴哈馬群島（第一次上岸的地方就在群島東邊） */
   function talkColumbusAm() {
     const cleared = Levels.list.filter(function (lv, i) { return lv.region === 'america' && Save.isCleared(i); }).length;
     const total = Levels.list.filter(function (lv) { return lv.region === 'america'; }).length;
@@ -558,10 +559,10 @@ const Quests = (function () {
       ] };
     }
     return { who: 'columbus', lines: [
-      L('columbus', '你也來了！這裡是聖薩爾瓦多島 —— 1492 年 10 月 12 日，我們在這裡第一次上岸。'),
+      L('columbus', '你也來了！這裡是巴哈馬群島 —— 1492 年 10 月 12 日，我們在群島東邊的聖薩爾瓦多島第一次上岸。'),
       L('columbus', '我把住在這裡的人叫做「印地安人」，因為我以為這裡是印度。'),
       L('columbus', '往南、往西還有好多國家：古巴、牙買加、墨西哥、巴拿馬、哥倫比亞，一直到巴西。'),
-      L('columbus', '聽說巴西的大河裡住著一條會發光的大黑蛇⋯⋯小心點，年輕的船長！'),
+      L('columbus', '聽說巴西有個巨人守門員，從來沒有人踢進過他的球門⋯⋯小心點，年輕的船長！'),
       L('columbus', '想回歐洲的話，往東一直開到地圖最東邊就好。（目前走過 ' + cleared + ' / ' + total + ' 國）')
     ] };
   }

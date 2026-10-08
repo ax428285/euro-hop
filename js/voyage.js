@@ -37,7 +37,6 @@ const Voyage = (function () {
   const CELL = 4;
   const W = WorldMap.WORLD_W, H = WorldMap.WORLD_H;
   const MAP_TOP = WorldMap.MAP_TOP;
-  const MAP_BOTTOM = WorldMap.MAP_BOTTOM;
 
   // 船：有慣性，比較像在水上
   const SEA = { accel: 0.22, friction: 0.94, max: 2.8 };
@@ -145,7 +144,7 @@ const Voyage = (function () {
 
   function isNavigable(x, y) {
     const i = cellAt(x, y);
-    if (i < 0 || y < MAP_TOP || y > MAP_BOTTOM) return false;
+    if (i < 0 || y < MAP_TOP || y > WorldMap.mapBottom()) return false;
     return land[i] === 0 && clear[i] >= OPEN_SEA;
   }
 
@@ -164,7 +163,7 @@ const Voyage = (function () {
 
   function clampToWorld() {
     ship.x = U.clamp(ship.x, 6, W - 6);
-    ship.y = U.clamp(ship.y, MAP_TOP + 4, MAP_BOTTOM - 4);
+    ship.y = U.clamp(ship.y, MAP_TOP + 4, WorldMap.mapBottom() - 4);
   }
 
   function reset(levelIndex) {

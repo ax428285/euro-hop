@@ -1186,6 +1186,43 @@ const Sprites = (function () {
     shield: iconShield, boots: iconBoots, luck: iconLuck
   };
 
+  // v1.31 葡萄牙商店新增的三樣
+  /** 軟木救生圈：紅白相間的圈圈 */
+  icons.cork = function (ctx, s) {
+    for (let k = 0; k < 4; k++) {
+      ctx.strokeStyle = k % 2 ? '#f4f0e6' : '#d8303a'; ctx.lineWidth = 7 * s;
+      ctx.beginPath(); ctx.arc(0, 0, 11 * s, k * Math.PI / 2, (k + 1) * Math.PI / 2); ctx.stroke();
+    }
+    ctx.strokeStyle = '#c8a070'; ctx.lineWidth = 1.4 * s;
+    ctx.beginPath(); ctx.arc(0, 0, 15 * s, -0.4, 0.4); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 15 * s, Math.PI - 0.4, Math.PI + 0.4); ctx.stroke();
+  };
+  /** 卡拉維爾大船艙：疊起來的兩個木箱＋一個桶子 */
+  icons.hold = function (ctx, s) {
+    ctx.fillStyle = '#a8743a'; ctx.fillRect(-15 * s, -2 * s, 14 * s, 14 * s); ctx.fillRect(-10 * s, -15 * s, 13 * s, 13 * s);
+    ctx.strokeStyle = '#6a4420'; ctx.lineWidth = 1.2 * s;
+    ctx.strokeRect(-15 * s, -2 * s, 14 * s, 14 * s); ctx.strokeRect(-10 * s, -15 * s, 13 * s, 13 * s);
+    ctx.beginPath(); ctx.moveTo(-15 * s, -2 * s); ctx.lineTo(-1 * s, 12 * s); ctx.moveTo(-10 * s, -15 * s); ctx.lineTo(3 * s, -2 * s); ctx.stroke();
+    ctx.fillStyle = '#8a5a2a';
+    ctx.beginPath(); ctx.ellipse(9 * s, 4 * s, 6.5 * s, 8.5 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4a4a50'; ctx.fillRect(2.6 * s, -1 * s, 12.8 * s, 1.8 * s); ctx.fillRect(2.6 * s, 8 * s, 12.8 * s, 1.8 * s);
+  };
+  /** 航海家的星盤：黃銅圓環＋刻度＋中間的指針 */
+  icons.astrolabe = function (ctx, s) {
+    ctx.fillStyle = '#d8a83a';
+    ctx.beginPath(); ctx.arc(0, -14 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d8a83a'; ctx.lineWidth = 3.4 * s;
+    ctx.beginPath(); ctx.arc(0, 1 * s, 12 * s, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#8a6420'; ctx.lineWidth = 1 * s;
+    for (let k = 0; k < 12; k++) {
+      const a = k * Math.PI / 6;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * 8 * s, 1 * s + Math.sin(a) * 8 * s); ctx.lineTo(Math.cos(a) * 10 * s, 1 * s + Math.sin(a) * 10 * s); ctx.stroke();
+    }
+    ctx.strokeStyle = '#f2d27a'; ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.moveTo(-9 * s, 7 * s); ctx.lineTo(9 * s, -5 * s); ctx.stroke();
+    ctx.fillStyle = '#f2d27a'; ctx.beginPath(); ctx.arc(0, 1 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
+  };
+
   /**
    * 畫任意圖示（x,y 為中心）。
    * equipIcon 要先查 Equipment 定義才拿得到 icon 名稱，

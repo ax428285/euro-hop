@@ -4,7 +4,7 @@
  * 海上遭遇戰 —— 大地圖上隨機出現的怪物（v1.8 改版）。
  *
  * 玩法：海面上會不定期冒出怪物，把船開過去按 Enter 就開打，贏了拿 EXP。
- * EXP 累積到 EAST_EXP 解鎖東歐篇。偶爾會出現閃金光的「稀有怪」，抓到會掉時裝。
+ * EXP 累積到 EAST_EXP 解鎖東歐篇。偶爾會出現閃金光的「稀有怪」（歐洲是黃金海馬、新大陸是黃金海龜），抓到會掉時裝。
  *
  * ── v1.8：從「打三波小怪」改成小遊戲 ────────────────────────────
  * 舊版每種怪都是「在小島上打完 2~3 波一般關卡的小怪」，
@@ -198,7 +198,7 @@ const Encounter = (function () {
     for (let tries = 0; tries < 80; tries++) {
       const x = 30 + Math.random() * (WorldMap.WORLD_W - 60);
       const y0 = Math.max(WorldMap.MAP_TOP + 14, ship.y - WorldMap.VIEW_H * 0.75);
-      const y1 = Math.min(WorldMap.MAP_BOTTOM - 14, ship.y + WorldMap.VIEW_H * 0.75);
+      const y1 = Math.min(WorldMap.mapBottom() - 14, ship.y + WorldMap.VIEW_H * 0.75);
       const y = y0 + Math.random() * Math.max(0, y1 - y0);
       if (!Voyage.isNavigable(x, y)) continue;
       if (Math.hypot(x - ship.x, y - ship.y) < 130) continue;

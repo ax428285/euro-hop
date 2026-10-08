@@ -900,7 +900,8 @@ const Game = (function () {
     }
     if (mapEv.indexOf('rare') >= 0) {
       Sfx.equip();
-      toast = { text: '稀有怪出現了！', sub: '閃金光的黃金海馬 —— 抓到會掉時裝', life: 200 };
+      // v1.31 新大陸的稀有怪是黃金海龜（玩家：提示還寫海馬）
+      toast = { text: '稀有怪出現了！', sub: (WorldMap.world() === 'am' ? '閃金光的黃金海龜' : '閃金光的黃金海馬') + ' —— 抓到會掉時裝', life: 200 };
     }
     const near = Voyage.nearbyLevel();
 
@@ -1237,6 +1238,13 @@ const Game = (function () {
         case 'fall': {
           const faller = state.players[pid || 0];
           if (faller && faller.mount) Features.dismount(state, faller);
+          // v1.31 葡萄牙商店的軟木救生圈：每關第一次掉下去不扣愛心
+          if (faller && faller.stats && faller.stats.pitSave && !(state.pitUsed && state.pitUsed[pid || 0])) {
+            state.pitUsed = state.pitUsed || {};
+            state.pitUsed[pid || 0] = true;
+            lives[pid || 0]++;
+            toast = { text: '軟木救生圈救了你！', sub: '掉下去不扣愛心（這一關只有一次）', life: 160 };
+          }
           Sfx.hurt(); shake = 14; loseLife(true, pid); break;
         }
         case 'mount': Sfx.equip(); break;
@@ -1403,6 +1411,9 @@ const Game = (function () {
     }
     camY = 0;
   }
+
+  /** 船艙能放幾箱：造船廠的船身＋葡萄牙商店的大船艙（v1.31） */
+  function holdCap() { return Trade.capacity(Save.ship()) + (Shop.resolve().hold || 0); }
 
   /** 商店：用金幣買永久強化 */
   function updateShop() {
@@ -1640,7 +1651,7 @@ const Game = (function () {
     const pr = Trade.price(mkPort, g.id, sv.day);
     if (col === 0) {
       if (pr.buy == null) { mkMsg = { text: '這裡不產' + g.name + '：要到產地' + Trade.port(g.home).name + '買', color: '#9aa7c7', life: 130 }; Sfx.clang(); return; }
-      if (Save.cargoCount() >= Trade.capacity(Save.ship())) { mkMsg = { text: '船艙滿了（造船廠加厚船身可以多放）', color: '#ff9aa8', life: 130 }; Sfx.clang(); return; }
+      if (Save.cargoCount() >= holdCap()) { mkMsg = { text: '船艙滿了（造船廠加厚船身、葡萄牙商店的大船艙可以多放）', color: '#ff9aa8', life: 130 }; Sfx.clang(); return; }
       if (sv.wallet < pr.buy) { mkMsg = { text: '金幣不足（還差 ' + (pr.buy - sv.wallet) + '）', color: '#ff9aa8', life: 120 }; Sfx.clang(); return; }
       Save.moveCargo(g.id, 1, -pr.buy);
       Sfx.coin();
@@ -1726,7 +1737,7 @@ const Game = (function () {
     panel(120, 22, W - 240, H - 44);
     const pt = Trade.port(mkPort);
     U.text(ctx, pt.name + '・貿易港', W / 2, 50, { size: 24, color: '#ffd166' });
-    U.text(ctx, '第 ' + (sv.day + 1) + ' 天　錢包 \u20AC ' + sv.wallet + '　船艙 ' + Save.cargoCount() + ' / ' + Trade.capacity(Save.ship()) + ' 箱',
+    U.text(ctx, '第 ' + (sv.day + 1) + ' 天　錢包 \u20AC ' + sv.wallet + '　船艙 ' + Save.cargoCount() + ' / ' + holdCap() + ' 箱',
       W / 2, 80, { size: 13, color: '#9fb4d8' });
     // 分頁
     ['交易', '懸賞板'].forEach(function (name, k) {
@@ -1976,9 +1987,11 @@ const Game = (function () {
     if (skirmish) {
       // 遭遇戰不記關卡進度，改給 EXP；怪物從地圖上消失
       // v1.31 新大陸的怪給「美洲 EXP」（跟歐洲的分開累積，解鎖南美用）
-      const r = state.def.am ? Save.addExpAm(state.def.exp) : Save.addExp(state.def.exp);
-      expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null, am: !!state.def.am };
-      netProgress({ t: 'exp', n: state.def.exp, gain: gain });
+      // v1.31 葡萄牙商店的航海家星盤：EXP 加成
+      const expGain = Math.round(state.def.exp * (1 + (Shop.resolve().expBonus || 0)));
+      const r = state.def.am ? Save.addExpAm(expGain) : Save.addExp(expGain);
+      expResult = { gain: expGain, before: r.before, after: r.after, costume: null, am: !!state.def.am };
+      netProgress({ t: 'exp', n: expGain, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
       if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed || skirmish.def.duo || skirmish.def.quest) && Save.markSeaBoss(skirmish.kind)) {
         Save.addCoins(state.def.bossCoins || 0);
@@ -3025,8 +3038,8 @@ const Game = (function () {
    */
   function drawMapScroll() {
     const top = WorldMap.VIEW_TOP + 6, h = WorldMap.VIEW_H - 12;
-    const k = WorldMap.VIEW_H / WorldMap.WORLD_H;
-    const y = top + (WorldMap.cam.y / WorldMap.WORLD_H) * h;
+    const k = WorldMap.VIEW_H / WorldMap.worldH();
+    const y = top + (WorldMap.cam.y / WorldMap.worldH()) * h;
     ctx.fillStyle = 'rgba(255,255,255,0.10)';
     U.roundRect(ctx, W - 8, top, 4, h, 2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
@@ -3704,13 +3717,16 @@ const Game = (function () {
       if (b.invulnBonus) bits.push('無敵 +' + b.invulnBonus);
       if (b.jumpBoost) bits.push('跳躍 +' + b.jumpBoost.toFixed(1));
       if (b.coinBonus) bits.push('金幣 +' + Math.round(b.coinBonus * 100) + '%');
+      if (b.pitSave) bits.push('救生圈');
+      if (b.hold) bits.push('船艙 +' + b.hold);
+      if (b.expBonus) bits.push('EXP +' + Math.round(b.expBonus * 100) + '%');
       U.text(ctx, bits.length ? '目前加成：' + bits.join('　') : '還沒買任何強化',
         W / 2, H - 44, { size: 13, color: bits.length ? '#8fe3a0' : '#9aa7c7' });
     }
 
     // 葡萄牙商店：提醒其他強化要去找神祕商人（不然玩家會以為東西變少了）
     if (!mystic) {
-      U.text(ctx, '其他強化（磁鐵、護符、彈簧鞋、幸運徽章）在地圖上的神祕商人那裡 —— 找找看紫色的斗篷', W / 2, 270,
+      U.text(ctx, '其他強化（磁鐵、護符、彈簧鞋、幸運徽章）在地圖上的神祕商人那裡 —— 找找看紫色的斗篷', W / 2, sy + Math.ceil(list.length / cols) * (ch + gapY) + 6,
         { size: 13, color: '#d8b8ff' });
     }
     U.text(ctx, '方向鍵 選擇　Enter 購買　B 或 Esc 返回地圖',

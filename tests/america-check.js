@@ -1,7 +1,7 @@
 /**
  * v1.31 美洲篇檢查。在瀏覽器執行 runAmericaCheck()。
  *
- *   A) 兩張地圖：新大陸地圖上剛好是美洲篇的 6 國、入口都在陸地上、哥倫布在聖薩爾瓦多島；換回歐洲又是原本的國家
+ *   A) 兩張地圖：新大陸地圖上剛好是美洲篇的 6 國、入口都在陸地上、哥倫布站在巴哈馬的陸地上、船開得到旁邊；換回歐洲又是原本的國家
  *   B) 橫越大西洋：歐洲地圖往西開到底會回報 edgeWest、新大陸往東開到底回報 edgeEast；兩邊的入口都在開闊海面
  *   C) 開放條件：沒完成哥倫布的委託，美洲篇鎖著；完成（columbus = 2）就開
  *   D) 招牌機制：
@@ -32,7 +32,19 @@ function runAmericaCheck() {
   Voyage.ports().forEach(function (p) {
     if (!Voyage.isLand(p.x, p.y)) issues.push('新大陸：' + p.id + ' 的入口不在陸地上');
   });
-  if (!WorldMap.specials.some(function (s) { return s.def.npc === 'columbusAm'; })) issues.push('新大陸地圖上沒有哥倫布');
+  const colAm = WorldMap.specials.filter(function (s) { return s.def.npc === 'columbusAm'; })[0];
+  if (!colAm) issues.push('新大陸地圖上沒有哥倫布');
+  else {
+    // v1.31 玩家：哥倫布放在海上好奇怪 → 要站在陸地上，但船開得到旁邊（20px 內有開得到的海）
+    if (!Voyage.isLand(colAm.pin[0], colAm.pin[1])) issues.push('新大陸：哥倫布站在海上');
+    let reach = false;
+    for (let a = 0; a < 32 && !reach; a++) for (let r = 4; r <= 20 && !reach; r += 2) reach = Voyage.isNavigable(colAm.pin[0] + Math.cos(a / 5.1) * r, colAm.pin[1] + 4 + Math.sin(a / 5.1) * r);
+    if (!reach) issues.push('新大陸：船開不到哥倫布旁邊');
+  }
+  // v1.31 玩家：南美地圖下方都空的 → 只用到南緯 27 度；每一國的圖釘、地點都要在範圍內
+  WorldMap.nations.concat(WorldMap.specials).forEach(function (n) {
+    if (n.pin[1] > WorldMap.mapBottom() - 30) issues.push('新大陸：' + n.id + ' 太靠近（或超過）地圖下緣');
+  });
   // 國名標籤離自己的圖釘不能太遠
   WorldMap.nations.forEach(function (n) {
     const d = Math.hypot(n.label[0] - n.pin[0], n.label[1] - n.pin[1]);
