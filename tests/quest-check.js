@@ -142,7 +142,7 @@ function runQuestCheck() {
   const all = Equipment.defs.map(function (d) { return d.id; });
   if (Equipment.resolve(all).maxLives > 5) issues.push('全部裝備穿上，愛心上限超過 5（' + Equipment.resolve(all).maxLives + '）');
   Levels.list.forEach(function (def) {
-    if (def.layout === 'shaft' || def.isBoss) return;
+    if (def.layout === 'shaft' || def.layout === 'race' || def.isBoss) return;
     const c = def.coins.filter(function (q) { return q.x + 24 > def.goal; }).length;
     const e = def.enemies.filter(function (q) { return q.x > def.goal - 30 || (q.right != null && q.right > def.goal); }).length;
     if (c || e) issues.push(def.country + '：終點後面還有 ' + c + ' 枚金幣、' + e + ' 隻怪物');

@@ -90,6 +90,7 @@ const Game = (function () {
       const vi = VEHICLE_INTRO[def.vehicle];
       toast = { text: vi[0], sub: vi[1], life: 260 };
     }
+    if (def.layout === 'race' && def.intro) toast = { text: def.intro[0], sub: def.intro[1], life: 300 };
     if (def.autorun) {
       toast = def.ride === 'car'
         ? { text: '坐上古巴老爺車！', sub: '車子會自己往前開、停不下來 —— 只要按跳躍・海堤後面捲起浪頭就準備跳', life: 280 }
@@ -1035,6 +1036,9 @@ const Game = (function () {
     waves: ['馬雷貢海堤的大浪', '海堤後面捲起浪頭就準備跳 —— 浪拍上路面的那一下，人要在半空中'],
     beatpad: ['雷鬼音響', '站在喇叭上等紅黃綠燈亮完 ——「咚」的那一下才會把你彈上天'],
     lock: ['巴拿馬運河的船閘', '中間的閘門跳不過去 —— 站上小船等它升上去，再翻過閘門跳到另一邊'],
+    pourover: ['手沖咖啡', '壺冒蒸氣就要沖水了 —— 站在濾杯的旁邊（別站正中間的水柱），咖啡粉悶蒸會把你托上去'],
+    race_wave: ['大浪要打上來了！', '浪會蓋住整條路 —— 快到的時候按跳躍，從浪上面飛過去'],
+    race_crates: ['走私卡車丟下木箱！', '一整排木箱擋住整條路 —— 按跳躍飛過去'],
     rope: ['海盜盪繩', '跳起來抓住繩子，盪到往前衝的那一下按跳躍放手，就能飛過水道']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
@@ -1113,6 +1117,11 @@ const Game = (function () {
     // 回大地圖 = 放棄這一關（進度不計分），先跳確認框，避免誤按就白打
     if (Input.once('tomap')) { Sfx.select(); scene = 'quitconfirm'; return; }
 
+    // v1.31 往前衝的賽道關（race.js）：不跑橫向關卡的物理，事件格式一樣（'coin'、'p0:hurt'、'clear'⋯⋯）
+    let events;
+    if (state.def.layout === 'race') {
+      events = Race.update(state, coop ? Input.pad(0) : Input, t);
+    } else {
     updateMovers(state.movers, t);
     const enemyEvents = updateEnemies(state, t);
     const bossEvents = updateBoss(state, t);
@@ -1153,7 +1162,8 @@ const Game = (function () {
     // 會講話的 NPC（玩家走近就講）
     Npcs.update(state).forEach(function (e) { featureEvents.push(e); });
 
-    const events = enemyEvents.concat(bossEvents, shaftEvents, seaEvents, playerEvents, featureEvents);
+    events = enemyEvents.concat(bossEvents, shaftEvents, seaEvents, playerEvents, featureEvents);
+    }
     updateParticles(state.particles);
 
     events.forEach(function (raw) {
@@ -1284,6 +1294,7 @@ const Game = (function () {
         case 'helfall': startHel(); break;
         case 'cannon': Sfx.stomp(); shake = 8; break;
         case 'waveWarn': Sfx.land(); break;           // v1.31 古巴：浪頭在海堤後面捲起來了
+        case 'pour': Sfx.land(); break;               // v1.31 牙買加：細口壺開始沖水
         case 'beat': Sfx.stomp(); break;              // v1.31 牙買加：重低音「咚」
         case 'grab': Sfx.select(); break;             // v1.31 哥倫比亞：抓住盪繩
         case 'creak': Sfx.clang(); break;
@@ -1323,6 +1334,7 @@ const Game = (function () {
    */
   function updateCamera() {
     const def = state.def;
+    if (def.layout === 'race') { camX = 0; camY = 0; return; }     // 賽道關的鏡頭在 race.js 裡
     /*
      * 相機追蹤點。
      *
@@ -2488,6 +2500,15 @@ const Game = (function () {
 
   function drawPlay() {
     if (state.def.layout === 'shaft') { drawShaftPlay(); return; }
+    if (state.def.layout === 'race') {
+      ctx.save();
+      if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+      Race.draw(ctx, state, t, W, H);
+      ctx.restore();
+      drawHud();
+      if (toast) drawToast();
+      return;
+    }
 
     const def = state.def;
     ctx.save();

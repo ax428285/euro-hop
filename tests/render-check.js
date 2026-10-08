@@ -19,7 +19,7 @@ function runRenderCheck() {
       spots.push(f.x != null ? f.x - 100 : f.x0 + 300);
     });
     spots.forEach(function (x, i) {
-      if (def.layout !== 'shaft') Game.debug.warpTo(Math.min(x, def.width - 200));
+      if (def.layout !== 'shaft' && def.layout !== 'race') Game.debug.warpTo(Math.min(x, def.width - 200));
       for (let k = 0; k < 40; k++) {
         try { Game.debug.step(1); } catch (e) { issues.push(def.country + ' 更新：' + e.message); break; }
         if (k % 10 === 0) tryRender(def.country + ' (位置 ' + i + ')');

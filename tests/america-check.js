@@ -5,8 +5,8 @@
  *   B) 橫越大西洋：歐洲地圖往西開到底會回報 edgeWest、新大陸往東開到底回報 edgeEast；兩邊的入口都在開闊海面
  *   C) 開放條件：沒完成哥倫布的委託，美洲篇鎖著；完成（columbus = 2）就開
  *   D) 招牌機制：
- *      古巴大浪 —— 拍上來時站在路面會痛、跳在半空中不會；古巴襯衫不會痛
- *      牙買加音響 —— 只有節拍那一下會彈，平常站上去不會
+ *      （古巴、墨西哥是往前衝的賽道關，由 race-check 驗）
+ *      牙買加手沖咖啡 —— 沖水前有預告；站在水柱裡會燙、站在旁邊不會，而且會被咖啡粉托上去；手沖細口壺不會燙
  *      巴拿馬船閘 —— 閘門比跳躍高（從岸上跳不過）、小船升到頂比閘門高；兩艘船差半個週期
  *      哥倫比亞盪繩 —— 把手擺到岸邊時從岸上跳得到；從正中間往前衝時放手飛得過對岸
  *   E) 亞馬遜大蛇：身體在竄出地面前碰到不痛；弧線兩端都在地上；鑽進地底時本體碰不到
@@ -84,50 +84,37 @@ function runAmericaCheck() {
   function player(x, y) {
     return { x: x, y: y, w: 22, h: 40, vx: 0, vy: 0, onGround: true, invuln: 0, stats: Equipment.resolve([]), pid: 0 };
   }
-  // 古巴大浪
-  (function () {
-    const def = AM[0].lv;
-    const wv = def.features.filter(function (f) { return f.type === 'waves'; })[0];
-    if (!wv) { issues.push('古巴：沒有大浪'); return; }
-    let hitT = -1;
-    for (let t = 0; t < 600 && hitT < 0; t++) if (Features.waveState(wv, t).hit) hitT = t;
-    let warned = false;
-    for (let t = Math.max(0, hitT - 60); t < hitT; t++) if (Features.waveState(wv, t).warn) warned = true;
-    if (!warned) issues.push('古巴：浪拍上來之前沒有預告');
-    const mid = (wv.x0 + wv.x1) / 2, gy = LevelGen.groundAt(def.groundSegs, mid);
-    const st = stateOf(def);
-    const ground = player(mid, gy - 40), air = player(mid + 60, gy - 40 - Features.WAVE_H - 10);
-    air.onGround = false;
-    st.players = [ground, air];
-    const ev = Features.update(st, hitT);
-    if (!(ground.invuln > 0)) issues.push('古巴：浪拍上來時站在路面上沒有受傷');
-    if (air.invuln > 0) issues.push('古巴：跳在浪頭上方還是被打到');
-    const st2 = stateOf(def);
-    const tough = player(mid, gy - 40); tough.stats = Equipment.resolve(['guayabera']);
-    st2.players = [tough];
-    Features.update(st2, hitT);
-    if (tough.invuln > 0) issues.push('古巴襯衫：浪打到還是會痛');
-  })();
-  // 牙買加音響
+  // 牙買加手沖咖啡
   (function () {
     const def = AM[1].lv;
-    const sp = def.features.filter(function (f) { return f.type === 'beatpad'; });
-    if (sp.length < 3) { issues.push('牙買加：音響太少（' + sp.length + '）'); return; }
-    const f = sp[0];
-    let boomT = -1, quietT = -1;
-    for (let t = 0; t < 200; t++) {
-      const b = Features.beatState(f, t);
-      if (b.boom && boomT < 0) boomT = t;
-      if (!b.boom && !b.warn && quietT < 0) quietT = t;
-    }
-    const st = stateOf(def);
-    const p1 = player(f.x + 10, f.y - 40); st.players = [p1];
-    Features.update(st, quietT);
-    if (p1.vy < 0) issues.push('牙買加：沒有節拍的時候站上音響也被彈起來');
-    const st2 = stateOf(def);
-    const p2 = player(f.x + 10, f.y - 40); st2.players = [p2];
-    Features.update(st2, boomT);
-    if (!(p2.vy < -10)) issues.push('牙買加：節拍「咚」的那一下沒有被彈起來（vy=' + p2.vy + '）');
+    const ps = def.features.filter(function (f) { return f.type === 'pourover'; });
+    if (ps.length < 3) { issues.push('牙買加：手沖咖啡只有 ' + ps.length + ' 組'); return; }
+    const f = ps[0];
+    let pourT = -1, warned = false;
+    for (let t = 0; t < 700 && pourT < 0; t++) { const q = Features.pourState(f, t); if (q.warn) warned = true; if (q.pour && warned) pourT = t; }
+    if (pourT < 0) { issues.push('牙買加：沖水前沒有預告（或一直不沖水）'); return; }
+    // 站在水柱正中間（沖水中）→ 燙到
+    const stA = stateOf(def), mid = player(f.x + f.w / 2 - 11, f.y - Features.POUR_BASE - 40);
+    stA.players = [mid];
+    for (let t = pourT; t < pourT + 10; t++) Features.update(stA, t);
+    if (!(mid.invuln > 0)) issues.push('牙買加：站在熱水柱正中間沒有被燙到');
+    // 站在旁邊：不會燙；跟著咖啡粉一起被托上去（用 box 的高度驗）
+    const stB = stateOf(def), side = player(f.x + 14, f.y - Features.POUR_BASE - 40);
+    stB.players = [side];
+    let maxLift = 0;
+    for (let t = pourT; t < pourT + 140; t++) { Features.update(stB, t); maxLift = Math.max(maxLift, stB.features.list.filter(function (q) { return q.type === 'pourover'; })[0].lift || 0); }
+    if (side.invuln > 0) issues.push('牙買加：站在濾杯旁邊也被燙到');
+    if (maxLift < Features.POUR_LIFT - 2) issues.push('牙買加：咖啡粉悶蒸只膨脹到 ' + Math.round(maxLift));
+    // 被托到最高時往上跳，碰得到上面最高的金幣
+    const jumpH = PHYS.JUMP_V * PHYS.JUMP_V / (2 * PHYS.GRAVITY);
+    const reach = Features.POUR_BASE + Features.POUR_LIFT + jumpH + 40;
+    const top = Math.min.apply(null, def.coins.filter(function (c) { return c.x > f.x - 20 && c.x < f.x + f.w + 20; }).map(function (c) { return c.y; }));
+    if (f.y - top > reach) issues.push('牙買加：濾杯上方的金幣（離地 ' + Math.round(f.y - top) + '）托上去也碰不到');
+    // 手沖細口壺：不怕燙
+    const stC = stateOf(def), pro = player(f.x + f.w / 2 - 11, f.y - Features.POUR_BASE - 40);
+    pro.stats = Equipment.resolve(['kettle']); stC.players = [pro];
+    for (let t = pourT; t < pourT + 10; t++) Features.update(stC, t);
+    if (pro.invuln > 0) issues.push('手沖細口壺：熱水還是會燙');
   })();
   // 巴拿馬船閘
   (function () {
@@ -208,11 +195,11 @@ function runAmericaCheck() {
     if (!Sprites.landmarks[lv.landmark]) issues.push(lv.country + '：沒有地標 ' + lv.landmark);
     if (!Sprites.skylines[lv.id]) issues.push(lv.country + '：沒有遠景');
     if (!Sprites.flagDirs[lv.flagDir]) issues.push(lv.country + '：國旗畫法 ' + lv.flagDir + ' 沒有註冊');
-    if (!lv.isBoss && lv.layout !== 'shaft' && !(Sprites.countryEnemies[lv.id] && Sprites.countryEnemies[lv.id].walker)) issues.push(lv.country + '：沒有自己的敵人外型');
+    if (!lv.isBoss && lv.layout !== 'shaft' && lv.layout !== 'race' && !(Sprites.countryEnemies[lv.id] && Sprites.countryEnemies[lv.id].walker)) issues.push(lv.country + '：沒有自己的敵人外型');
     if (!Equipment.forLevel(o.i)) issues.push(lv.country + '：沒有裝備');
     if (!Mystery.clueFor || !Mystery.clueFor(o.i)) issues.push(lv.country + '：沒有美洲之謎的線索');
   });
-  if (!Sprites.shaftThemes.cenote) issues.push('墨西哥：沒有聖井的豎井主題');
+  if (Levels.list.filter(function (lv) { return lv.region === 'america' && lv.layout === 'race'; }).length !== 2) issues.push('美洲篇應該有兩關往前衝的賽道關（古巴、墨西哥）');
 
   // 還原
   const restored = JSON.parse(backup);

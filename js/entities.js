@@ -360,6 +360,8 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
     particles: [],
     // 豎井關的執行期狀態（非豎井關是 null）
     shaft: def.layout === 'shaft' ? makeShaftState(def) : null,
+    // v1.31 往前衝的賽道關的執行期狀態（見 race.js；其他關是 null）
+    race: def.layout === 'race' && typeof Race !== 'undefined' ? Race.makeState(def) : null,
     // 橫向關卡的招牌機制（奔牛、彈跳墊⋯⋯見 features.js）
     features: def.features && def.features.length ? Features.makeState(def) : null,
     // 雙人試煉的壓板、閘門（見 duo.js；一般關卡是 null）

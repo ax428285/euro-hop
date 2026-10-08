@@ -154,6 +154,30 @@ const Levels = (function () {
     };
   }
 
+  /**
+   * v1.31 往前衝的賽道關（race.js）：賽道由 Race.plan 用固定 seed 排好。
+   * 沒有橫向的地形、敵人、密道、NPC；過關靠開到終點線（state.race 判定），所以 goal 給 Infinity。
+   */
+  function raceLevel(cfg) {
+    const pl = Race.plan({ seed: cfg.seed, theme: cfg.theme, course: cfg.course, waves: cfg.waves, traffic: cfg.traffic,
+                           maxSpeed: cfg.maxSpeed, obsEvery: cfg.obsEvery, crates: cfg.crates });
+    return {
+      id: cfg.id, country: cfg.country, city: cfg.city, flag: cfg.flag, flagDir: cfg.flagDir,
+      landmark: cfg.landmark, fact: cfg.fact, region: cfg.region || 'west', finale: !!cfg.finale,
+      sky: cfg.sky, cloud: cfg.cloud, hill: cfg.hill, groundTop: cfg.groundTop, groundBody: cfg.groundBody, deco: cfg.deco,
+      intro: cfg.intro || null,
+      layout: 'race',
+      race: pl,
+      width: 960, height: 480,
+      spawnX: 460, spawnY: GROUND_Y - 40,
+      ground: [], platforms: [], water: [], spikes: [], props: [], movers: [], secrets: [], enemies: [], npcs: [],
+      // 金幣、裝備由 race.js 自己管；這裡給一份同樣數量的金幣，HUD 的「€ 拿到/總數」才對
+      coins: pl.coins.map(function (c) { return { x: -1000, y: -1000 }; }),
+      goal: Infinity,
+      equipAt: { x: -1000, y: -1000 }
+    };
+  }
+
   /** 一般關卡：用產生器鋪地形 */
   function makeLevel(cfg) {
     const r = LevelGen.rng(cfg.seed);
@@ -1475,42 +1499,33 @@ const Levels = (function () {
   // ════════════════════════════════════════════════════════════
 
   // ────────────────────────────────────────────────────────────
-  // 29. 古巴 · 哈瓦那 —— 開著老爺車沿馬雷貢海堤衝，大浪會打上岸
+  // 29. 古巴 · 哈瓦那 —— 🏎 往前衝的賽道（race.js）：開老爺車飆馬雷貢海濱大道
+  //     （v1.31 玩家：左右、上下都有了，少一個往前的賽車類型）
   // ────────────────────────────────────────────────────────────
-  list.push(makeLevel({
+  list.push(raceLevel({
     seed: 1061,
     id: 'CU', country: '古巴', city: '哈瓦那', region: 'america',
     flag: ['#002A8F', '#FFFFFF', '#CF142B'], flagDir: 'cuba',
     landmark: 'capitolio',
     fact: '哈瓦那街上還在跑的 1950 年代美國老爺車有好幾萬輛，很多都是靠自己手工改裝的零件撐到今天。',
-    sky: ['#7cc8f0', '#fbe8c0'], hill: '#6aa0a0',
+    sky: ['#f6a970', '#ffe0b0'], hill: '#6aa0a0',
     groundTop: '#d8c8a8', groundBody: '#8a7a64',
     deco: 'palm',
-    layout: 'flat',
-    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
-    airTypes: ['flyer', 'chaser'],
-    density: 0.95,
+    theme: 'car',
     /*
-     * 坐老爺車（ride: 'car'）：跟瑞典雪橇一樣自動往前衝、只能跳。
-     * 招牌：馬雷貢海堤的大浪 —— 浪頭先在海堤後面捲起來（預告），接著整片拍上路面；被打到會痛、被推回去。
+     * 左邊是海、右邊是彩色老房子。路上有慢吞吞的老爺車（要閃）、坑洞（跳過或閃開）、水果推車、三角錐；
+     * 海堤冒出水花 = 大浪要打上來了，浪會蓋住整條路，要跳過去（古巴襯衫：浪打到不痛）。
      */
-    autorun: true,
-    ride: 'car',
-    features: [{ type: 'waves', zones: [[0.18, 0.3], [0.42, 0.56], [0.68, 0.82]] }],
-    secretHint: '海堤底下的漁夫小屋，門板是一張舊車牌',
-    secretNear: 0.36,
-    secretKind: 'room',   // 老爺車停不下來、也不能往回開：天上的岔路接不上，改成地面的小密室
-    props: [
-      { type: 'classicCar', x: 700 },
-      { type: 'bongos', x: 1700 },
-      { type: 'classicCar', x: 3000 },
-      { type: 'bongos', x: 4600 },
-      { type: 'classicCar', x: 6000 }
-    ]
+    course: [[60, 0, 0], [120, 2, 0], [80, 0, 600], [140, -3, 0], [100, 0, -800], [120, 3, 400], [80, 0, 0],
+             [140, -2, -400], [100, 4, 0], [120, 0, 600], [140, -3, -600], [100, 0, 0]],
+    waves: [0.22, 0.48, 0.74],
+    traffic: 9,
+    maxSpeed: 120,
+    intro: ['開著老爺車飆馬雷貢海濱大道！←→ 換車道，空白鍵 跳', '閃開前面的車；海堤冒水花 = 大浪要蓋過整條路，準備跳！']
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 30. 牙買加 · 藍山 —— 雷鬼音響：跟著重低音的節拍彈上天
+  // 30. 牙買加 · 藍山 —— 手沖咖啡：熱水沖下來，咖啡粉悶蒸膨脹把人托上去
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1052,
@@ -1525,8 +1540,11 @@ const Levels = (function () {
     groundTypes: ['walker', 'charger', 'guard', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 1.05,
-    // 招牌：雷鬼音響 —— 只有重低音「咚」的那一下會把人彈上天（站上去等燈亮完），空中有金幣
-    features: [{ type: 'speakers', count: 5 }],
+    /*
+     * 招牌：手沖咖啡（v1.31 玩家：牙買加藍山設計跟咖啡有關的，手沖咖啡）——
+     * 巨大的細口壺定時沖下熱水（正中間的水柱會燙），濾杯裡的咖啡粉一吸水就悶蒸膨脹，把人托上去拿高處的金幣。
+     */
+    features: [{ type: 'pourover', count: 4 }],
     secretHint: '咖啡園的烘豆小屋，香味是從地板縫飄出來的',
     secretNear: 0.6,
     props: [
@@ -1539,25 +1557,30 @@ const Levels = (function () {
   }));
 
   // ────────────────────────────────────────────────────────────
-  // 31. 墨西哥 · 奇琴伊察 —— 豎井：往下跳進馬雅人的聖井（天然石灰岩井）
+  // 31. 墨西哥 · 銅峽谷 —— 🏎 往前衝的賽道：緝毒大追擊
+  //     （v1.31 玩家：墨西哥往毒品的方向想 → 從「抓走私販」的角度做，不出現毒品本身）
   // ────────────────────────────────────────────────────────────
-  list.push(shaftLevel({
+  list.push(raceLevel({
     seed: 1053,
-    id: 'MX', country: '墨西哥', city: '奇琴伊察', region: 'america',
+    id: 'MX', country: '墨西哥', city: '銅峽谷', region: 'america',
     flag: ['#006847', '#FFFFFF', '#CE1126'], flagDir: 'mexico',
     landmark: 'chichenItza',
-    fact: '猶加敦半島底下是一整片石灰岩，雨水把岩層蝕穿就變成天然的井「cenote」—— 馬雅城市都蓋在井旁邊。',
-    sky: ['#9ad8f0', '#f6efd0'], hill: '#5a8a4a',
-    groundTop: '#c8b890', groundBody: '#8a7860',
+    fact: '奇瓦瓦州的銅峽谷是好幾條峽谷連在一起的大峽谷群，比美國的大峽谷還深、還大。',
+    sky: ['#5aa8e0', '#f8dca0'], hill: '#b8643a',
+    groundTop: '#d8945a', groundBody: '#8a5a34',
     deco: 'palm',
-    // 美術主題：聖井（石灰岩壁、垂下來的樹根、底下是翠綠的水，見 america.js 的 'cenote'）
-    theme: 'cenote',
-    floors: 30,
-    platW: 104,
-    shaftW: 560,
-    extras: ['slide'],
-    intro: ['往下跳進馬雅人的聖井！上面的石頭塌下來了', '一路往下，底下翠綠的井水就是終點'],
-    equipAt: 'goal'
+    theme: 'chase',
+    /*
+     * 開警車在峽谷公路上追走私販的卡車：卡車沿路丟下一整排木箱（擋住整條路，要跳）；
+     * 仙人掌、大石頭要閃，風滾草可以跳。追到終點，路障前攔下卡車就過關。
+     * 峽谷公路彎多、起伏大，比古巴難。
+     */
+    course: [[60, 0, 0], [100, -3, 800], [90, 4, -600], [120, -4, 1200], [80, 0, -1400], [110, 5, 600], [90, -5, -600],
+             [120, 3, 1000], [100, -4, -1200], [120, 5, 0], [140, -3, 800], [100, 0, -800]],
+    obsEvery: 30,
+    maxSpeed: 128,
+    crates: [0.2, 0.42, 0.62, 0.84],
+    intro: ['緝毒大追擊！開警車追上前面逃跑的走私卡車', '仙人掌、石頭要閃，卡車丟下的整排木箱要跳過去！']
   }));
 
   // ────────────────────────────────────────────────────────────

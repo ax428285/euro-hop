@@ -72,7 +72,7 @@ function runBalanceCheck() {
     // 挑幾個非終章的橫向關（終章會播結局，不回地圖）
     const picks = Levels.list
       .map(function (def, i) { return { def: def, i: i }; })
-      .filter(function (o) { return !o.def.finale && o.def.layout !== 'shaft' && !o.def.bossArena; })
+      .filter(function (o) { return !o.def.finale && o.def.layout !== 'shaft' && o.def.layout !== 'race' && !o.def.bossArena; })
       .slice(0, 3);
     picks.forEach(function (o) {
       Game.debug.enter(o.i);

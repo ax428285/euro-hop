@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 美洲篇（v1.31）的美術：國旗、地標、遠景、各國敵人、道具、裝備圖示、墨西哥聖井的豎井主題、亞馬遜大蛇。
+ * 美洲篇（v1.31）的美術：國旗、地標、遠景、各國敵人、道具、裝備圖示、亞馬遜大蛇（賽道關的畫面在 race.js）。
  *
  * 跟 expedition.js 一樣「從外面掛進 Sprites」：Sprites 回傳的 landmarks / skylines / props / icons /
  * countryEnemies / shaftThemes / bossKinds / flagDirs 都是可以加東西的物件；大蛇的身體（彈射物）則是包一層 Sprites.shot。
@@ -529,14 +529,14 @@ const America = (function () {
     ctx.fillStyle = '#d8d0b8';
     [[-11, -6], [5, -6], [-11, 3], [5, 3]].forEach(function (p) { ctx.fillRect(p[0] * s, p[1] * s, 6 * s, 5 * s); });
   };
-  /** 雷鬼毛線帽：紅黃綠三條 */
-  IC.rastacap = function (ctx, s) {
-    const cols = ['#2f9a4a', '#f2c230', '#d8262c'];
-    for (let k = 0; k < 3; k++) {
-      ctx.fillStyle = cols[k];
-      ctx.beginPath(); ctx.ellipse(0, (6 - k * 6) * s, (14 - k * 2) * s, 5 * s, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.fillStyle = '#16161c'; ctx.fillRect(-14 * s, 8 * s, 28 * s, 4 * s);
+  /** 手沖細口壺：銀色壺身、細長的鵝頸壺嘴 */
+  IC.kettle = function (ctx, s) {
+    ctx.fillStyle = '#c8ccd4';
+    U.roundRect(ctx, -10 * s, -8 * s, 18 * s, 18 * s, 4 * s); ctx.fill();
+    ctx.fillStyle = '#e8ecf2'; ctx.fillRect(-8 * s, -6 * s, 4 * s, 14 * s);
+    ctx.fillStyle = '#2a2a30'; ctx.fillRect(-14 * s, -4 * s, 4 * s, 10 * s); ctx.fillRect(-4 * s, -11 * s, 6 * s, 3 * s);
+    ctx.strokeStyle = '#b8bcc4'; ctx.lineWidth = 2.4 * s;
+    ctx.beginPath(); ctx.moveTo(8 * s, 6 * s); ctx.quadraticCurveTo(16 * s, 4 * s, 15 * s, -8 * s); ctx.stroke();
   };
   /** 馬雅玉面具：綠色玉片拼成的臉 */
   IC.jade = function (ctx, s) {
@@ -573,88 +573,6 @@ const America = (function () {
     ctx.fillStyle = '#f2c230'; ctx.fillRect(-6 * s, -18 * s, 12 * s, 3 * s);
     ctx.strokeStyle = '#4a4a50'; ctx.lineWidth = 1 * s;
     for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(-7 * s, k * 4 * s); ctx.lineTo(5 * s, k * 4 * s); ctx.stroke(); }
-  };
-
-  // ── 墨西哥聖井（豎井主題 'cenote'） ────────────────────
-
-  Sprites.shaftThemes.cenote = {
-    /** 井壁後面：潮濕的石灰岩、從井口灑下來的光柱、垂下來的樹根 */
-    backdrop: function (ctx, camY, t, W, H) {
-      ctx.save();
-      const par = camY * 0.3;
-      ctx.fillStyle = 'rgba(30, 50, 44, 0.55)';
-      ctx.fillRect(0, 0, W, H);
-      // 光柱（越往下越淡）
-      const fade = Math.max(0.05, 0.35 - camY / 8000);
-      ctx.fillStyle = 'rgba(255, 250, 210, ' + fade.toFixed(2) + ')';
-      ctx.beginPath(); ctx.moveTo(380, 0); ctx.lineTo(560, 0); ctx.lineTo(640, H); ctx.lineTo(300, H); ctx.closePath(); ctx.fill();
-      // 鐘乳石的層紋
-      ctx.fillStyle = 'rgba(200, 190, 160, 0.12)';
-      for (let row = Math.floor(par / 90) - 1; row < Math.floor(par / 90) + Math.ceil(H / 90) + 2; row++) {
-        const y = row * 90 - par;
-        ctx.fillRect(0, y, W, 6);
-      }
-      // 樹根
-      ctx.strokeStyle = 'rgba(70, 50, 30, 0.7)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-      for (let row = Math.floor(par / 260) - 1; row < Math.floor(par / 260) + 3; row++) {
-        const y0 = row * 260 - par;
-        for (let k = 0; k < 2; k++) {
-          const x = ((row * 173 + k * 410) % 900 + 900) % 900 + 30;
-          ctx.beginPath(); ctx.moveTo(x, y0); ctx.bezierCurveTo(x + 20, y0 + 70, x - 18, y0 + 140, x + 6, y0 + 200 + Math.sin(t * 0.02 + row) * 6); ctx.stroke();
-        }
-      }
-      ctx.lineCap = 'butt';
-      // 水滴
-      ctx.fillStyle = 'rgba(160, 230, 220, 0.6)';
-      for (let k = 0; k < 10; k++) {
-        const x = (k * 97 + 60) % W, y = (t * 2.2 + k * 140) % (H + 40) - 20;
-        ctx.fillRect(x, y, 2, 5);
-      }
-      ctx.restore();
-    },
-    wall: function (ctx, wall, camY, viewH) {
-      ctx.fillStyle = '#b8a888';
-      ctx.fillRect(wall.x, camY - 20, wall.w, viewH + 40);
-      ctx.fillStyle = 'rgba(120, 100, 70, 0.35)';
-      const bh = 46, start = Math.floor((camY - 20) / bh);
-      for (let i = 0; i < viewH / bh + 3; i++) {
-        const by = (start + i) * bh;
-        ctx.beginPath(); ctx.ellipse(wall.x + wall.w / 2 + ((start + i) % 3 - 1) * 12, by + bh / 2, wall.w * 0.35, 12, 0, 0, Math.PI * 2); ctx.fill();
-      }
-      // 青苔
-      const inner = wall.x < 480 ? wall.x + wall.w - 6 : wall.x;
-      ctx.fillStyle = 'rgba(80, 140, 70, 0.6)';
-      ctx.fillRect(inner, camY - 20, 6, viewH + 40);
-    },
-    /** 頂上塌下來的石頭（往下追） */
-    ceiling: function (ctx, screenTop, h, w, t) {
-      ctx.save();
-      ctx.fillStyle = '#8a7a60';
-      ctx.fillRect(0, screenTop, w, h - 12);
-      ctx.fillStyle = '#a8987a';
-      for (let i = 0; i < w / 34; i++) {
-        const sx = i * 34, r = 14 + (i % 3) * 4;
-        ctx.beginPath(); ctx.arc(sx + 17, screenTop + h - 14 + Math.sin(t * 0.2 + i) * 1.5, r, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
-    },
-    floor: function (ctx, f, x, y, w, h, t) {
-      if (f.goal) {
-        // 井底：翠綠的井水，上面一塊石灰岩平台
-        ctx.fillStyle = 'rgba(40, 170, 150, 0.9)';
-        ctx.fillRect(x - 40, y + 6, w + 80, 40);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        for (let k = 0; k < 6; k++) ctx.fillRect(x - 30 + k * (w + 60) / 6 + Math.sin(t * 0.05 + k) * 4, y + 12, 18, 2);
-        ctx.fillStyle = '#c8b890'; ctx.fillRect(x, y, w, 8);
-        return true;
-      }
-      if (f.type && f.type !== 'normal') return false;
-      ctx.fillStyle = '#c8b890'; ctx.fillRect(x, y, w, h);
-      ctx.fillStyle = '#e0d4b0'; ctx.fillRect(x, y, w, 3);
-      ctx.fillStyle = 'rgba(80, 140, 70, 0.7)';
-      for (let k = 6; k < w - 6; k += 18) ctx.fillRect(x + k, y + h - 2, 4, 5 + (k % 3) * 2);   // 垂下來的青苔
-      return true;
-    }
   };
 
   // ── 亞馬遜大蛇 Boiúna ───────────────────────────────────

@@ -200,7 +200,7 @@ async function runTouchCheck() {
       Game.debug.getState().players.forEach(function (q) { q.invuln = 1e9; });
       Game.debug.step(90);
       // 豎井關的鏡頭會一直往下捲，出生點沒意義，跳過
-      if (Game.debug.getState().def.layout === 'shaft') return;
+      if (Game.debug.getState().def.layout === 'shaft' || Game.debug.getState().def.layout === 'race') return;   // 賽道關的人固定在畫面下方中間
       const p = Game.debug.getState().players[0];
       const cam = Game.debug.getCam();
       // 人物的左上、右下角 → 畫面座標（用實際的鏡頭位置）

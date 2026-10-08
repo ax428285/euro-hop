@@ -19,7 +19,9 @@
  *   aurora    芬蘭    極夜：一片漆黑，極光亮起來才看得清楚
  *   （v1.31 美洲篇）
  *   waves     古巴    馬雷貢海堤的大浪：浪頭先在堤後捲起來，接著整片拍上路面（跳起來躲）
- *   speakers  牙買加  雷鬼音響：只有重低音「咚」的那一下會把人彈上天（站在上面等節拍，跑過去不會彈）
+ *   pourover  牙買加  手沖咖啡：巨大的細口壺定時傾斜、沖下熱水柱（會燙）；底下濾杯裡的咖啡粉一吸水就「悶蒸」膨脹，
+ *                     把站在上面的人往上托（拿高處的金幣）—— 要站在水柱旁邊，不能站在正中間
+ *   speakers  （v1.31 試做的雷鬼音響，目前沒有關卡用）
  *   locks     巴拿馬  運河船閘：閘室中間一道閘門牆跳不過去，兩側的小船交替升降，搭升起來的船翻過閘門
  *   ropes     哥倫比亞 海盜盪繩：寬水道上方掛著來回盪的繩子，跳起來抓住、盪到前面按跳躍放手飛過去
  *
@@ -333,6 +335,19 @@ const Features = (function () {
             coins.push({ x: Math.round(cx - 12), y: ly - 70 });
           }
         });
+      } else if (c.type === 'pourover') {
+        // 牙買加：手沖咖啡。濾杯頭上要淨空（咖啡粉會把人托上去），上面放一排要靠悶蒸才拿得到的金幣
+        const n = c.count || 4;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.16 + 0.68 * i / Math.max(1, n - 1)), POUR_W, 380);
+          if (!sp) continue;
+          list.push({ type: 'pourover', x: sp.x, y: sp.y, w: POUR_W, phase: (i * 71) % POUR_CYCLE });
+          ctx.avoid.push({ x: sp.x - 80, y: 0, w: POUR_W + 160, h: 600 });
+          // 金幣在濾杯的兩側上方（水柱在正中間）
+          [0.18, 0.82].forEach(function (k) {
+            coinColumn(sp.x + POUR_W * k, sp.y - POUR_BASE, 150, 250, 3).forEach(function (q) { coins.push(q); });
+          });
+        }
       } else if (c.type === 'speakers') {
         // 牙買加：雷鬼音響。跟彈跳墊一樣頭上要淨空、上面放金幣，但只有節拍到的那一下才會彈
         const n = c.count || 5;
@@ -489,6 +504,23 @@ const Features = (function () {
    * 最後 WAVE_HIT 帧整片拍上路面：腳底低於「路面 − WAVE_H」的人都會被打到（跳起來就躲得過）。
    */
   /*
+   * 牙買加的手沖咖啡：週期 POUR_CYCLE。
+   *   平常（idle）咖啡粉平平的，面在地上 POUR_BASE 高；
+   *   壺開始傾斜、冒蒸氣 POUR_WARN 帧（預告）→ 沖水 POUR_TIME 帧（正中間的水柱會燙，咖啡粉一路膨脹往上 POUR_LIFT）→
+   *   停一下 → 慢慢消下去。站在咖啡粉上的人會被托上去（box 是有 dy 的平台）。
+   */
+  const POUR_W = 132, POUR_BASE = 56, POUR_LIFT = 150, POUR_CYCLE = 330, POUR_WARN = 50, POUR_TIME = 80, POUR_HOLD = 50, POUR_STREAM = 16;
+  function pourState(f, t) {
+    const k = (t + f.phase) % POUR_CYCLE;
+    const pourAt = POUR_CYCLE - POUR_TIME - POUR_HOLD - 60, warnAt = pourAt - POUR_WARN;
+    let lift = 0;
+    if (k >= pourAt && k < pourAt + POUR_TIME) lift = POUR_LIFT * (k - pourAt) / POUR_TIME;
+    else if (k >= pourAt + POUR_TIME && k < pourAt + POUR_TIME + POUR_HOLD) lift = POUR_LIFT;
+    else if (k >= pourAt + POUR_TIME + POUR_HOLD) lift = POUR_LIFT * (1 - (k - pourAt - POUR_TIME - POUR_HOLD) / 60);
+    return { k: k, warn: k >= warnAt && k < pourAt, pour: k >= pourAt && k < pourAt + POUR_TIME, lift: lift, tilt: k >= warnAt && k < pourAt + POUR_TIME ? Math.min(1, (k - warnAt) / POUR_WARN) : 0 };
+  }
+
+  /*
    * 牙買加的雷鬼音響：每 BEAT_PERIOD 帧「咚」一下（BEAT_WINDOW 帧內站在上面的人被彈上去），
    * 節拍前 BEAT_WARN 帧喇叭上的紅黃綠燈一顆顆亮起來（準備）。初速比法國遮陽篷再高一點。
    */
@@ -581,6 +613,8 @@ const Features = (function () {
       if (f.type === 'floe' && f.box) out.push(f.box);
       // 巴拿馬船閘：跟著水位升降的小船、正中間的閘門牆
       if (f.type === 'lock' && f.box) out.push(f.box);
+      // 牙買加手沖咖啡：濾杯裡的咖啡粉（悶蒸時會往上膨脹）
+      if (f.type === 'pourover' && f.box) out.push(f.box);
       if (f.type === 'lockGate') out.push(f);
     });
     return out;
@@ -599,6 +633,10 @@ const Features = (function () {
         if (f.type === 'column') { o.state = 'stand'; o.timer = 0; o.angle = 0; }
         if (f.type === 'mount') { o.state = 'wait'; o.timer = 0; }
         if (f.type === 'brick') { o.on = brickState(o, 0).on; }
+        if (f.type === 'pourover') {
+          o.lift = 0;
+          o.box = { x: o.x + 10, y: o.y - POUR_BASE, w: o.w - 20, h: 14, dx: 0, dy: 0, passThru: true, floe: true };
+        }
         if (f.type === 'lock') {
           o.lift = lockLift(o, 0);
           o.box = { x: o.x, y: o.y - o.lift, w: o.w, h: 16, dx: 0, dy: 0, passThru: true, floe: true };
@@ -684,8 +722,7 @@ const Features = (function () {
         players.forEach(function (p, i) {
           const feet = p.y + p.h;
           if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 4 && p.x < f.x + f.w - 4) {
-            // v1.31 牙買加雷鬼毛線帽：彈跳墊（遮陽篷、音響）彈得更高
-            launch(p, PAD_V * (p.stats && p.stats.padBoost ? 1.12 : 1), events, pidOf(p, i));
+            launch(p, PAD_V, events, pidOf(p, i));
             f.squash = 10;
           }
         });
@@ -865,6 +902,21 @@ const Features = (function () {
         f.box.dx = nx - f.box.x; f.box.dy = ny - f.box.y;
         f.box.x = nx; f.box.y = ny;
         f.sinking = ridden && f.rideT > FLOE_GRACE;
+      } else if (f.type === 'pourover') {
+        const ps = pourState(f, t);
+        f.warn = ps.warn; f.pour = ps.pour; f.tilt = ps.tilt;
+        const ny = f.y - POUR_BASE - ps.lift;
+        f.box.dy = ny - f.box.y; f.box.y = ny; f.lift = ps.lift;
+        if (ps.k === POUR_CYCLE - POUR_TIME - POUR_HOLD - 60 && Math.abs(lead.x - f.x) < 600) events.push('pour');
+        if (ps.pour) {
+          // 正中間的熱水柱：從壺嘴一路到咖啡粉的面（v1.31 手沖細口壺：熱水燙不到）
+          const sx = f.x + f.w / 2 - POUR_STREAM / 2;
+          const stream = { x: sx, y: f.y - POUR_TOP, w: POUR_STREAM, h: (ny) - (f.y - POUR_TOP) };
+          players.forEach(function (p, i) {
+            if (p.stats && p.stats.pourProof) return;
+            if (U.overlap(p, stream)) hurt(p, f.x + f.w / 2, events, pidOf(p, i));
+          });
+        }
       } else if (f.type === 'beatpad') {
         const bs = beatState(f, t);
         f.boom = bs.boom; f.warn = bs.warn;
@@ -872,8 +924,7 @@ const Features = (function () {
           players.forEach(function (p, i) {
             const feet = p.y + p.h;
             if (p.onGround && Math.abs(feet - f.y) < 3 && p.x + p.w > f.x + 4 && p.x < f.x + f.w - 4) {
-              // v1.31 牙買加雷鬼毛線帽：彈得更高
-              launch(p, BEAT_V * (p.stats && p.stats.padBoost ? 1.1 : 1), events, pidOf(p, i));
+              launch(p, BEAT_V, events, pidOf(p, i));
               f.squash = 10;
             }
           });
@@ -1153,7 +1204,11 @@ const Features = (function () {
     fs.list.forEach(function (f) {
       // 背景層：鹽礦岩壁、極夜的星空與極光（要在建築後面）
       if (layer && (layer === 'bg') !== (f.type === 'dark' || f.type === 'aurora')) return;
-      if (f.type === 'beatpad') {
+      if (f.type === 'pourover') {
+        const sx = f.x - camX;
+        if (sx < -160 || sx > 1100) return;
+        drawPourover(ctx, sx, f, t);
+      } else if (f.type === 'beatpad') {
         const sx = f.x - camX;
         if (sx < -80 || sx > 1040) return;
         drawSpeaker(ctx, sx, f.y, f, t);
@@ -1565,6 +1620,87 @@ const Features = (function () {
       }
     }
     ctx.restore();
+  }
+
+  /*
+   * 牙買加的手沖咖啡：木架子上一個白色的錐形濾杯（底下是玻璃分享壺），裡面是咖啡粉；
+   * 上方一支木頭吊臂掛著銀色的細口壺，預告時壺身慢慢往前傾、壺嘴冒蒸氣，沖水時一條細細的熱水柱落在正中間。
+   */
+  const POUR_TOP = 300;          // 壺嘴離地多高
+  function drawPourover(ctx, sx, f, t) {
+    const gy = f.y, top = gy - POUR_BASE, cx = sx + f.w / 2;
+    // 吊臂（左邊一根柱子，往右伸到濾杯正上方）
+    ctx.fillStyle = '#6a4a2a';
+    ctx.fillRect(sx - 30, gy - POUR_TOP - 60, 8, POUR_TOP + 60);
+    ctx.fillRect(sx - 30, gy - POUR_TOP - 60, cx - sx + 60, 7);
+    // 底下的玻璃分享壺＋木架
+    ctx.fillStyle = 'rgba(200, 230, 240, 0.5)';
+    ctx.beginPath(); ctx.moveTo(cx - 34, gy); ctx.lineTo(cx - 40, gy - 30); ctx.lineTo(cx + 40, gy - 30); ctx.lineTo(cx + 34, gy); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(90, 50, 20, 0.85)'; ctx.fillRect(cx - 32, gy - 10 - Math.min(18, f.lift * 0.12), 64, 10 + Math.min(18, f.lift * 0.12));
+    ctx.fillStyle = '#8a5a2a'; ctx.fillRect(sx + 4, top + 10, f.w - 8, 6);
+    // 濾杯（白色錐形，上寬下窄）
+    ctx.fillStyle = '#f4f0e8';
+    ctx.beginPath(); ctx.moveTo(sx, top - 16); ctx.lineTo(sx + f.w, top - 16); ctx.lineTo(cx + 26, top + 12); ctx.lineTo(cx - 26, top + 12); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(200, 190, 170, 0.8)'; ctx.lineWidth = 1.5;
+    for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(sx + k * f.w / 4, top - 14); ctx.lineTo(cx + (k - 2) * 10, top + 10); ctx.stroke(); }
+    // 咖啡粉（就是踩的地方）：悶蒸時像舒芙蕾一樣從濾杯裡鼓起來 —— 底下窄、上面一顆冒泡的奶泡圓頂
+    const by = f.box.y, lift = f.lift || 0;
+    if (lift > 2) {
+      const g = ctx.createLinearGradient(0, top - 10, 0, by);
+      g.addColorStop(0, '#5a3a1e'); g.addColorStop(1, '#a8743e');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(cx - 30, top - 12);
+      ctx.quadraticCurveTo(sx + 6, (top + by) / 2, sx + 12, by + 6);
+      ctx.lineTo(sx + f.w - 12, by + 6);
+      ctx.quadraticCurveTo(sx + f.w - 6, (top + by) / 2, cx + 30, top - 12);
+      ctx.closePath(); ctx.fill();
+      // 冒上來的泡泡
+      ctx.fillStyle = 'rgba(240, 210, 160, 0.7)';
+      for (let k = 0; k < 8; k++) {
+        const bx = sx + 20 + ((k * 29) % (f.w - 40)), byy = by + 10 + ((k * 37 + t * 0.8) % Math.max(8, top - by - 10));
+        ctx.beginPath(); ctx.arc(bx, byy, 2 + (k % 3), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // 頂上的奶泡圓頂（平常就是濾杯裡平平的一層咖啡粉）
+    ctx.fillStyle = lift > 2 ? '#d8a864' : '#5a3a1e';
+    ctx.beginPath(); ctx.ellipse(cx, by + 4, f.w / 2 - 8, 9 + Math.min(6, lift * 0.05), 0, Math.PI, 0); ctx.fill();
+    ctx.fillRect(sx + 8, by + 3, f.w - 16, 5);
+    if (lift > 2) {
+      ctx.fillStyle = 'rgba(255, 240, 210, 0.9)';
+      for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(sx + 22 + k * (f.w - 44) / 4, by - 2 - (k % 2) * 3, 3, 0, Math.PI * 2); ctx.fill(); }
+    }
+    // 細口壺（銀色）：預告時往前傾、冒蒸氣
+    const kx = cx - 30, ky = gy - POUR_TOP - 40;
+    ctx.save();
+    ctx.translate(kx, ky);
+    ctx.rotate((f.tilt || 0) * 0.6);
+    ctx.strokeStyle = '#4a3220'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(0, -14); ctx.stroke();
+    ctx.fillStyle = '#c8ccd4';
+    U.roundRect(ctx, -16, -14, 32, 30, 8); ctx.fill();
+    ctx.fillStyle = '#e8ecf2'; ctx.fillRect(-12, -10, 6, 22);
+    ctx.fillStyle = '#2a2a30'; ctx.fillRect(-18, -2, 4, 14);                     // 把手
+    ctx.strokeStyle = '#b8bcc4'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(16, 10); ctx.quadraticCurveTo(28, 6, 30, 22); ctx.stroke();   // 鵝頸壺嘴
+    ctx.restore();
+    if (f.warn || f.pour) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      for (let k = 0; k < 3; k++) {
+        const ph = (t * 0.6 + k * 9) % 26;
+        ctx.beginPath(); ctx.arc(cx + Math.sin(t * 0.1 + k) * 4, gy - POUR_TOP - 10 - ph, 4 + ph * 0.2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // 熱水柱
+    if (f.pour) {
+      ctx.fillStyle = 'rgba(200, 150, 90, 0.75)';
+      ctx.fillRect(cx - POUR_STREAM / 4, gy - POUR_TOP, POUR_STREAM / 2, by - (gy - POUR_TOP));
+      ctx.fillStyle = 'rgba(255, 240, 220, 0.6)';
+      ctx.fillRect(cx - 1, gy - POUR_TOP, 2, by - (gy - POUR_TOP));
+      // 水落下去濺起來的熱氣
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      for (let k = 0; k < 3; k++) { const ph = (t * 0.5 + k * 7) % 16; ctx.beginPath(); ctx.arc(cx + (k - 1) * 10, by - 4 - ph, 3 + ph * 0.2, 0, Math.PI * 2); ctx.fill(); }
+    }
   }
 
   /** 牙買加的雷鬼音響：一疊黑色喇叭箱；節拍前燈一顆顆亮起來（準備），「咚」的那一下喇叭鼓出來、冒出聲波圈 */
@@ -2083,6 +2219,12 @@ const Features = (function () {
     drawCar: drawCar,
     waveState: waveState,
     beatState: beatState,
+    pourState: pourState,
+    POUR_LIFT: POUR_LIFT,
+    POUR_BASE: POUR_BASE,
+    POUR_W: POUR_W,
+    POUR_TOP: POUR_TOP,
+    POUR_STREAM: POUR_STREAM,
     ropeHandle: ropeHandle,
     ropeVel: ropeVel,
     ropeRelease: ropeRelease,

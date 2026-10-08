@@ -19,7 +19,7 @@ function runFeatureCheck() {
   const COLUMN_FAR = 400;    // 離倒下的石柱夠遠（不會卡在裡面）
 
   Levels.list.forEach(function (def, li) {
-    if (def.isBoss || def.layout === 'shaft') return;
+    if (def.isBoss || def.layout === 'shaft' || def.layout === 'race') return;   // 賽道關的障礙由 race-check 驗
     const fs = def.features || [];
     const tag = def.country;
     if (!fs.length) { issues.push(tag + '：沒有招牌機制'); return; }

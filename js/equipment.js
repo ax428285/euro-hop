@@ -245,11 +245,11 @@ const Equipment = (function () {
       apply: function (s) { s.waveProof = true; }
     },
     {
-      id: 'rastacap', level: 29, country: '牙買加', icon: 'rastacap',
-      name: '雷鬼毛線帽',
-      desc: '彈跳墊彈得更高：雷鬼音響、法國遮陽篷都適用',
-      note: '紅、黃、綠三色的毛線帽是雷鬼音樂的招牌打扮；雷鬼樂 1960 年代在牙買加的金斯敦誕生。',
-      apply: function (s) { s.padBoost = true; }
+      id: 'kettle', level: 29, country: '牙買加', icon: 'kettle',
+      name: '手沖細口壺',
+      desc: '熱水燙不到：手沖咖啡的熱水柱碰到不會痛',
+      note: '手沖咖啡用的細口壺有一支細長的鵝頸壺嘴，水流又細又穩，才能一圈一圈慢慢繞著沖，讓咖啡粉均勻悶蒸。',
+      apply: function (s) { s.pourProof = true; }
     },
     {
       id: 'jade', level: 30, country: '墨西哥', icon: 'jade',
@@ -288,9 +288,9 @@ const Equipment = (function () {
    *    之後英國的板球「部位不空、不自動裝」→ 新玩家整個西歐篇都沒有遠程攻擊（touch-check 抓到的）。
    */
   const SLOTS = [
-    { id: 'head', name: '頭',   items: ['beret', 'laurel', 'tagelmust', 'rastacap', 'panama'] },
+    { id: 'head', name: '頭',   items: ['beret', 'laurel', 'tagelmust', 'panama'] },
     { id: 'body', name: '身體', items: ['rope', 'vyshyvanka', 'cravat', 'lopapeysa', 'guayabera'] },
-    { id: 'hand', name: '手',   items: ['paprika', 'brolly', 'valaska'] },
+    { id: 'hand', name: '手',   items: ['paprika', 'brolly', 'valaska', 'kettle'] },
     { id: 'feet', name: '腳',   items: ['sandals', 'opanci', 'clogs', 'babouche', 'ghadames', 'nutukas'] },
     { id: 'acc',  name: '飾品', items: ['amber', 'rose', 'puppet', 'garlic', 'baton', 'stein', 'fan', 'ankh', 'khamsa', 'lego', 'sunstone', 'bell', 'jade', 'coffee', 'figa'] }
   ];
@@ -343,7 +343,7 @@ const Equipment = (function () {
       steady: false,      // 被打到只退一半（冰島毛衣）
       // v1.31 美洲篇
       waveProof: false,   // 大浪打到不痛（古巴襯衫）
-      padBoost: false,    // 彈跳墊彈更高（牙買加雷鬼毛線帽）
+      pourProof: false,   // 手沖咖啡的熱水燙不到（牙買加手沖細口壺）
       secretSense: false, // 隱形磚遠遠就看得到（墨西哥馬雅玉面具）
       earlyWarn: false,   // 砲擊紅圈提早出現（哥倫比亞咖啡）
       pitSave: false,     // 每關第一次掉下去不扣愛心（巴西幸運手符）

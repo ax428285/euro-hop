@@ -22,7 +22,7 @@ function runLevelCheck() {
      * 沒有 x 方向的終點，套進來只會噴一堆無意義的錯（實測直接 throw）。
      * 它的專屬約束由 tests/shaft-check.js 負責。
      */
-    if (def.layout === 'shaft') return;
+    if (def.layout === 'shaft' || def.layout === 'race') return;
 
     const tag = '關 ' + (li + 1) + ' ' + def.country;
     const solids = def.ground.concat(def.platforms || []);

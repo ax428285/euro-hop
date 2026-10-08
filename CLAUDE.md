@@ -26,7 +26,7 @@
 
 ## 測試
 
-- 測試都在 `tests/*.js`，要在瀏覽器裡跑：開本機預覽後，把測試檔用 `<script>` 載入，執行 `runXxxCheck()`（例如 `runAmericaCheck()`、`runQuestCheck()`），還有 `runTraversalTest()`、`runBossTest()`、`runBossFightTest()`。
+- 測試都在 `tests/*.js`，要在瀏覽器裡跑：開本機預覽後，把測試檔用 `<script>` 載入，執行 `runXxxCheck()`（例如 `runAmericaCheck()`、`runRaceCheck()`、`runQuestCheck()`），還有 `runTraversalTest()`、`runBossTest()`、`runBossFightTest()`。
 - `runTouchCheck()` 要在手機尺寸下跑（需要先載入 `terrain-util.js`、`menu-check.js`）。
 - 已知：`runBossFightTest()` 的義大利、羅馬尼亞打不贏是機器人的老限制，不是 bug。
 - 本機預覽：`.claude/launch.json` 平常只有 python 的 `euro-hop`（port 8765）一項；若為了測試暫時加別的設定，用完要改回只有 python 那一項。
@@ -35,4 +35,6 @@
 
 - v1.30.0 北歐篇（索爾、洛基、冥界、金字塔鑰匙、哥倫布戰艦、瑞士銀行、動物園、比利時扒手、埃及豔后、聖誕老人）已上線。
 - v1.31.0 美洲篇（新大陸地圖：古巴、牙買加、墨西哥、巴拿馬、哥倫比亞、巴西魔王亞馬遜大蛇）已在 `nordic` 上做好，**還沒上線**，等使用者說「可以上線」。
+  - 古巴、墨西哥是「往前衝的賽道關」（`js/race.js`，layout `'race'`）；墨西哥是緝毒追擊（從抓走私販的角度做，不出現毒品本身）。
+  - 牙買加是手沖咖啡（Features `'pourover'`）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

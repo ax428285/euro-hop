@@ -125,7 +125,7 @@ function runMysteryCheck() {
 
     // 其餘只剩最後一條：其他關直接記成已通關，留一個橫向關實際打
     const last = Levels.list.findIndex(function (d, i) {
-      return i !== first && !d.finale && d.layout !== 'shaft' && !d.bossArena;
+      return i !== first && !d.finale && d.layout !== 'shaft' && d.layout !== 'race' && !d.bossArena;
     });
     Levels.list.forEach(function (d, i) { if (i !== first && i !== last) Save.markCleared(i, 0, 0, 0); });
     if (Mystery.progress('europe').got !== p0.total - 1) issues.push('準備階段：應該只差 1 條');

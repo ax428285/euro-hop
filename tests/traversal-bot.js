@@ -24,6 +24,11 @@ function runTraversalTest() {
      * 而且畫面會自動捲動。這裡的機器人只會往右走，
      * 套上去會回報 0% 的假失敗。交給 runShaftCheck() 驗。
      */
+    // v1.31 往前衝的賽道關：由 runRaceCheck() 的開車機器人驗
+    if (def.layout === 'race') {
+      results.push({ level: li + 1, name: def.country + ' · ' + def.city, skipped: 'race', cleared: true });
+      continue;
+    }
     if (def.layout === 'shaft') {
       results.push({
         level: li + 1,

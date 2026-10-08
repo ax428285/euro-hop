@@ -12,7 +12,7 @@ function runSpawnCheck() {
   const issues = [];
   const SAFE = 420;
   Levels.list.forEach(function (def, li) {
-    if (def.layout === 'shaft') return;
+    if (def.layout === 'shaft' || def.layout === 'race') return;
     const st = buildLevelState(def, li, [], Equipment.resolve([]));
     const p = st.player;
     const zone = { x: p.x - 80, y: 0, w: SAFE + 80 + p.w, h: 600 };
