@@ -424,20 +424,26 @@ const WorldMap = (function () {
     ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = '#f4efe2'; ctx.fillStyle = '#f4efe2'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
     if (kind === 'shipyard') {
-      ctx.beginPath(); ctx.moveTo(0, by - 6); ctx.lineTo(0, by + 5);
-      ctx.moveTo(-3, by - 3); ctx.lineTo(3, by - 3);
-      ctx.moveTo(-5, by + 1); ctx.quadraticCurveTo(-4, by + 6, 0, by + 6); ctx.quadraticCurveTo(4, by + 6, 5, by + 1);
+      // 造船廠（v1.29.6：錨讓給貿易港）：船台上蓋到一半的船 —— 船身＋桅杆＋兩根斜撐
+      ctx.beginPath(); ctx.moveTo(-6, by + 1); ctx.lineTo(6, by + 1); ctx.lineTo(3.5, by + 5); ctx.lineTo(-3.5, by + 5); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, by + 1); ctx.lineTo(0, by - 6);
+      ctx.moveTo(-6.5, by + 6); ctx.lineTo(-3, by - 2); ctx.moveTo(6.5, by + 6); ctx.lineTo(3, by - 2);
       ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, by - 7, 1.6, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0.8, by - 6); ctx.lineTo(4.5, by - 2); ctx.lineTo(0.8, by - 2); ctx.closePath(); ctx.fill();
     } else if (duo) {
       // 雙人試煉：兩個小人並肩（一大一小，像在疊羅漢）
       ctx.beginPath(); ctx.arc(-3.2, by - 4, 2.2, 0, Math.PI * 2); ctx.arc(3.2, by - 4, 2.2, 0, Math.PI * 2); ctx.fill();
       ctx.fillRect(-5.4, by - 1, 4.4, 6); ctx.fillRect(1, by - 1, 4.4, 6);
     } else if (kind === 'market') {
-      // 貿易港：一箱貨（木箱＋交叉繩）
-      ctx.fillRect(-5, by - 4, 10, 8);
-      ctx.strokeStyle = '#b8862a'; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(-5, by - 4); ctx.lineTo(5, by + 4); ctx.moveTo(5, by - 4); ctx.lineTo(-5, by + 4); ctx.stroke();
+      // 貿易港（v1.29.6 玩家：港口換成港口的圖案；原本的木箱看起來像信封）：船錨＋底下一道浪
+      ctx.beginPath(); ctx.arc(0, by - 5.2, 1.6, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, by - 3.6); ctx.lineTo(0, by + 4);
+      ctx.moveTo(-3, by - 1.6); ctx.lineTo(3, by - 1.6);
+      ctx.moveTo(-5, by + 0.5); ctx.quadraticCurveTo(-4.5, by + 4.5, 0, by + 4.5); ctx.quadraticCurveTo(4.5, by + 4.5, 5, by + 0.5);
+      ctx.stroke();
+      ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(-6, by + 7); ctx.quadraticCurveTo(-3, by + 5.6, 0, by + 7); ctx.quadraticCurveTo(3, by + 8.4, 6, by + 7); ctx.stroke();
     } else {
       ctx.beginPath(); ctx.arc(0, by, 5.5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#1f6a78';
