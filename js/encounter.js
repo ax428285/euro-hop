@@ -996,7 +996,7 @@ const Encounter = (function () {
         const dir = qx < cx ? 1 : -1;
         q.x += dir * (q.onGround ? 1.15 : 0.6) * (1 + mini.got * 0.12);
         // 掉進漩渦眼：痛一下、被甩回兩側
-        // v1.30：還沒救出洛基時，掉進漩渦眼就一路沉到冥界（不用把命用完，game.js 收到 'helfall' 接冥界）
+        // v1.30：掉進漩渦眼一次就一路沉到冥界（不用把命用完，game.js 收到 'helfall' 接冥界）
         if (q.y > GY + 30 && typeof Quests !== 'undefined' && Quests.helReady()) { mini.helfall = true; return; }
         if (q.y > GY + 30) {
           hurt(q, cx, events);

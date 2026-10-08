@@ -932,30 +932,36 @@ const Expedition = (function () {
   }
   const legoTheme = {
     /*
-     * v1.30 玩家：背景要優化成彩色積木 —— 整面用大塊彩色積木疊成的牆（視差捲動），
-     * 顏色壓暗一點、不畫凸點的陰影，前景的積木平台才看得清楚。
+     * v1.30 玩家：積木塔的背景不要再是積木 → 天空：越往上越藍、越亮，雲一層層往下捲，
+     * 遠方的太陽和幾隻海鷗（兩側的牆、平台照舊是積木）。
      */
     backdrop: function (ctx, camY, t, W, H) {
       ctx.save();
-      const par = camY * 0.45;
-      const bw = 64, bh = 28;
-      const r0 = Math.floor((par - 10) / bh);
-      for (let r = r0; r < r0 + Math.ceil(H / bh) + 2; r++) {
-        const y = r * bh - par;
-        const st = ((r % 2) + 2) % 2 * (bw / 2);
-        for (let x = -bw + st; x < W + bw; x += bw) {
-          const ci = ((r * 5 + Math.floor((x + 1000) / bw) * 3) % LEGO_COLS.length + LEGO_COLS.length) % LEGO_COLS.length;
-          ctx.fillStyle = LEGO_COLS[ci];
-          ctx.fillRect(x + 1, y + 1, bw - 2, bh - 2);
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          ctx.fillRect(x + 1, y + 1, bw - 2, 3);
-          ctx.fillStyle = 'rgba(0,0,0,0.12)';
-          for (let k = 12; k < bw; k += 20) { ctx.beginPath(); ctx.arc(x + k, y + bh / 2, 5, 0, Math.PI * 2); ctx.fill(); }
+      // 太陽
+      const g = ctx.createRadialGradient(W - 160, 90, 10, W - 160, 90, 90);
+      g.addColorStop(0, 'rgba(255, 250, 210, 0.9)'); g.addColorStop(1, 'rgba(255, 250, 210, 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W - 160, 90, 90, 0, Math.PI * 2); ctx.fill();
+      // 雲（兩層視差：遠的淡、近的白）
+      [[0.15, 220, 0.45, 0.8], [0.4, 170, 0.75, 1.1]].forEach(function (L) {
+        const par = camY * L[0];
+        for (let row = Math.floor(par / L[1]) - 1; row < Math.floor(par / L[1]) + Math.ceil(H / L[1]) + 2; row++) {
+          const y0 = row * L[1] - par;
+          const x = ((row * 263 + Math.round(L[0] * 1000)) % 980 + 980) % 980 + Math.sin(t * 0.004 + row) * 20;
+          const sc = L[3];
+          ctx.fillStyle = 'rgba(255, 255, 255, ' + L[2] + ')';
+          ctx.beginPath();
+          ctx.arc(x, y0 + 40, 30 * sc, 0, Math.PI * 2); ctx.arc(x + 34 * sc, y0 + 30, 24 * sc, 0, Math.PI * 2);
+          ctx.arc(x - 30 * sc, y0 + 46, 20 * sc, 0, Math.PI * 2); ctx.arc(x + 60 * sc, y0 + 44, 18 * sc, 0, Math.PI * 2);
+          ctx.fill();
         }
+      });
+      // 海鷗
+      ctx.strokeStyle = 'rgba(60, 70, 90, 0.55)'; ctx.lineWidth = 1.6;
+      for (let k = 0; k < 4; k++) {
+        const x = ((k * 233 + t * (0.4 + k * 0.1)) % (W + 80)) - 40, y = 60 + k * 70 + Math.sin(t * 0.03 + k) * 10;
+        const fl = Math.sin(t * 0.2 + k) * 3;
+        ctx.beginPath(); ctx.moveTo(x - 8, y - fl); ctx.quadraticCurveTo(x - 3, y - 4, x, y); ctx.quadraticCurveTo(x + 3, y - 4, x + 8, y - fl); ctx.stroke();
       }
-      // 整片壓暗（平台浮在上面才明顯）
-      ctx.fillStyle = 'rgba(16, 20, 36, 0.6)';
-      ctx.fillRect(0, 0, W, H);
       ctx.restore();
     },
     /** 底下湧上來的積木：一大堆彩色積木翻滾著往上淹 */

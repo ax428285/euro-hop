@@ -25,7 +25,7 @@ function runQuestCheck() {
     if (!Encounter.regionUnlocked('north', 0)) issues.push('旗標 north 之後北歐篇還是鎖著');
     sv.flags = {};
   }
-  if (!Quests.helReady()) issues.push('還沒找到洛基，漩渦裡沒命卻不會掉進冥界');
+  if (!Quests.helReady()) issues.push('掉進漩渦眼不會進冥界');
   ['thor', 'columbus', 'bank', 'zoo'].forEach(function (k) {
     const tk = Quests.talk(k);
     if (!tk || !tk.lines.length) issues.push(k + '：沒有對話');
@@ -47,7 +47,6 @@ function runQuestCheck() {
   if (ex.talk !== 'loki') issues.push('帶著鑰匙走到冥界底，沒有救出洛基');
   tk = Quests.talk('loki'); if (tk.end) tk.end();
   if (!Save.flag('loki')) issues.push('跟洛基講完話沒有記下');
-  if (Quests.helReady()) issues.push('找到洛基之後，漩渦裡沒命還是會掉進冥界');
   tk = Quests.talk('thor'); if (tk.end) tk.end();
   if (!Quests.northOpen()) issues.push('帶著洛基的話回去找索爾，北歐沒有解開');
 
@@ -145,7 +144,7 @@ function runQuestCheck() {
     if (c || e) issues.push(def.country + '：終點後面還有 ' + c + ' 枚金幣、' + e + ' 隻怪物');
   });
 
-  // G) 卡律布狄斯：還沒救出洛基時，掉進漩渦眼就接冥界（不用把命用完）
+  // G) 卡律布狄斯：掉進漩渦眼一次就接冥界（不用把命用完）
   (function () {
     sv.flags = {};
     const m = { kind: 'charybdis', def: Encounter.KINDS.charybdis, x: 0, y: 0 };

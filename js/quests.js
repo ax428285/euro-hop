@@ -32,8 +32,8 @@ const Quests = (function () {
 
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
-  /** 卡律布狄斯裡死掉要不要掉進冥界：還沒找到洛基就會 */
-  function helReady() { return !flag('loki'); }
+  /** 卡律布狄斯的漩渦眼掉下去要不要接冥界：v1.30 玩家：進漩渦關掉下去一次就進得去 → 一律會（救出洛基後再去也行） */
+  function helReady() { return true; }
 
   // ── 北歐的結界 ──────────────────────────────────────────
 

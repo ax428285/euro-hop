@@ -10,9 +10,11 @@
 function runEncounterCheck() {
   const issues = [];
   const ship = Voyage.shipPos();
-  // v1.30：還沒救出洛基時，漩渦逃生掉進漩渦眼會直接沉到冥界 → 這裡驗「一般的漩渦逃生」，先當作已經救出
+  // v1.30：漩渦逃生掉進漩渦眼會直接沉到冥界（quest-check 驗）→ 這裡驗「一般的漩渦逃生」，先把冥界入口關掉、跑完還原
   const flags = Save.get().flags, lokiWas = flags.loki;
   flags.loki = 1;
+  const helWas = Quests.helReady;
+  Quests.helReady = function () { return false; };
 
   // ── A) ──
   Encounter.clear();
@@ -288,5 +290,6 @@ function runEncounterCheck() {
   })();
 
   flags.loki = lokiWas;
+  Quests.helReady = helWas;
   return { issueCount: issues.length, issues: issues, report: report };
 }
