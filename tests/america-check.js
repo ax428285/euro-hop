@@ -12,7 +12,8 @@
  *   E) 巴西足球：踩守門員的頭沒用；球滾進球門 = 扣一格；守門員站著時貼地球會被擋回來；
  *      他躺下（破綻期）時完全擋不到球（貼地球也進得去）；守門員不會撞傷人；踢球機器人贏得了
  *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型
- *   G) 新大陸的海上怪：新大陸只生新大陸的怪（食人魚、黑鬍子、海豚、黃金海龜）；食人魚是新玩法，其他三種沿用歐洲的玩法；
+ *   G) 新大陸的海上怪：新大陸只生新大陸的怪（食人魚、黑鬍子、海豚、黃金海龜），四種都是自己的玩法（不跟歐洲重複）；
+ *      海豚關的星星自己跳（二段跳也是）碰不到、從海豚背上彈起來才碰得到；
  *      打贏給「美洲 EXP」（跟歐洲的分開）；美洲 EXP 夠了才解鎖南美（哥倫比亞、巴西），中美洲一開始就能玩
  * 會暫時改存檔、換地圖，結束前還原。
  */
@@ -235,15 +236,31 @@ function runAmericaCheck() {
     ['piranhas', 'buccaneers', 'dolphins'].forEach(function (kd) { if (!seen[kd]) issues.push('新大陸一直沒生出 ' + kd); });
     Encounter.clear();
     WorldMap.useWorld(was); Voyage.rebuild();
-    // 食人魚是自己的新玩法；其他三種沿用歐洲的玩法
-    const BASE = { piranhas: 'piranhas', buccaneers: 'pirates', dolphins: 'serpent', goldturtle: 'golden' };
+    // v1.31 玩家：遭遇戰不要跟歐洲重複 → 四種都是自己的玩法
+    const BASE = { piranhas: 'piranhas', buccaneers: 'buccaneers', dolphins: 'dolphins', goldturtle: 'goldturtle' };
     AMK.forEach(function (kd) {
       const k = Encounter.KINDS[kd];
       if (!k || !k.am) { issues.push(kd + '：不是新大陸的怪'); return; }
       const d = Encounter.makeDef({ kind: kd, def: k, x: 0, y: 0 }, Equipment.resolve([]));
       if (d.minigame !== BASE[kd]) issues.push(kd + '：玩法應該沿用 ' + BASE[kd] + '，現在是 ' + d.minigame);
-      if (!d.am || (kd !== 'piranhas' && !d.skin)) issues.push(kd + '：遭遇戰沒標記新大陸（美洲 EXP）或沒有換外觀');
+      if (!d.am) issues.push(kd + '：遭遇戰沒標記新大陸（美洲 EXP）');
+      if (['gulls', 'pirates', 'serpent', 'golden'].indexOf(d.minigame) >= 0) issues.push(kd + '：玩法跟歐洲的 ' + d.minigame + ' 重複');
     });
+    // 海豚關：星星的高度（二段跳碰不到、海豚彈得到）
+    {
+      const G = Levels.GROUND_Y;
+      const jumpUp = PHYS.JUMP_V * PHYS.JUMP_V / (2 * PHYS.GRAVITY) + PHYS.DOUBLE_JUMP_V * PHYS.DOUBLE_JUMP_V / (2 * PHYS.GRAVITY);
+      const dolUp = 16.5 * 16.5 / (2 * PHYS.GRAVITY);
+      const d = Encounter.makeDef({ kind: 'dolphins', def: Encounter.KINDS.dolphins, x: 0, y: 0 }, Equipment.resolve([]));
+      const st = buildLevelState(d, -1, [], Equipment.resolve([]));
+      st.mini = null;
+      Encounter.updateSkirmish(st, { isDown: function () { return false; }, once: function () { return false; } });
+      const stars = st.mini.starList;
+      const lowest = Math.max.apply(null, stars.map(function (s) { return s.y + s.h; }));
+      const highest = Math.min.apply(null, stars.map(function (s) { return s.y; }));
+      if (G - lowest < jumpUp + 40 + 4) issues.push('海豚關：最低的星星（離地 ' + Math.round(G - lowest) + '）二段跳就碰得到');
+      if (G - 100 - dolUp - 40 > highest) issues.push('海豚關：最高的星星從海豚背上彈起來也碰不到');
+    }
     // 美洲 EXP 分開算，南美要 SOUTH_EXP
     const e0 = sv.exp;
     sv.expAm = 0;

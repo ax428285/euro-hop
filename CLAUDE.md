@@ -38,7 +38,7 @@
   - 古巴、墨西哥是「往前衝的賽道關」（`js/race.js`，layout `'race'`）；墨西哥是緝毒追擊（從抓走私販的角度做，不出現毒品本身）。
   - 牙買加是手沖咖啡（Features `'pourover'`）。
   - 古巴是「上帝視角」賽車（`js/topdown.js`，`def.race.view === 'top'`，由 race.js 轉發）；墨西哥還是往前衝的 3D 賽道。
-  - 新大陸的海上怪（encounter.js）：食人魚 piranhas 是自己的玩法（碼頭上抓亂彈的魚）；buccaneers / dolphins / goldturtle 沿用歐洲的 pirates / serpent / golden（base + skin）
+  - 新大陸的海上怪（encounter.js）四種都是自己的玩法，不跟歐洲重複：piranhas（抓食人魚）、buccaneers（踢火藥桶）、dolphins（踩海豚摘星星）、goldturtle（追浪海龜）
     給「美洲 EXP」（Save.expAm，跟歐洲的 EXP 分開）；累積 Encounter.SOUTH_EXP 解鎖南美（關卡標 `gate: 'samerica'`：哥倫比亞、巴西）。
   - 巴西魔王是踢足球（entities.js 的 pattern `'soccer'`：進球才扣血，踩頭沒用）；測試用 `runSoccerBot`（tests/traversal-bot.js）。
     原本的亞馬遜大蛇 Boiúna（pattern `'boiuna'`）程式還留著，目前沒有關卡用。

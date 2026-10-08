@@ -209,9 +209,13 @@ const LevelGen = (function () {
     let x = 0;
     segs.push({ x: 0, y: baseY, w: 420, station: true });
     x = 420;
-    // 每次都留得下「這一段（谷 380 + 站 520）+ 終點（谷 360 + 站 520）」，終點站才不會超出關卡寬度
-    while (x + (380 + 520) + (360 + 520) <= width) {
-      const gw = randInt(r, 300, 380);
+    /*
+     * v1.31 玩家：克羅埃西亞、斯洛伐克的纜車用二段跳就跳得過去 → 山谷拉長到 560～640。
+     * 二段跳最遠約 300px，穿跑鞋約 370、再加商店的彈簧鞋也到不了 520 —— 一定要搭纜車。
+     * 每次都留得下「這一段（谷 640 + 站 520）+ 終點（谷 600 + 站 520）」，終點站才不會超出關卡寬度
+     */
+    while (x + (640 + 520) + (600 + 520) <= width) {
+      const gw = randInt(r, 560, 640);
       gaps.push({ x: x, w: gw, valley: true });
       x += gw;
       const w = randInt(r, 380, 520);
@@ -219,7 +223,7 @@ const LevelGen = (function () {
       x += w;
     }
     // 最後一段：終點站
-    const gw = randInt(r, 300, 360);
+    const gw = randInt(r, 560, 600);
     gaps.push({ x: x, w: gw, valley: true });
     x += gw;
     segs.push({ x: x, y: baseY, w: width - x, station: true });
@@ -230,6 +234,7 @@ const LevelGen = (function () {
    * 纜車：每個山谷一台，沿著纜線在兩站之間來回（x 軸、正弦擺動 —— 兩頭會自然減速停靠）。
    * 兩頭各離月台邊 2px：不跟地面重疊（level-check 4b），玩家走過 2px 的縫完全沒感覺。
    * 速度 0.8~1.0：最快約 3px/帧；在月台邊 10px 內停留約 40 帧，夠走上去。
+   * v1.31 山谷拉長後擺幅變大：速度照擺幅縮小（以舊的擺幅 140 為準），最快一樣約 3px/帧。
    */
   const GONDOLA_W = 96;
   function buildGondolas(r, segs, gaps) {
@@ -240,7 +245,7 @@ const LevelGen = (function () {
         w: GONDOLA_W, h: 18,
         axis: 'x',
         range: Math.round(g.w / 2 - GONDOLA_W / 2 - 2),
-        speed: 0.8 + r() * 0.2,
+        speed: (0.8 + r() * 0.2) * 140 / Math.max(140, g.w / 2 - GONDOLA_W / 2 - 2),
         gondola: true
       };
     });

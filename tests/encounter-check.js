@@ -168,8 +168,61 @@ function runEncounterCheck() {
       if (!p.onGround && p.vy < 0) held.jump = true;
     }
   };
-  // v1.31 新大陸的怪沿用歐洲的玩法（同一個機器人打）
-  bots.buccaneers = bots.pirates; bots.dolphins = bots.serpent; bots.goldturtle = bots.golden;
+  /*
+   * v1.31 新大陸的新玩法
+   *   火藥桶：找最近、還在甲板上的桶子，繞到「離海遠」的那一側往外推；快爆的就躲開
+   *   踩海豚：海豚靠過來時起跳、落到牠背上；被彈上天之後往最近的星星帶
+   *   追浪海龜：浪靠近就跳（浪頭上有海龜就順便碰到）
+   */
+  bots.buccaneers = function (st, held, press) {
+    const p = st.player, mini = st.mini;
+    if (!mini) return;
+    const cx = p.x + p.w / 2;
+    const danger = mini.kegs.filter(function (k) { return k.state === 'deck' && k.fuse < 40 && Math.abs(k.x + k.w / 2 - cx) < 110; })[0];
+    if (danger) { moveTo(p, held, (danger.x + danger.w / 2) < cx ? cx + 200 : cx - 200, 4); return; }
+    const k = mini.kegs.filter(function (q) { return q.state === 'deck' && q.fuse >= 40; })
+      .sort(function (a, b) { return Math.abs(a.x - cx) - Math.abs(b.x - cx); })[0];
+    if (!k) { moveTo(p, held, 480, 10); return; }
+    const kx = k.x + k.w / 2, toLeft = kx < 480;
+    const behind = toLeft ? kx + 40 : kx - 40;            // 站到桶子「往海那邊推」的另一側
+    if (toLeft ? cx < kx + 20 : cx > kx - 20) {
+      // 在錯的那一邊：跳過桶子繞過去
+      moveTo(p, held, behind, 4);
+      if (p.onGround && Math.abs(kx - cx) < 60) { press.jump = true; held.jump = true; }
+    } else {
+      moveTo(p, held, toLeft ? kx - 30 : kx + 30, 2);    // 衝向桶子 → 踢出去
+    }
+    if (!p.onGround && p.vy < 0) held.jump = true;
+  };
+  bots.dolphins = function (st, held, press) {
+    const p = st.player, mini = st.mini;
+    if (!mini) return;
+    const cx = p.x + p.w / 2;
+    if (!p.onGround) {
+      const s = mini.starList.slice().sort(function (a, b) { return Math.abs(a.x + 13 - cx) - Math.abs(b.x + 13 - cx); })[0];
+      if (s && p.vy < 0 && p.y < Levels.GROUND_Y - 200) moveTo(p, held, s.x + 13, 6);
+      else {
+        const d = mini.dolphins.filter(function (q) { return q.cd <= 0 && q.y > p.y; })[0];
+        if (d) moveTo(p, held, d.x + d.w / 2 + d.vx * 6, 4);
+      }
+      if (p.vy < 0) held.jump = true;
+      return;
+    }
+    // 在地上：等海豚靠近（大約 12 帧後會到頭上）就跳
+    // 起跳到落回海豚背那個高度大約 28 帧：看 28 帧後海豚會不會剛好在頭上
+    const d = mini.dolphins.filter(function (q) { const ahead = q.x + q.w / 2 + q.vx * 28; return Math.abs(ahead - cx) < 30 && q.y < Levels.GROUND_Y - 40; })[0];
+    if (d) { press.jump = true; held.jump = true; }
+    else moveTo(p, held, 480, 30);
+  };
+  bots.goldturtle = function (st, held, press) {
+    const p = st.player, mini = st.mini;
+    if (!mini) return;
+    const cx = p.x + p.w / 2;
+    const w = mini.waves.filter(function (q) { return q.x > cx - 40; }).sort(function (a, b) { return a.x - b.x; })[0];
+    if (w && p.onGround && w.x - (p.x + p.w) < 26 && w.x - (p.x + p.w) > -10) { press.jump = true; held.jump = true; }
+    else moveTo(p, held, 520, 20);
+    if (!p.onGround && p.vy < 0) held.jump = true;
+  };
 
   const report = {};
   Object.keys(bots).forEach(function (kind) {

@@ -48,6 +48,8 @@ function runLevelCheck() {
                  m.y === leftY && m.y === rightY;
         });
         if (!ok) issues.push(tag + '：山谷 x=' + g.x + ' 寬 ' + g.w + ' 沒有兩頭都接得上月台的纜車');
+        // v1.31：二段跳＋跑鞋最遠約 370，山谷要寬到一定得搭纜車
+        if (g.w < 520) issues.push(tag + '：山谷 x=' + g.x + ' 只有 ' + g.w + ' 寬，二段跳就跳得過去');
         return;
       }
       // v1.30 挪威冰海水道：本來就跳不過去，要踩浮冰（浮冰的間距由 feature-check 驗）

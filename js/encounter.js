@@ -110,9 +110,15 @@ const Encounter = (function () {
    *   有些跳不夠遠，掉在甲板上啪啪亂彈 —— 這時踩下去就抓進桶子裡。限時內抓到 PIRANHA_GOAL 隻就贏。
    */
   KINDS.piranhas   = { name: '食人魚群',   lv: 1, exp: 70,  game: '抓食人魚', goal: '河面冒泡就是要跳出來了！別被飛過來的咬到，掉在甲板上亂彈的踩下去抓起來', am: true };
-  KINDS.buccaneers = { name: '黑鬍子海盜船', lv: 2, exp: 90, game: '艦砲對決', goal: '抓準砲口角度，命中黑鬍子的「安妮女王復仇號」5 次', base: 'pirates', skin: 'blackbeard', am: true };
-  KINDS.dolphins   = { name: '頑皮海豚',   lv: 3, exp: 130, game: '拍拍頭',   goal: '海豚從甲板的洞探出頭時，跳上去拍拍牠的頭 6 次', base: 'serpent', skin: 'dolphin', am: true };
-  KINDS.goldturtle = { name: '黃金海龜',   lv: '★', exp: 60, game: '捕捉',     goal: '碰到牠 3 次就抓到了！', rare: true, base: 'golden', skin: 'turtle', am: true };
+  /*
+   * v1.31 玩家：其他遭遇戰也跟歐洲重複了，換一下 → 新大陸的四種都是自己的玩法（skin 只決定地圖上的圖示）：
+   *   kegs        黑鬍子丟過來點燃的火藥桶，趁爆炸前踢下海
+   *   dolphinjump 海豚從船上空跳過去，跳到背上被彈上天，搶天上的星星
+   *   turtlewave  大浪一道道捲過沙灘，黃金海龜站在浪頭上衝浪 —— 跳起來碰牠
+   */
+  KINDS.buccaneers = { name: '黑鬍子海盜船', lv: 2, exp: 90, game: '火藥桶', goal: '黑鬍子丟過來的火藥桶燒完引信就會爆炸 —— 趁還沒爆，把它踢下海！', skin: 'blackbeard', mapMove: 'pirates', am: true };
+  KINDS.dolphins   = { name: '頑皮海豚',   lv: 3, exp: 130, game: '踩海豚摘星星', goal: '海豚跳過船的時候，跳到牠背上會被彈上天 —— 去搶天上的星星', skin: 'dolphin', am: true };
+  KINDS.goldturtle = { name: '黃金海龜',   lv: '★', exp: 60, game: '追浪海龜', goal: '黃金海龜站在浪頭上衝浪！被浪撞到會被推回去，跳起來碰牠 3 次就抓到了', rare: true, skin: 'turtle', mapMove: 'golden', am: true };
   /** 這一隻用的是哪一種玩法（新大陸的怪沿用歐洲的玩法） */
   function baseOf(kind) { return (KINDS[kind] && KINDS[kind].base) || kind; }
   function inAmerica() { return typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() === 'am'; }
@@ -289,7 +295,7 @@ const Encounter = (function () {
         if (d < TOUCH + 10 && d < best + 10) { best = d; nearM = m; }
         continue;
       }
-      const mb = baseOf(m.kind);
+      const mb = m.def.mapMove || baseOf(m.kind);        // 地圖上怎麼動（黑鬍子會追你、黃金海龜會逃）
       if (mb === 'pirates' && d < 140 && d > 4) {
         // 海盜船看到你會靠過來
         m.heading += U.clamp(angleDiff(Math.atan2(ship.y - m.y, ship.x - m.x), m.heading), -0.05, 0.05);
@@ -594,7 +600,15 @@ const Encounter = (function () {
   // ── 小遊戲：關卡定義 ───────────────────────────────────
 
   const ARENA_W = 960;
-  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60, charybdis: 40 * 60, piranhas: 40 * 60 };
+  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60, charybdis: 40 * 60, piranhas: 40 * 60,
+                buccaneers: 45 * 60, dolphins: 45 * 60, goldturtle: 25 * 60 };
+  // 火藥桶：引信 KEG_FUSE 帧，爆炸半徑 KEG_BOOM；踢下海 KEG_GOAL 個就贏
+  const KEG_FUSE = 200, KEG_BOOM = 80, KEG_GOAL = 6;
+  // 海豚：踩到背上的初速；天上的星星（只有被海豚彈上去才碰得到）要搶 STAR_GOAL 顆
+  // 星星最低的那顆底部離甲板 274：二段跳頭頂最高 262 碰不到；從海豚背上彈起來（頭頂到 330 以上）才碰得到
+  const DOLPHIN_V = -16.5, STAR_GOAL = 8, STAR_MIN_UP = 300, DOLPHIN_T = 210;
+  // 追浪海龜：浪的高度、速度；碰海龜 TURTLE_GOAL 次
+  const TWAVE_H = 64, TWAVE_W = 90, TWAVE_SPEED = 3.0, TURTLE_GOAL = 3;
   /*
    * 食人魚的碼頭：場地中間 DOCK 是木頭碼頭，兩邊是河（掉下去會痛、被拉回碼頭）。
    * 食人魚從兩邊的河裡起跳：先冒泡 PIRANHA_WARN 帧，再沿拋物線飛過碼頭；
@@ -714,7 +728,7 @@ const Encounter = (function () {
     if (m.def.dive) return diveDef(m);
     const k = m.def;
     const GY = Levels.GROUND_Y;
-    const kind = baseOf(m.kind);        // v1.31 新大陸的怪沿用歐洲的玩法
+    const kind = baseOf(m.kind);        // 有 base 的怪沿用那一種的玩法（目前新大陸的怪都是自己的玩法）
     const deckW = kind === 'pirates' ? DECK_W : ARENA_W;
     const def = {
       id: 'SEA',
@@ -799,6 +813,12 @@ const Encounter = (function () {
     if (kind === 'serpent') { mini.hits = 0; mini.heads = HOLES.map(function (x) { return { x: x, up: 0, t: 0, spat: false }; }); mini.next = 40; mini.seq = 0; }
     if (kind === 'golden') { mini.caught = 0; mini.px = 700; mini.py = 200; mini.cool = 0; mini.phase = 0; mini.speed = 0.022; }
     if (kind === 'piranhas') { mini.caught = 0; mini.fish = []; mini.next = 50; mini.seq = 0; }
+    if (kind === 'buccaneers') { mini.kicked = 0; mini.kegs = []; mini.next = 60; mini.seq = 0; }
+    if (kind === 'dolphins') {
+      mini.stars = 0; mini.dolphins = []; mini.next = 40; mini.seq = 0; mini.starList = [];
+      for (let k = 0; k < 3; k++) mini.starList.push(newStar(k));
+    }
+    if (kind === 'goldturtle') { mini.caught = 0; mini.waves = []; mini.next = 40; mini.seq = 0; mini.cool = 0; }
     if (kind === 'charybdis') {
       mini.got = 0; mini.buoy = null; mini.next = 40; mini.seq = 0; mini.junk = []; mini.junkCd = 120;
     }
@@ -811,6 +831,14 @@ const Encounter = (function () {
     }
     return mini;
   }
+
+  /** 海豚關天上的星星：位置照序號排開（可重現） */
+  function newStar(n) {
+    const GY = Levels.GROUND_Y;
+    return { x: 120 + (n * 263) % 700, y: GY - STAR_MIN_UP - (n * 37) % 56, w: 26, h: 26 };
+  }
+  /** 追浪海龜：浪的碰撞盒（浪頭朝左，x 是浪的左緣） */
+  function twaveBox(w) { return { x: w.x, y: Levels.GROUND_Y - TWAVE_H, w: TWAVE_W, h: TWAVE_H }; }
 
   /** 角砲目前的仰角（度）：在 angMin~angMax 之間來回擺 */
   function cannonAngle(elapsed) {
@@ -870,6 +898,127 @@ const Encounter = (function () {
 
     function win() { mini.done = true; state.cleared = true; events.push('clear'); }
     function fail() { mini.done = true; events.push('minifail'); }
+
+    if (mini.kind === 'buccaneers') {
+      /*
+       * 黑鬍子的火藥桶：從右邊海上的海盜船丟過來（拋物線，空中碰到不痛），落在甲板上開始燒引信；
+       * 碰到桶子就把它往遠離自己的方向踢（滾動、慢慢變慢），滾出甲板兩邊 = 掉下海、熄掉，算一個。
+       * 引信燒完就爆炸：KEG_BOOM 以內的人會痛。
+       */
+      if (--mini.next <= 0) {
+        const n = mini.seq++;
+        mini.next = Math.max(70, 120 - Math.floor(mini.elapsed / 90));
+        const tx = 200 + (n * 157) % 560;
+        const T = 70;
+        mini.kegs.push({ x: 900, y: 140, w: 28, h: 30, vx: (tx - 900) / T, vy: -6, state: 'fly', fuse: KEG_FUSE });
+      }
+      mini.kegs.forEach(function (k) {
+        if (k.state === 'fly') {
+          k.x += k.vx; k.y += k.vy; k.vy += 0.33;
+          if (k.vy > 0 && k.y + k.h >= GY) { k.y = GY - k.h; k.state = 'deck'; k.vx = 0; }
+          return;
+        }
+        if (k.state !== 'deck') return;
+        if (--k.fuse <= 0) {
+          k.state = 'boom'; k.t = 22;
+          players.forEach(function (q) { if (Math.abs(q.x + q.w / 2 - (k.x + k.w / 2)) < KEG_BOOM && q.y + q.h > GY - 110) hurt(q, k.x + k.w / 2, events); });
+          events.push('boom');
+          return;
+        }
+        // 踢
+        players.forEach(function (q) {
+          if (!U.overlap(q, k) || k.cd > 0) return;
+          const dir = (q.x + q.w / 2) < (k.x + k.w / 2) ? 1 : -1;
+          k.vx = dir * Math.max(7, Math.abs(q.vx) + 4);
+          k.cd = 12;
+          events.push('kick');
+        });
+        if (k.cd > 0) k.cd--;
+        k.x += k.vx; k.vx *= 0.985;
+        if (k.x + k.w < -6 || k.x > ARENA_W + 6) {
+          k.state = 'splash'; k.t = 24; mini.kicked++;
+          events.push('catch');
+        }
+      });
+      mini.kegs.forEach(function (k) { if ((k.state === 'boom' || k.state === 'splash') && --k.t <= 0) k.state = 'gone'; });
+      mini.kegs = mini.kegs.filter(function (k) { return k.state !== 'gone'; });
+      if (mini.kicked >= KEG_GOAL) win();
+      else if (mini.time <= 0) fail();
+      return events;
+    }
+
+    if (mini.kind === 'dolphins') {
+      /*
+       * 踩海豚摘星星：海豚一隻隻從船的一邊海裡跳出來、飛過甲板上空、落到另一邊海裡（拋物線，最低點在兩邊）。
+       * 玩家掉到牠背上 → 被彈上天（DOLPHIN_V）；天上的星星離甲板 STAR_MIN_UP 以上，自己跳（二段跳也一樣）碰不到。
+       * 海豚不會傷人。
+       */
+      if (--mini.next <= 0) {
+        const n = mini.seq++;
+        mini.next = 95 + (n % 3) * 20;
+        const left = n % 2 === 0;
+        // 飛過整個場地要 DOLPHIN_T 帧（每帧約 5px，看得清楚、踩得到）；拋物線最高點背部離甲板約 115
+        const T = DOLPHIN_T;
+        mini.dolphins.push({ x: left ? -60 : ARENA_W + 20, y: GY + 20, w: 70, h: 22, vx: (left ? 1 : -1) * (ARENA_W + 80) / T, vy: -2.6, dir: left ? 1 : -1, cd: 0 });
+      }
+      mini.dolphins.forEach(function (d) {
+        d.x += d.vx; d.y += d.vy; d.vy += 2 * 2.6 / DOLPHIN_T;
+        if (d.cd > 0) d.cd--;
+        players.forEach(function (q) {
+          if (d.cd > 0 || !U.overlap(q, d)) return;
+          if (q.vy > 0 && (q.y + q.h) - d.y < 24) {
+            q.vy = DOLPHIN_V; q.onGround = false; q.launched = true;
+            d.cd = 20;
+            events.push('p' + (q.pid || 0) + ':spring');
+          }
+        });
+      });
+      mini.dolphins = mini.dolphins.filter(function (d) { return d.x > -120 && d.x < ARENA_W + 120 && d.y < GY + 80; });
+      mini.starList.forEach(function (s, i) {
+        if (players.some(function (q) { return U.overlap(q, s); })) {
+          mini.stars++;
+          events.push('catch');
+          burst(state, s.x + 13, s.y + 13, '#ffe070', 12);
+          mini.starList[i] = newStar(mini.stars + 3);
+        }
+      });
+      if (mini.stars >= STAR_GOAL) win();
+      else if (mini.time <= 0) fail();
+      return events;
+    }
+
+    if (mini.kind === 'goldturtle') {
+      /*
+       * 追浪海龜：大浪從右邊一道道捲過沙灘往左（TWAVE_SPEED），黃金海龜站在浪頭上衝浪。
+       * 浪撞到人會把人推回去（不痛）；跳起來（腳在浪頭上方）就不會被推，碰到海龜算抓到一次。
+       */
+      if (--mini.next <= 0) {
+        const n = mini.seq++;
+        mini.next = 150 - Math.min(40, Math.floor(mini.elapsed / 60));
+        mini.waves.push({ x: ARENA_W + 10, turtle: n % 4 !== 3 });       // 每 4 道有 1 道沒有海龜
+      }
+      if (mini.cool > 0) mini.cool--;
+      mini.waves.forEach(function (w) {
+        w.x -= TWAVE_SPEED;
+        const box = twaveBox(w);
+        const tb = { x: w.x + 18, y: GY - TWAVE_H - 26, w: 40, h: 26 };
+        players.forEach(function (q) {
+          if (w.turtle && mini.cool <= 0 && U.overlap(q, tb)) {
+            mini.caught++; mini.cool = 40; w.turtle = false;
+            events.push('catch');
+            burst(state, tb.x + 20, tb.y, '#ffe070', 14);
+          }
+          if (U.overlap(q, box) && q.y + q.h > box.y + 10) {
+            q.x = Math.min(q.x, box.x - q.w + 2);
+            q.vx = Math.min(q.vx, -TWAVE_SPEED - 1);
+          }
+        });
+      });
+      mini.waves = mini.waves.filter(function (w) { return w.x > -TWAVE_W - 20; });
+      if (mini.caught >= TURTLE_GOAL) win();
+      else if (mini.time <= 0) fail();
+      return events;
+    }
 
     if (mini.kind === 'piranhas') {
       // 冒泡 → 起跳。左右輪流，越後面越密
@@ -1249,19 +1398,12 @@ const Encounter = (function () {
       for (let i = 0; i < 6; i++) ctx.fillRect(DECK_W + ((i * 83 + t) % (ARENA_W - DECK_W)), GY + 6 + (i % 3) * 14, 26, 2);
       const sh = mini.shipShake > 0 ? Math.sin(t * 2) * 4 : 0;
       const sx = shipX(mini.elapsed) + sh, bob = Math.sin(t * 0.05) * 3;
-      const bb = mini.skin === 'blackbeard';      // v1.31 新大陸：黑鬍子的「安妮女王復仇號」（黑色船身、黑帆）
-      ctx.fillStyle = bb ? '#1e1410' : '#3a2418';
+      ctx.fillStyle = '#3a2418';
       ctx.beginPath();
       ctx.moveTo(sx - 10, GY - SHIP.h + bob); ctx.lineTo(sx + SHIP.w + 10, GY - SHIP.h + bob);
       ctx.lineTo(sx + SHIP.w - 20, GY + 6 + bob); ctx.lineTo(sx + 20, GY + 6 + bob); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = bb ? '#c8a040' : '#5a3a24'; ctx.fillRect(sx, GY - SHIP.h + 8 + bob, SHIP.w, 6);
-      ctx.fillStyle = bb ? '#4a4a50' : '#d8d0bc'; ctx.fillRect(sx + SHIP.w / 2 - 3, GY - 230 + bob, 6, 180);
-      if (bb) {
-        // 兩張大黑帆
-        ctx.fillStyle = '#26262c';
-        ctx.fillRect(sx + SHIP.w / 2 - 70, GY - 210 + bob, 64, 70);
-        ctx.fillRect(sx + SHIP.w / 2 - 60, GY - 132 + bob, 52, 54);
-      }
+      ctx.fillStyle = '#5a3a24'; ctx.fillRect(sx, GY - SHIP.h + 8 + bob, SHIP.w, 6);
+      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(sx + SHIP.w / 2 - 3, GY - 230 + bob, 6, 180);
       ctx.fillStyle = '#16161c';
       ctx.beginPath(); ctx.moveTo(sx + SHIP.w / 2 + 3, GY - 220 + bob); ctx.lineTo(sx + SHIP.w / 2 + 90, GY - 160 + bob); ctx.lineTo(sx + SHIP.w / 2 + 3, GY - 90 + bob); ctx.fill();
       ctx.fillStyle = '#f4f0e6'; ctx.beginPath(); ctx.arc(sx + SHIP.w / 2 + 34, GY - 158 + bob, 10, 0, Math.PI * 2); ctx.fill();
@@ -1309,7 +1451,7 @@ const Encounter = (function () {
         const b = h.box;
         ctx.save();
         ctx.beginPath(); ctx.rect(b.x - 10, 0, b.w + 20, GY + 2); ctx.clip();
-        if (mini.skin === 'dolphin') { drawDolphinHead(ctx, h, b, t, GY); ctx.restore(); return; }
+
         // 調皮海獺（v1.26.1 取代海蛇）：圓滾滾的咖啡色身體、白臉頰、小圓耳、兩隻小手扶著洞口
         ctx.fillStyle = '#8a5a3a';
         U.roundRect(ctx, b.x + 4, b.y + 12, b.w - 8, b.h + 10, 12); ctx.fill();
@@ -1351,6 +1493,12 @@ const Encounter = (function () {
       });
     } else if (mini.kind === 'piranhas') {
       drawPiranhaArena(ctx, mini, t, GY);
+    } else if (mini.kind === 'buccaneers') {
+      drawKegArena(ctx, mini, t, GY);
+    } else if (mini.kind === 'dolphins') {
+      drawDolphinArena(ctx, mini, t, GY);
+    } else if (mini.kind === 'goldturtle') {
+      drawTurtleArena(ctx, mini, t, GY);
     } else if (mini.kind === 'charybdis') {
       drawCharybdisArena(ctx, mini, t, GY);
     } else if (mini.kind === 'scylla') {
@@ -1365,7 +1513,7 @@ const Encounter = (function () {
         sparkle(ctx, Math.cos(a) * 30, Math.sin(a) * 30, 5, 0.85);
       }
       if (mini.cool > 0 && Math.floor(mini.cool / 4) % 2 === 0) ctx.globalAlpha = 0.4;
-      if (mini.skin === 'turtle') drawTurtle(ctx, t, 2.4); else drawSeahorse(ctx, t, 2);
+      drawSeahorse(ctx, t, 2);
       ctx.restore();
     }
   }
@@ -1429,31 +1577,104 @@ const Encounter = (function () {
     });
   }
 
-  /** v1.31 拍拍頭的海豚：灰藍色、長長的嘴、從洞裡探出頭來笑 */
-  function drawDolphinHead(ctx, h, b, t, GY) {
+  /** v1.31 火藥桶：右邊海上黑鬍子的船（黑帆）＋甲板上燒著引信的木桶 */
+  function drawKegArena(ctx, mini, t, GY) {
+    // 背景的黑鬍子海盜船
+    const bob = Math.sin(t * 0.05) * 3, sx = 760;
+    ctx.fillStyle = '#1e1410';
+    ctx.beginPath(); ctx.moveTo(sx, GY - 120 + bob); ctx.lineTo(sx + 220, GY - 120 + bob); ctx.lineTo(sx + 200, GY - 70 + bob); ctx.lineTo(sx + 20, GY - 70 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a4a50'; ctx.fillRect(sx + 100, GY - 320 + bob, 6, 200);
+    ctx.fillStyle = '#26262c'; ctx.fillRect(sx + 40, GY - 300 + bob, 120, 80); ctx.fillRect(sx + 50, GY - 210 + bob, 100, 70);
+    ctx.fillStyle = '#f4f0e6'; ctx.beginPath(); ctx.arc(sx + 100, GY - 262 + bob, 14, 0, Math.PI * 2); ctx.fill();     // 黑帆上的骷髏
+    ctx.fillStyle = '#26262c'; ctx.fillRect(sx + 94, GY - 266 + bob, 4, 4); ctx.fillRect(sx + 102, GY - 266 + bob, 4, 4);
+    // 黑鬍子本人（船頭，鬍子裡插著冒煙的引信）
+    ctx.fillStyle = '#1a1a1e'; ctx.fillRect(sx + 20, GY - 156 + bob, 22, 36);
+    ctx.fillStyle = '#e0b088'; ctx.beginPath(); ctx.arc(sx + 31, GY - 164 + bob, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#16161c'; ctx.beginPath(); ctx.ellipse(sx + 31, GY - 152 + bob, 11, 9, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = 'rgba(180, 180, 190, 0.6)';
+    for (let k = 0; k < 3; k++) { const ph = (t * 0.4 + k * 6) % 18; ctx.beginPath(); ctx.arc(sx + 24 + k * 7, GY - 150 + bob - ph, 2 + ph * 0.2, 0, Math.PI * 2); ctx.fill(); }
+    // 甲板兩邊的海
+    ctx.fillStyle = 'rgba(58, 138, 184, 0.6)'; ctx.fillRect(0, GY + 40, ARENA_W, 50);
+    mini.kegs.forEach(function (k) {
+      const cx = k.x + k.w / 2;
+      if (k.state === 'boom') {
+        ctx.fillStyle = 'rgba(255, 170, 70, ' + (k.t / 22).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(cx, k.y + k.h / 2, KEG_BOOM - k.t, 0, Math.PI * 2); ctx.fill();
+        return;
+      }
+      if (k.state === 'splash') {
+        ctx.fillStyle = 'rgba(220, 240, 255, 0.9)';
+        for (let b = 0; b < 4; b++) { ctx.beginPath(); ctx.arc(Math.max(10, Math.min(ARENA_W - 10, cx)) + (b - 1.5) * 8, GY - 10 - (24 - k.t) * 1.2 - b * 3, 4, 0, Math.PI * 2); ctx.fill(); }
+        return;
+      }
+      ctx.save();
+      ctx.translate(cx, k.y + k.h / 2);
+      if (k.state === 'deck') ctx.rotate(k.x * 0.05);
+      ctx.fillStyle = '#8a5a2a'; U.roundRect(ctx, -k.w / 2, -k.h / 2, k.w, k.h, 6); ctx.fill();
+      ctx.fillStyle = '#4a3220'; ctx.fillRect(-k.w / 2, -k.h / 2 + 6, k.w, 3); ctx.fillRect(-k.w / 2, k.h / 2 - 9, k.w, 3);
+      ctx.restore();
+      // 引信：燒得越短越紅、火花越大（快爆了閃白）
+      const f = k.state === 'deck' ? k.fuse / KEG_FUSE : 1;
+      ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx, k.y); ctx.lineTo(cx + 4, k.y - 4 - f * 10); ctx.stroke();
+      const hot = f < 0.3 && Math.floor(t / 4) % 2 === 0;
+      ctx.fillStyle = hot ? '#ffffff' : f < 0.5 ? '#ff5a3a' : '#ffd166';
+      ctx.beginPath(); ctx.arc(cx + 4, k.y - 4 - f * 10, 3 + (1 - f) * 3, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  /** v1.31 海豚：灰藍色、長嘴、背鰭；跳起來時身體跟著拋物線轉 */
+  function drawDolphinBig(ctx, d, t) {
+    const cx = d.x + d.w / 2, cy = d.y + d.h / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.atan2(d.vy, Math.abs(d.vx)) * d.dir);
+    ctx.scale(d.dir, 1);
     ctx.fillStyle = '#6a8ab0';
-    U.roundRect(ctx, b.x + 6, b.y + 12, b.w - 12, b.h + 10, 12); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(h.x, b.y + 12, 18, 15, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(h.x, b.y + 24, 9, 6, 0, 0, Math.PI * 2); ctx.fill();               // 長嘴
-    ctx.fillStyle = '#c8d8e8';
-    ctx.beginPath(); ctx.ellipse(h.x, b.y + 22, 12, 7, 0, 0, Math.PI); ctx.fill();
-    ctx.fillStyle = '#1a1424';
-    ctx.beginPath(); ctx.arc(h.x - 8, b.y + 8, 2.6, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(h.x + 8, b.y + 8, 2.6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(h.x - 8, b.y + 6.5, 1.2, 1.2); ctx.fillRect(h.x + 8, b.y + 6.5, 1.2, 1.2);
-    ctx.fillStyle = '#4a6a90';
-    ctx.beginPath(); ctx.arc(h.x, b.y + 1, 3, 0, Math.PI * 2); ctx.fill();                            // 頭頂的噴氣孔
-    if (h.t > 30 && h.t < 42) {
-      // 要噴水前噴氣孔冒水花（預告）
-      ctx.fillStyle = 'rgba(160, 220, 255, 0.9)';
-      for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(h.x + k * 5, b.y - 6 - Math.abs(k) * 2, 2.4, 0, Math.PI * 2); ctx.fill(); }
-    } else {
-      ctx.strokeStyle = '#2a3a50'; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(h.x, b.y + 20, 6, 0.2, Math.PI - 0.2); ctx.stroke();                   // 笑臉
-    }
-    ctx.fillStyle = '#5a7aa0';
-    ctx.beginPath(); ctx.ellipse(h.x - 16, GY - 4, 6, 3, -0.4, 0, Math.PI * 2); ctx.fill();          // 兩片胸鰭扶著洞口
-    ctx.beginPath(); ctx.ellipse(h.x + 16, GY - 4, 6, 3, 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 28, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(28, 3, 9, 4, 0, 0, Math.PI * 2); ctx.fill();                          // 長嘴
+    ctx.beginPath(); ctx.moveTo(-4, -9); ctx.lineTo(4, -22); ctx.lineTo(10, -9); ctx.fill();          // 背鰭
+    ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(-40, -10); ctx.lineTo(-40, 10); ctx.closePath(); ctx.fill();   // 尾巴
+    ctx.fillStyle = '#c8d8e8'; ctx.beginPath(); ctx.ellipse(4, 5, 20, 5, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#1a1424'; ctx.beginPath(); ctx.arc(16, -2, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#2a3a50'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(20, 2, 5, 0.1, Math.PI * 0.6); ctx.stroke();
+    ctx.restore();
+  }
+  function drawStar5(ctx, x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fill();
+  }
+  /** 踩海豚摘星星：甲板兩邊是海；天上一閃一閃的星星；海豚飛過甲板上空 */
+  function drawDolphinArena(ctx, mini, t, GY) {
+    ctx.fillStyle = 'rgba(58, 138, 184, 0.7)'; ctx.fillRect(0, GY + 30, ARENA_W, 60);
+    mini.starList.forEach(function (s, i) {
+      const tw = 1 + Math.sin(t * 0.15 + i) * 0.12;
+      ctx.fillStyle = 'rgba(255, 240, 160, 0.35)'; ctx.beginPath(); ctx.arc(s.x + 13, s.y + 13, 20 * tw, 0, Math.PI * 2); ctx.fill();
+      drawStar5(ctx, s.x + 13, s.y + 13, 13 * tw, '#ffe070');
+    });
+    mini.dolphins.forEach(function (d) { drawDolphinBig(ctx, d, t); });
+  }
+
+  /** 追浪海龜：沙灘＋一道道往左捲的大浪（浪頭上站著衝浪的黃金海龜） */
+  function drawTurtleArena(ctx, mini, t, GY) {
+    ctx.fillStyle = '#e8d8a8'; ctx.fillRect(0, GY - 2, ARENA_W, 6);
+    mini.waves.forEach(function (w) {
+      const b = twaveBox(w);
+      ctx.fillStyle = 'rgba(60, 150, 200, 0.85)';
+      ctx.beginPath(); ctx.moveTo(b.x, GY); ctx.quadraticCurveTo(b.x - 6, b.y + 8, b.x + 24, b.y); ctx.lineTo(b.x + b.w + 40, b.y + 20); ctx.lineTo(b.x + b.w + 60, GY); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(245, 252, 255, 0.95)';
+      for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(b.x + 6 + k * 12, b.y + 4 + Math.sin(t * 0.3 + k) * 2, 6, Math.PI, 0); ctx.fill(); }
+      if (w.turtle) {
+        ctx.save(); ctx.translate(b.x + 38, b.y - 12);
+        // 衝浪板
+        ctx.fillStyle = '#e8402a'; U.roundRect(ctx, -26, 6, 52, 7, 4); ctx.fill();
+        if (mini.cool > 0 && Math.floor(mini.cool / 4) % 2 === 0) ctx.globalAlpha = 0.5;
+        drawTurtle(ctx, t, 1.4);
+        ctx.restore();
+      }
+    });
   }
 
   /** 斯庫拉一顆頭：狼頭似的長吻、黃眼、尖牙；stuck 時牙齒插在甲板裡、頭上冒星星 */
@@ -1621,6 +1842,9 @@ const Encounter = (function () {
     const sec = Math.max(0, Math.ceil(mini.time / 60));
     let goal;
     if (mini.kind === 'piranhas') goal = '抓到 ' + mini.caught + ' / ' + PIRANHA_GOAL + '　剩 ' + sec + ' 秒　（掉在甲板上亂彈的才踩得到）';
+    else if (mini.kind === 'buccaneers') goal = '踢下海 ' + mini.kicked + ' / ' + KEG_GOAL + '　剩 ' + sec + ' 秒　（引信燒完就會爆炸）';
+    else if (mini.kind === 'dolphins') goal = '星星 ' + mini.stars + ' / ' + STAR_GOAL + '　剩 ' + sec + ' 秒　（跳到海豚背上會被彈上天）';
+    else if (mini.kind === 'goldturtle') goal = '碰到海龜 ' + mini.caught + ' / ' + TURTLE_GOAL + '　剩 ' + sec + ' 秒';
     else if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
