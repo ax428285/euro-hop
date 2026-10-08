@@ -38,9 +38,9 @@ const Npcs = (function () {
       { at: 0.36, name: '牧牛人 Pablo',
         look: { skin: '#d9a172', hair: '#1e1a18', shirt: '#ffffff', pants: '#ffffff', hat: 'kerchief', hatColor: '#c8202a', item: null },
         lines: ['小心！前面要放牛了，聽到鼓聲就往前衝！', '真正的奔牛節在潘普洛納，每年 7 月舉行。', '跑的人穿白衣、繫紅領巾，就跟我一樣。'] },
-      { at: 0.66, name: '海鮮飯大嬸 Carmen',
+      { at: 0.78, name: '海鮮飯大嬸 Carmen',
         look: { skin: '#e3a97e', hair: '#2b1d16', shirt: '#b8323a', pants: '#2b2b33', hat: null, apron: '#f2e6c8', item: 'pan' },
-        lines: ['前面那段淹在海裡！按跳躍往上游，氣泡快沒了就找噴口換氣。', '海鮮飯 paella 來自瓦倫西亞，最早放的是雞肉跟兔肉。', '我們晚餐常常 9、10 點才開動，你餓了嗎？', '午後的小睡 siesta，是給大太陽的時間。'] }
+        lines: ['海鮮飯 paella 來自瓦倫西亞，最早放的是雞肉跟兔肉。', '我們晚餐常常 9、10 點才開動，你餓了嗎？', '午後的小睡 siesta，是給大太陽的時間。'] }
     ],
     FR: [
       { at: 0.1, name: '麵包師傅 Luc',
