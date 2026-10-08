@@ -2767,6 +2767,17 @@ const Sprites = (function () {
     const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
     ctx.save();
     if (s.bat) { ctx.restore(); batShot(ctx, s, t); return; }
+    if (s.splash) {
+      // 海獺噴的水：藍色水滴＋後面一小串水花
+      ctx.fillStyle = 'rgba(120, 200, 255, 0.9)';
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(230, 248, 255, 0.9)';
+      ctx.beginPath(); ctx.arc(cx - 2, cy - 2, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(120, 200, 255, 0.5)';
+      ctx.beginPath(); ctx.arc(cx - (s.vx || 0) * 3, cy - (s.vy || 0) * 3, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      return;
+    }
     if (s.spear) {
       // 騎士的長槍：沿飛行方向的細長槍身 + 鐵槍頭
       ctx.translate(cx, cy);

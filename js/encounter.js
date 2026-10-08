@@ -13,7 +13,7 @@
  *
  *   海鷗群   守護午餐   海鷗從兩邊俯衝搶麵包籃，碰到就把牠嚇跑，撐到時間到
  *   海盜船   艦砲對決   砲口自己上下擺，抓準時機按 K（丟）／Enter 開砲，命中 3 次；同時閃對方的砲彈
- *   大海蛇   打地鼠     蛇頭從甲板的洞輪流冒出來，踩中 6 次；蛇頭會吐口水
+ *   調皮海獺 拍拍頭     海獺從甲板的洞輪流冒出來，拍中 6 次；牠會噴水（v1.26.1 玩家：海蛇太噁心，換成可愛生物）
  *   黃金海馬 捕捉       稀有怪：在場上亂竄、越來越快，碰到牠 3 次就抓到，掉落時裝
  *
  * 角色的跑跳物理完全沿用關卡那一套（updatePlayer），只換「目標」與場上的東西 ——
@@ -65,7 +65,8 @@ const Encounter = (function () {
      */
     gulls:   { name: '海鷗群',   lv: 1, exp: 70,  game: '守護午餐', goal: '海鷗頭上出現「!」在盤旋時，跳起來碰牠就嚇跑了' },
     pirates: { name: '海盜船',   lv: 2, exp: 90,  game: '艦砲對決', goal: '抓準砲口角度，命中海盜船 5 次' },
-    serpent: { name: '大海蛇',   lv: 3, exp: 130, game: '打地鼠',   goal: '踩中冒出來的蛇頭 6 次' },
+    // v1.26.1 玩家：Lv3 的蛇太噁心 → 換成調皮海獺（id 還是 serpent，玩法不變：從洞裡冒出來，跳上去拍頭）
+    serpent: { name: '調皮海獺', lv: 3, exp: 130, game: '拍拍頭',   goal: '海獺從甲板的洞冒出來時，跳上去拍拍牠的頭 6 次' },
     golden:  { name: '黃金海馬', lv: '★', exp: 60, game: '捕捉',     goal: '碰到牠 3 次就抓到了！', rare: true },
     /*
      * 海上魔王（v1.23 玩家：地中海放隻海怪當魔王）——
@@ -249,15 +250,26 @@ const Encounter = (function () {
     ctx.restore();
   }
 
+  /** 地圖上的調皮海獺：仰躺在水面上、抱著貝殼、尾巴拍水（v1.26.1 取代原本的海蛇） */
   function drawSerpent(ctx, t) {
-    ctx.fillStyle = '#3f8f6a'; ctx.strokeStyle = '#1f4d39'; ctx.lineWidth = 1;
-    for (let i = 0; i < 3; i++) {
-      const h = 4 + Math.sin(t * 0.12 + i * 1.3) * 2;
-      ctx.beginPath(); ctx.ellipse(-12 + i * 8, 0, 3.6, h, 0, Math.PI, 0); ctx.fill(); ctx.stroke();
-    }
-    const hy = -4 + Math.sin(t * 0.1) * 1.5;
-    ctx.beginPath(); ctx.ellipse(12, hy, 5, 3.6, -0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(13.5, hy - 1, 1, 0, Math.PI * 2); ctx.fill();
+    const bob = Math.sin(t * 0.08) * 1.2;
+    ctx.save();
+    ctx.translate(0, bob);
+    ctx.fillStyle = '#8a5a3a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 5, 0, 0, Math.PI * 2); ctx.fill();          // 身體（仰躺）
+    ctx.beginPath(); ctx.ellipse(-12, 1 + Math.sin(t * 0.2) * 1, 5, 2.4, 0.3, 0, Math.PI * 2); ctx.fill();   // 尾巴
+    ctx.fillStyle = '#d8b48a';
+    ctx.beginPath(); ctx.ellipse(1, -1, 7, 3, 0, 0, Math.PI * 2); ctx.fill();          // 肚子
+    ctx.fillStyle = '#8a5a3a';
+    ctx.beginPath(); ctx.arc(11, -3, 5, 0, Math.PI * 2); ctx.fill();                   // 頭
+    ctx.fillStyle = '#e8d2b0';
+    ctx.beginPath(); ctx.ellipse(13, -2, 3, 2.2, 0, 0, Math.PI * 2); ctx.fill();       // 白鼻口
+    ctx.fillStyle = '#1a1424';
+    ctx.fillRect(10, -5.5, 1.4, 1.4); ctx.fillRect(13.2, -5.5, 1.4, 1.4);
+    ctx.beginPath(); ctx.arc(14.6, -2.6, 0.9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f0c8d8';                                                          // 抱著的貝殼
+    ctx.beginPath(); ctx.arc(2, -4, 2.6, Math.PI, 0); ctx.fill();
+    ctx.restore();
   }
 
   /** 黃金海馬：金色身體 + 彩虹光環 + 繞圈的星芒 —— 一看就知道是稀有的 */
@@ -771,7 +783,9 @@ const Encounter = (function () {
           const sx = h.x, sy = GY - 44;
           const dx = (p.x + p.w / 2) - sx, dy = (p.y + p.h / 2) - sy;
           const d = Math.max(1, Math.hypot(dx, dy));
-          state.shots.push(makeShot(sx - 6, sy, dx / d * 2.3, dy / d * 2.3));
+          const sq = makeShot(sx - 6, sy, dx / d * 2.3, dy / d * 2.3);
+          sq.splash = true;          // 海獺噴的是一團水（Sprites.shot 畫成水滴）
+          state.shots.push(sq);
           events.push('shoot');
         }
         // 踩頭：從上方落下碰到頭頂
@@ -976,18 +990,43 @@ const Encounter = (function () {
         const b = h.box;
         ctx.save();
         ctx.beginPath(); ctx.rect(b.x - 10, 0, b.w + 20, GY + 2); ctx.clip();
-        ctx.fillStyle = '#3f8f6a';
-        U.roundRect(ctx, b.x + 4, b.y + 10, b.w - 8, b.h + 10, 8); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(h.x, b.y + 12, 20, 14, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffd166';
-        ctx.beginPath(); ctx.arc(h.x - 7, b.y + 8, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(h.x + 7, b.y + 8, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#1a1a20';
-        ctx.fillRect(h.x - 8, b.y + 7, 2, 3); ctx.fillRect(h.x + 6, b.y + 7, 2, 3);
-        if (h.t > 30 && h.t < 42) {   // 要吐口水前張嘴（預告）
-          ctx.fillStyle = '#8a2a2a';
-          ctx.beginPath(); ctx.ellipse(h.x, b.y + 18, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
+        // 調皮海獺（v1.26.1 取代海蛇）：圓滾滾的咖啡色身體、白臉頰、小圓耳、兩隻小手扶著洞口
+        ctx.fillStyle = '#8a5a3a';
+        U.roundRect(ctx, b.x + 4, b.y + 12, b.w - 8, b.h + 10, 12); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(h.x, b.y + 13, 19, 16, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x - 14, b.y + 1, 4.5, 0, Math.PI * 2); ctx.fill();      // 耳朵
+        ctx.beginPath(); ctx.arc(h.x + 14, b.y + 1, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e8d2b0';
+        ctx.beginPath(); ctx.ellipse(h.x, b.y + 19, 12, 8, 0, 0, Math.PI * 2); ctx.fill();   // 白色口鼻
+        ctx.fillStyle = '#1a1424';
+        ctx.beginPath(); ctx.arc(h.x - 7, b.y + 9, 2.6, 0, Math.PI * 2); ctx.fill();       // 圓眼睛
+        ctx.beginPath(); ctx.arc(h.x + 7, b.y + 9, 2.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(h.x - 7, b.y + 7.5, 1.2, 1.2); ctx.fillRect(h.x + 7, b.y + 7.5, 1.2, 1.2);
+        ctx.fillStyle = '#3a2418';
+        ctx.beginPath(); ctx.ellipse(h.x, b.y + 15, 3.4, 2.4, 0, 0, Math.PI * 2); ctx.fill();  // 鼻子
+        ctx.fillStyle = 'rgba(240, 140, 160, 0.55)';                                         // 腮紅
+        ctx.beginPath(); ctx.arc(h.x - 12, b.y + 17, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x + 12, b.y + 17, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(60, 36, 24, 0.6)'; ctx.lineWidth = 1;                         // 鬍鬚
+        [-1, 1].forEach(function (d) {
+          ctx.beginPath(); ctx.moveTo(h.x + d * 5, b.y + 18); ctx.lineTo(h.x + d * 15, b.y + 16); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(h.x + d * 5, b.y + 20); ctx.lineTo(h.x + d * 15, b.y + 21); ctx.stroke();
+        });
+        if (h.t > 30 && h.t < 42) {   // 要噴水前嘟嘴、臉頰鼓起來（預告）
+          ctx.fillStyle = '#c87a8a';
+          ctx.beginPath(); ctx.arc(h.x, b.y + 23, 3.5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(160, 220, 255, 0.85)';
+          ctx.beginPath(); ctx.arc(h.x, b.y + 23, 2, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.strokeStyle = '#3a2418'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(h.x - 2, b.y + 19, 2, 0.2, Math.PI - 0.2); ctx.stroke();  // ω 嘴
+          ctx.beginPath(); ctx.arc(h.x + 2, b.y + 19, 2, 0.2, Math.PI - 0.2); ctx.stroke();
         }
+        // 兩隻小手扶著洞口
+        ctx.fillStyle = '#6a4228';
+        ctx.beginPath(); ctx.ellipse(h.x - 15, GY - 4, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(h.x + 15, GY - 4, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       });
     } else if (mini.kind === 'scylla') {
@@ -1119,7 +1158,7 @@ const Encounter = (function () {
     let goal;
     if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
-    else if (mini.kind === 'serpent') goal = '踩中 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
+    else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
     else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來了）');
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';

@@ -1992,7 +1992,7 @@ const Game = (function () {
     Npcs.draw(ctx, state, camX, t);   // 當地居民（站在小道具前面）
     // 招牌機制本體（彈跳墊、間歇泉、啤酒桶、牛群）
     if (state.features) Features.drawWorld(ctx, state, camX, t, 'fg');
-    // 海上小遊戲的場景物件（麵包籃、海盜船、蛇頭、黃金海馬）
+    // 海上小遊戲的場景物件（麵包籃、海盜船、海獺、黃金海馬）
     if (def.skirmish) Encounter.drawWorld(ctx, state, t);
 
     // 移動平台

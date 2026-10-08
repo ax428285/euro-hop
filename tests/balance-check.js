@@ -17,7 +17,7 @@ function runBalanceCheck() {
   const gullRate = K.gulls.exp / GULL_SECONDS;
   report.gullExpPerSec = Math.round(gullRate * 10) / 10;
   if (!(K.gulls.exp < K.pirates.exp && K.pirates.exp < K.serpent.exp)) {
-    issues.push('EXP 要隨等級遞增：海鷗 ' + K.gulls.exp + ' / 海盜 ' + K.pirates.exp + ' / 海蛇 ' + K.serpent.exp);
+    issues.push('EXP 要隨等級遞增：海鷗 ' + K.gulls.exp + ' / 海盜 ' + K.pirates.exp + ' / 海獺 ' + K.serpent.exp);
   }
   if (gullRate < 2.5) issues.push('海鷗每秒只有 ' + report.gullExpPerSec + ' EXP，打 Lv1 怪太不划算');
   const fights = Math.ceil(Encounter.EAST_EXP / ((K.gulls.exp + K.pirates.exp + K.serpent.exp) / 3));

@@ -86,7 +86,7 @@ function runEncounterCheck() {
       moveTo(p, held, Encounter.CANNON.x, 10);
       if (Encounter.shotHits(Encounter.cannonAngle(mini.elapsed + 1), Encounter.shipX(mini.elapsed + 60))) press.throw = true;
     },
-    // 打地鼠：跑到冒出來的蛇頭旁邊跳起來踩
+    // 拍拍頭：跑到冒出來的海獺旁邊跳起來拍（v1.26.1 前是海蛇）
     serpent: function (st, held, press) {
       const p = st.player, mini = st.mini;
       if (!mini) return;
