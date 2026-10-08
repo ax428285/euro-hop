@@ -32,7 +32,7 @@ const Save = (function () {
       exp: 0,             // 海上遭遇戰累積的經驗值（解鎖東歐篇用）
       seaWins: 0,         // 打贏幾場遭遇戰
       seaBosses: [],      // 打倒過的海上魔王 kind（v1.23 地中海海妖斯庫拉）
-      ship: { sail: 0, cannon: 0, hull: 0, paint: 'oak', paints: ['oak'] },   // 造船廠升級（v1.26，見 shipyard.js）
+      ship: { sail: 0, cannon: 0, hull: 0, powder: 0, paint: 'oak', paints: ['oak'] },   // 造船廠升級（v1.26，見 shipyard.js）
       day: 0,             // 貿易的「日子」：打完一關或一場海戰過一天，價格與懸賞跟著換（v1.27）
       cargo: {},          // 船艙裡的貨 { goodId: 箱數 }
       bounty: null,       // 接下的懸賞（一次一張，見 trade.js）
@@ -41,7 +41,20 @@ const Save = (function () {
       pet: null,          // 寵物（v1.29：'dog' = 峽灣的黃金獵犬，餵一根臘腸就跟你走）
       allies: 0,          // 海神夥伴（消耗品，亞特蘭提斯神殿拿到；魔王關自動出戰一次用掉一個）
       costumes: [],     // 擁有的時裝 id（稀有怪掉落）
-      costume: null       // 目前穿的時裝（null = 原本的條紋衫）
+      costume: null,      // 目前穿的時裝（null = 原本的條紋衫）
+      /*
+       * v1.30 劇情旗標（見 quests.js）：
+       *   thorAsked 跟索爾講過話（知道洛基躲在漩渦底下）
+       *   loki      在冥界找到洛基
+       *   north     北歐的結界解開了（北歐篇開放）
+       *   columbus  哥倫布的委託：1 = 接下了（戰艦出現）、2 = 完成（美洲預告）
+       */
+      flags: {},
+      // v1.30 瑞士銀行：open = 開戶了；bal = 存款；last = 上次算利息的時間（ms）
+      bank: { open: false, bal: 0, last: 0 },
+      // v1.30 阿爾及利亞動物園：{ 動物 id: 隻數 }；zooDay = 上次收門票是第幾天
+      zoo: {},
+      zooDay: 0
     };
   }
 
@@ -86,6 +99,25 @@ const Save = (function () {
       });
     }
     out.costume = out.costumes.indexOf(d.costume) >= 0 ? d.costume : null;
+    // v1.30 劇情旗標、銀行、動物園
+    if (d.flags && typeof d.flags === 'object') {
+      Object.keys(d.flags).forEach(function (k) {
+        const v = d.flags[k];
+        if (typeof v === 'number' || typeof v === 'boolean') out.flags[k] = v;
+      });
+    }
+    if (d.bank && typeof d.bank === 'object') {
+      out.bank.open = !!d.bank.open;
+      out.bank.bal = Math.max(0, parseInt(d.bank.bal, 10) || 0);
+      out.bank.last = Math.max(0, Number(d.bank.last) || 0);
+    }
+    if (d.zoo && typeof d.zoo === 'object') {
+      Object.keys(d.zoo).forEach(function (k) {
+        const n = parseInt(d.zoo[k], 10) || 0;
+        if (n > 0 && /^[a-z]+$/.test(k)) out.zoo[k] = Math.min(n, 99);
+      });
+    }
+    out.zooDay = Math.max(0, parseInt(d.zooDay, 10) || 0);
 
     // 強化：只留真的存在的 id，階數夾在 [0, maxLevel]
     if (d.upgrades && typeof d.upgrades === 'object') {
@@ -283,7 +315,9 @@ const Save = (function () {
       if (i + 1 < Levels.count && data.unlocked < i + 2) data.unlocked = i + 2;
       const prev = data.best[i];
       if (!prev || coins > prev.coins || levelScore > prev.score) {
-        data.best[i] = { coins: coins, total: total, score: levelScore };
+        // v1.30：金幣、分數各自留最高（瑞士銀行看「金幣有沒有收滿過」，不能被分數比較高的那次蓋掉）
+        data.best[i] = { coins: Math.max(coins, prev ? prev.coins : 0), total: total,
+                         score: Math.max(levelScore, prev ? prev.score : 0) };
       }
       persist();
     },
@@ -404,6 +438,12 @@ const Save = (function () {
       return true;
     },
 
+    // v1.30 劇情旗標（quests.js）
+    flag: function (k) { return data.flags[k] || 0; },
+    setFlag: function (k, v) { data.flags[k] = v; persist(); },
+    bank: function () { return data.bank; },
+    zoo: function () { return data.zoo; },
+    addAnimal: function (id, n) { data.zoo[id] = Math.min(99, (data.zoo[id] || 0) + (n || 1)); persist(); },
     reset: function () { data = blank(); persist(); }
   };
 })();

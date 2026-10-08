@@ -1525,6 +1525,13 @@ const Sprites = (function () {
       ctx.fillStyle = '#f4efe2'; ctx.fillRect(cx - 9, y + 12, 18, 20);
       ctx.fillStyle = '#e8c060'; ctx.fillRect(cx - 9, y + 24, 18, 3);
       ctx.fillStyle = '#c0242a'; ctx.fillRect(cx + dir * 3 - 2, y + 15, 4, 4);
+    } else if (c === 'pharaoh') {
+      // 法老（v1.30 金字塔探險）：白色亞麻裙＋金藍寬領圈
+      ctx.fillStyle = '#c8946a'; ctx.fillRect(cx - 8, y + 12, 16, 10);
+      ctx.fillStyle = '#f4efe2'; ctx.fillRect(cx - 9, y + 22, 18, 10);
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 10, y + 12, 20, 4);
+      ctx.fillStyle = '#2a50a0'; ctx.fillRect(cx - 10, y + 15, 20, 2);
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
     } else if (c === 'golden') {
       const g = ctx.createLinearGradient(cx - 9, y + 12, cx + 9, y + 32);
       g.addColorStop(0, '#fff4b0'); g.addColorStop(0.5, '#f2c14e'); g.addColorStop(1, '#c8862a');
@@ -1561,6 +1568,15 @@ const Sprites = (function () {
         ctx.fillStyle = '#e8c040';
         ctx.beginPath(); ctx.arc(cx + s * 14, y - 4 + Math.sin(t * 0.2 + i) * 1.5, 2.4, 0, Math.PI * 2); ctx.fill();
       });
+    } else if (c === 'pharaoh') {
+      // 法老頭巾 nemes：金藍條紋，兩邊垂到肩膀，額頭一條眼鏡蛇
+      ctx.fillStyle = '#e8b830';
+      ctx.beginPath(); ctx.moveTo(cx - 10, y + 3); ctx.quadraticCurveTo(cx, y - 10, cx + 10, y + 3);
+      ctx.lineTo(cx + 11, y + 14); ctx.lineTo(cx + 7, y + 14); ctx.lineTo(cx + 6, y + 4); ctx.lineTo(cx - 6, y + 4);
+      ctx.lineTo(cx - 7, y + 14); ctx.lineTo(cx - 11, y + 14); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#2a50a0';
+      ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
+      ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
     } else if (c === 'royal' || c === 'golden') {
       ctx.fillStyle = '#f2c14e';
       ctx.beginPath();
@@ -3142,10 +3158,18 @@ const Sprites = (function () {
    *   spring   上面有彈簧圈
    *   crumble  裂縫紋路，踩過後會抖動
    */
+  /*
+   * v1.30：其他檔案登記的豎井主題（expedition.js 的冥界 'hel'、金字塔 'pyramid'）。
+   * 每個主題 { backdrop(ctx, camY, t, W, H), wall(ctx, wall, camY, viewH, t), ceiling(ctx, top, h, w, t),
+   *           floor(ctx, f, x, y, w, h, t) → true = 畫好了（false = 用預設畫法，例如滑台）}
+   */
+  const shaftThemes = {};
+
   function shaftFloor(ctx, f, t, theme) {
     const r = f.rect;
     const x = r.x, y = r.y, w = r.w, h = r.h;
     if (theme === 'atlantis' && atlantisFloor(ctx, f, x, y, w, h, t)) return;
+    if (shaftThemes[theme] && shaftThemes[theme].floor(ctx, f, x, y, w, h, t)) return;
 
     if (f.goal && theme === 'opera') {
       // 歌劇院的終點：舞台地板（深色木板 + 金色台口線 + 腳燈）
@@ -3933,6 +3957,7 @@ const Sprites = (function () {
    */
   function shaftBackdrop(ctx, theme, camY, t, W, H) {
     if (theme === 'atlantis') { atlantisBackdrop(ctx, camY, t, W, H); return; }
+    if (shaftThemes[theme]) { shaftThemes[theme].backdrop(ctx, camY, t, W, H); return; }
     if (theme === 'opera') { operaBackdrop(ctx, camY, t, W, H); return; }
     if (theme === 'alps') { alpsBackdrop(ctx, camY, t, W, H); return; }
     if (theme !== 'bigben') return;
@@ -4390,6 +4415,7 @@ const Sprites = (function () {
     if (theme === 'opera') { operaWall(ctx, wall, camY, viewH, t || 0); return; }
     if (theme === 'alps') { alpsWall(ctx, wall, camY, viewH); return; }
     if (theme === 'atlantis') { atlantisWall(ctx, wall, camY, viewH, t || 0); return; }
+    if (shaftThemes[theme]) { shaftThemes[theme].wall(ctx, wall, camY, viewH, t || 0); return; }
     ctx.fillStyle = '#2f2b36';
     ctx.fillRect(wall.x, camY - 20, wall.w, viewH + 40);
     // 內緣亮線，讓井道邊界明確
@@ -4423,6 +4449,7 @@ const Sprites = (function () {
     if (theme === 'bigben') { bigBenCeiling(ctx, screenTop, h, w, t); return; }
     if (theme === 'opera') { operaCeiling(ctx, screenTop, h, w, t); return; }
     if (theme === 'atlantis') { atlantisCeiling(ctx, screenTop, h, w, t); return; }
+    if (shaftThemes[theme]) { shaftThemes[theme].ceiling(ctx, screenTop, h, w, t); return; }
     ctx.save();
     // 底座
     ctx.fillStyle = '#3a2f3a';
@@ -6935,6 +6962,7 @@ const Sprites = (function () {
     landmarks: landmarks,
     props: props,
     shaftBackdrop: shaftBackdrop,
+    shaftThemes: shaftThemes,
     pendulum: pendulum,
     chimeOverlay: chimeOverlay,
     shaftFloor: shaftFloor,

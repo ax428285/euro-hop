@@ -390,6 +390,17 @@ const WorldMap = (function () {
         def: { role: m.duo ? '雙人試煉' : '港口', scene: m.scene, port: m.kind, prompt: m.prompt, duo: !!m.duo }
       });
     });
+    // v1.30 劇情人物與地點（quests.js）：雷神索爾、哥倫布、瑞士銀行、動物園、金字塔
+    if (typeof Quests !== 'undefined') {
+      Quests.SPOTS.forEach(function (q) {
+        const p = EuropeWorld.project(q.lon, q.lat);
+        const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+        specials.push({
+          id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
+          def: { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+        });
+      });
+    }
   }
 
   /** 神祕商人：紫色斗篷 + 兜帽 + 提燈（燈會微微晃，遠遠就看得到） */
@@ -495,6 +506,7 @@ const WorldMap = (function () {
       const near = s.id === nearId;
       if (s.def.gone && s.def.gone()) return;
       if (s.def.dog) { Pet.drawWaiting(ctx, x, y, t, near); return; }
+      if (s.def.npc) { Quests.drawMapIcon(ctx, s.def.npc, x, y, t, near); return; }
       if (s.def.merchant) {
         if (near) {
           ctx.strokeStyle = 'rgba(216, 184, 255, 0.95)'; ctx.lineWidth = 2.5;
@@ -545,7 +557,7 @@ const WorldMap = (function () {
     specials.forEach(function (s) {
       const near = s.id === nearId;
       if (s.def.gone && s.def.gone()) return;
-      const bare = s.def.merchant || s.def.port || s.def.dog;     // 沒有國土的地點：只印名字
+      const bare = s.def.merchant || s.def.port || s.def.dog || s.def.npc;     // 沒有國土的地點：只印名字
       U.text(ctx, bare ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
         size: near ? LABEL_SIZE_SEL : (bare ? 11 : 12),
         color: near ? (PAL.labelSel || '#ffd166') : (s.def.merchant ? (PAL.merchantLabel || '#e6d8ff')
@@ -704,7 +716,7 @@ const WorldMap = (function () {
     placeLabels();
     // 特殊地點的標籤（「葡萄牙・商店」比國名長，最後擺：避開關卡國已經擺好的字）
     specials.forEach(function (s) {
-      if (s.def.merchant || s.def.port || s.def.dog) return;          // 神祕商人、港口、黃金獵犬沒有國土，字就放在人底下（buildSpecials 已設好）
+      if (s.def.merchant || s.def.port || s.def.dog || s.def.npc) return;          // 神祕商人、港口、黃金獵犬、劇情人物沒有國土，字就放在人底下（buildSpecials 已設好）
       const name = s.name + '・' + s.def.role;
       placeOne(s, name, s.pin);
       // 國土太小（愛爾蘭）放不下時，字會壓在自己的圖釘上 → 改放圖釘正下方
@@ -827,7 +839,10 @@ const WorldMap = (function () {
   // v1.29.2 玩家：國旗再小一點；北歐也先印上去（冰島在地圖外面）
   // v1.30 北歐篇：北歐五國有關卡了（地圖往西延伸、冰島也進來了）→ 改成關卡國的圖釘，這裡只剩土耳其
   const PAINTED = [
-    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' }
+    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' },
+    // v1.30 玩家：黃金獵犬搬到蘇格蘭，把蘇格蘭標出來（國界在英國的資料裡，只印名字＋聖安德魯十字旗）
+    // over：畫在關卡國的國土上面（蘇格蘭在英國的國土裡，畫在底下會被蓋掉）
+    { id: 'SCO', name: '蘇格蘭', lon: -3.4, lat: 56.4, flag: 'scotland', over: true }
   ];
   const PF_W = 20, PF_H = 13;     // 平貼國旗的大小（關卡國的旗子約 22×15，這個要比較低調）
   /** 北歐十字旗：直條偏旗桿那側（約 37%），inner = 挪威十字裡面那條藍 */
@@ -844,6 +859,16 @@ const WorldMap = (function () {
       ctx.fillRect(cx - ti / 2, -h / 2, ti, h);
       ctx.fillRect(-w / 2, -ti / 2, w, ti);
     }
+  }
+  /** 蘇格蘭：藍底白色斜十字（聖安德魯十字） */
+  function drawSaltire(ctx, w, h) {
+    ctx.fillStyle = '#005eb8';
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = h * 0.2;
+    ctx.beginPath(); ctx.moveTo(-w / 2, -h / 2); ctx.lineTo(w / 2, h / 2); ctx.moveTo(w / 2, -h / 2); ctx.lineTo(-w / 2, h / 2); ctx.stroke();
+    ctx.restore();
   }
   function drawTurkeyFlag(ctx, w, h) {
     ctx.fillStyle = '#e30a17';
@@ -864,8 +889,9 @@ const WorldMap = (function () {
     }
     ctx.closePath(); ctx.fill();
   }
-  function drawPaintedNations(ctx) {
+  function drawPaintedNations(ctx, over) {
     PAINTED.forEach(function (d) {
+      if (!!d.over !== !!over) return;
       const p = EuropeWorld.project(d.lon, d.lat);
       ctx.save();
       ctx.translate(p[0], p[1]);
@@ -873,6 +899,7 @@ const WorldMap = (function () {
       ctx.transform(1, 0, -0.35, 0.62, 0, 0);
       ctx.globalAlpha = 0.9;
       if (d.flag === 'turkey') drawTurkeyFlag(ctx, PF_W, PF_H);
+      else if (d.flag === 'scotland') drawSaltire(ctx, PF_W, PF_H);
       else drawNordicFlag(ctx, PF_W, PF_H, d);
       ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 0.8;
       ctx.strokeRect(-PF_W / 2, -PF_H / 2, PF_W, PF_H);
@@ -1116,6 +1143,9 @@ const WorldMap = (function () {
     });
     // 羊皮紙：紙紋蓋在海和國土上、國名和圖釘之下（字要清楚）
     if (PAL.paper) { drawPaperGrain(ctx); drawCompass(ctx); }
+    // v1.30：北歐的雷電結界（還沒解開時）、哥倫布出航後的美洲預告
+    if (typeof Quests !== 'undefined') { Quests.drawShield(ctx, t); Quests.drawMapExtras(ctx, t); }
+    drawPaintedNations(ctx, true);
     // 呼叫端要夾在「國土」與「國名」之間畫的東西（航海模式的運河）
     if (opts.afterLand) opts.afterLand();
     if (opts.east) drawEastLabels(ctx, opts.east.unlocked);

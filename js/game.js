@@ -42,6 +42,10 @@ const Game = (function () {
   let mkPort = null, mkTab = 0, mkRow = 0, mkCol = 0, mkMsg = null, mkAbandon = false;
   let bountyNote = null;     // 懸賞完成／失敗的提示，回到地圖時顯示
   let deadNote = null;       // 打輸時額外的一句話（海盜搶走一箱貨⋯⋯）
+  // v1.30 劇情對話（quests.js）：正在講的那一段 { who, lines, i, t, end, panel }；回到地圖時要接著打開的對話
+  let talk = null;
+  let pendingTalk = null;
+  let blockedToastT = 0;     // 撞到北歐結界的提示：不要每帧都跳
   let yardCursor = 0;        // 造船廠選到第幾列（v1.26）
   let yardPaint = 0;         // 油漆列選到第幾色
   let yardMsg = null;
@@ -126,7 +130,7 @@ const Game = (function () {
     levelIndex = -1;
     skirmish = m;
     // 造船廠的加厚船身（v1.26）：海上遭遇戰多幾顆愛心（潛水是人下水，不算）
-    if (!m.def.dive && !m.def.duo && typeof Shipyard !== 'undefined') {
+    if (!m.def.dive && !m.def.duo && !m.def.quest && typeof Shipyard !== 'undefined') {
       maxLives += Shipyard.hullBonus(Save.ship());
       lives = [maxLives, maxLives];
     }
@@ -200,7 +204,8 @@ const Game = (function () {
     if (shipBack) {
       // 打完遭遇戰：船回到開打的地方，不要瞬移回港口
       // 卡律布狄斯：開打的地方就在漩渦眼上 → 甩到漩渦外面，而且一陣子不吸，不然一回來又被吸進去
-      if (skirmish && skirmish.kind === 'charybdis') {
+      // （v1.30 冥界：從卡律布狄斯沉下去的，回來也是同一個漩渦旁邊）
+      if (skirmish && (skirmish.kind === 'charybdis' || skirmish.kind === 'hel')) {
         const ang = Math.atan2(shipBack.y - skirmish.y, shipBack.x - skirmish.x) || -Math.PI / 2;
         shipBack = { x: skirmish.x + Math.cos(ang) * 95, y: skirmish.y + Math.sin(ang) * 95 };
         Encounter.calmVortex(420);
@@ -220,6 +225,76 @@ const Game = (function () {
     Music.playTrack('MAP');
     // 剛湊齊一整個洲的線索：先揭曉謎底（看完按返回就是地圖，船已經擺好了）
     if (pendingReveal) openMystery(pendingReveal, true);
+    // v1.30：冥界最底下的洛基
+    else if (pendingTalk) { const w = pendingTalk; pendingTalk = null; openTalk(w); }
+  }
+
+  // ── 劇情對話（v1.30，quests.js）────────────────────────
+
+  function openTalk(who) {
+    const tk = Quests.talk(who);
+    if (!tk || !tk.lines.length) return;
+    talk = tk; talk.i = 0; talk.t = 0;
+    scene = 'talk';
+    Sfx.talk();
+  }
+
+  function updateTalk() {
+    if (!talk) { scene = 'map'; return; }
+    talk.t++;
+    const click = Input.takeClick();
+    if (talk.t > 10 && (Input.once('confirm') || Input.once('jump') || click)) {
+      talk.i++; talk.t = 0;
+      if (talk.i >= talk.lines.length) { finishTalk(); return; }
+      Sfx.talk();
+    }
+    if (Input.once('back')) finishTalk();
+  }
+
+  function finishTalk() {
+    const tk = talk;
+    talk = null;
+    scene = 'map';
+    const r = tk && tk.end ? tk.end() : null;
+    if (!r) return;
+    if (r.sfx && Sfx[r.sfx]) Sfx[r.sfx]();
+    if (r.shake) shake = r.shake;
+    if (r.toast) toast = r.toast;
+  }
+
+  function drawTalk() {
+    const sv = Save.get();
+    drawMapBackdrop(sv);
+    ctx.fillStyle = 'rgba(8,12,24,0.55)';
+    ctx.fillRect(0, 0, W, H);
+    if (!talk) return;
+    if (talk.panel) Quests.drawPanel(ctx, talk.panel, W, t);
+    const line = talk.lines[Math.min(talk.i, talk.lines.length - 1)];
+    const top = H - 168;
+    panel(40, top, W - 80, 140);
+    // 頭像
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    U.roundRect(ctx, 58, top + 16, 108, 108, 12); ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(58, top + 16, 108, 108); ctx.clip();
+    Quests.portrait(ctx, line.who, 112, top + 70, t);
+    ctx.restore();
+    U.text(ctx, Quests.NAMES[line.who] || '', 112, top + 136, { size: 13, color: '#ffd166' });
+    // 台詞（逐字打出來）
+    const shown = line.text.slice(0, Math.max(1, Math.floor(talk.t * 1.6)));
+    const rows = wrapText(shown, W - 300, 18);
+    rows.slice(0, 3).forEach(function (s, k) {
+      U.text(ctx, s, 190, top + 36 + k * 30, { size: 18, color: line.who === 'me' ? '#bfe3ff' : '#ffffff', align: 'left' });
+    });
+    U.text(ctx, (talk.i + 1) + ' / ' + talk.lines.length, W - 64, top + 18, { size: 12, color: '#7d88a6', align: 'right' });
+    if (Math.floor(t / 28) % 2 === 0) {
+      U.text(ctx, talk.i + 1 < talk.lines.length ? '▼ Enter／點一下 繼續' : '▼ Enter 結束', W - 64, top + 120, { size: 12, color: '#c6d2e8', align: 'right' });
+    }
+  }
+
+  /** 從地圖直接開始的探險（金字塔；冥界從卡律布狄斯接過去） */
+  function startQuestLevel(kind, at) {
+    startSkirmish(Expedition.questMonster(kind, at || Voyage.shipPos()));
   }
 
   // ── 世界之謎 ──────────────────────────────────────────
@@ -391,6 +466,7 @@ const Game = (function () {
       case 'market': updateMarket(); break;
 
       case 'mystery': updateMystery(); break;
+      case 'talk': updateTalk(); break;
 
       case 'saveinfo':
         if (Input.once('wipe')) {
@@ -684,6 +760,16 @@ const Game = (function () {
     const events = Voyage.update(Input);
     // 寵物（v1.29）：收養的黃金獵犬沿著足跡跟在後面
     Pet.update(Voyage.shipPos());
+    // v1.30 瑞士銀行的利息（用真實時間算）
+    Quests.tick();
+    if (blockedToastT > 0) blockedToastT--;
+    if (events.indexOf('blocked') >= 0 && blockedToastT === 0) {
+      blockedToastT = 150;
+      Sfx.clang(); shake = 4;
+      toast = Save.flag('loki')
+        ? { text: '雷神的結界擋住了去路', sub: '你已經找到洛基了 —— 回北海跟雷神索爾說話', life: 170 }
+        : { text: '雷神的結界擋住了去路', sub: '北海上的雷神索爾好像在等人 —— 去找他問問', life: 170 };
+    }
     const shipNow = Voyage.shipPos();
     // 地圖比畫面高：相機跟著船走
     WorldMap.follow(shipNow.x, shipNow.y);
@@ -766,6 +852,19 @@ const Game = (function () {
       // v1.26 地中海港口：沉船潛水直接開潛；造船廠打開升級畫面
       if (spNear.def.scene === 'duo') { tryStartDuo(spNear); return; }
       if (spNear.def.scene === 'dog') { greetDog(); return; }
+      // v1.30 劇情人物與地點：金字塔直接進去探險，其他都是對話
+      if (spNear.def.scene === 'talk') {
+        if (spNear.def.npc === 'pyramid' || spNear.def.npc === 'zoo') {
+          if (!regionUnlocked('africa')) {
+            Sfx.clang();
+            toast = { text: '非洲篇還沒解鎖', sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf('africa').exp, life: 170 };
+            return;
+          }
+          if (spNear.def.npc === 'pyramid') { Sfx.select(); startQuestLevel('pyramid'); return; }
+        }
+        openTalk(spNear.def.npc);
+        return;
+      }
       if (spNear.def.scene === 'dive') {
         const ship0 = Voyage.shipPos();
         startSkirmish({ kind: spNear.def.port, def: Encounter.KINDS[spNear.def.port], x: ship0.x, y: ship0.y, port: true });
@@ -788,8 +887,11 @@ const Game = (function () {
       const rg = Levels.list[near].region;
       if (!regionUnlocked(rg)) {
         Sfx.clang();
-        toast = { text: Encounter.regionOf(rg).name + '還沒解鎖',
-                  sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf(rg).exp, life: 170 };
+        const reg = Encounter.regionOf(rg);
+        toast = reg.quest
+          ? { text: reg.name + '被雷神的結界罩住了', sub: '北海上的雷神索爾好像知道怎麼解開', life: 170 }
+          : { text: reg.name + '還沒解鎖',
+              sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + reg.exp, life: 170 };
       } else {
         Sfx.select();
         startLevel(near);
@@ -1210,7 +1312,7 @@ const Game = (function () {
    *   ↑↓ 選列、Enter 買下一級；油漆列 ←→ 選顏色、Enter 買（買過的直接換上）
    *   手機：點那一列（油漆點色塊）就是選＋買
    */
-  const YARD_TOP = 196, YARD_ROW = 52;
+  const YARD_TOP = 186, YARD_ROW = 44;      // v1.30 多了火藥庫（5 列）：列高 52 → 44 才不會壓到底下的說明
   function yardBuy(row) {
     const it = Shipyard.ITEMS[row];
     const ship = Save.ship();
@@ -1637,6 +1739,19 @@ const Game = (function () {
         };
         return;
       }
+      /*
+       * v1.30：卡律布狄斯的漩渦逃生把命用完（還沒找到洛基時）→ 不是「旅程中斷」，
+       * 而是被漩渦吞到底、沉進冥界赫爾海姆（雷神索爾給的線索）。
+       */
+      if (skirmish && skirmish.kind === 'charybdis' && Quests.helReady()) {
+        const at = { x: skirmish.x, y: skirmish.y };
+        Music.stop();
+        Sfx.bossRoar();
+        startQuestLevel('hel', at);
+        shipBack = at;
+        toast = { text: '被漩渦吞下去了⋯⋯', sub: '一路往下沉、往下沉 —— 這裡是冥界赫爾海姆？', life: 220 };
+        return;
+      }
       Sfx.gameover();
       loseCargo();       // 海戰沒命：船上的貨被搶走一箱（見 loseCargo）
       if (duoOut) deadNote = (i === 0 ? '玩家 1' : '玩家 2') + ' 沒命了 —— 雙人試煉要兩個人一起才過得去';
@@ -1722,7 +1837,7 @@ const Game = (function () {
       expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null };
       netProgress({ t: 'exp', n: state.def.exp, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
-      if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed || skirmish.def.duo) && Save.markSeaBoss(skirmish.kind)) {
+      if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed || skirmish.def.duo || skirmish.def.quest) && Save.markSeaBoss(skirmish.kind)) {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
@@ -1736,13 +1851,20 @@ const Game = (function () {
           return { id: id, name: rd ? rd.name : id, fresh: Save.addRelic(id) };
         });
       }
+      // v1.30 戰艦、動物大遷徙、冥界、金字塔（expedition.js）
+      if (skirmish.def.custom) {
+        const ex = Expedition.onClear(skirmish, state);
+        if (ex.note) expResult.note = ex.note;
+        if (ex.costume) expResult.costume = ex.costume;
+        if (ex.talk) pendingTalk = ex.talk;
+      }
       if (skirmish.kind === 'atlantis') {
         const before = Save.get().allies;
         expResult.ally = { now: Save.addAlly(), full: before >= Save.ALLY_MAX };
       }
       // 稀有怪：掉一套還沒有的時裝（全部都有了就改給金幣）
       if (skirmish.def.rare) {
-        const missing = Costumes.defs.filter(function (d) { return !Save.get().costumes.includes(d.id); });
+        const missing = Costumes.defs.filter(function (d) { return !d.special && !Save.get().costumes.includes(d.id); });
         if (missing.length) {
           const pick = missing[Math.floor(Math.random() * missing.length)];
           Save.addCostume(pick.id);
@@ -2196,10 +2318,11 @@ const Game = (function () {
       const by = climb ? 92 : H - 74;
       ctx.fillStyle = 'rgba(10,14,26,0.82)';
       U.roundRect(ctx, W / 2 - 215, by, 430, 48, 8); ctx.fill();
-      U.text(ctx, def.dive ? '往下潛到海神的神殿！上面的礁石會崩下來' : pl.calm ? '往上爬到山頂！' : climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
+      U.text(ctx, def.intro ? def.intro[0] : def.dive ? '往下潛到海神的神殿！上面的礁石會崩下來' : pl.calm ? '往上爬到山頂！' : climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
         W / 2, by + 18, { size: 16, color: '#ffd166' });
       U.text(ctx, climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・藍色冰面會滑，要提早放開方向鍵'
                                                 : '←→ 移動　空白 跳躍　平台可以從下面穿過去')
+                        : def.intro ? def.intro[1]
                         : def.theme === 'bigben' ? '往下掉時小心鐘擺・鐘聲響起時會加速'
                         : def.theme === 'opera' ? '鋼琴鍵平台第 3 拍會消失・小心飛來的音符'
                         : def.dive ? '跳躍 = 往上游・頭上的氣泡用完會嗆水，游進噴口的氣泡柱補氣'
@@ -2463,7 +2586,7 @@ const Game = (function () {
     let title;
     if (def.duo) {
       title = '雙人試煉　' + def.country + ' · ' + def.city;
-    } else if (def.skirmish || def.dive) {
+    } else if (def.skirmish || def.dive || def.quest) {
       title = def.country + '　' + def.city;
     } else {
       title = (def.isBoss ? '魔王關　' : `第 ${levelIndex + 1} / ${Levels.count} 關　`) +
@@ -2650,7 +2773,7 @@ const Game = (function () {
   const TITLE_GUIDE = [
     ['#ffd166', '開船環遊', '開到國家旁按 Enter 進城，跑到終點旗子過關'],
     ['#8fe3a0', '找裝備', '每關藏一件裝備，常在密道裡（往上頂出隱形磚）'],
-    ['#ff9aa8', '海上冒險', '打海上怪物拿 EXP，累積夠了解鎖東歐、非洲、北歐篇'],
+    ['#ff9aa8', '海上冒險', '打海上怪物拿 EXP，累積夠了解鎖東歐、非洲篇'],
     ['#9cd0c8', '港口', 'B 商店・造船廠升級船・貿易港低買高賣接懸賞'],
     ['#e2c8ff', '兩人一起', 'C 同機雙人，或 ☰ 選單「連線」；土耳其有雙人關'],
     ['#f6d98a', '世界之謎', '每過一關得一條線索（N 查看），集滿揭開祕密']
@@ -2836,15 +2959,17 @@ const Game = (function () {
       const bx = 160, by = 14, bw = 160, bh = 12;   // v1.25.1 標題只剩「世界地圖」，EXP 條往左靠
       const nx = Encounter.nextRegion(sv.exp);
       const done = !nx;
-      const idx = nx ? Encounter.REGIONS.indexOf(nx) : Encounter.REGIONS.length;
-      const from = idx > 0 ? Encounter.REGIONS[idx - 1].exp : 0;
+      // v1.30 北歐篇是劇情解鎖，不在 EXP 條上
+      const XR = Encounter.EXP_REGIONS;
+      const idx = nx ? XR.indexOf(nx) : XR.length;
+      const from = idx > 0 ? XR[idx - 1].exp : 0;
       const prog = done ? 1 : U.clamp((sv.exp - from) / (nx.exp - from), 0, 1);
       U.text(ctx, 'EXP', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
       ctx.fillStyle = 'rgba(255, 230, 180, 0.15)';
       U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
       ctx.fillStyle = done ? '#8fe3a0' : '#d4a23a';
       if (prog > 0) { U.roundRect(ctx, bx, by, Math.max(bh, bw * prog), bh, 6); ctx.fill(); }
-      U.text(ctx, done ? '全部篇章已解鎖' : `${sv.exp}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
+      U.text(ctx, done ? (Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${sv.exp}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
         { size: 12, color: done ? '#8fe3a0' : '#f0dcb0', align: 'left' });
     }
     U.text(ctx, (coop ? '2P　' : '') +
@@ -2929,7 +3054,7 @@ const Game = (function () {
     const spot = Voyage.nearbySpecial();
     if (mon) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      const bossTxt = mon.def.dive
+      const bossTxt = mon.def.custom ? Expedition.prompt(mon) : mon.def.dive
         ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : mon.def.boss
         ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
@@ -3118,7 +3243,7 @@ const Game = (function () {
       ['貿易', '第 ' + (sv.day + 1) + ' 天　船艙 ' + Save.cargoCount() + ' 箱' + (sv.bounty ? '　懸賞：' + Trade.describe(sv.bounty) : '')],
       ['船', '帆 Lv' + sv.ship.sail + '　砲 Lv' + sv.ship.cannon + '　船身 Lv' + sv.ship.hull + '　沉船收藏 ' + sv.relics.length + ' / ' + Encounter.RELICS.length],
       ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp +
-        (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（全部篇章已解鎖）')],
+        (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（EXP 篇章都解鎖了）')],
       ['總分', String(sv.score)]
     ];
 
@@ -3422,16 +3547,23 @@ const Game = (function () {
     const def = state.def;
     const r = expResult || { gain: def.exp, before: 0, after: Save.get().exp };
     // 這一場剛好跨過門檻的篇章；沒有的話就看下一個還沒解鎖的
-    const opened = Encounter.REGIONS.filter(function (g) { return r.before < g.exp && r.after >= g.exp; })[0];
-    const target = opened || Encounter.nextRegion(r.after) || Encounter.REGIONS[Encounter.REGIONS.length - 1];
+    // v1.30：北歐篇改成劇情解鎖，只看要 EXP 的篇章
+    const XR = Encounter.EXP_REGIONS;
+    const opened = XR.filter(function (g) { return r.before < g.exp && r.after >= g.exp; })[0];
+    const target = opened || Encounter.nextRegion(r.after) || XR[XR.length - 1];
     const need = target.exp;
     const justOpened = !!opened;
-    const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0);
+    const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0) + (r.note ? 46 : 0);
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
     const md = def.monster.def;
-    U.text(ctx, def.monster.kind === 'wreck' ? '撈起了安提基特拉機械！' : md.duo ? '兩人合力闖過' + md.name + '！' : md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
-      { size: 32, color: md.dive ? '#8ff0e0' : md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
+    U.text(ctx, md.clearTitle ? md.clearTitle : def.monster.kind === 'wreck' ? '撈起了安提基特拉機械！' : md.duo ? '兩人合力闖過' + md.name + '！' : md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
+      { size: md.clearTitle && md.clearTitle.length > 11 ? 26 : 32, color: md.dive ? '#8ff0e0' : md.rare || md.boss || md.custom ? '#ffe070' : '#8fe3a0' });
+    if (r.note) {
+      ctx.fillStyle = 'rgba(255, 220, 140, 0.12)';
+      U.roundRect(ctx, 230, top + tall - 96 - (r.costume ? 50 : 0), 500, 36, 8); ctx.fill();
+      U.text(ctx, fitText(r.note, 480, 14), W / 2, top + tall - 78 - (r.costume ? 50 : 0), { size: 14, color: '#ffe9a8' });
+    }
     // 稀有怪掉的時裝（已經自動穿上，到裝備畫面可以換）
     if (r.relics) {
       // 沉船：這次撈到的寶物（新的標金色），以及收藏進度
@@ -3467,7 +3599,8 @@ const Game = (function () {
     U.roundRect(ctx, bx, by, bw, bh, 8); ctx.fill();
     ctx.fillStyle = shown >= need ? '#8fe3a0' : '#a98bff';
     U.roundRect(ctx, bx, by, Math.max(bh, bw * U.clamp(shown / need, 0, 1)), bh, 8); ctx.fill();
-    U.text(ctx, `${Math.round(shown)} / ${need}`, W / 2, by + 30, { size: 14, color: '#eaf0fa' });
+    // EXP 篇章都解鎖之後（v1.30 北歐改劇情解鎖）不要再顯示「820 / 500」，只寫累積多少
+    U.text(ctx, opened || r.after < need ? `${Math.round(shown)} / ${need}` : `累積 ${Math.round(shown)} EXP`, W / 2, by + 30, { size: 14, color: '#eaf0fa' });
 
     let y = by + 56;
     if (coinsBanked > 0) {
@@ -3696,6 +3829,7 @@ const Game = (function () {
       case 'market': drawMarket(); break;
       case 'saveinfo': drawSaveInfo(); break;
       case 'mystery': drawMystery(); break;
+      case 'talk': drawTalk(); break;
       case 'play': drawPlay(); break;
       case 'paused': drawPaused(); break;
       case 'quitconfirm': drawQuitConfirm(); break;

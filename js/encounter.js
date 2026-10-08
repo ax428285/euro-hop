@@ -39,13 +39,24 @@ const Encounter = (function () {
   const REGIONS = [
     { id: 'east', name: '東歐篇', exp: EAST_EXP },
     { id: 'africa', name: '非洲篇', exp: 500 },     // v1.21.1 玩家：700 → 500
-    { id: 'north', name: '北歐篇', exp: 700 }       // v1.30
+    /*
+     * v1.30 北歐篇：不用 EXP，用劇情解鎖（quest）—— 北海的雷神索爾把北歐罩在結界裡，
+     * 找到躲在冥界的洛基、回去跟索爾說完話才解開（見 quests.js）。
+     */
+    { id: 'north', name: '北歐篇', quest: true }
   ];
   function regionOf(id) { return REGIONS.filter(function (r) { return r.id === id; })[0] || null; }
-  /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放） */
-  function regionUnlocked(id, exp) { const r = regionOf(id); return !r || exp >= r.exp; }
-  /** 下一個還沒解鎖的篇章（全部都解鎖了回 null） */
-  function nextRegion(exp) { return REGIONS.filter(function (r) { return exp < r.exp; })[0] || null; }
+  /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放；quest 篇章看劇情） */
+  function regionUnlocked(id, exp) {
+    const r = regionOf(id);
+    if (!r) return true;
+    if (r.quest) return typeof Quests !== 'undefined' && Quests.northOpen();
+    return exp >= r.exp;
+  }
+  /** 要 EXP 解鎖的篇章（EXP 條、海戰勝利畫面用；劇情解鎖的不算） */
+  const EXP_REGIONS = REGIONS.filter(function (r) { return r.exp != null; });
+  /** 下一個還沒解鎖的 EXP 篇章（全部都解鎖了回 null） */
+  function nextRegion(exp) { return EXP_REGIONS.filter(function (r) { return exp < r.exp; })[0] || null; }
 
   const MAX_ON_MAP = 3;
   const SPAWN_EVERY = 240;
@@ -194,6 +205,8 @@ const Encounter = (function () {
       if (!at) return;
       monsters.push({ kind: b.kind, def: KINDS[b.kind], x: at.x, y: at.y, heading: 0, life: Infinity, appear: 1, boss: true });
     });
+    // v1.30 哥倫布委託的戰艦、撒哈拉的動物大遷徙（expedition.js）
+    if (typeof Expedition !== 'undefined') Expedition.ensure(monsters);
   }
 
   function updateMap(ship, exp) {
@@ -226,6 +239,10 @@ const Encounter = (function () {
           if (k > 0.2) events.push('vortexpull');
         }
         if (d < VORTEX_EYE) events.push('vortex');
+        continue;
+      }
+      if (m.custom) {
+        if (Expedition.mapNear(m, ship, d) && d < best + 10) { best = d; nearM = m; }
         continue;
       }
       if (m.boss) {
@@ -362,6 +379,11 @@ const Encounter = (function () {
       ctx.translate(m.x, m.y);
       const near = m === nearM;
 
+      if (m.custom) {
+        Expedition.drawMapMonster(ctx, m, t, near);
+        ctx.restore();
+        return;
+      }
       if (m.def.rare) {
         // 彩虹光環 + 金色光暈 + 繞圈星芒
         const glow = ctx.createRadialGradient(0, -4, 2, 0, -4, 30);
@@ -582,6 +604,7 @@ const Encounter = (function () {
   function makeDef(m, stats) {
     if (m.kind === 'wreck') return wreckDef(m);
     if (m.def.duo) return Duo.makeDef(m);
+    if (m.def.custom) return Expedition.makeDef(m);
     if (m.def.dive) return diveDef(m);
     const k = m.def;
     const GY = Levels.GROUND_Y;
@@ -658,6 +681,7 @@ const Encounter = (function () {
     if (kind === 'charybdis') {
       mini.got = 0; mini.buoy = null; mini.next = 40; mini.seq = 0; mini.junk = []; mini.junkCd = 120;
     }
+    if (typeof Expedition !== 'undefined' && Expedition.has(kind)) Expedition.initMini(state, mini);
     if (kind === 'scylla') {
       mini.hits = 0; mini.next = 90; mini.seq = 0; mini.waves = []; mini.waveCd = 200; mini.waveSeq = 0;
       mini.heads = SCY_HOME.map(function (x, i) {
@@ -1006,6 +1030,8 @@ const Encounter = (function () {
       });
       mini.junk = mini.junk.filter(function (j) { return !j.gone; });
       if (!mini.done && mini.time <= 0) fail();
+    } else if (Expedition.has(mini.kind)) {
+      Expedition.update(state, input, mini, events, win, fail);
     }
     return events;
   }
@@ -1141,6 +1167,8 @@ const Encounter = (function () {
       drawCharybdisArena(ctx, mini, t, GY);
     } else if (mini.kind === 'scylla') {
       drawScyllaArena(ctx, mini, t, GY);
+    } else if (Expedition.has(mini.kind)) {
+      Expedition.drawWorld(ctx, state, t);
     } else if (mini.kind === 'golden') {
       ctx.save();
       ctx.translate(mini.px, mini.py);
@@ -1323,6 +1351,7 @@ const Encounter = (function () {
     else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
     else if (mini.kind === 'charybdis') goal = '救生圈 ' + mini.got + ' / 5　剩 ' + sec + ' 秒　（別被拖進中間的漩渦眼）';
     else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來了）');
+    else if (Expedition.has(mini.kind)) goal = Expedition.hud(mini);
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';
     U.roundRect(ctx, W / 2 - 250, 52, 500, 30, 8); ctx.fill();
@@ -1332,6 +1361,7 @@ const Encounter = (function () {
   return {
     EAST_EXP: EAST_EXP,
     REGIONS: REGIONS,
+    EXP_REGIONS: EXP_REGIONS,
     regionOf: regionOf,
     regionUnlocked: regionUnlocked,
     nextRegion: nextRegion,

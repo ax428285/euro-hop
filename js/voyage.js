@@ -195,9 +195,16 @@ const Voyage = (function () {
     if (sp > 0.15) ship.heading = Math.atan2(ship.vy, ship.vx);
     if (Math.abs(ship.vx) > 0.1) ship.facing = ship.vx > 0 ? 1 : -1;
 
+    const px = ship.x, py = ship.y;
     ship.x += ship.vx;
     ship.y += ship.vy;
     clampToWorld();
+    // v1.30 北歐的雷電結界（quests.js）：還沒解開時，船和人都進不了北歐的國土
+    if (typeof Quests !== 'undefined' && Quests.blocked(ship.x, ship.y) && !Quests.blocked(px, py)) {
+      ship.x = px; ship.y = py;
+      ship.vx = -ship.vx * 0.4; ship.vy = -ship.vy * 0.4;
+      events.push('blocked');
+    }
 
     // 換地形：上岸／上船
     const nowMode = isLand(ship.x, ship.y) ? 'land' : 'sea';

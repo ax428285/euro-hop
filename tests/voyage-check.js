@@ -57,12 +57,22 @@ function runVoyageCheck() {
     return { ok: false, at: [Math.round(s.x), Math.round(s.y)], events: evs };
   }
 
-  // 3. 每一國都到得了
+  /*
+   * 3. 每一國都到得了。
+   * v1.30 北歐被雷神的結界罩住（quests.js）：結界還在時要「走不到」，解開後要走得到 —— 兩種都驗。
+   */
+  const flags = Save.get().flags;
+  const northWas = flags.north;
+  const dk = ports.filter(function (p) { return p.id === 'DK'; })[0];
+  flags.north = 0;
+  if (dk && drive(ports[0].idx, dk, 4000).ok) issues.push('北歐的結界還沒解開，卻走得到丹麥');
+  flags.north = 1;
   ports.forEach(function (p) {
     if (p.idx === ports[0].idx) return;
     const r = drive(ports[0].idx, p, 4000);
     if (!r.ok) issues.push('從第一關走不到 ' + p.id + '（停在 ' + r.at.join(',') + '）');
   });
+  flags.north = northWas;
 
   // 4. 跨海會上船、到岸會下船
   const gb = ports.filter(function (p) { return p.id === 'GB'; })[0];

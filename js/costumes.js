@@ -14,7 +14,9 @@ const Costumes = (function () {
     { id: 'viking', name: '維京戰士', desc: '牛角頭盔 + 毛皮背心' },
     { id: 'harlequin', name: '威尼斯小丑', desc: '菱格紋衣 + 雙角鈴鐺帽' },
     { id: 'royal', name: '歐羅巴王子', desc: '金王冠 + 紫色披風' },
-    { id: 'golden', name: '黃金套裝', desc: '全身金光閃閃' }
+    { id: 'golden', name: '黃金套裝', desc: '全身金光閃閃' },
+    // v1.30：只有吉薩金字塔探險第一次走到墓室才拿得到（special = 黃金海馬不會掉）
+    { id: 'pharaoh', name: '法老', desc: '金藍條紋頭巾 + 白色亞麻裙', special: true }
   ];
   const byId = {};
   defs.forEach(function (d) { byId[d.id] = d; });
