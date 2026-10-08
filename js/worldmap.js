@@ -366,13 +366,21 @@ const WorldMap = (function () {
       ctx.strokeStyle = 'rgba(160, 230, 255, 0.95)'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(0, -8, 17 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
     }
-    // 碼頭
-    ctx.fillStyle = '#7a5a3a';
-    ctx.fillRect(-9, -2, 18, 3);
-    ctx.fillRect(-8, 1, 2, 4); ctx.fillRect(6, 1, 2, 4);
+    const duo = kind === 'duoTwins' || kind === 'duoMaze';
+    if (duo) {
+      // 雙人試煉在內陸（v1.29.1 玩家：下面的咖啡色碼頭架很怪）→ 不畫碼頭，改成地上一圈影子
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.beginPath(); ctx.ellipse(0, 0, 8, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c89af0';
+      ctx.fillRect(-1, -5, 2, 5);
+    } else {
+      // 碼頭
+      ctx.fillStyle = '#7a5a3a';
+      ctx.fillRect(-9, -2, 18, 3);
+      ctx.fillRect(-8, 1, 2, 4); ctx.fillRect(6, 1, 2, 4);
+    }
     // 徽章
     const by = -14 + (near ? Math.sin(t * 0.08) * 2 : 0);
-    const duo = kind === 'duoTwins' || kind === 'duoMaze';
     ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : kind === 'market' ? '#b8862a' : duo ? '#8a4ab8' : '#1f6a78';
     ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 1.4;
@@ -676,6 +684,51 @@ const WorldMap = (function () {
     }
   }
 
+  /*
+   * 背景國標出國名＋國旗（v1.29.1 玩家：土耳其的國名和國旗先出來，但靠近不會有反應）。
+   * 國旗「貼在土地上」：壓扁＋斜切，像畫在地面上，不是插旗桿的圖釘（那是關卡國的樣子）。
+   * 只是裝飾：不進 specials、不算靠近、按 Enter 沒反應。
+   */
+  const PAINTED = [
+    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' }
+  ];
+  function drawTurkeyFlag(ctx, w, h) {
+    ctx.fillStyle = '#e30a17';
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    // 白色新月＋星（月亮偏左、星在右邊）
+    const r = h * 0.32;
+    const mx = -w * 0.12;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(mx, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e30a17';
+    ctx.beginPath(); ctx.arc(mx + r * 0.28, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    const sx = mx + r * 1.15, sr = r * 0.42;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? sr * 0.42 : sr;
+      ctx.lineTo(sx + Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  function drawPaintedNations(ctx) {
+    PAINTED.forEach(function (d) {
+      const p = EuropeWorld.project(d.lon, d.lat);
+      ctx.save();
+      ctx.translate(p[0], p[1]);
+      // 平貼在地上：上下壓扁、往右斜，邊緣淡一點像漆在地面
+      ctx.transform(1, 0, -0.35, 0.62, 0, 0);
+      ctx.globalAlpha = 0.9;
+      if (d.flag === 'turkey') drawTurkeyFlag(ctx, 30, 20);
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
+      ctx.strokeRect(-15, -10, 30, 20);
+      ctx.restore();
+      U.text(ctx, d.name, p[0], p[1] + 16, {
+        size: 12, color: '#e8e0d0', align: 'center', strokeWidth: 3, strokeColor: 'rgba(16, 24, 18, 0.75)'
+      });
+    });
+  }
+
   function drawBackdrop(ctx) {
     Object.keys(EuropeBackdrop).forEach(function (k) {
       EuropeBackdrop[k].shapes.forEach(function (sh) {
@@ -841,6 +894,7 @@ const WorldMap = (function () {
     // 特殊地點（葡萄牙商店、愛爾蘭裝備）蓋在背景國上面；opts.specialNear = 靠近的那個（高亮）
     drawSpecialLand(ctx, opts.specialNear);
     drawRegionNames(ctx);
+    drawPaintedNations(ctx);
     // 東歐篇：opts.east = { unlocked }。不傳就不畫（商店等底圖畫面不需要）
     if (opts.east) drawEast(ctx, opts.east.unlocked, t);
     // v1.8：各國之間的虛線（建議旅程）拿掉了 —— 現在陸上可以走、海上可以開船，

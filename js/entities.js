@@ -118,6 +118,16 @@ function makeWave(x, dir, speed) {
   };
 }
 
+/**
+ * 人面獅身的沙柱（v1.29.1）：先在地上冒流沙漩渦（warn 帧，不會痛），時間到從地底噴出一根沙柱。
+ * fixed = 不移動、不做地形碰撞（柱子本來就插在地裡）。
+ */
+const PILLAR_WARN = 48, PILLAR_UP = 34;
+function makePillar(x) {
+  return { x: x, y: Levels.GROUND_Y - 124, w: 44, h: 124, vx: 0, vy: 0,
+           life: PILLAR_WARN + PILLAR_UP, warn: PILLAR_WARN, pillar: true, fixed: true };
+}
+
 /** 魔王。每關可給不同參數，但行為共用一套狀態機。 */
 function makeBoss(def) {
   return {
@@ -128,6 +138,9 @@ function makeBoss(def) {
     //   charge 橫向衝刺撞牆（往反方向繞或跳過）
     //   volley 站定扇形齊射（左右走位找空隙）
     //   summon 升空灑彈 + 放小兵（要取捨清兵或打本體）
+    //   blink  瞬移到背後 + 會追人的蝙蝠
+    //   dive   空中斜線俯衝 + 沿路火星、落地火海
+    //   sphinx 腳底下噴沙柱（看地上的漩渦走位）
     pattern: def.pattern || 'slam',
     shotsLeft: 0,
     shotCd: 0,
@@ -570,13 +583,33 @@ function updateShots(state) {
   const maxX = state.def.width + 80;
   for (let i = state.shots.length - 1; i >= 0; i--) {
     const s = state.shots[i];
+    if (s.warn > 0) s.warn--;
+    // 吸血伯爵的蝙蝠（v1.29.1）：每帧往最近的玩家轉一點點（轉向有上限，繞著跑就甩得掉）
+    if (s.homing) {
+      let tgt = null, best = Infinity;
+      (state.players || [state.player]).forEach(function (q) {
+        if (q.out) return;
+        const d = Math.hypot(q.x + q.w / 2 - s.x, q.y + q.h / 2 - s.y);
+        if (d < best) { best = d; tgt = q; }
+      });
+      if (tgt) {
+        const sp = Math.hypot(s.vx, s.vy) || 1;
+        const cur = Math.atan2(s.vy, s.vx);
+        const want = Math.atan2(tgt.y + tgt.h / 2 - s.y, tgt.x + tgt.w / 2 - s.x);
+        let da = want - cur;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        const a = cur + U.clamp(da, -0.035, 0.035);
+        s.vx = Math.cos(a) * sp; s.vy = Math.sin(a) * sp;
+      }
+    }
     s.x += s.vx;
     s.y += s.vy;
     let gone = --s.life <= 0 ||
                s.x < -80 || s.x > maxX ||
                s.y < -80 || s.y > 520;
     // 震波是貼著地面掃的，不做地形碰撞（否則一生成就被地面吃掉）
-    if (!gone && !s.wave) {
+    if (!gone && !s.wave && !s.fixed) {
       for (let k = 0; k < solids.length; k++) {
         if (U.overlap(s, solids[k])) { gone = true; break; }
       }
@@ -653,9 +686,13 @@ function updateBoss(state, t) {
       if (b.timer <= 0) {
         b.phase = 'act';
         events.push('act');
-        // 人面獅身：重壓、齊射輪流出
-        if (b.pattern === 'sphinx') { b.cycle = (b.cycle || 0) + 1; b.mode = b.cycle % 2 ? 'slam' : 'volley'; }
         switch (bossPatternOf(b)) {
+          case 'sphinx':
+            // 人面獅身：坐定唸咒，連噴三根沙柱（狂暴五根），每根瞄玩家當下的位置
+            b.pillarsLeft = bossEnraged(b) ? 5 : 3;
+            b.shotCd = 0;
+            b.timer = 420;
+            break;
           case 'charge':
             b.timer = 70;
             b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
@@ -697,7 +734,7 @@ function updateBoss(state, t) {
              * 跟其他魔王的差別是「它會換位置」—— 玩家不能只盯著一個方向。
              * 出現前地上有一團紅霧預告落點（見 Sprites），給反應時間。
              */
-            b.timer = 150;
+            b.timer = 170;
             b.blinkT = 0;
             b.shotsLeft = 2;
             b.shotCd = 0;
@@ -746,6 +783,33 @@ function updateBoss(state, t) {
 
     case 'act': {
       switch (bossPatternOf(b)) {
+        case 'sphinx': {
+          /*
+           * 沙柱：每 42 帧在玩家腳下放一個流沙漩渦，48 帧後噴出沙柱。
+           * 漩渦出現時人還來得及走開（走 48 帧 ≈ 200px），站著不動就會被頂到。
+           * 狂暴：每隔一根，另外在「照現在的速度再跑 40 帧會到的地方」也放一根 —— 不能一直往同一邊跑。
+           */
+          b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
+          const ar = state.def.bossArena || { x: 0, w: state.def.width };
+          const aim = function (x) { return U.clamp(x - 22, ar.x + 10, ar.x + ar.w - 54); };
+          if (b.shotCd > 0) b.shotCd--;
+          else if (b.pillarsLeft > 0) {
+            b.pillarsLeft--;
+            b.shotCd = 42;
+            state.shots.push(makePillar(aim(pcx)));
+            if (bossEnraged(b) && b.pillarsLeft % 2 === 0 && Math.abs(p.vx) > 1) {
+              state.shots.push(makePillar(aim(pcx + p.vx * 40)));
+            }
+            events.push('shoot');
+          }
+          if (b.pillarsLeft <= 0 && b.shotCd <= 0 && !state.shots.some(function (q) { return q.pillar; })) {
+            b.phase = 'recover';
+            b.timer = b.recoverTime;
+            events.push('slam');
+          }
+          break;
+        }
+
         case 'charge': {
           if (b.throwing) {
             // 擲槍：站定，朝玩家目前位置連丟三發（每發之間玩家都還能移動閃）
@@ -821,16 +885,22 @@ function updateBoss(state, t) {
         case 'dive': {
           b.x += b.vx;
           b.y += b.vy;
+          // 俯衝途中沿路灑火星（往下慢慢掉，掉到地上就熄）
+          b.emberT = (b.emberT || 0) + 1;
+          if (b.emberT % 7 === 0 && b.y < Levels.GROUND_Y - b.h - 30) {
+            const em = makeShot(b.x + b.w / 2 - 5, b.y + b.h - 12, 0, 2.0);
+            em.w = em.h = 10; em.ember = true;
+            state.shots.push(em);
+          }
           b.x = U.clamp(b.x, b.left, b.right - b.w);
           b.dir = b.vx < 0 ? -1 : 1;
           const floor = Levels.GROUND_Y - b.h;
           if (b.y >= floor) {
             b.y = floor;
             events.push('slam');
-            // 落地的火焰沿地面往兩側燒（貼地，跳起來閃）
-            const w1 = makeWave(b.x - 16, -1, 3.0), w2 = makeWave(b.x + b.w, 1, 3.0);
-            w1.life = w2.life = 120; w1.fire = w2.fire = true;
-            state.shots.push(w1, w2);
+            // 落地處燒成一片火海（不會移動，燒 110 帧；火熄了再過去踩牠）
+            state.shots.push({ x: b.x - 34, y: Levels.GROUND_Y - 14, w: b.w + 68, h: 14, vx: 0, vy: 0,
+                               life: 110, patch: true, fixed: true });
             b.divesLeft--;
             if (b.divesLeft > 0) {
               b.phase = 'rise';              // 狂暴：飛回空中再俯衝一次
@@ -857,15 +927,12 @@ function updateBoss(state, t) {
             if (b.shotCd > 0) b.shotCd--;
             else if (b.shotsLeft > 0) {
               b.shotsLeft--;
-              b.shotCd = 34;
-              // 一波 5 隻蝙蝠，扇形飛向玩家；第二波角度錯開，原地不動會被打到
+              b.shotCd = 50;
+              // 一波 3 隻蝙蝠往上散開，再慢慢轉向追玩家（見 updateShots 的 homing）；飛 150 帧就散掉
               const sx = b.x + b.w / 2, sy = b.y + 24;
-              const base = Math.atan2((p.y + p.h / 2) - sy, pcx - sx);
-              const off = b.shotsLeft === 0 ? 0.18 : 0;
-              [-0.5, -0.25, 0, 0.25, 0.5].forEach(function (k) {
-                const a = base + k + off;
-                const s = makeShot(sx - 6, sy, Math.cos(a) * 2.8, Math.sin(a) * 2.8);
-                s.bat = true;
+              [-2.2, -1.57, -0.94].forEach(function (a) {
+                const s = makeShot(sx - 6, sy, Math.cos(a) * 2.4, Math.sin(a) * 2.4);
+                s.bat = true; s.homing = true; s.life = 150;
                 state.shots.push(s);
               });
               events.push('shoot');
@@ -1031,14 +1098,9 @@ function updateBoss(state, t) {
  * 魔王是否可被傷害。
  * invuln 是「剛被打到的短暫硬直」，避免一次攻擊連續扣好幾滴血。
  */
-/** 這一輪實際用的招式（'sphinx' 這種會換招的魔王，看它這輪選了哪招） */
+/** 這一輪實際用的招式（v1.29.1 起每隻魔王都只用自己的招；保留這個函式，呼叫端不用改） */
 function bossPatternOf(b) {
-  return b.pattern === 'sphinx' ? (b.mode || 'slam') : b.pattern;
-}
-
-/** 這一輪實際用的招式（'sphinx' 這種會換招的魔王，看它這輪選了哪招） */
-function bossPatternOf(b) {
-  return b.pattern === 'sphinx' ? (b.mode || 'slam') : b.pattern;
+  return b.pattern;
 }
 
 function bossVulnerable(b) {
@@ -1649,6 +1711,7 @@ function updatePlayer(state, input, t, who) {
 
   // ── 彈射物 ──
   for (let i = state.shots.length - 1; i >= 0; i--) {
+    if (state.shots[i].warn > 0) continue;     // 沙柱還在預告（地上只有漩渦），碰到不痛
     if (U.overlap(p, state.shots[i])) {
       const s = state.shots[i];
       state.shots.splice(i, 1);

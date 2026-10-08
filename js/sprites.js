@@ -2762,6 +2762,17 @@ const Sprites = (function () {
 
   /** 彈射物 */
   function shot(ctx, s, t) {
+    if (s.pillar) { sandPillar(ctx, s, t); return; }
+    if (s.patch) { firePatch(ctx, s, t); return; }
+    if (s.ember) {
+      // 火鳥俯衝灑下的火星
+      const ex = s.x + s.w / 2, ey = s.y + s.h / 2;
+      ctx.fillStyle = 'rgba(255, 140, 40, 0.45)';
+      ctx.beginPath(); ctx.arc(ex, ey - 3, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2); ctx.fill();
+      return;
+    }
     if (s.wave && s.fire) { fireWave(ctx, s, t); return; }
     if (s.wave) { groundWave(ctx, s, t); return; }
     const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
@@ -5719,7 +5730,8 @@ const Sprites = (function () {
     ctx.fillRect(-6, -2, 4, 3); ctx.fillRect(3, -2, 4, 3);
     // 嘴：齊射時張開
     ctx.fillStyle = '#6a2a1a';
-    if (b.phase === 'act' && b.mode === 'volley') { ctx.beginPath(); ctx.ellipse(1, 8, 4, 3, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (b.phase === 'act') {     // 唸咒（噴沙柱）時嘴巴張開
+      ctx.beginPath(); ctx.ellipse(1, 8, 4, 3, 0, 0, Math.PI * 2); ctx.fill(); }
     else ctx.fillRect(-3, 8, 7, 1.5);
     // 法老鬍
     ctx.fillStyle = '#2a50a0'; ctx.fillRect(-2, 14, 5, 8);
@@ -6236,6 +6248,69 @@ const Sprites = (function () {
   };
 
   /** 蝙蝠彈 */
+  /**
+   * 人面獅身的沙柱（v1.29.1）：
+   *   預告期 —— 地上一圈越轉越大的流沙漩渦（還不會痛）
+   *   噴發期 —— 沙岩柱從地底衝上來，頂端噴沙
+   */
+  function sandPillar(ctx, s, t) {
+    const cx = s.x + s.w / 2, gy = s.y + s.h;
+    if (s.warn > 0) {
+      const k = 1 - s.warn / 48;
+      ctx.save();
+      ctx.translate(cx, gy - 2);
+      ctx.fillStyle = 'rgba(120, 80, 30, ' + (0.25 + k * 0.35).toFixed(3) + ')';
+      ctx.beginPath(); ctx.ellipse(0, 0, 14 + k * 12, 4 + k * 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 220, 150, ' + (0.4 + k * 0.5).toFixed(3) + ')';
+      ctx.lineWidth = 1.6;
+      for (let i = 0; i < 3; i++) {
+        const a0 = t * 0.25 + i * 2.1;
+        ctx.beginPath(); ctx.ellipse(0, 0, 6 + i * 6 + k * 6, 2 + i * 1.6, 0, a0, a0 + 2.2); ctx.stroke();
+      }
+      // 快噴了：沙粒往上跳
+      if (s.warn < 16) {
+        ctx.fillStyle = '#e8c890';
+        for (let i = 0; i < 5; i++) ctx.fillRect(-14 + i * 7, -4 - ((t * 3 + i * 9) % 12), 2, 2);
+      }
+      ctx.restore();
+      return;
+    }
+    const up = s.life;            // 剩下的帧數：剛噴出時最高，快結束時往下縮
+    const rise = Math.min(1, (34 - up) / 6 + 0.2), sink = Math.min(1, up / 8);
+    const h = s.h * Math.min(rise, sink);
+    ctx.save();
+    ctx.fillStyle = '#c8964e';
+    ctx.fillRect(s.x + 4, gy - h, s.w - 8, h);
+    ctx.fillStyle = '#e0b878';
+    ctx.fillRect(s.x + 4, gy - h, 8, h);
+    ctx.fillStyle = 'rgba(90, 60, 20, 0.35)';
+    for (let y = gy - h + 14; y < gy; y += 22) ctx.fillRect(s.x + 4, y, s.w - 8, 3);
+    // 頂端噴沙
+    ctx.fillStyle = 'rgba(240, 214, 160, 0.85)';
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI - Math.PI;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 16, gy - h + Math.sin(a) * 8 - ((t + i * 5) % 8), 4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** 火鳥落地燒出的火海（不會移動，燒完就熄） */
+  function firePatch(ctx, s, t) {
+    const a = Math.min(1, s.life / 20);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(200, 60, 20, 0.5)';
+    ctx.fillRect(s.x, s.y + s.h - 4, s.w, 4);
+    for (let x = s.x + 4; x < s.x + s.w - 4; x += 12) {
+      const fh = 10 + Math.sin(t * 0.4 + x * 0.3) * 5;
+      ctx.fillStyle = '#ff7a2a';
+      ctx.beginPath(); ctx.moveTo(x - 6, s.y + s.h); ctx.quadraticCurveTo(x, s.y + s.h - fh * 2, x + 6, s.y + s.h); ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath(); ctx.moveTo(x - 3, s.y + s.h); ctx.quadraticCurveTo(x, s.y + s.h - fh, x + 3, s.y + s.h); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function batShot(ctx, s, t) {
     const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
     const flap = Math.sin(t * 0.5 + s.x) * 4;

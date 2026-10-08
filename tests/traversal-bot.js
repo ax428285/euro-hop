@@ -283,7 +283,7 @@ function runBossFightTest() {
       });
       const reactT = lowCeil ? 5 : 13;
       const incoming = st.shots.some(function (s) {
-        if (s.debris) return false;
+        if (s.debris || s.ember || s.pillar) return false;   // 從天上掉的、從地底噴的另外處理
         if (!(s.y < p.y + p.h + 2 && s.y + s.h > p.y)) return false;
         const dx = (s.x + s.w / 2) - pcx;
         const gap = Math.abs(dx) - (s.w + p.w) / 2;
@@ -293,7 +293,7 @@ function runBossFightTest() {
       });
       // 天上掉下來的碎片：在正上方就往旁邊躲
       const debrisAbove = st.shots.filter(function (s) {
-        return s.debris && Math.abs((s.x + s.w / 2) - pcx) < 34 && s.y < p.y;
+        return (s.debris || s.ember) && Math.abs((s.x + s.w / 2) - pcx) < 34 && s.y < p.y;
       })[0];
       /*
        * ⚠️ 閃避跳要「按住」到上升結束。
@@ -365,6 +365,17 @@ function runBossFightTest() {
       if (debrisAbove) {
         const goRight = (debrisAbove.x + debrisAbove.w / 2) < pcx;
         hR = goRight; hL = !goRight;
+      }
+      // 人面獅身的沙柱（v1.29.1）：腳下（或旁邊）冒出流沙漩渦就跑開，牆邊就往另一邊
+      const pillarNear = st.shots.filter(function (s) {
+        return s.pillar && s.x < p.x + p.w + 26 && s.x + s.w > p.x - 26;
+      })[0];
+      if (pillarNear) {
+        let goRight = (pillarNear.x + pillarNear.w / 2) < pcx;
+        if (goRight && p.x + p.w >= arena.x + arena.w - 60) goRight = false;
+        if (!goRight && p.x <= arena.x + 60) goRight = true;
+        hR = goRight; hL = !goRight;
+        if (stompJump === false && !incoming) { jE = false; hJ = hJ && !p.onGround; }
       }
 
       const ev = updatePlayer(st, inp, frame);

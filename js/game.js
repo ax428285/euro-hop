@@ -2389,7 +2389,8 @@ const Game = (function () {
       const sx = s.x - camX;
       if (sx > W + 30 || sx < -30) return;
       Sprites.shot(ctx, { x: sx, y: s.y, w: s.w, h: s.h, wave: s.wave, fire: s.fire, debris: s.debris,
-        spear: s.spear, bat: s.bat, vx: s.vx, vy: s.vy }, t);
+        spear: s.spear, bat: s.bat, vx: s.vx, vy: s.vy,
+        pillar: s.pillar, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember }, t);
     });
 
     // 玩家的遠程攻擊（板球／辣椒火球）
