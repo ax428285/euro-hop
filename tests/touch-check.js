@@ -425,6 +425,16 @@ async function runTouchCheck() {
       Game.debug.step(1);
       check(Game.debug.getScene() === 'map', sc + ' 畫面：按 ↩ 回大地圖（' + Game.debug.getScene() + '）');
     }
+    // 關卡裡（從港口進去之後，v1.27.1）：↩ 按一次跳確認框、再按一次回地圖
+    Game.debug.enter(0);
+    await new Promise(function (r) { setTimeout(r, 1200); });
+    check(menuBtn.textContent === '↩', '關卡中：左上角變成 ↩');
+    menuBtn.click();
+    Game.debug.step(1);
+    check(Game.debug.getScene() === 'quitconfirm', '關卡中按 ↩：先跳「放棄這一關？」');
+    menuBtn.click();
+    Game.debug.step(1);
+    check(Game.debug.getScene() === 'map', '確認框再按 ↩：回大地圖');
     await new Promise(function (r) { setTimeout(r, 1200); });
     check(menuBtn.textContent === '☰', '回到地圖：↩ 變回 ☰');
     menuBtn.click();

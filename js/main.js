@@ -100,7 +100,19 @@
    * 這時 ☰ 變成「↩ 回大地圖」：再按一次就回去，不用再打開選單找「地圖」。
    */
   const SUB_SCREENS = { shop: true, inventory: true, saveinfo: true, mystery: true };
-  function onSubScreen() { return !!SUB_SCREENS[Game.scene()]; }
+  /*
+   * 關卡裡（從港口進去之後）☰ 也變成 ↩（v1.27.1 玩家要求）。
+   * 按下去送「回地圖」：遊戲中會先跳「放棄這一關？」確認框（那時遊戲是凍結的，也就兼當暫停），
+   * 在確認框再按一次 ↩ 才真的回去；過關／陣亡畫面直接回地圖 —— 這些遊戲本來就這樣處理「回地圖」。
+   * 結局畫面（win）不算：那裡只吃確定，回地圖沒反應。
+   * 連線的朋友不換：朋友不能決定離開關卡（房主說了算），而且要留著 ☰ →「連線」才能離開連線。
+   */
+  const LEVEL_SCREENS = { play: true, paused: true, quitconfirm: true, clear: true, dead: true };
+  function onSubScreen() {
+    const s = Game.scene();
+    if (SUB_SCREENS[s]) return true;
+    return !!LEVEL_SCREENS[s] && Game.netInfo().side !== 'guest';
+  }
   menuBtn.addEventListener('click', function () {
     if (onSubScreen()) { setMenu(false); Input.press('tomap'); return; }
     setMenu(!pad.classList.contains('menu'));
@@ -226,7 +238,7 @@
     if (!pad.classList.contains('menu') && wipeBtn.classList.contains('armed')) disarmWipe();
   }
 
-  /** ☰ 的圖示跟著畫面換：子畫面顯示 ↩（回大地圖） */
+  /** ☰ 的圖示跟著畫面換：子畫面與關卡裡顯示 ↩（回大地圖） */
   function syncMenuIcon() {
     const sub = onSubScreen();
     if (menuBtn.classList.contains('back') === sub) return;

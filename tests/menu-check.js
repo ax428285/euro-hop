@@ -17,12 +17,27 @@ async function runWipeMenuCheck(wait) {
   const wipe = document.getElementById('btn-wipe');
   const shown = function (el) { return el.offsetParent !== null && el.getBoundingClientRect().width > 0; };
 
-  // 關卡中：選單裡沒有刪除存檔
+  // 關卡中（v1.27.1）：☰ 變成 ↩；按一次跳「放棄這一關？」、再按一次回地圖；選單打不開（所以也碰不到刪除存檔）
   Game.debug.enter(0);
   await wait(1200);
+  check(menuBtn.textContent === '↩', '關卡中：左上角變成 ↩');
   menuBtn.click();
-  check(pad.classList.contains('menu') && !shown(wipe), '關卡中打開選單：沒有「刪除存檔」');
+  Game.debug.step(1);
+  check(Game.debug.getScene() === 'quitconfirm' && !pad.classList.contains('menu') && !shown(wipe),
+        '關卡中按 ↩：先跳「放棄這一關？」確認框（選單不會打開）');
   menuBtn.click();
+  Game.debug.step(1);
+  check(Game.debug.getScene() === 'map', '確認框再按一次 ↩：回大地圖');
+  // 過關畫面：沒有進度可以丟，按 ↩ 直接回地圖
+  Game.debug.enter(0);
+  Game.debug.getState().player.invuln = 1e9;
+  Game.debug.warpToGoal();
+  for (let k = 0; k < 300 && Game.debug.getScene() !== 'clear'; k++) Game.debug.step(1);
+  await wait(1200);
+  check(menuBtn.textContent === '↩', '過關畫面：左上角是 ↩');
+  menuBtn.click();
+  Game.debug.step(1);
+  check(Game.debug.getScene() === 'map', '過關畫面按 ↩：直接回大地圖');
 
   // 地圖上：按一次只變紅、選單不收起來；3 秒沒按第二次就取消；連按兩次才刪
   Game.debug.setScene('map');
@@ -111,8 +126,11 @@ async function runMenuCheck() {
     key('KeyQ'); key('KeyP');
     check(Game.debug.getScene() === 'play', '確認框按 P：回到關卡');
     key('KeyQ'); key('KeyQ');
-    check(Game.debug.getScene() === 'quitconfirm', '確認框再按 Q：不會直接離開（要按確定）');
-    key('Enter');
+    // v1.17.5 起「再按一次回地圖」也算確定（手機的跳／確定合成一顆，在確認框裡它是「繼續」，
+    // 要離開就再按一次地圖）；v1.27.1 左上角的 ↩ 也是靠這個。這裡原本測「再按 Q 不會離開」，已過時
+    check(Game.debug.getScene() === 'map', '確認框再按 Q：回大地圖');
+    Game.debug.enter(0);
+    key('KeyQ'); key('Enter');
     check(Game.debug.getScene() === 'map', '確認框按 Enter：回大地圖');
     let drew = true;
     try { Game.debug.enter(0); key('KeyQ'); Game.debug.render(); } catch (e) { drew = e.message; }
