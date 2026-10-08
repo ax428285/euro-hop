@@ -21,6 +21,14 @@
   window.addEventListener('resize', layout);
   window.addEventListener('orientationchange', layout);
 
+  /** 電腦版：畫布實際像素跟著顯示大小走，放大後字和圖才清楚（見 Game.setRenderScale） */
+  function fitResolution() {
+    if (touchMq.matches) { Game.setRenderScale(1); return; }
+    const w = canvas.getBoundingClientRect().width;
+    Game.setRenderScale(w * (window.devicePixelRatio || 1) / 960);
+  }
+  window.addEventListener('resize', fitResolution);
+
   /*
    * 擋掉瀏覽器的放大手勢（玩家回報：點到按鈕旁邊，畫面突然放大）。
    *
@@ -137,6 +145,7 @@
   window.addEventListener('pointerdown', unlock);
 
   Game.init(canvas);
+  fitResolution();
 
   /*
    * 武器鍵上鎖：還沒拿到裝備時，丟的按鈕蓋一個鎖頭。

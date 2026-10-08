@@ -2956,7 +2956,23 @@ const Game = (function () {
     U.text(ctx, touch ? '按「繼續」回到關卡' : 'Esc／P／空白（跳）繼續遊戲', W / 2, 304, { size: 16, color: '#ffffff' });
   }
 
+  /*
+   * 解析度倍率（v1.24.1 玩家：電腦網頁版畫面再放大，周圍空太多）。
+   * 畫面在電腦上撐滿視窗後會比 960×480 大很多，直接放大會糊／鋸齒 ——
+   * 改成畫布的實際像素跟著顯示大小走（canvas.width = 960 × 倍率），所有繪圖照舊用 960×480 的座標，
+   * 每帧開頭 setTransform 一次把座標放大。手機不用（倍率 1）：手機像素密度高，畫布放大很吃效能。
+   */
+  let renderScale = 1;
+  function setRenderScale(k) {
+    k = Math.max(1, Math.min(3, Math.round(k * 4) / 4));
+    if (!ctx || k === renderScale) return;
+    renderScale = k;
+    ctx.canvas.width = Math.round(W * k);
+    ctx.canvas.height = Math.round(H * k);
+  }
+
   function render() {
+    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
     // clear / dead / paused 都疊在遊戲畫面上，沒有 state 就畫不出來。
@@ -3499,6 +3515,7 @@ const Game = (function () {
 
   return {
     init: init,
+    setRenderScale: setRenderScale,
     abilities: abilities,
     lockedHint: lockedHint,
     wipeSave: wipeSave,

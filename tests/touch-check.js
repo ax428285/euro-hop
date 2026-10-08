@@ -274,7 +274,9 @@ async function runTouchCheck() {
     const id = ++pid;
     fire(dpad, 'pointerdown', r.left + r.width / 2 + s.x * r.width * 0.35,
                               r.top + r.height / 2 + s.y * r.height * 0.35, id);
-    Game.debug.step(40);
+    // 走 25 帧（≈ 90px）：西班牙第一個斷崖在 x=280。以前斷崖裡的移動平台側面是實心的，
+    // 會把人擋在坑邊；v1.24 平台改單向後走 40 帧會掉進坑 → 重生在左邊，被誤判成往左
+    Game.debug.step(25);
     fire(dpad, 'pointerup', 0, 0, id);
     check(player().x > x0 + 40, '按住搖桿右，玩家往右走（' + Math.round(x0) + ' → ' + Math.round(player().x) + '）');
   }

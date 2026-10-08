@@ -21,7 +21,11 @@ body {
 
 #stage {
   position: relative;
-  width: min(100%, 960px);
+  /*
+   * v1.24.1 玩家：電腦網頁版周圍空太多 → 不再卡 960px，寬度用到視窗寬、
+   * 高度（寬 ÷ 2）留 150px 給下方的操作說明。畫布實際像素由 main.js fitResolution 跟著放大，不會糊。
+   */
+  width: min(100%, calc((100vh - 150px) * 2));
 }
 
 canvas#game {
