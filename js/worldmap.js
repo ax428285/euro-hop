@@ -577,7 +577,9 @@ const WorldMap = (function () {
         poly(ctx, sh);
         ctx.fillStyle = (PAL.spFill && PAL.spFill[s.id]) || s.def.fill;
         ctx.fill();
-        ctx.strokeStyle = s.id === nearId ? '#ffd166' : s.def.edge;
+        // v1.31 玩家：葡萄牙和愛爾蘭沒有邊線 —— 原本用自己的淡黃色描邊，在羊皮紙配色（淺色的海和鄰國）上看不見
+        // → 跟關卡國一樣用配色表的國界色（PAL.edge）
+        ctx.strokeStyle = s.id === nearId ? '#ffd166' : (PAL.edge || s.def.edge);
         ctx.lineWidth = s.id === nearId ? 2.5 : 1.2;
         ctx.stroke();
       });

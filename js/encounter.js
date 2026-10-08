@@ -97,7 +97,7 @@ const Encounter = (function () {
      * 第一次打倒：bossExp + bossCoins；之後再打給一般的 exp。
      */
     scylla:  { name: '海妖斯庫拉', lv: '魔王', exp: 150, bossExp: 250, bossCoins: 200, game: '墨西拿海峽',
-               goal: '頭咬下來卡在甲板上時跳上去踩！每顆頭踩兩下，六顆都打倒就贏了', boss: true }
+               goal: '頭咬下來卡在甲板上時跳上去踩！每顆頭踩一下，六顆都打倒就贏了（小心假動作、橫掃和墨汁）', boss: true }
   };
   /*
    * v1.31 新大陸的海上怪（玩家：新大陸出新的地圖怪，EXP 重新累積）。
@@ -600,7 +600,7 @@ const Encounter = (function () {
   // ── 小遊戲：關卡定義 ───────────────────────────────────
 
   const ARENA_W = 960;
-  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60, charybdis: 40 * 60, piranhas: 40 * 60,
+  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 80 * 60, charybdis: 40 * 60, piranhas: 40 * 60,
                 buccaneers: 45 * 60, dolphins: 45 * 60, goldturtle: 25 * 60 };
   // 火藥桶：引信 KEG_FUSE 帧，爆炸半徑 KEG_BOOM；踢下海 KEG_GOAL 個就贏
   const KEG_FUSE = 200, KEG_BOOM = 80, KEG_GOAL = 6;
@@ -626,7 +626,9 @@ const Encounter = (function () {
    *   retract  沒被踩就縮回去，等下一輪
    * 踩倒 3 顆之後她發怒：同時兩顆頭輪流咬，還會用尾巴掀起橫掃甲板的浪（跳過去）。
    */
-  const SCY = { AIM: 58, BITE: 8, STUCK: 125, RETRACT: 22, HOME_Y: 150, AIM_Y: 170, WAVE_H: 34, WAVE_SPEED: 5.5 };
+  const SCY = { AIM: 58, BITE: 8, STUCK: 125, RETRACT: 22, HOME_Y: 150, AIM_Y: 170, WAVE_H: 34, WAVE_SPEED: 5.5,
+                // v1.31 新招：橫掃（貼著甲板掃過去）、吐墨汁（三團，落點先出紅圈）
+                SWEEP_PREP: 60, SWEEP_SPEED: 7, SWEEP_H: 40, INK_T: 52, INK_R: 30 };
   const SCY_HOME = [150, 280, 410, 550, 680, 810];
   const HOLES = [140, 300, 460, 620, 780];
   const BASKET = { x: 455, w: 50, h: 26 };
@@ -825,8 +827,11 @@ const Encounter = (function () {
     if (typeof Expedition !== 'undefined' && Expedition.has(kind)) Expedition.initMini(state, mini);
     if (kind === 'scylla') {
       mini.hits = 0; mini.next = 90; mini.seq = 0; mini.waves = []; mini.waveCd = 200; mini.waveSeq = 0;
+      // v1.31 玩家：攻擊模式太固定、要踩 12 次太浪費時間 → 每顆頭踩一下就倒（6 下）；出招用亂數挑（mini.rs）
+      mini.rs = 1 + Math.floor(Math.random() * 2147483000);
+      mini.inks = [];
       mini.heads = SCY_HOME.map(function (x, i) {
-        return { i: i, home: x, x: x, y: SCY.HOME_Y, alive: true, hp: 2, flash: 0, state: 'idle', t: 0, tx: x };
+        return { i: i, home: x, x: x, y: SCY.HOME_Y, alive: true, hp: 1, flash: 0, state: 'idle', t: 0, tx: x };
       });
     }
     return mini;
@@ -865,6 +870,9 @@ const Encounter = (function () {
     }
     return false;
   }
+
+  /** 斯庫拉出招用的亂數（存成數字放在 mini 裡：連線時狀態要能轉成 JSON） */
+  function srnd(mini) { mini.rs = (mini.rs * 16807) % 2147483647; return (mini.rs - 1) / 2147483646; }
 
   function hurt(p, fromX, events) {
     if (p.invuln > 0) return;
@@ -1240,14 +1248,25 @@ const Encounter = (function () {
       if (--mini.next <= 0 && active.length < maxActive) {
         const alive = mini.heads.filter(function (h) { return h.alive && h.state === 'idle'; });
         if (alive.length) {
-          const h = alive[mini.seq % alive.length];
+          const h = alive[Math.floor(srnd(mini) * alive.length)];
+          const px = p.x + p.w / 2;
           // 第二顆頭（發怒後）瞄準玩家旁邊一點，留一條路給你閃
-          const off = active.length ? [90, -90][mini.seq % 2] : [0, 30, -30][mini.seq % 3];
-          h.tx = U.clamp(p.x + p.w / 2 + off, 60, ARENA_W - 60);
-          h.state = 'aim'; h.t = 0;
+          const off = active.length ? (srnd(mini) < 0.5 ? 90 : -90) : (srnd(mini) - 0.5) * 70;
+          h.tx = U.clamp(px + off, 60, ARENA_W - 60);
+          h.t = 0;
+          // 挑招式：咬（40%）、假動作（20%）、橫掃（20%）、吐墨汁（20%）；同時只能有一顆在橫掃
+          const r = srnd(mini);
+          const sweeping = mini.heads.some(function (q) { return q.state === 'sweepPrep' || q.state === 'sweep'; });
+          if (r < 0.4 || (r >= 0.6 && r < 0.8 && sweeping)) { h.state = 'aim'; h.feint = false; }
+          else if (r < 0.6) { h.state = 'aim'; h.feint = true; }
+          else if (r < 0.8) {
+            // 橫掃：從離你遠的那一邊掃過來
+            h.dir = px < ARENA_W / 2 ? -1 : 1;            // 往哪邊掃：你在左半邊 → 從右端往左掃
+            h.state = 'sweepPrep'; h.tx = h.dir < 0 ? ARENA_W - 70 : 70;
+          } else { h.state = 'spit'; }
         }
         mini.seq++;
-        mini.next = angry ? 70 : 95;
+        mini.next = (angry ? 62 : 85) + Math.floor(srnd(mini) * 30);
       }
       mini.heads.forEach(function (h) {
         if (!h.alive) return;
@@ -1260,6 +1279,14 @@ const Encounter = (function () {
           // 頭移到目標正上方，抬高蓄力
           h.x += (h.tx - h.x) * 0.12;
           h.y += (GY - SCY.AIM_Y - 60 - h.y) * 0.1;
+          // 假動作：瞄到一半突然改瞄你現在站的地方（紅圈會跳過去，剩下的時間比較短）
+          if (h.feint && h.t === Math.floor(SCY.AIM * 0.55)) {
+            h.feint = false;
+            const q = players[0];
+            h.tx = U.clamp(q.x + q.w / 2, 60, ARENA_W - 60);
+            h.t = Math.floor(SCY.AIM * 0.3);
+            events.push('feint');
+          }
           if (h.t >= SCY.AIM) { h.state = 'bite'; h.t = 0; h.x = h.tx; }
         } else if (h.state === 'bite') {
           const k = h.t / SCY.BITE;
@@ -1280,24 +1307,60 @@ const Encounter = (function () {
               q.vy = PHYS.STOMP_BOUNCE;
               events.push('hit');
               burst(state, h.x, GY - 30, '#b48ae0', 18);
-              // 每顆頭要踩兩下：第一下痛得縮回去，第二下才倒
+              // v1.31：每顆頭踩一下就倒（原本兩下，要踩 12 次太久）
               if (--h.hp > 0) { h.state = 'retract'; h.t = 0; h.flash = 30; return; }
               h.alive = false; h.state = 'down'; mini.hits++;
               if (mini.hits >= 6) win();
             }
           });
           if (h.alive && h.t >= SCY.STUCK) { h.state = 'retract'; h.t = 0; }
+        } else if (h.state === 'sweepPrep') {
+          // 橫掃預告：頭垂到甲板的一端、張嘴
+          h.x += (h.tx - h.x) * 0.12;
+          h.y += ((GY - 22) - h.y) * 0.12;
+          if (h.t >= SCY.SWEEP_PREP) { h.state = 'sweep'; h.t = 0; h.x = h.tx; h.y = GY - 22; events.push('wave'); }
+        } else if (h.state === 'sweep') {
+          // 貼著甲板掃過去：跳起來閃（腳要高過 SWEEP_H）；掃到另一端就卡在甲板上，可以踩
+          h.x += h.dir * SCY.SWEEP_SPEED;
+          players.forEach(function (q) {
+            if (Math.abs(q.x + q.w / 2 - h.x) < 30 && q.y + q.h > GY - SCY.SWEEP_H) hurt(q, h.x - h.dir * 40, events);
+          });
+          if (h.t > 10 && (h.x <= 60 || h.x >= ARENA_W - 60)) {
+            h.x = U.clamp(h.x, 60, ARENA_W - 60);
+            h.state = 'stuck'; h.t = 0; h.y = GY - 26; events.push('boom'); burst(state, h.x, GY - 4, '#c9a070', 12);
+          }
+        } else if (h.state === 'spit') {
+          // 吐墨汁：抬頭，第 24 帧吐出三團（你現在的位置、左右各 110），落點先出紅圈
+          h.y += (SCY.HOME_Y - 30 - h.y) * 0.1;
+          if (h.t === 24) {
+            const q = players[0], qx = q.x + q.w / 2;
+            [0, -110, 110].forEach(function (d) {
+              mini.inks.push({ sx: h.x, sy: h.y + 20, tx: U.clamp(qx + d, 40, ARENA_W - 40), t: 0 });
+            });
+            events.push('shoot');
+          }
+          if (h.t >= 50) { h.state = 'retract'; h.t = 0; }
         } else if (h.state === 'retract') {
           h.y += (SCY.HOME_Y - h.y) * 0.15;
           h.x += (h.home - h.x) * 0.1;
           if (h.t >= SCY.RETRACT) { h.state = 'idle'; h.t = 0; }
         }
       });
-      // 發怒後：尾巴掀浪，從甲板一端掃到另一端（先在起點冒水花預告）
+      // 墨汁：INK_T 帧飛到落點，落地那一下半徑 INK_R 內的人會痛
+      mini.inks.forEach(function (k) {
+        if (++k.t === SCY.INK_T) {
+          players.forEach(function (q) {
+            if (Math.abs(q.x + q.w / 2 - k.tx) < SCY.INK_R && q.y + q.h > GY - 30) hurt(q, k.tx, events);
+          });
+          burst(state, k.tx, GY - 6, '#3a2a4a', 10);
+        }
+      });
+      mini.inks = mini.inks.filter(function (k) { return k.t < SCY.INK_T + 30; });
+      // 發怒後：尾巴掀浪，從甲板一端掃到另一端（先在起點冒水花預告；方向隨機）
       if (angry && !mini.done) {
         if (--mini.waveCd <= 0) {
-          mini.waveCd = 300;
-          const dir = mini.waveSeq++ % 2 === 0 ? -1 : 1;
+          mini.waveCd = 260 + Math.floor(srnd(mini) * 120);
+          const dir = srnd(mini) < 0.5 ? -1 : 1;
           mini.waves.push({ dir: dir, x: dir < 0 ? ARENA_W + 10 : -10, warn: 75 });
           events.push('wave');
         }
@@ -1810,7 +1873,29 @@ const Encounter = (function () {
       ctx.fillStyle = 'rgba(255, 70, 70, ' + (0.1 + k * 0.2).toFixed(2) + ')';
       ctx.beginPath(); ctx.ellipse(h.tx, GY - 2, 54 - k * 14, 9, 0, 0, Math.PI * 2); ctx.fill();
     });
+    // 橫掃預告：甲板那一端閃「!」＋往前的箭頭
+    mini.heads.forEach(function (h) {
+      if (h.state !== 'sweepPrep' || Math.floor(t / 6) % 2) return;
+      U.text(ctx, '！', h.tx, GY - 90, { size: 26, color: '#ff8a6a', strokeWidth: 4 });
+      ctx.fillStyle = 'rgba(255, 120, 90, 0.7)';
+      const ax = h.tx + h.dir * 60;
+      ctx.beginPath(); ctx.moveTo(ax, GY - 46); ctx.lineTo(ax + h.dir * 22, GY - 34); ctx.lineTo(ax, GY - 22); ctx.closePath(); ctx.fill();
+    });
     mini.heads.forEach(function (h) { if (h.alive) drawScyllaHead(ctx, h, t, GY); });
+    // 墨汁：落點的紅圈（越接近落地越亮）＋飛行中的墨團（拋物線）
+    (mini.inks || []).forEach(function (k) {
+      if (k.t <= SCY.INK_T) {
+        const q = k.t / SCY.INK_T;
+        ctx.strokeStyle = 'rgba(255, 70, 70, ' + (0.35 + q * 0.6).toFixed(2) + ')'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.ellipse(k.tx, GY - 2, SCY.INK_R, 7, 0, 0, Math.PI * 2); ctx.stroke();
+        const x = k.sx + (k.tx - k.sx) * q, y = k.sy + (GY - 8 - k.sy) * q - Math.sin(q * Math.PI) * 90;
+        ctx.fillStyle = '#2a1e36'; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(140, 100, 190, 0.6)'; ctx.beginPath(); ctx.arc(x - 3, y - 3, 3, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(42, 30, 54, ' + (1 - (k.t - SCY.INK_T) / 30).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(k.tx, GY - 1, SCY.INK_R, 6, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    });
     // 浪：預告時起點冒水花，之後一道浪牆掃過甲板
     mini.waves.forEach(function (w) {
       if (w.warn > 0) {
@@ -1849,7 +1934,7 @@ const Encounter = (function () {
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
     else if (mini.kind === 'charybdis') goal = '救生圈 ' + mini.got + ' / 5　剩 ' + sec + ' 秒　（別被拖進中間的漩渦眼）';
-    else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來了）');
+    else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來或墨汁要落下；「！」= 要橫掃，跳起來閃）');
     else if (Expedition.has(mini.kind)) goal = Expedition.hud(mini);
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';

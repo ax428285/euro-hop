@@ -113,6 +113,12 @@ function runEncounterCheck() {
       if (!p.onGround && p.vy < 0) held.jump = true;
       const wave = mini.waves.filter(function (w) { return w.warn <= 0 && (w.x - cx) * w.dir < 0 && Math.abs(w.x - cx) < 70; })[0];
       if (wave) { if (p.onGround) { press.jump = true; held.jump = true; } return; }
+      // v1.31 橫掃：頭貼著甲板衝過來就跳
+      const sweep = mini.heads.filter(function (h) { return h.alive && h.state === 'sweep' && (cx - h.x) * h.dir > -10 && Math.abs(cx - h.x) < 75; })[0];
+      if (sweep) { if (p.onGround) { press.jump = true; held.jump = true; } return; }
+      // v1.31 墨汁：落點的紅圈罩著自己就走開
+      const ink = (mini.inks || []).filter(function (k) { return k.t < 52 && Math.abs(k.tx - cx) < 50; })[0];
+      if (ink) { moveTo(p, held, ink.tx + (cx < ink.tx ? -70 : 70), 4); return; }
       const aim = mini.heads.filter(function (h) { return h.alive && h.state === 'aim' && Math.abs(h.tx - cx) < 95; })[0];
       if (aim) {
         const away = aim.tx + (cx < aim.tx ? -140 : 140);
