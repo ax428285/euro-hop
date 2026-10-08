@@ -66,11 +66,38 @@ const WorldMap = (function () {
            y >= cam.y - p && y <= cam.y + VIEW_H + p;
   }
 
-  const SEA = '#1d3a5c';
-  const SEA_DEEP = '#15293f';
-  const LAND_LOCKED = '#444f68';
-  const LAND_OPEN = '#5f8052';
-  const LAND_DONE = '#47795d';
+  /*
+   * 大地圖配色（v1.29.4 玩家：整個大地圖配色不太好看，給幾個提案選）。
+   * 顏色集中在 PALETTES，WorldMap.setPalette(name) 切換；畫的時候才讀，切了下一帧就生效。
+   */
+  const PALETTES = {
+    current: { sea: '#1d3a5c', seaDeep: '#15293f', wave: 'rgba(160, 200, 240, 0.10)',
+               open: '#5f8052', done: '#47795d', locked: '#444f68', eastLocked: '#524870', eastOpen: '#6b5a8e',
+               edge: 'rgba(225, 238, 255, 0.5)', euFill: '#56684f', euEdge: 'rgba(225, 238, 255, 0.38)',
+               bgFill: '#4a4535', bgEdge: 'rgba(214, 204, 170, 0.55)', seaName: 'rgba(170, 205, 240, 0.5)' },
+    // A 古地圖：羊皮紙陸地、灰藍綠的海、深褐國界
+    parchment: { sea: '#4f7f8c', seaDeep: '#3b6370', wave: 'rgba(230, 240, 235, 0.14)',
+                 open: '#d8c38e', done: '#b9c486', locked: '#a99a7e', eastLocked: '#a48fa8', eastOpen: '#c4a9c4',
+                 edge: 'rgba(90, 60, 30, 0.7)', euFill: '#c9b88e', euEdge: 'rgba(90, 60, 30, 0.45)',
+                 bgFill: '#bca77d', bgEdge: 'rgba(90, 60, 30, 0.4)', seaName: 'rgba(225, 240, 235, 0.6)' },
+    // B 明亮卡通：亮藍海、鮮綠陸地
+    cartoon: { sea: '#2f86c8', seaDeep: '#1d63a0', wave: 'rgba(255, 255, 255, 0.16)',
+               open: '#7cc25e', done: '#4caf7a', locked: '#8b94a8', eastLocked: '#9a86c0', eastOpen: '#b49ce0',
+               edge: 'rgba(255, 255, 255, 0.75)', euFill: '#a3c98a', euEdge: 'rgba(255, 255, 255, 0.5)',
+               bgFill: '#d9c08a', bgEdge: 'rgba(255, 255, 255, 0.45)', seaName: 'rgba(225, 240, 255, 0.7)' },
+    // C 地中海暖陽：土耳其藍的海、橄欖綠與赭色陸地
+    sunny: { sea: '#1f7a94', seaDeep: '#135a72', wave: 'rgba(220, 250, 255, 0.13)',
+             open: '#9fb565', done: '#6fa66a', locked: '#8f8673', eastLocked: '#9b7f9c', eastOpen: '#b897b4',
+             edge: 'rgba(255, 246, 220, 0.65)', euFill: '#b3ab7c', euEdge: 'rgba(255, 246, 220, 0.42)',
+             bgFill: '#cfa774', bgEdge: 'rgba(255, 240, 210, 0.45)', seaName: 'rgba(220, 245, 250, 0.6)' },
+    // D 夜航：深海軍藍、低彩度陸地、亮青色國界
+    night: { sea: '#122238', seaDeep: '#0b1626', wave: 'rgba(120, 200, 255, 0.10)',
+             open: '#35566a', done: '#2f6b62', locked: '#2a3346', eastLocked: '#3d3657', eastOpen: '#57497e',
+             edge: 'rgba(130, 225, 255, 0.6)', euFill: '#2c4152', euEdge: 'rgba(130, 225, 255, 0.3)',
+             bgFill: '#3a352c', bgEdge: 'rgba(230, 200, 140, 0.35)', seaName: 'rgba(130, 200, 240, 0.55)' }
+  };
+  // 玩家選了 C 地中海暖陽（current 是 v1.29.3 以前的配色，留著對照）
+  let PAL = PALETTES.sunny;
 
   /*
    * 背景國（不可進入的鄰國）的填色。
@@ -83,15 +110,12 @@ const WorldMap = (function () {
    * 改成明顯偏暖的灰褐色（跟藍色系的海拉開色相），
    * 並把邊界線加亮，讓「哪裡是陸地」一眼可辨。
    */
-  const BACKDROP_FILL = '#4a4535';
-  const BACKDROP_EDGE = 'rgba(214, 204, 170, 0.55)';
+
   /*
    * v1.29.3 玩家：歐洲、東歐的地圖開了，中間還夾著咖啡色的國家很醜。
    * → 歐洲的背景國改成灰綠色（跟關卡國同色系、灰一點，有沒有圖釘一看就分得出來），
    *   北非、中東、土耳其這些沙漠地帶維持沙褐色。跟海（#1d3a5c）的色距還是夠大，看得出是陸地。
    */
-  const BACKDROP_EU_FILL = '#56684f';
-  const BACKDROP_EU_EDGE = 'rgba(225, 238, 255, 0.38)';
   const BACKDROP_EU = { AL: 1, BA: 1, BE: 1, BG: 1, BY: 1, DK: 1, EE: 1, FI: 1, HR: 1, HU: 1, IE: 1, LT: 1, LU: 1,
                         LV: 1, MD: 1, ME: 1, MK: 1, NO: 1, PL: 1, PT: 1, RO: 1, RS: 1, RU: 1, SE: 1, SI: 1, SK: 1,
                         UA: 1, XK: 1 };
@@ -562,7 +586,7 @@ const WorldMap = (function () {
     east.forEach(function (n) {
       n.shapes.forEach(function (sh) {
         poly(ctx, sh);
-        ctx.fillStyle = unlocked ? '#6b5a8e' : '#524870';
+        ctx.fillStyle = unlocked ? PAL.eastOpen : PAL.eastLocked;
         ctx.fill();
         ctx.strokeStyle = unlocked ? 'rgba(220, 200, 255, 0.6)' : 'rgba(170, 160, 200, 0.4)';
         ctx.lineWidth = 1;
@@ -675,13 +699,13 @@ const WorldMap = (function () {
 
   function drawSea(ctx, W, H, t) {
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, SEA);
-    g.addColorStop(1, SEA_DEEP);
+    g.addColorStop(0, PAL.sea);
+    g.addColorStop(1, PAL.seaDeep);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
     // （v1.26.2 玩家：海背後的網格拿掉，只留波紋）
-    ctx.strokeStyle = 'rgba(160, 200, 240, 0.10)';
+    ctx.strokeStyle = PAL.wave;
     ctx.lineWidth = 2;
     for (let i = 0; i < Math.ceil(H / 60); i++) {
       const yy = 60 + i * 60;
@@ -766,9 +790,9 @@ const WorldMap = (function () {
       const eu = !!BACKDROP_EU[k];
       EuropeBackdrop[k].shapes.forEach(function (sh) {
         poly(ctx, sh);
-        ctx.fillStyle = eu ? BACKDROP_EU_FILL : BACKDROP_FILL;
+        ctx.fillStyle = eu ? PAL.euFill : PAL.bgFill;
         ctx.fill();
-        ctx.strokeStyle = eu ? BACKDROP_EU_EDGE : BACKDROP_EDGE;
+        ctx.strokeStyle = eu ? PAL.euEdge : PAL.bgEdge;
         ctx.lineWidth = 1;
         ctx.stroke();
       });
@@ -902,7 +926,7 @@ const WorldMap = (function () {
       ctx.translate(p[0], p[1]);
       if (s.angle) ctx.rotate(s.angle);
       const opt = {
-        size: s.size, weight: 500, color: 'rgba(170, 205, 240, 0.5)',
+        size: s.size, weight: 500, color: PAL.seaName,
         stroke: false
       };
       if (s.vertical) {
@@ -968,10 +992,10 @@ const WorldMap = (function () {
     info.forEach(function (o) {
       o.n.shapes.forEach(function (sh) {
         poly(ctx, sh);
-        ctx.fillStyle = o.eastLock ? '#524870'
-          : !o.open ? LAND_LOCKED : (o.done ? LAND_DONE : LAND_OPEN);
+        ctx.fillStyle = o.eastLock ? PAL.eastLocked
+          : !o.open ? PAL.locked : (o.done ? PAL.done : PAL.open);
         ctx.fill();
-        ctx.strokeStyle = o.selected ? '#ffd166' : 'rgba(225, 238, 255, 0.5)';
+        ctx.strokeStyle = o.selected ? '#ffd166' : PAL.edge;
         ctx.lineWidth = o.selected ? 2.5 : 1.1;
         ctx.stroke();
       });
@@ -1018,6 +1042,8 @@ const WorldMap = (function () {
     east: east,
     hitTestEast: hitTestEast,
     specials: specials,
+    PALETTES: PALETTES,
+    setPalette: function (name) { if (PALETTES[name]) PAL = PALETTES[name]; return !!PALETTES[name]; },
     nearSpecial: nearSpecial,
     pinBox: pinBox,
     LABEL_SIZE_SEL: LABEL_SIZE_SEL,
