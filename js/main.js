@@ -99,7 +99,8 @@
    * 子畫面（商店、裝備、存檔）是從 ☰ 選單點進去的，
    * 這時 ☰ 變成「↩ 回大地圖」：再按一次就回去，不用再打開選單找「地圖」。
    */
-  const SUB_SCREENS = { shop: true, inventory: true, saveinfo: true, mystery: true };
+  // v1.28.3 玩家：進港口（貿易港、造船廠）後左上角沒有返回 → 這兩個畫面也算子畫面
+  const SUB_SCREENS = { shop: true, inventory: true, saveinfo: true, mystery: true, market: true, shipyard: true };
   /*
    * 關卡裡（從港口進去之後）☰ 也變成 ↩（v1.27.1 玩家要求）。
    * 按下去送「回地圖」：遊戲中會先跳「放棄這一關？」確認框（那時遊戲是凍結的，也就兼當暫停），
