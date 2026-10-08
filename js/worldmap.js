@@ -86,8 +86,11 @@ const WorldMap = (function () {
                edge: 'rgba(255, 255, 255, 0.75)', euFill: '#a3c98a', euEdge: 'rgba(255, 255, 255, 0.5)',
                bgFill: '#d9c08a', bgEdge: 'rgba(255, 255, 255, 0.45)', seaName: 'rgba(225, 240, 255, 0.7)' },
     // C 地中海暖陽：土耳其藍的海、橄欖綠與赭色陸地
+    // v1.29.5 玩家：還沒解鎖的用 D 夜航的國家色（藍灰＋青色國界；夜航的「鎖住色」太暗），解開、破完的自由發揮：
+    //   解開 = 亮橄欖綠（等你來）、破完 = 深一點的翠綠＋金色國界（像拿到月桂冠）
     sunny: { sea: '#1f7a94', seaDeep: '#135a72', wave: 'rgba(220, 250, 255, 0.13)',
-             open: '#9fb565', done: '#6fa66a', locked: '#8f8673', eastLocked: '#9b7f9c', eastOpen: '#b897b4',
+             open: '#a9bf6a', done: '#4f9a6a', locked: '#35566a', eastLocked: '#35566a', eastOpen: '#b897b4',
+             lockedEdge: 'rgba(130, 225, 255, 0.6)', doneEdge: 'rgba(255, 214, 102, 0.85)',
              edge: 'rgba(255, 246, 220, 0.65)', euFill: '#b3ab7c', euEdge: 'rgba(255, 246, 220, 0.42)',
              bgFill: '#cfa774', bgEdge: 'rgba(255, 240, 210, 0.45)', seaName: 'rgba(220, 245, 250, 0.6)' },
     // D 夜航：深海軍藍、低彩度陸地、亮青色國界
@@ -995,7 +998,9 @@ const WorldMap = (function () {
         ctx.fillStyle = o.eastLock ? PAL.eastLocked
           : !o.open ? PAL.locked : (o.done ? PAL.done : PAL.open);
         ctx.fill();
-        ctx.strokeStyle = o.selected ? '#ffd166' : PAL.edge;
+        ctx.strokeStyle = o.selected ? '#ffd166'
+          : (o.eastLock || !o.open) ? (PAL.lockedEdge || PAL.edge)
+          : o.done ? (PAL.doneEdge || PAL.edge) : PAL.edge;
         ctx.lineWidth = o.selected ? 2.5 : 1.1;
         ctx.stroke();
       });
