@@ -23,7 +23,8 @@ const Expedition = (function () {
     { id: 'GB', country: '英國', ship: '皇家海軍「勝利號」', lon: -0.9, lat: 50.0, hp: 300, rank: 3, tier: 5, fact: '勝利號 1765 年下水，是納爾遜將軍在特拉法加海戰的旗艦，到今天還停在樸茨茅斯。' },
     { id: 'NL', country: '荷蘭', ship: '東印度公司「巴達維亞號」', lon: 3.6, lat: 53.5, hp: 100, rank: 1, tier: 1, fact: '巴達維亞號是 1628 年荷蘭東印度公司的大帆船，處女航就在澳洲外海觸礁；今天荷蘭照原樣重造了一艘。' },
     { id: 'DE', country: '德國', ship: '漢薩同盟「呂貝克之鷹號」', lon: 11.4, lat: 54.5, hp: 160, rank: 2, tier: 2, fact: '1566 年呂貝克造的呂貝克之鷹號，是當年波羅的海最大的戰艦。' },
-    { id: 'GR', country: '希臘', ship: '三列槳戰船「奧林匹亞斯號」', lon: 25.6, lat: 39.4, hp: 80, rank: 1, tier: 0, fact: '三列槳戰船靠船頭的青銅撞角撞沉敵船；1987 年希臘照古書重造了一艘，取名奧林匹亞斯號。' }
+    // v1.30 玩家：希臘太遠了 → 改成西班牙（巴利亞利海，離哥倫布近）
+    { id: 'ES', country: '西班牙', ship: '槳帆船「皇家號」', lon: 2.0, lat: 40.3, hp: 80, rank: 1, tier: 0, fact: '皇家號是 1571 年勒班陀海戰的西班牙旗艦槳帆船；巴塞隆納海事博物館裡停著一艘照原樣重造的。' }
   ];
   /*
    * v1.30 玩家：戰艦有分等級，外觀要不一樣。
@@ -36,7 +37,7 @@ const Expedition = (function () {
    *   liner3   三層砲甲板的一級戰列艦（勝利號）：最高大，黑黃相間的「納爾遜棋盤」    ★★★
    */
   // v1.30 玩家：船艦五艘就好，放在地圖上比較空的國家（西班牙、義大利附近已經很擠，拿掉）
-  const STYLE = { GR: 'trireme', NL: 'galleon', DE: 'cog', FR: 'liner2', GB: 'liner3', IT: 'galley' };
+  const STYLE = { GR: 'trireme', ES: 'galley', NL: 'galleon', DE: 'cog', FR: 'liner2', GB: 'liner3', IT: 'galley' };
   WARSHIPS.forEach(function (w, i) {
     w.style = STYLE[w.id];
     w.kind = 'war' + w.id;

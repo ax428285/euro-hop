@@ -94,7 +94,7 @@ function runQuestCheck() {
   Expedition.WARSHIPS.forEach(function (w) {
     if (simWar(w.kind, 2) !== 'win') issues.push(w.country + '戰艦：升滿級的船也打不贏');
   });
-  if (simWar('warGR', 0) !== 'win') issues.push('希臘戰艦（最弱）：沒升級的船打不贏');
+  if (simWar('warES', 0) !== 'win') issues.push('西班牙戰艦（最弱）：沒升級的船打不贏');
 
   // D) 動物大遷徙
   (function () {
