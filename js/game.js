@@ -38,6 +38,9 @@ const Game = (function () {
   let confirmWipe = false;   // 清除存檔的二次確認
   let shopCursor = 0;        // 商店選到第幾項
   let shopMsg = null;        // 商店的提示訊息 { text, color, life }
+  let yardCursor = 0;        // 造船廠選到第幾列（v1.26）
+  let yardPaint = 0;         // 油漆列選到第幾色
+  let yardMsg = null;
   let shopSeller = 'portugal';   // 正在跟誰買（葡萄牙商店 / 神祕商人 id，見 Shop.SELLERS）
   let invCursor = 0;         // 裝備畫面選到第幾件（-1 = 最上面的時裝列）
   let invCol = 0;            // 最後停在哪個子欄（從時裝列往下時回到這欄）
@@ -118,6 +121,11 @@ const Game = (function () {
     expResult = null;
     levelIndex = -1;
     skirmish = m;
+    // 造船廠的加厚船身（v1.26）：海上遭遇戰多幾顆愛心（潛水是人下水，不算）
+    if (!m.def.dive && typeof Shipyard !== 'undefined') {
+      maxLives += Shipyard.hullBonus(Save.ship());
+      lives = [maxLives, maxLives];
+    }
     const def = Encounter.makeDef(m, stats);
     state = buildLevelState(def, -1, sv.equipment, stats, coop);
     camX = 0;
@@ -261,7 +269,7 @@ const Game = (function () {
 
   /** 在地圖系列畫面（地圖、商店、裝備、存檔）都播地圖曲 */
   function mapLike(s) {
-    return s === 'map' || s === 'shop' || s === 'inventory' || s === 'saveinfo' || s === 'mystery';
+    return s === 'map' || s === 'shop' || s === 'inventory' || s === 'saveinfo' || s === 'mystery' || s === 'shipyard';
   }
 
   // ── 更新 ──────────────────────────────────────────────
@@ -320,6 +328,7 @@ const Game = (function () {
         break;
 
       case 'shop': updateShop(); break;
+      case 'shipyard': updateShipyard(); break;
 
       case 'mystery': updateMystery(); break;
 
@@ -669,6 +678,16 @@ const Game = (function () {
     if (events.indexOf('dock') >= 0 && spNear) {
       Sfx.select();
       if (spNear.def.scene === 'shop') { shopCursor = 0; shopSeller = spNear.def.seller || 'portugal'; }
+      // v1.26 地中海港口：沉船潛水直接開潛；造船廠打開升級畫面
+      if (spNear.def.scene === 'dive') {
+        const ship0 = Voyage.shipPos();
+        startSkirmish({ kind: spNear.def.port, def: Encounter.KINDS[spNear.def.port], x: ship0.x, y: ship0.y, port: true });
+        return;
+      }
+      if (spNear.def.scene === 'shipyard') {
+        yardCursor = 0; yardMsg = null;
+        yardPaint = Math.max(0, Shipyard.PAINTS.indexOf(Shipyard.paint(Save.ship())));
+      }
       scene = spNear.def.scene;
       return;
     }
@@ -706,6 +725,9 @@ const Game = (function () {
     camel: ['駱駝商隊', '紅色鞍毯可以站上去，駱駝會載著你走過鹽湖'],
     column: ['羅馬古柱', '一靠近就會搖晃倒下，地上紅框是壓到的範圍 —— 衝過去，或等它倒完'],
     flood: ['潛進地中海', '這一段淹在海裡：跳躍 = 往上游、會慢慢下沉，頭上的氣泡用完會嗆水'],
+    current: ['暗流', '水流會把你往一邊推 —— 貼著海底走推力只剩一半，或趁空檔用力游過去'],
+    clam: ['巨蚌', '一開一合，抖動之後就要夾起來了 —— 張開時裡面的珍珠可以拿'],
+    relic: ['沉船寶物', '發光的就是兩千年前的寶物，沿路一共三件，終點船艙還有一件'],
     vent: ['海底氣泡噴口', '頭上的氣泡是你的空氣 —— 游進噴口冒出來的氣泡柱就能補滿'],
     mount: ['駱駝坐騎', '碰一下就騎上去：跑得快、跳得高、不陷沙也不怕風沙；被打到駱駝會跑掉，但你不扣血']
   };
@@ -839,6 +861,15 @@ const Game = (function () {
         return;
       }
       // 第一次接近招牌機制：提示這段要注意什麼
+      // 沉船潛水：撈到寶物（'relic:amphora'）
+      if (ev.indexOf && ev.indexOf('relic:') === 0) {
+        const rid = ev.slice(6);
+        (state.relicsGot || (state.relicsGot = [])).push(rid);
+        const rd = Encounter.RELICS.filter(function (q) { return q.id === rid; })[0];
+        Sfx.secret(); runScore += 300;
+        toast = { text: '撈到寶物：' + (rd ? rd.name : rid) + '！', sub: rd ? rd.note : '', life: 220 };
+        return;
+      }
       if (ev.indexOf && ev.indexOf('feature:') === 0) {
         const vt = state.def.vehicle && VEHICLE_TIPS[state.def.vehicle];
         const tip = (vt && vt[ev.slice(8)]) || FEATURE_TIPS[ev.slice(8)];
@@ -882,6 +913,7 @@ const Game = (function () {
         }
         case 'mount': Sfx.equip(); break;
         case 'allythrow': Sfx.shoot(); break;
+        case 'pearl': Sfx.coin(); runCoins += 10; runScore += 50; break;      // 巨蚌裡的珍珠
         // 潛水（亞特蘭提斯）
         case 'swim': break;
         case 'breathe': Sfx.coin(); break;
@@ -1068,6 +1100,150 @@ const Game = (function () {
     }
   }
 
+  /*
+   * 造船廠（v1.26）。四列：船帆、船首砲、船身、油漆。
+   *   ↑↓ 選列、Enter 買下一級；油漆列 ←→ 選顏色、Enter 買（買過的直接換上）
+   *   手機：點那一列（油漆點色塊）就是選＋買
+   */
+  const YARD_TOP = 196, YARD_ROW = 52;
+  function yardBuy(row) {
+    const it = Shipyard.ITEMS[row];
+    const ship = Save.ship();
+    const pid = Shipyard.PAINTS[yardPaint].id;
+    const price = Shipyard.priceOf(it.id, ship, pid);
+    if (price == null) { yardMsg = { text: it.name + '已經是最高級了', color: '#9aa7c7', life: 110 }; Sfx.clang(); return; }
+    if (it.id === 'paint' && ship.paint === pid) { yardMsg = { text: '船已經是這個顏色了', color: '#9aa7c7', life: 100 }; Sfx.clang(); return; }
+    if (price > Save.get().wallet) {
+      yardMsg = { text: '金幣不足（還差 ' + (price - Save.get().wallet) + '）', color: '#ff9aa8', life: 130 }; Sfx.clang(); return;
+    }
+    Save.setShip(Shipyard.buy(it.id, ship, pid), price);
+    Sfx.equip();
+    yardMsg = it.id === 'paint'
+      ? { text: '船漆成「' + Shipyard.PAINTS[yardPaint].name + '」了！', color: '#8fe3a0', life: 130 }
+      : { text: it.name + ' 升到 Lv' + Save.ship()[it.id] + '！' + it.desc(Save.ship()[it.id]), color: '#8fe3a0', life: 150 };
+  }
+  function updateShipyard() {
+    if (yardMsg && --yardMsg.life <= 0) yardMsg = null;
+    const n = Shipyard.ITEMS.length;
+    if (Input.once('up')) { yardCursor = (yardCursor + n - 1) % n; Sfx.select(); }
+    if (Input.once('down')) { yardCursor = (yardCursor + 1) % n; Sfx.select(); }
+    if (Shipyard.ITEMS[yardCursor].id === 'paint') {
+      const m = Shipyard.PAINTS.length;
+      if (Input.once('left')) { yardPaint = (yardPaint + m - 1) % m; Sfx.select(); }
+      if (Input.once('right')) { yardPaint = (yardPaint + 1) % m; Sfx.select(); }
+    }
+    if (Input.once('confirm')) yardBuy(yardCursor);
+    const click = Input.takeClick();
+    if (click) {
+      for (let r = 0; r < n; r++) {
+        const y = YARD_TOP + r * YARD_ROW;
+        if (click.x < 150 || click.x > W - 150 || click.y < y || click.y > y + YARD_ROW - 6) continue;
+        yardCursor = r;
+        if (Shipyard.ITEMS[r].id === 'paint') {
+          // 點色塊選顏色（再點一次同一塊 = 買／換上）
+          const k = Math.floor((click.x - 470) / 64);
+          if (k >= 0 && k < Shipyard.PAINTS.length) {
+            if (k !== yardPaint) { yardPaint = k; Sfx.select(); break; }
+          } else break;
+        }
+        yardBuy(r);
+        break;
+      }
+    }
+    if (Input.once('back') || Input.once('tomap') || Input.once('shop')) { Sfx.select(); yardMsg = null; scene = 'map'; }
+  }
+
+  /** 造船廠畫面的船（放大的側面，跟地圖上的船同一套顏色） */
+  function drawYardShip(x, y, s, ship, t) {
+    const pt = Shipyard.paint(ship);
+    ctx.save();
+    ctx.translate(x, y + Math.sin(t * 0.04) * 2);
+    ctx.scale(s, s);
+    ctx.fillStyle = pt.hull;
+    ctx.beginPath(); ctx.moveTo(-26, -4); ctx.lineTo(28, -4); ctx.lineTo(18, 8); ctx.lineTo(-20, 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = pt.trim;
+    ctx.fillRect(-24, -4, 50, 2.5);
+    if (ship.cannon > 0) { ctx.fillStyle = '#2a2a30'; ctx.fillRect(24, -9, 9, 4); }
+    ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-1.5, -40, 3, 36);
+    const big = 1 + ship.sail * 0.16;
+    ctx.fillStyle = pt.sail;
+    ctx.beginPath(); ctx.moveTo(1.5, -40 * big); ctx.quadraticCurveTo(22 * big, -24, 1.5, -6); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.moveTo(-1.5, -36 * big); ctx.quadraticCurveTo(-18 * big, -22, -1.5, -8); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    if (ship.hull > 0) {
+      // 加厚船身：船殼上一排鉚釘
+      ctx.fillStyle = 'rgba(240, 220, 160, 0.8)';
+      for (let k = 0; k < 4 + ship.hull * 2; k++) ctx.fillRect(-18 + k * (36 / (3 + ship.hull * 2)), 1, 2, 2);
+    }
+    ctx.restore();
+    // 海面
+    ctx.strokeStyle = 'rgba(160, 210, 240, 0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let k = -110; k <= 110; k += 10) {
+      const yy = y + 8 * s + Math.sin(k * 0.08 + t * 0.06) * 2;
+      if (k === -110) ctx.moveTo(x + k, yy); else ctx.lineTo(x + k, yy);
+    }
+    ctx.stroke();
+  }
+
+  function drawShipyard() {
+    const sv = Save.get();
+    drawMapBackdrop(sv);
+    ctx.fillStyle = 'rgba(8,12,24,0.86)';
+    ctx.fillRect(0, 0, W, H);
+    panel(120, 22, W - 240, H - 44);
+    U.text(ctx, '瓦倫西亞造船廠', W / 2, 52, { size: 26, color: '#ffd166' });
+    U.text(ctx, '中世紀的皇家造船廠 Drassanes del Grau・升級你的船　錢包 \u20AC ' + sv.wallet, W / 2, 80, { size: 13, color: '#9fb4d8' });
+    const ship = Save.ship();
+    drawYardShip(W / 2, 156, 1.6, ship, t);
+
+    Shipyard.ITEMS.forEach(function (it, r) {
+      const y = YARD_TOP + r * YARD_ROW;
+      const sel = r === yardCursor;
+      ctx.fillStyle = sel ? 'rgba(255, 209, 102, 0.14)' : 'rgba(255,255,255,0.05)';
+      U.roundRect(ctx, 150, y, W - 300, YARD_ROW - 6, 8); ctx.fill();
+      ctx.strokeStyle = sel ? '#ffd166' : 'rgba(126,151,201,0.5)'; ctx.lineWidth = sel ? 2 : 1;
+      U.roundRect(ctx, 150, y, W - 300, YARD_ROW - 6, 8); ctx.stroke();
+      const cy = y + (YARD_ROW - 6) / 2;
+      U.text(ctx, it.name, 170, cy - 8, { size: 16, color: '#ffffff', align: 'left' });
+      if (it.id === 'paint') {
+        U.text(ctx, it.desc(), 170, cy + 11, { size: 11, color: '#9fb4d8', align: 'left' });
+        Shipyard.PAINTS.forEach(function (p, k) {
+          const px = 470 + k * 64, owned = ship.paints.indexOf(p.id) >= 0;
+          const on = ship.paint === p.id, pick = sel && k === yardPaint;
+          ctx.fillStyle = p.hull;
+          U.roundRect(ctx, px, cy - 15, 54, 22, 5); ctx.fill();
+          ctx.fillStyle = p.sail;
+          ctx.fillRect(px + 20, cy - 13, 14, 8);
+          ctx.strokeStyle = pick ? '#ffd166' : on ? '#8fe3a0' : 'rgba(255,255,255,0.3)';
+          ctx.lineWidth = pick || on ? 2.2 : 1;
+          U.roundRect(ctx, px, cy - 15, 54, 22, 5); ctx.stroke();
+          U.text(ctx, on ? '使用中' : owned ? p.name : (p.price ? '\u20AC ' + p.price : p.name), px + 27, cy + 15,
+            { size: 10, color: on ? '#8fe3a0' : owned ? '#dce5f5' : '#ffd166' });
+        });
+        return;
+      }
+      const lv = ship[it.id];
+      // 等級格子
+      for (let k = 0; k < it.max; k++) {
+        ctx.fillStyle = k < lv ? '#8fe3a0' : 'rgba(255,255,255,0.14)';
+        U.roundRect(ctx, 290 + k * 22, cy - 15, 18, 10, 3); ctx.fill();
+      }
+      U.text(ctx, '目前：' + it.desc(lv), 290, cy + 9, { size: 12, color: '#c6d2e8', align: 'left' });
+      const price = Shipyard.priceOf(it.id, ship);
+      U.text(ctx, price == null ? '已滿級' : fitText('下一級：' + it.desc(lv + 1), 230, 12), 480, cy - 8, { size: 12, color: price == null ? '#8fe3a0' : '#dce5f5', align: 'left' });
+      if (price != null) {
+        U.text(ctx, '\u20AC ' + price, W - 170, cy - 8, { size: 15, color: price <= sv.wallet ? '#ffd166' : '#ff9aa8', align: 'right' });
+      }
+    });
+
+    const cur = Shipyard.ITEMS[yardCursor];
+    const foot = yardMsg ? yardMsg.text : (cur.note || '←→ 選顏色，Enter 買下來或換上');
+    U.text(ctx, fitText(foot, W - 300, 13), W / 2, H - 52, { size: 13, color: yardMsg ? yardMsg.color : '#9aa7c7' });
+    U.text(ctx, '↑↓ 選擇　Enter 升級／購買　Esc、Q 回地圖', W / 2, H - 30, { size: 12, color: '#7d88a6' });
+  }
+
   function onSecret(idx) {
     const sc = state.secrets[idx];
     if (!sc) return;
@@ -1251,7 +1427,15 @@ const Game = (function () {
         expResult.firstBoss = skirmish.def.name;
       }
       // 亞特蘭提斯：每次潛到神殿都拿到一個海神夥伴（最多 Save.ALLY_MAX 個）
-      if (skirmish.def.dive) {
+      // 安提基特拉沉船：沿路撈到的寶物＋終點的安提基特拉機械，收進存檔
+      if (skirmish.kind === 'wreck') {
+        const got = (state.relicsGot || []).concat(['mechanism']);
+        expResult.relics = got.map(function (id) {
+          const rd = Encounter.RELICS.filter(function (q) { return q.id === id; })[0];
+          return { id: id, name: rd ? rd.name : id, fresh: Save.addRelic(id) };
+        });
+      }
+      if (skirmish.kind === 'atlantis') {
         const before = Save.get().allies;
         expResult.ally = { now: Save.addAlly(), full: before >= Save.ALLY_MAX };
       }
@@ -1975,6 +2159,10 @@ const Game = (function () {
       { size: 15, align: 'left', color: '#f6d98a' });
 
     // 密道計數（有密道的關卡才顯示）
+    // 沉船潛水：寶物計數（沿路三件）
+    if (def.id === 'WRK') {
+      U.text(ctx, '寶物 ' + (state.relicsGot || []).length + '/3', 690, 23, { size: 15, align: 'left', color: '#ffe070' });
+    }
     if (state.secrets.length) {
       U.text(ctx, `密道 ${state.secretsFound}/${state.secrets.length}`, 500, 23,
         { size: 15, align: 'left', color: '#b9d4f5' });
@@ -2522,13 +2710,14 @@ const Game = (function () {
       ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件'],
       ['密道', sv.secrets.length + ' 條'],
       ['魔王', sv.bosses.length + ' 隻'],
+      ['船', '帆 Lv' + sv.ship.sail + '　砲 Lv' + sv.ship.cannon + '　船身 Lv' + sv.ship.hull + '　沉船收藏 ' + sv.relics.length + ' / ' + Encounter.RELICS.length],
       ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp +
         (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（全部篇章已解鎖）')],
       ['總分', String(sv.score)]
     ];
 
     rows.forEach(function (r, i) {
-      const y = 134 + i * 28;
+      const y = 126 + i * 25;   // v1.26 多一列「船」，行距縮一點
       U.text(ctx, r[0], 170, y, { size: 14, color: '#9aa7c7', align: 'left' });
       U.text(ctx, r[1], 300, y, { size: 14, color: '#eaf0fa', align: 'left' });
     });
@@ -2831,13 +3020,22 @@ const Game = (function () {
     const target = opened || Encounter.nextRegion(r.after) || Encounter.REGIONS[Encounter.REGIONS.length - 1];
     const need = target.exp;
     const justOpened = !!opened;
-    const tall = (justOpened ? 280 : 240) + (r.ally ? 70 : r.costume ? 50 : 0);
+    const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0);
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
     const md = def.monster.def;
-    U.text(ctx, md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
+    U.text(ctx, def.monster.kind === 'wreck' ? '撈起了安提基特拉機械！' : md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
       { size: 32, color: md.dive ? '#8ff0e0' : md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
     // 稀有怪掉的時裝（已經自動穿上，到裝備畫面可以換）
+    if (r.relics) {
+      // 沉船：這次撈到的寶物（新的標金色），以及收藏進度
+      ctx.fillStyle = 'rgba(255, 220, 140, 0.12)';
+      U.roundRect(ctx, 230, top + tall - 96, 500, 40, 8); ctx.fill();
+      r.relics.forEach(function (q, k) { Sprites.relic(ctx, q.id, 254 + k * 30, top + tall - 76, 0.7); });
+      const fresh = r.relics.filter(function (q) { return q.fresh; }).length;
+      U.text(ctx, '寶物 ' + r.relics.length + ' 件' + (fresh ? '（新收藏 ' + fresh + '）' : '') + '・沉船收藏 ' + Save.get().relics.length + ' / ' + Encounter.RELICS.length,
+        W / 2 + 60, top + tall - 76, { size: 14, color: fresh ? '#ffe070' : '#dce5f5' });
+    }
     if (r.ally) {
       // 亞特蘭提斯：神殿裡的海神夥伴
       ctx.fillStyle = 'rgba(120, 240, 230, 0.14)';
@@ -3085,6 +3283,7 @@ const Game = (function () {
       case 'map': drawMap(); break;
       case 'inventory': drawInventory(); break;
       case 'shop': drawShop(); break;
+      case 'shipyard': drawShipyard(); break;
       case 'saveinfo': drawSaveInfo(); break;
       case 'mystery': drawMystery(); break;
       case 'play': drawPlay(); break;

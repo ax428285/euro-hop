@@ -84,6 +84,20 @@ const Encounter = (function () {
    */
   KINDS.atlantis = { name: '亞特蘭提斯', lv: '遺跡', exp: 120, bossExp: 200, bossCoins: 250, game: '潛水探險',
                      goal: '往下潛到最底層的神殿！跳躍 = 往上游・頭上的氣泡用完會嗆水，游進噴口的氣泡柱補氣', dive: true };
+  /*
+   * 安提基特拉沉船（v1.26 港口 A：沉船潛水）。不是地圖上的怪，入口是 worldmap.js 的港口（PORT_DEFS）。
+   * 一整段 1～2 分鐘的橫向潛水：暗流、會夾人的巨蚌、鯊魚，三件寶物藏在沿路，終點船艙裡是安提基特拉機械。
+   */
+  KINDS.wreck = { name: '安提基特拉沉船', lv: '港口', exp: 90, bossExp: 160, bossCoins: 300, game: '沉船潛水',
+                  goal: '撈起沉船裡的寶物！跳躍 = 往上游・小心暗流、巨蚌和鯊魚，終點船艙有安提基特拉機械', dive: true };
+  /** 沉船的寶物（Save.relics 記撈過哪些；mechanism 是終點自動拿到） */
+  const RELICS = [
+    { id: 'amphora', name: '羅德島雙耳陶罐', note: '船上載了好幾百個裝酒的雙耳陶罐，罐口還留著封蠟。' },
+    { id: 'philosopher', name: '哲學家青銅頭像', note: '一尊留著大鬍子的青銅頭像，眼神銳利，被叫做「安提基特拉的哲學家」。' },
+    { id: 'coin', name: '帕加馬銀幣', note: '船上找到的銀幣讓考古學家推算出：這艘船大約在西元前 60 年沉沒。' },
+    { id: 'mechanism', name: '安提基特拉機械', note: '三十幾個青銅齒輪組成的天文計算機，能預測日月食 —— 被稱為世界最古老的電腦。' }
+  ];
+
   /** 地圖上固定的地點（經緯度；不能航行的話往附近找開闊海面）：海上魔王＋亞特蘭提斯 */
   const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -9.4, lat: 33.4 }];
 
@@ -458,7 +472,44 @@ const Encounter = (function () {
     return def;
   }
 
+  let wreckBase = null;
+  function wreckDef(m) {
+    if (!wreckBase) {
+      wreckBase = Levels.make({
+        seed: 1060,
+        id: 'WRK', country: '安提基特拉沉船', city: '愛琴海海底', region: 'sea',
+        flag: ['#1a5a8a', '#e8d8a0', '#1a5a8a'], flagDir: 'h',
+        landmark: 'wreckhull',
+        fact: '1900 年，採海綿的潛水夫在安提基特拉島外海 45 公尺深的地方，發現了一艘兩千年前的羅馬沉船。',
+        sky: ['#0c4a78', '#2a90c0'], hill: '#1c4c6c', cloud: 'rgba(190, 235, 255, 0.08)',
+        groundTop: '#d8c898', groundBody: '#5a6a6c',
+        deco: 'kelp',
+        layout: 'hills',
+        width: 12000,          // v1.25.3 玩家嫌西班牙那段潛水太短：直直游約 1 分鐘，邊找寶物邊閃大概 2 分鐘
+        groundTypes: ['walker', 'walker', 'spiker'],
+        airTypes: ['flyer', 'chaser'],
+        density: 0.85,
+        features: [{ type: 'air' }, { type: 'currents' }, { type: 'clams', count: 9 }, { type: 'relics' }],
+        secretHint: '船身破洞後面，有一道金光',
+        secretNear: 0.5,
+        props: []
+      });
+      wreckBase.underwater = true;
+      wreckBase.dive = true;
+    }
+    const k = m.def;
+    const first = !(typeof Save !== 'undefined' && Save.seaBossDown(m.kind));
+    return Object.assign({}, wreckBase, {
+      monster: m,
+      exp: first ? k.bossExp : k.exp,
+      bossCoins: first ? k.bossCoins : 0,
+      firstBoss: first,
+      fact: wreckBase.fact + (first ? '　第一次撈到機械：' + k.bossExp + ' EXP＋' + k.bossCoins + ' 金幣' : '　再潛一次：' + k.exp + ' EXP')
+    });
+  }
+
   function makeDef(m, stats) {
+    if (m.kind === 'wreck') return wreckDef(m);
     if (m.def.dive) return diveDef(m);
     const k = m.def;
     const GY = Levels.GROUND_Y;
@@ -521,7 +572,13 @@ const Encounter = (function () {
     const kind = state.def.minigame;
     const mini = { kind: kind, time: state.def.duration, elapsed: 0, score: 0, done: false };
     if (kind === 'gulls') { mini.bread = 5; mini.gulls = []; mini.next = 60; mini.seq = 0; }
-    if (kind === 'pirates') { mini.hits = 0; mini.balls = []; mini.shells = []; mini.cd = 0; mini.enemyCd = 120; mini.seq = 0; mini.shipShake = 0; }
+    if (kind === 'pirates') {
+      mini.hits = 0; mini.balls = []; mini.shells = []; mini.cd = 0; mini.enemyCd = 120; mini.seq = 0; mini.shipShake = 0;
+      // 造船廠的船首砲（v1.26）：裝填更快；滿級開場先命中一砲
+      const ship = typeof Save !== 'undefined' && Save.ship ? Save.ship() : null;
+      mini.cdMax = typeof Shipyard !== 'undefined' ? Shipyard.cannonCd(ship) : 70;
+      if (typeof Shipyard !== 'undefined' && Shipyard.cannonHead(ship)) { mini.hits = 1; mini.shipShake = 20; }
+    }
     if (kind === 'serpent') { mini.hits = 0; mini.heads = HOLES.map(function (x) { return { x: x, up: 0, t: 0, spat: false }; }); mini.next = 40; mini.seq = 0; }
     if (kind === 'golden') { mini.caught = 0; mini.px = 700; mini.py = 200; mini.cool = 0; mini.phase = 0; mini.speed = 0.022; }
     if (kind === 'scylla') {
@@ -654,7 +711,7 @@ const Encounter = (function () {
       if (fire && atCannon && mini.cd === 0) {
         const a = cannonAngle(mini.elapsed) * Math.PI / 180;
         mini.balls.push({ x: CANNON.x + 30, y: GY - 44, vx: Math.cos(a) * CANNON.speed, vy: -Math.sin(a) * CANNON.speed });
-        mini.cd = 70;      // 裝填要一點時間：每一發都要重新抓角度
+        mini.cd = mini.cdMax || 70;      // 裝填要一點時間：每一發都要重新抓角度（船首砲升級會變快）
         events.push('fire');
       }
       mini.balls.forEach(function (b) {
@@ -1090,6 +1147,7 @@ const Encounter = (function () {
       return monsters.filter(function (m) { return m.boss && m.kind === kind; })[0] || null;
     },
     makeDef: makeDef,
+    RELICS: RELICS,
     updateSkirmish: updateSkirmish,
     drawWorld: drawWorld,
     drawHud: drawHud,

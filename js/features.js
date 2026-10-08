@@ -180,6 +180,43 @@ const Features = (function () {
           if (list.some(function (q) { return q.type === 'vent' && Math.abs(q.x - sp.x) < 300; })) continue;   // 兩個噴口不要擠在一起
           list.push({ type: 'vent', x: sp.x, y: sp.y, w: 40 });
         }
+      } else if (c.type === 'currents') {
+        /*
+         * 沉船潛水：暗流。關卡裡三段，方向交替（逆流、順流、逆流），水流把人往一個方向推。
+         * 逆流段要貼著海底走（海底水流比較慢：推力只剩一半），或趁空檔游過去。
+         */
+        [[0.22, 0.34, -1], [0.46, 0.56, 1], [0.66, 0.8, -1]].forEach(function (z) {
+          list.push({ type: 'current', x0: Math.round(W * z[0]), x1: Math.round(W * z[1]), dir: z[2] });
+        });
+      } else if (c.type === 'clams') {
+        // 巨蚌：躺在海床上一開一合，合起來的瞬間夾到會痛；張開時裡面有珍珠（金幣）
+        const n = c.count || 6;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.12 + 0.76 * i / Math.max(1, n - 1)), 56, 50);
+          if (!sp || sp.x < 700) continue;
+          list.push({ type: 'clam', x: sp.x, y: sp.y, w: 56, phase: (i * 61) % CLAM_CYCLE });
+          ctx.avoid.push({ x: sp.x - 60, y: 0, w: 176, h: 600 });
+        }
+      } else if (c.type === 'relics') {
+        /*
+         * 沉船的寶物：三件放在沿路比較難拿的地方（高處平台上，或斷崖另一邊的海底），
+         * 第四件（安提基特拉機械）在終點，過關自動拿到。
+         */
+        /*
+         * 三件都不在「直直往前游」的路線上（v1.26 測試機器人一路往右就全撿到了，等於不用找）：
+         *   陶罐     靠近水面的高處 —— 要特地往上游
+         *   青銅頭像 斷崖坑底、尖刺正上方 —— 要潛下去再游上來
+         *   銀幣     第三段逆流的正中間高處 —— 要頂著水流游過去
+         */
+        const surfaceY = 78;
+        list.push({ type: 'relic', id: 'amphora', x: Math.round(W * 0.27), y: surfaceY, w: 28, h: 28 });
+        const pit = ctx.gaps.filter(function (g) { return g.w >= 70 && g.x > W * 0.45 && g.x < W * 0.62; })[0] ||
+                    ctx.gaps.filter(function (g) { return g.w >= 60 && g.x > W * 0.4; })[0];
+        if (pit) {
+          const gy = LevelGen.groundAt(ctx.segs, pit.x - 4) || ctx.segs[0].y;
+          list.push({ type: 'relic', id: 'philosopher', x: Math.round(pit.x + pit.w / 2 - 14), y: gy + 2, w: 28, h: 28 });
+        }
+        list.push({ type: 'relic', id: 'coin', x: Math.round(W * 0.73), y: 110, w: 28, h: 28 });
       } else if (c.type === 'air') {
         /*
          * 亞特蘭提斯（潛水）：海底的氣泡噴口，每隔 VENT_EVERY 一個。
@@ -257,6 +294,9 @@ const Features = (function () {
   const COL_SHAKE = 45;
   const COL_DROP = 22;
   const COL_LYING_H = 22;
+  // 沉船潛水：暗流、巨蚌
+  const CURRENT_PUSH = 1.5;
+  const CLAM_CYCLE = 170;     // 張開 120 → 合起來 50
   // 潛水的空氣
   const AIR_MAX = 840;
   const VENT_EVERY = 820;
@@ -438,6 +478,33 @@ const Features = (function () {
           players.forEach(function (p) {
             if (p.ridingMover || p.mount || (p.stats && p.stats.stormProof)) return;
             if (p.onGround && p.x > f.x0 && p.x < f.x1) p.x -= STORM_PUSH;
+          });
+        }
+      } else if (f.type === 'current') {
+        players.forEach(function (p) {
+          const cx = p.x + p.w / 2;
+          if (cx < f.x0 || cx > f.x1) return;
+          p.x += f.dir * CURRENT_PUSH * (p.onGround ? 0.5 : 1);      // 貼著海底比較推不動
+        });
+      } else if (f.type === 'clam') {
+        const k = (t + f.phase) % CLAM_CYCLE;
+        const prev = f.state;
+        f.state = k < 100 ? 'open' : k < 120 ? 'warn' : 'shut';
+        if (f.state === 'shut' && prev !== 'shut') {
+          const box = { x: f.x + 4, y: f.y - 30, w: f.w - 8, h: 30 };
+          players.forEach(function (p, i) { if (U.overlap(p, box)) hurt(p, f.x + f.w / 2, events, pidOf(p, i)); });
+        }
+        // 張開時拿珍珠
+        if (f.state === 'open' && !f.pearlTaken) {
+          const pb = { x: f.x + f.w / 2 - 8, y: f.y - 16, w: 16, h: 16 };
+          players.forEach(function (p, i) {
+            if (!f.pearlTaken && U.overlap(p, pb)) { f.pearlTaken = true; events.push('p' + pidOf(p, i) + ':pearl'); }
+          });
+        }
+      } else if (f.type === 'relic') {
+        if (!f.taken) {
+          players.forEach(function (p, i) {
+            if (!f.taken && U.overlap(p, f)) { f.taken = true; events.push('p' + pidOf(p, i) + ':relic:' + f.id); }
           });
         }
       } else if (f.type === 'mount') {
@@ -888,6 +955,50 @@ const Features = (function () {
           const ph = (t * 0.04 + b * 1.3) % 3;
           if (ph < 1) { ctx.beginPath(); ctx.arc(sx + 30 + b * 56, f.y - ph * 4, 1.5 + ph * 2, 0, Math.PI * 2); ctx.fill(); }
         }
+      } else if (f.type === 'current') {
+        // 暗流：一條條往流向飄的水紋
+        const a = f.x0 - camX, b = f.x1 - camX;
+        if (b < 0 || a > 960) return;
+        ctx.strokeStyle = 'rgba(200, 240, 255, 0.35)'; ctx.lineWidth = 2;
+        for (let k = 0; k < 18; k++) {
+          const span = f.x1 - f.x0;
+          const wx = f.x0 + (((k * 137 + t * 3 * f.dir) % span) + span) % span;
+          const sx = wx - camX, sy = 90 + (k * 53) % 300;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(sx + f.dir * 18, sy - 4, sx + f.dir * 36, sy); ctx.stroke();
+        }
+        // 兩端的標示：箭頭
+        U.text(ctx, f.dir < 0 ? '◀ 暗流' : '暗流 ▶', Math.max(40, Math.min(920, a + 50)), 100, { size: 14, color: 'rgba(210, 245, 255, 0.85)' });
+      } else if (f.type === 'clam') {
+        const sx = f.x - camX;
+        if (sx < -80 || sx > 1040) return;
+        const open = f.state === 'open' ? 1 : f.state === 'warn' ? 0.5 + Math.sin(t * 1.2) * 0.2 : 0.05;
+        ctx.save();
+        ctx.translate(sx + f.w / 2, f.y);
+        ctx.fillStyle = '#b07a9a';
+        ctx.beginPath(); ctx.ellipse(0, -2, f.w / 2, 9, 0, 0, Math.PI); ctx.fill();          // 下殼
+        if (!f.pearlTaken && open > 0.3) {
+          ctx.fillStyle = '#f8f4ff';
+          ctx.beginPath(); ctx.arc(0, -8, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.save();
+        ctx.translate(-f.w / 2 + 4, -2);
+        ctx.rotate(-open * 0.9);
+        ctx.fillStyle = '#c890b0';
+        ctx.beginPath(); ctx.ellipse(f.w / 2 - 4, 0, f.w / 2, 10, 0, Math.PI, 0); ctx.fill();   // 上殼
+        ctx.strokeStyle = 'rgba(90, 40, 70, 0.5)'; ctx.lineWidth = 1.2;
+        for (let r = 1; r < 5; r++) {
+          ctx.beginPath(); ctx.moveTo(f.w / 2 - 4, 0); ctx.lineTo(f.w / 2 - 4 + Math.cos(Math.PI + r * 0.62) * f.w / 2, Math.sin(Math.PI + r * 0.62) * 10); ctx.stroke();
+        }
+        ctx.restore();
+        ctx.restore();
+      } else if (f.type === 'relic') {
+        if (f.taken) return;
+        const sx = f.x - camX;
+        if (sx < -60 || sx > 1020) return;
+        const bob = Math.sin(t * 0.06 + f.x) * 3;
+        ctx.fillStyle = 'rgba(255, 230, 150, 0.25)';
+        ctx.beginPath(); ctx.arc(sx + 14, f.y + 14 + bob, 22, 0, Math.PI * 2); ctx.fill();
+        if (typeof Sprites !== 'undefined' && Sprites.relic) Sprites.relic(ctx, f.id, sx + 14, f.y + 14 + bob, 1);
       } else if (f.type === 'vent') {
         // 海底的氣泡噴口：石砌的口＋一串往上冒、左右晃的氣泡
         const sx = f.x - camX;
@@ -1301,6 +1412,7 @@ const Features = (function () {
     stormState: stormState,
     camelX: camelX,
     BRINE_LIMIT: BRINE_LIMIT,
+    CURRENT_PUSH: CURRENT_PUSH,
     AIR_MAX: AIR_MAX,
     BULL_SPEED: BULL_SPEED,
     PAD_V: PAD_V,

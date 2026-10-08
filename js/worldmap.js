@@ -260,6 +260,17 @@ const WorldMap = (function () {
     // v1.23：阿爾及利亞變成關卡，圖釘落在國土中央 → 商隊往西南挪，不然兩個圖釘疊在一起
     { id: 'M_oasis', seller: 'oasis', name: '駱駝商隊', lon: -1.5, lat: 26.6, prompt: '按 Enter 跟綠洲的駱駝商隊交易' }
   ];
+  /*
+   * 地中海港口（v1.26 玩家：地中海增設港口，A 沉船潛水、B 造船廠，分別放不同港口；造船廠盡量離西班牙近）
+   *   瓦倫西亞造船廠：離起點西班牙最近的地中海岸（中世紀的皇家造船廠 Drassanes del Grau）
+   *   安提基特拉沉船：克里特島北邊的小島外海，1900 年採海綿的潛水夫在這裡發現兩千年前的羅馬沉船
+   */
+  const PORT_DEFS = [
+    { id: 'P_yard', kind: 'shipyard', name: '瓦倫西亞造船廠', lon: 0.0, lat: 39.45, scene: 'shipyard',
+      prompt: '按 Enter 進入瓦倫西亞造船廠（升級你的船）' },
+    { id: 'P_wreck', kind: 'wreck', name: '安提基特拉沉船', lon: 23.3, lat: 35.85, scene: 'dive',
+      prompt: '按 Enter 潛到安提基特拉沉船（撈兩千年前的寶物）' }
+  ];
   const specials = [];
 
   function buildSpecials() {
@@ -279,6 +290,14 @@ const WorldMap = (function () {
         // v1.25.2 玩家：神祕商人要用本名顯示在地圖上（原本三位都只寫「神祕商人」）
         id: m.id, name: m.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
         def: { role: '神祕商人', scene: 'shop', seller: m.seller, merchant: true, prompt: m.prompt }
+      });
+    });
+    PORT_DEFS.forEach(function (m) {
+      const p = EuropeWorld.project(m.lon, m.lat);
+      const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+      specials.push({
+        id: m.id, name: m.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
+        def: { role: '港口', scene: m.scene, port: m.kind, prompt: m.prompt }
       });
     });
   }
@@ -309,6 +328,45 @@ const WorldMap = (function () {
     ctx.restore();
   }
 
+  /** 港口記號：碼頭木樁＋圓徽章 —— 造船廠畫錨，沉船畫潛水頭盔（會冒泡） */
+  function drawPort(ctx, x, y, t, near, kind) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (near) {
+      ctx.strokeStyle = 'rgba(160, 230, 255, 0.95)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, -8, 17 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+    }
+    // 碼頭
+    ctx.fillStyle = '#7a5a3a';
+    ctx.fillRect(-9, -2, 18, 3);
+    ctx.fillRect(-8, 1, 2, 4); ctx.fillRect(6, 1, 2, 4);
+    // 徽章
+    const by = -14 + (near ? Math.sin(t * 0.08) * 2 : 0);
+    ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : '#1f6a78';
+    ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#f4efe2'; ctx.fillStyle = '#f4efe2'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    if (kind === 'shipyard') {
+      ctx.beginPath(); ctx.moveTo(0, by - 6); ctx.lineTo(0, by + 5);
+      ctx.moveTo(-3, by - 3); ctx.lineTo(3, by - 3);
+      ctx.moveTo(-5, by + 1); ctx.quadraticCurveTo(-4, by + 6, 0, by + 6); ctx.quadraticCurveTo(4, by + 6, 5, by + 1);
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, by - 7, 1.6, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(0, by, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1f6a78';
+      ctx.beginPath(); ctx.arc(0, by, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f4efe2';
+      ctx.fillRect(-6, by + 4.5, 12, 2);
+      ctx.strokeStyle = 'rgba(220, 245, 255, 0.85)'; ctx.lineWidth = 1;
+      const ph = (t * 0.4) % 14;
+      ctx.beginPath(); ctx.arc(7, by - 6 - ph, 1.5, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    ctx.restore();
+  }
+
   /** 特殊地點的國土：自己的顏色，一眼跟關卡國、背景國分得開 */
   function drawSpecialLand(ctx, nearId) {
     specials.forEach(function (s) {
@@ -336,6 +394,7 @@ const WorldMap = (function () {
         drawMerchant(ctx, x, y, t, near);
         return;
       }
+      if (s.def.port) { drawPort(ctx, x, y, t, near, s.def.port); return; }
       const bob = near ? Math.sin(t * 0.08) * 3 : 0;
       ctx.save();
       if (near) {
@@ -376,9 +435,9 @@ const WorldMap = (function () {
   function drawSpecialLabels(ctx, nearId) {
     specials.forEach(function (s) {
       const near = s.id === nearId;
-      U.text(ctx, s.def.merchant ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
-        size: near ? LABEL_SIZE_SEL : (s.def.merchant ? 11 : 12),
-        color: near ? '#ffd166' : (s.def.merchant ? '#e6d8ff' : '#fff4dc'),
+      U.text(ctx, s.def.merchant || s.def.port ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
+        size: near ? LABEL_SIZE_SEL : (s.def.merchant || s.def.port ? 11 : 12),
+        color: near ? '#ffd166' : (s.def.merchant ? '#e6d8ff' : s.def.port ? '#bdf0ff' : '#fff4dc'),
         align: 'center',
         strokeWidth: 3,
         strokeColor: 'rgba(16, 24, 18, 0.75)'
@@ -532,7 +591,7 @@ const WorldMap = (function () {
     placeLabels();
     // 特殊地點的標籤（「葡萄牙・商店」比國名長，最後擺：避開關卡國已經擺好的字）
     specials.forEach(function (s) {
-      if (s.def.merchant) return;          // 神祕商人沒有國土，字就放在人底下（buildSpecials 已設好）
+      if (s.def.merchant || s.def.port) return;          // 神祕商人、港口沒有國土，字就放在人底下（buildSpecials 已設好）
       const name = s.name + '・' + s.def.role;
       placeOne(s, name, s.pin);
       // 國土太小（愛爾蘭）放不下時，字會壓在自己的圖釘上 → 改放圖釘正下方

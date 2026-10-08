@@ -185,10 +185,13 @@ const Voyage = (function () {
     if (ax && ay) { ax *= 0.707; ay *= 0.707; }
 
     const phys = ship.mode === 'sea' ? SEA : LAND;
-    ship.vx = (ship.vx + ax * phys.accel) * phys.friction;
-    ship.vy = (ship.vy + ay * phys.accel) * phys.friction;
+    // 造船廠的船帆（v1.26）：開船的加速與極速都乘上倍率，走路不變
+    const mul = ship.mode === 'sea' ? seaMul() : 1;
+    ship.vx = (ship.vx + ax * phys.accel * mul) * phys.friction;
+    ship.vy = (ship.vy + ay * phys.accel * mul) * phys.friction;
     const sp = Math.hypot(ship.vx, ship.vy);
-    if (sp > phys.max) { ship.vx = ship.vx / sp * phys.max; ship.vy = ship.vy / sp * phys.max; }
+    const vmax = phys.max * mul;
+    if (sp > vmax) { ship.vx = ship.vx / sp * vmax; ship.vy = ship.vy / sp * vmax; }
     if (sp > 0.15) ship.heading = Math.atan2(ship.vy, ship.vx);
     if (Math.abs(ship.vx) > 0.1) ship.facing = ship.vx > 0 ? 1 : -1;
 
@@ -231,24 +234,40 @@ const Voyage = (function () {
 
   // ── 繪製 ───────────────────────────────────────────────
 
+  /** 造船廠升級：船帆倍率、油漆顏色（存檔讀不到時用預設） */
+  function seaMul() {
+    return (typeof Shipyard !== 'undefined' && typeof Save !== 'undefined') ? Shipyard.seaSpeed(Save.ship()) : 1;
+  }
+  function paint() {
+    return (typeof Shipyard !== 'undefined' && typeof Save !== 'undefined') ? Shipyard.paint(Save.ship())
+      : { hull: '#8a5a3c', sail: '#f4efe2', trim: '#6b4530' };
+  }
+
   function drawShip(ctx, t) {
+    const pt = paint();
+    const sails = (typeof Save !== 'undefined' && Save.ship()) ? Save.ship().sail : 0;
     ctx.save();
     ctx.translate(ship.x, ship.y);
     ctx.rotate(ship.heading);
-    ctx.fillStyle = '#8a5a3c';
+    ctx.fillStyle = pt.hull;
     ctx.beginPath();
     ctx.moveTo(11, 0); ctx.lineTo(-7, -5.5); ctx.lineTo(-9, 0); ctx.lineTo(-7, 5.5);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#6b4530';
+    ctx.fillStyle = pt.trim;
     ctx.fillRect(-7, -1.2, 16, 2.4);
     ctx.strokeStyle = '#e8e2d2';
     ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -13); ctx.stroke();
     const bil = Math.sin(t * 0.08) * 1.4;
-    ctx.fillStyle = '#f4efe2';
-    ctx.beginPath(); ctx.moveTo(0, -13); ctx.quadraticCurveTo(9 + bil, -8, 1, -2.5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#ded6c2';
-    ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(-7 - bil, -8, -1, -3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = pt.sail;
+    // 船帆升級越多帆越大
+    const big = 1 + sails * 0.12;
+    ctx.beginPath(); ctx.moveTo(0, -13 * big); ctx.quadraticCurveTo((9 + bil) * big, -8, 1, -2.5); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.moveTo(0, -12 * big); ctx.quadraticCurveTo((-7 - bil) * big, -8, -1, -3); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    // 船首砲
+    if (Save.ship && Save.ship().cannon > 0) { ctx.fillStyle = '#2a2a30'; ctx.fillRect(9, -1.5, 5, 3); }
     ctx.restore();
   }
 

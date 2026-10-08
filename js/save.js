@@ -32,6 +32,8 @@ const Save = (function () {
       exp: 0,             // 海上遭遇戰累積的經驗值（解鎖東歐篇用）
       seaWins: 0,         // 打贏幾場遭遇戰
       seaBosses: [],      // 打倒過的海上魔王 kind（v1.23 地中海海妖斯庫拉）
+      ship: { sail: 0, cannon: 0, hull: 0, paint: 'oak', paints: ['oak'] },   // 造船廠升級（v1.26，見 shipyard.js）
+      relics: [],         // 沉船潛水撈到的寶物 id（v1.26 安提基特拉沉船）
       allies: 0,          // 海神夥伴（消耗品，亞特蘭提斯神殿拿到；魔王關自動出戰一次用掉一個）
       costumes: [],     // 擁有的時裝 id（稀有怪掉落）
       costume: null       // 目前穿的時裝（null = 原本的條紋衫）
@@ -52,6 +54,10 @@ const Save = (function () {
     out.exp = Math.max(0, parseInt(d.exp, 10) || 0);
     out.seaWins = Math.max(0, parseInt(d.seaWins, 10) || 0);
     out.allies = U.clamp(parseInt(d.allies, 10) || 0, 0, ALLY_MAX);
+    if (d.ship && typeof d.ship === 'object' && typeof Shipyard !== 'undefined') out.ship = Shipyard.sanitize(d.ship);
+    if (Array.isArray(d.relics)) {
+      d.relics.forEach(function (r) { if (typeof r === 'string' && out.relics.indexOf(r) < 0) out.relics.push(r); });
+    }
     if (Array.isArray(d.seaBosses)) {
       d.seaBosses.forEach(function (k) {
         if (typeof k === 'string' && out.seaBosses.indexOf(k) < 0) out.seaBosses.push(k);
@@ -280,6 +286,24 @@ const Save = (function () {
     wearCostume: function (id) {
       if (id != null && data.costumes.indexOf(id) < 0) return false;
       data.costume = id;
+      persist();
+      return true;
+    },
+
+    /** 造船廠：目前的船（{ sail, cannon, hull, paint, paints }） */
+    ship: function () { return data.ship; },
+    /** 花錢升級／買油漆（Shipyard 算好價錢與上限才呼叫） */
+    setShip: function (ship, cost) {
+      if (cost > data.wallet) return false;
+      data.wallet -= cost;
+      data.ship = ship;
+      persist();
+      return true;
+    },
+    /** 沉船寶物：第一次撈到回 true */
+    addRelic: function (id) {
+      if (data.relics.indexOf(id) >= 0) return false;
+      data.relics.push(id);
       persist();
       return true;
     },

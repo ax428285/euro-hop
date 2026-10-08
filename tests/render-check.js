@@ -26,7 +26,7 @@ function runRenderCheck() {
       }
     });
   });
-  ['map', 'shop', 'inventory', 'saveinfo', 'title'].forEach(function (s) {
+  ['map', 'shop', 'inventory', 'saveinfo', 'shipyard', 'title'].forEach(function (s) {
     Game.debug.setScene(s);
     tryRender('畫面 ' + s);
   });

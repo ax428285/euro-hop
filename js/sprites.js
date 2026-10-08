@@ -5951,6 +5951,107 @@ const Sprites = (function () {
     ctx.restore();
   }
 
+  // ── v1.26 安提基特拉沉船（港口 A：沉船潛水）──
+
+  /** 沉船的寶物圖示（id 見 Encounter.RELICS） */
+  function relic(ctx, id, x, y, s) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s || 1, s || 1);
+    if (id === 'amphora') {
+      ctx.fillStyle = '#c87a48';
+      ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(4, -12); ctx.lineTo(3, -8);
+      ctx.quadraticCurveTo(10, -4, 6, 6); ctx.lineTo(0, 13); ctx.lineTo(-6, 6); ctx.quadraticCurveTo(-10, -4, -3, -8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#a05a30'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(-6, -8, 3, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(6, -8, 3, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(-3, -4, 2, 8);
+    } else if (id === 'philosopher') {
+      ctx.fillStyle = '#5a8a6a';                       // 銅綠
+      ctx.beginPath(); ctx.arc(0, -3, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-8, 0); ctx.quadraticCurveTo(0, 16, 8, 0); ctx.closePath(); ctx.fill();   // 大鬍子
+      ctx.fillStyle = '#2a3a30'; ctx.fillRect(-4, -5, 2, 2); ctx.fillRect(2, -5, 2, 2);
+      ctx.fillStyle = 'rgba(200, 240, 210, 0.35)'; ctx.fillRect(-6, -10, 4, 3);
+    } else if (id === 'coin') {
+      ctx.fillStyle = '#d8d8e0';
+      ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#9a9aa8'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#8a8a98';
+      ctx.beginPath(); ctx.arc(1, -1, 3.5, 0, Math.PI * 2); ctx.fill();   // 頭像
+    } else {
+      // 安提基特拉機械：青銅外殼裡露出齒輪
+      ctx.fillStyle = '#5a7a6a';
+      U.roundRect(ctx, -11, -11, 22, 22, 3); ctx.fill();
+      ctx.strokeStyle = '#c8a050'; ctx.lineWidth = 1.6;
+      [[ -3, -2, 6, 8], [ 5, 4, 4, 6]].forEach(function (g) {
+        ctx.beginPath(); ctx.arc(g[0], g[1], g[2], 0, Math.PI * 2); ctx.stroke();
+        for (let k = 0; k < g[3]; k++) {
+          const a = k * Math.PI * 2 / g[3];
+          ctx.beginPath(); ctx.moveTo(g[0] + Math.cos(a) * g[2], g[1] + Math.sin(a) * g[2]);
+          ctx.lineTo(g[0] + Math.cos(a) * (g[2] + 2.5), g[1] + Math.sin(a) * (g[2] + 2.5)); ctx.stroke();
+        }
+      });
+    }
+    ctx.restore();
+  }
+
+  /** 地標：斜躺在海底的羅馬貨船殘骸（斷掉的桅杆、船肋骨架、散落的陶罐） */
+  landmarks.wreckhull = function (ctx, x, baseY, s) {
+    ctx.save(); ctx.translate(x, baseY);
+    ctx.rotate(-0.08);
+    ctx.fillStyle = 'rgba(90, 70, 50, 0.6)';
+    ctx.beginPath(); ctx.moveTo(-200 * s, -20 * s); ctx.quadraticCurveTo(-60 * s, 30 * s, 210 * s, -10 * s); ctx.lineTo(180 * s, -90 * s); ctx.lineTo(-170 * s, -80 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(70, 55, 40, 0.7)'; ctx.lineWidth = 6 * s;
+    for (let k = 0; k < 7; k++) {
+      const bx = (-150 + k * 50) * s;
+      ctx.beginPath(); ctx.moveTo(bx, -80 * s); ctx.quadraticCurveTo(bx + 10 * s, -150 * s, bx + 30 * s, -170 * s); ctx.stroke();
+    }
+    ctx.lineWidth = 8 * s;
+    ctx.beginPath(); ctx.moveTo(20 * s, -85 * s); ctx.lineTo(90 * s, -260 * s); ctx.stroke();      // 斷掉的桅杆
+    ctx.fillStyle = 'rgba(200, 120, 70, 0.5)';
+    for (let k = 0; k < 5; k++) {
+      ctx.beginPath(); ctx.ellipse((-120 + k * 40) * s, -6 * s, 8 * s, 14 * s, 0.6 + k * 0.3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  };
+
+  /** 遠景：遠方另一艘沉船的剪影＋珊瑚礁 */
+  skylines.WRK = function (ctx, camX, gy, W, def, t) {
+    ridge(ctx, camX, 0.08, gy - 40, W, 'rgba(20, 60, 100, 0.55)', 140, 12, 33);
+    tiled(ctx, camX, 0.18, 700, W, function (x0) {
+      ctx.fillStyle = 'rgba(40, 70, 90, 0.5)';
+      ctx.beginPath(); ctx.moveTo(x0 + 120, gy - 30); ctx.quadraticCurveTo(x0 + 240, gy, x0 + 380, gy - 40); ctx.lineTo(x0 + 360, gy - 80); ctx.lineTo(x0 + 140, gy - 70); ctx.closePath(); ctx.fill();
+      ctx.fillRect(x0 + 250, gy - 190, 6, 120);
+      ctx.fillStyle = 'rgba(230, 120, 140, 0.4)';
+      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(x0 + 520 + k * 22, gy - 12 - (k % 2) * 10, 9, 16, 0, 0, Math.PI * 2); ctx.fill(); }
+    });
+    ridge(ctx, camX, 0.3, gy, W, 'rgba(30, 80, 110, 0.6)', 50, 4, 9);
+  };
+
+  /** 沉船的海底生物：螃蟹、魚沿用亞特蘭提斯；追人的換成鯊魚 */
+  COUNTRY_ENEMIES.WRK = {
+    walker: function () { return COUNTRY_ENEMIES.ATL.walker.apply(null, arguments); },   // ATL 定義在下面：用的時候才取
+    flyer: function () { return COUNTRY_ENEMIES.ATL.flyer.apply(null, arguments); },
+    chaser: function (ctx, e, t) {
+      const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+      const d = (e.vx || 0) < 0 ? -1 : 1;
+      ctx.save();
+      if (e.squash > 0) { ctx.translate(cx, cy); ctx.scale(1.3, 0.4); ctx.translate(-cx, -cy); }
+      ctx.translate(cx, cy); ctx.scale(d, 1);
+      ctx.fillStyle = '#7a8a9a';
+      ctx.beginPath(); ctx.moveTo(18, 0); ctx.quadraticCurveTo(4, -10, -14, -3); ctx.lineTo(-24, -10 + Math.sin(t * 0.3) * 3); ctx.lineTo(-20, 0);
+      ctx.lineTo(-24, 9 + Math.sin(t * 0.3) * 3); ctx.lineTo(-14, 4); ctx.quadraticCurveTo(4, 9, 18, 0); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-2, -6); ctx.lineTo(4, -16); ctx.lineTo(8, -5); ctx.closePath(); ctx.fill();   // 背鰭
+      ctx.fillStyle = '#e8eef4';
+      ctx.beginPath(); ctx.moveTo(16, 1); ctx.quadraticCurveTo(4, 7, -10, 3); ctx.lineTo(16, 1); ctx.fill();
+      ctx.fillStyle = '#1a1424'; ctx.fillRect(10, -3, 2, 2);
+      ctx.fillStyle = '#ffffff';
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(10 + k * 2, 2); ctx.lineTo(11 + k * 2, 4); ctx.lineTo(12 + k * 2, 2); ctx.fill(); }
+      ctx.restore();
+    }
+  };
+
   // ── v1.23.1 亞特蘭提斯（潛水關）──
 
   /** 海帶：幾條會隨水流擺動的長葉（植物欄位用，跟樹一樣種在海床上） */
@@ -6157,6 +6258,7 @@ const Sprites = (function () {
     shaftFloor: shaftFloor,
     shaftWall: shaftWall,
     shaftCeiling: shaftCeiling,
+    relic: function () { return relic.apply(null, arguments); },
     seaAlly: function () { return seaAlly.apply(null, arguments); },
     trident: function () { return tridentShot.apply(null, arguments); },
     shaftFlood: shaftFlood,

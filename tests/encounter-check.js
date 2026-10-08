@@ -171,6 +171,52 @@ function runEncounterCheck() {
   if (!Costumes.count) issues.push('時裝表是空的，稀有怪沒東西可以掉');
 
   /*
+   * I) 安提基特拉沉船（v1.26 港口 A）：潛水關、三件寶物不在「直直往右游」的路線上、
+   *    一直往右游（偶爾划水）一分鐘多到得了終點、不會嗆水。
+   */
+  (function () {
+    const m = { kind: 'wreck', def: Encounter.KINDS.wreck, x: 0, y: 0 };
+    const def = Encounter.makeDef(m, Equipment.resolve([]));
+    if (!def.underwater) issues.push('沉船不是潛水關');
+    const rel = (def.features || []).filter(function (f) { return f.type === 'relic'; });
+    if (rel.length !== 3) issues.push('沉船寶物應該 3 件，有 ' + rel.length + ' 件');
+    const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+    st.enemies = [];
+    const p = st.player;
+    let press = false, lastX = 0, stuck = 0, drown = 0, got = 0, f;
+    const input = { isDown: function (a) { return a === 'right' || a === 'jump'; },
+                    once: function (a) { return a === 'jump' && press; }, endFrame: function () {} };
+    for (f = 0; f < 9000 && p.x + p.w < def.goal; f++) {
+      press = f % 14 === 0 && (p.y > 280 || stuck > 8);
+      updateMovers(st.movers, f);
+      updatePlayer(st, input, f).concat(Features.update(st, f)).forEach(function (e) {
+        if (/drown$/.test(e)) drown++;
+        if (/relic:/.test(e)) got++;
+      });
+      if (p.y > 600) p.y = 200;
+      stuck = Math.abs(p.x - lastX) < 0.5 ? stuck + 1 : 0; lastX = p.x;
+    }
+    report.wreck = { secs: Math.round(f / 60), drown: drown, relicsOnTheWay: got };
+    if (p.x + p.w < def.goal) issues.push('沉船：一直往右游到不了終點');
+    if (drown) issues.push('沉船：照路線游也會嗆水 ' + drown + ' 次');
+    if (f < 60 * 45) issues.push('沉船：直直游 ' + Math.round(f / 60) + ' 秒就到底，太短');
+    if (got >= 3) issues.push('沉船：一路往右游就把三件寶物全撿到了，不用找');
+  })();
+
+  // J) 造船廠（v1.26 港口 B）：價錢、滿級、船首砲裝填、船身愛心
+  (function () {
+    let s = Shipyard.blank();
+    if (Shipyard.priceOf('sail', s) !== Shipyard.item('sail').prices[0]) issues.push('造船廠：船帆第一級價錢不對');
+    for (let k = 0; k < 5; k++) s = Shipyard.buy('sail', s);
+    if (s.sail !== Shipyard.item('sail').max || Shipyard.priceOf('sail', s) !== null) issues.push('造船廠：船帆滿級後還能買');
+    if (!(Shipyard.seaSpeed(s) > 1.3)) issues.push('造船廠：滿級船帆沒有變快');
+    const c2 = Shipyard.buy('cannon', Shipyard.buy('cannon', Shipyard.blank()));
+    if (!(Shipyard.cannonCd(c2) < Shipyard.cannonCd(Shipyard.blank())) || !Shipyard.cannonHead(c2)) issues.push('造船廠：滿級船首砲沒有效果');
+    const p1 = Shipyard.buy('paint', Shipyard.blank(), 'navy');
+    if (p1.paint !== 'navy' || Shipyard.priceOf('paint', p1, 'navy') !== 0) issues.push('造船廠：買過的油漆應該免費換回');
+  })();
+
+  /*
    * H) 亞特蘭提斯潛水關（v1.23.1）：
    *   一直往右游、偶爾划水的機器人要能潛到終點、不會嗆水；
    *   原地不動要會嗆水（空氣系統真的有作用）；地圖上的入口在開闊海面上。
