@@ -2479,8 +2479,8 @@ const Sprites = (function () {
     (bossKinds[b.kind] || bossKnight)(ctx, b, t);
     ctx.restore();
 
-    // 破綻期在頭上標示「可攻擊」
-    if (!b.defeated && b.phase === 'recover') {
+    // 破綻期在頭上標示「可攻擊」（v1.31 巴西守門員不用：踩頭沒用，箭頭會誤導玩家去踩他）
+    if (!b.defeated && b.phase === 'recover' && b.kind !== 'goalkeeper') {
       const ax = b.x + b.w / 2, ay = b.y - 22 + Math.sin(t * 0.14) * 3;
       ctx.save();
       ctx.fillStyle = '#ffd166';

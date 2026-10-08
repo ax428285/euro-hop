@@ -10,7 +10,7 @@
  *      巴拿馬船閘 —— 閘門比跳躍高（從岸上跳不過）、小船升到頂比閘門高；兩艘船差半個週期
  *      哥倫比亞盪繩 —— 把手擺到岸邊時從岸上跳得到；從正中間往前衝時放手飛得過對岸
  *   E) 巴西足球：踩守門員的頭沒用；球滾進球門 = 扣一格；守門員站著時貼地球會被擋回來；
- *      他躺下（破綻期）時高吊球過得去；守門員不會撞傷人；踢球機器人（照真人打法）贏得了
+ *      他躺下（破綻期）時完全擋不到球（貼地球也進得去）；守門員不會撞傷人；踢球機器人贏得了
  *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型
  * 會暫時改存檔、換地圖，結束前還原。
  */
@@ -202,14 +202,16 @@ function runAmericaCheck() {
     let saved = false, scored = false;
     for (let f = 0; f < 90; f++) { const ev = updateBoss(st, f); if (ev.indexOf('save') >= 0) saved = true; if (ev.indexOf('goal') >= 0) scored = true; }
     if (!saved || scored) issues.push('巴西：守門員站著時，貼地球沒有被擋下來');
-    // 躺下時：從禁區外起腳的高吊球進得去
-    st = fresh();
-    st.boss.phase = 'recover'; st.boss.timer = 300; st.boss.x = 1110;
-    st.ball.x = 860; st.ball.y = G - st.ball.h; st.ball.vx = 8.2; st.ball.vy = -9;
-    st.player.x = 200;
-    scored = false;
-    for (let f = 0; f < 120 && !scored; f++) scored = updateBoss(st, f).indexOf('goal') >= 0;
-    if (!scored) issues.push('巴西：守門員躺下時，高吊球還是進不去');
+    // 躺下時：貼地球、高吊球都進得去（擋不到）
+    [[0, '貼地球'], [-9, '高吊球']].forEach(function (k) {
+      st = fresh();
+      st.boss.phase = 'recover'; st.boss.timer = 300; st.boss.x = 1110;
+      st.ball.x = 860; st.ball.y = G - st.ball.h; st.ball.vx = 8.2; st.ball.vy = k[0];
+      st.player.x = 200;
+      let sc = false, sv = false;
+      for (let f = 0; f < 120 && !sc; f++) { const ev = updateBoss(st, f); if (ev.indexOf('goal') >= 0) sc = true; if (ev.indexOf('save') >= 0) sv = true; }
+      if (!sc || sv) issues.push('巴西：守門員躺下時，' + k[1] + '還是被擋住、進不去');
+    });
     // 照真人打法的踢球機器人（不作弊、帶前面拿得到的裝備）
     const r = runSoccerBot(def, o.i, false);
     if (!r.won) issues.push('巴西：踢球機器人踢不贏（進 ' + r.goals + ' 球、受傷 ' + r.timesHurt + ' 次）');

@@ -176,7 +176,7 @@ function makeSerpentArc(state, x0, x1, delay) {
  *   球：有重力、落地會彈、在地上慢慢滾停；玩家碰到就踢（站著踢 = 貼地球，跳起來踢 = 高吊球）。
  *   球門在場地右邊（def.boss.soccer.goalX 起、橫梁高 barY）：球整顆過了門線、在橫梁底下 = 進球 = 魔王扣一格。
  *   守門員（魔王本體）身體會擋球（擋到就往回彈）；看到高球飛來會跳起來擋。
- *   破綻期（丟完球累倒）躺在地上，只擋得到貼地球 —— 這時候用高吊球越過他。
+ *   破綻期（丟完球累倒）躺在地上，完全擋不到球（v1.31 玩家：他倒下時不能擋住我射門）—— 這時候怎麼踢都進得去。
  */
 const BALL_R = 12, BALL_G = 0.42, BALL_KICK_CD = 10;
 function makeBall(def) {
@@ -234,9 +234,9 @@ function soccerTick(state, b, events) {
     }
     return;
   }
-  // 守門員擋球
+  // 守門員擋球（躺著的時候擋不到）
   const kb = bossBox(b);
-  if (!b.defeated && U.overlap(ball, kb)) {
+  if (!b.defeated && b.phase !== 'recover' && U.overlap(ball, kb)) {
     ball.x = kb.x - ball.w - 1;
     ball.vx = -Math.max(5, Math.abs(ball.vx) * 0.8);
     ball.vy = -5;

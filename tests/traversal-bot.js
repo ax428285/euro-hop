@@ -344,8 +344,7 @@ function runSoccerBot(def, li, cheat) {
           else if (pcx > bcx - 40) hL = true;
         } else {
           hR = true;
-          // 他躺下了、球離球門不遠：靠近球時跳起來踢（高吊球）
-          if (lying && ball.x > 640 && p.onGround && bcx - pcx < 46 && bcx - pcx > 10) { jE = true; hJ = true; lob = true; }
+          // 他躺下了（擋不到球）：一路帶球衝進門
         }
       }
       if (lob && !p.onGround) { hR = true; if (p.vy < 0) hJ = true; }
