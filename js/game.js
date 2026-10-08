@@ -536,7 +536,15 @@ const Game = (function () {
         if (shopSeller === 'portugal' && cheatTyped()) { cheatMap(); break; }
         updateShop();
         break;
-      case 'shipyard': updateShipyard(); break;
+      case 'shipyard':
+        // v1.31 玩家：在造船廠按一樣的密技可以拿 1000 元（每按一次給一次）
+        if (cheatTyped()) {
+          Save.addCoins(1000); Sfx.coin();
+          yardMsg = { text: '密技發動！錢包 +1000 金幣', color: '#ffd166', life: 200 };
+          break;
+        }
+        updateShipyard();
+        break;
       case 'market': updateMarket(); break;
 
       case 'mystery': updateMystery(); break;
@@ -788,7 +796,7 @@ const Game = (function () {
 
   const CHEAT = 'UUDDLRLR';
   let cheatBuf = '';
-  /** 這一帧有沒有剛好打完密技 ↑↑↓↓←→←→（裝備畫面 = 裝備全開；葡萄牙商店 = 地圖全開） */
+  /** 這一帧有沒有剛好打完密技 ↑↑↓↓←→←→（裝備畫面 = 裝備全開；葡萄牙商店 = 地圖全開；造船廠 = 1000 金幣） */
   function cheatTyped() {
     const k = Input.once('up') ? 'U' : Input.once('down') ? 'D' :
               Input.once('left') ? 'L' : Input.once('right') ? 'R' : '';
