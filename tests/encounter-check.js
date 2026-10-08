@@ -120,6 +120,22 @@ function runEncounterCheck() {
         if (p.onGround && Math.abs(stuck.x - cx) < 46) { press.jump = true; held.jump = true; }
       }
     },
+    // 漩渦逃生（v1.27）：往救生圈走、在它底下跳起來抓；木桶滾過來就跳；別被拖進中間的漩渦眼
+    charybdis: function (st, held, press) {
+      const p = st.player, mini = st.mini;
+      if (!mini) return;
+      const cx = p.x + p.w / 2;
+      if (!p.onGround && p.vy < 0) held.jump = true;
+      const junk = mini.junk.filter(function (j) { return (j.x + 14 - cx) * j.dir < 0 && Math.abs(j.x + 14 - cx) < 70; })[0];
+      if (junk && p.onGround) { press.jump = true; held.jump = true; }
+      const tx = mini.buoy ? mini.buoy.x : 150;
+      // 漩渦眼兩側的邊緣不能站（會被拖下去）：目標在另一邊時，跳過去
+      moveTo(p, held, tx, 6);
+      const eyeL = 400, eyeR = 560;
+      const crossing = (cx < eyeL && tx > eyeR) || (cx > eyeR && tx < eyeL);
+      if (crossing && p.onGround && (Math.abs(cx - eyeL) < 40 || Math.abs(cx - eyeR) < 40)) { press.jump = true; held.jump = true; }
+      if (mini.buoy && p.onGround && Math.abs(mini.buoy.x - cx) < 30) { press.jump = true; held.jump = true; }
+    },
     // 捕捉：追著黃金海馬跑，牠在上面就跳
     golden: function (st, held, press) {
       const p = st.player, mini = st.mini;
@@ -201,6 +217,34 @@ function runEncounterCheck() {
     if (drown) issues.push('沉船：照路線游也會嗆水 ' + drown + ' 次');
     if (f < 60 * 45) issues.push('沉船：直直游 ' + Math.round(f / 60) + ' 秒就到底，太短');
     if (got >= 3) issues.push('沉船：一路往右游就把三件寶物全撿到了，不用找');
+  })();
+
+  /*
+   * K) 貿易與懸賞（v1.27）：每樣貨在產地買得到、別處買不到；
+   *    跑到別的港口賣，30 天裡大部分日子要有賺頭（不然沒人想跑貿易）；每天三張不同的懸賞。
+   */
+  (function () {
+    Trade.GOODS.forEach(function (g) {
+      let profitable = 0;
+      for (let d = 0; d < 30; d++) {
+        const home = Trade.price(g.home, g.id, d);
+        if (home.buy == null) { issues.push('貿易：' + g.name + ' 在產地買不到'); return; }
+        const best = Math.max.apply(null, Trade.PORTS.filter(function (p) { return p.id !== g.home; })
+          .map(function (p) {
+            const pr = Trade.price(p.id, g.id, d);
+            if (pr.buy != null) issues.push('貿易：' + g.name + ' 在非產地 ' + p.name + ' 也買得到');
+            return pr.sell;
+          }));
+        if (best > home.buy) profitable++;
+      }
+      if (profitable < 25) issues.push('貿易：' + g.name + ' 30 天裡只有 ' + profitable + ' 天有賺頭');
+    });
+    for (let d = 0; d < 10; d++) {
+      const os = Trade.offers(d, 0);
+      const types = os.map(function (o) { return o.type; });
+      if (os.length !== 3 || new Set(types).size !== 3) issues.push('懸賞：第 ' + d + ' 天的委託不是三張不同的（' + types.join(',') + '）');
+    }
+    if (Trade.capacity(Shipyard.blank()) !== 3) issues.push('貿易：船艙預設應該 3 箱');
   })();
 
   // J) 造船廠（v1.26 港口 B）：價錢、滿級、船首砲裝填、船身愛心

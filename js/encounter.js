@@ -100,7 +100,19 @@ const Encounter = (function () {
   ];
 
   /** 地圖上固定的地點（經緯度；不能航行的話往附近找開闊海面）：海上魔王＋亞特蘭提斯 */
-  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -9.4, lat: 33.4 }];
+  /*
+   * E 卡律布狄斯大漩渦（v1.27）：神話裡跟斯庫拉一對，守在墨西拿海峽的另一邊，一天吞吐海水三次。
+   * 奧德修斯只能二選一：靠近斯庫拉被叼走六個人，或靠近卡律布狄斯整艘船被吞掉。
+   * 地圖上：船開進漩渦範圍會被往中心吸（開船用力就逃得掉）；被吸到中心就是「漩渦逃生」小遊戲。
+   */
+  KINDS.charybdis = { name: '卡律布狄斯大漩渦', lv: '漩渦', exp: 90, bossExp: 160, bossCoins: 150, game: '漩渦逃生',
+                      goal: '漩渦會把你往中間的漩渦眼拖！跳著抓住 5 個救生圈就能逃出去', fixed: true };
+  const VORTEX_R = 45;          // 地圖上被吸的範圍（旁邊就是安提基特拉沉船的港口，不能吸到那邊）
+  const VORTEX_EYE = 9;         // 吸到這麼近就開打
+  let vortexCalm = 0;           // 剛逃出來的那一陣子不吸（不然一回地圖又被吸進去）
+  const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -9.4, lat: 33.4 },
+                      // 神話裡在墨西拿海峽另一邊，但海峽在地圖上太窄（斯庫拉已經站在那）→ 放到海峽南邊外海的愛奧尼亞海
+                      { kind: 'charybdis', lon: 19.2, lat: 36.0 }];
 
   let monsters = [];
   let spawnTimer = 120;
@@ -109,7 +121,9 @@ const Encounter = (function () {
   // ── 地圖上的怪 ─────────────────────────────────────────
 
   function pickKind(exp) {
-    const w = [['gulls', 5], ['pirates', exp >= 30 ? 3 : 1], ['serpent', exp >= 90 ? 2 : 0]];
+    // v1.27 貿易：船上每有一箱貨，海盜的權重 +2（貨越多越容易被盯上）
+    const cargo = typeof Save !== 'undefined' && Save.cargoCount ? Save.cargoCount() : 0;
+    const w = [['gulls', 5], ['pirates', (exp >= 30 ? 3 : 1) + cargo * 2], ['serpent', exp >= 90 ? 2 : 0]];
     const total = w.reduce(function (s, x) { return s + x[1]; }, 0);
     let r = Math.random() * total;
     for (let i = 0; i < w.length; i++) { r -= w[i][1]; if (r < 0) return w[i][0]; }
@@ -193,6 +207,18 @@ const Encounter = (function () {
       m.appear = Math.min(1, m.appear + 0.03);
       if (--m.life <= 0) { monsters.splice(i, 1); continue; }
       const d = Math.hypot(ship.x - m.x, ship.y - m.y);
+      if (m.kind === 'charybdis') {
+        if (vortexCalm > 0) { vortexCalm--; continue; }
+        if (d < VORTEX_R && d > 0.5) {
+          // 越靠近中心吸力越強，還會帶著船繞圈（切線方向）
+          const k = (1 - d / VORTEX_R);
+          const ux = (m.x - ship.x) / d, uy = (m.y - ship.y) / d;
+          Voyage.nudge((ux * 0.5 - uy * 0.35) * k * 1.8, (uy * 0.5 + ux * 0.35) * k * 1.8);
+          if (k > 0.2) events.push('vortexpull');
+        }
+        if (d < VORTEX_EYE) events.push('vortex');
+        continue;
+      }
       if (m.boss) {
         // 魔王不動；身體大，靠近的判定也放寬一點
         if (d < TOUCH + 10 && d < best + 10) { best = d; nearM = m; }
@@ -351,6 +377,28 @@ const Encounter = (function () {
         return;
       }
 
+      if (m.kind === 'charybdis') {
+        // 大漩渦：一圈圈往中心轉的螺旋水紋＋中間深色的漩渦眼
+        ctx.lineWidth = 1.6;
+        for (let k = 0; k < 4; k++) {
+          ctx.strokeStyle = 'rgba(190, 230, 255, ' + (0.55 - k * 0.1).toFixed(2) + ')';
+          ctx.beginPath();
+          for (let a = 0; a < Math.PI * 3.2; a += 0.2) {
+            const r = 4 + a * 5.5;
+            const ang = a + t * 0.05 + k * Math.PI / 2;
+            const x = Math.cos(ang) * r, y = Math.sin(ang) * r * 0.55;
+            if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(8, 20, 40, 0.85)';
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(10, 40, 70, 0.9)';
+        U.roundRect(ctx, -40, -34, 80, 14, 4); ctx.fill();
+        U.text(ctx, '卡律布狄斯', 0, -27, { size: 10, color: '#bfe8ff', stroke: false });
+        ctx.restore();
+        return;
+      }
       if (m.kind === 'atlantis') {
         // 亞特蘭提斯：海面上一圈青色光、冒泡，水下隱約露出神殿的三角山牆和柱子
         const been = typeof Save !== 'undefined' && Save.seaBossDown(m.kind);
@@ -416,7 +464,9 @@ const Encounter = (function () {
   // ── 小遊戲：關卡定義 ───────────────────────────────────
 
   const ARENA_W = 960;
-  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60 };
+  const DUR = { gulls: 25 * 60, pirates: 45 * 60, serpent: 32 * 60, golden: 20 * 60, scylla: 100 * 60, charybdis: 40 * 60 };
+  // 漩渦逃生：場地中間是漩渦眼（掉下去會痛、被甩回岸邊）
+  const EYE = { x: 400, w: 160 };
   /*
    * 斯庫拉（魔王）：六顆頭在甲板後方的海面上擺動，輪流——
    *   aim      瞄準：頭移到玩家頭頂高處，甲板上出現紅圈（AIM 帧）
@@ -554,10 +604,12 @@ const Encounter = (function () {
       skirmish: true,
       minigame: kind,
       // 守護午餐不能出生在籃子旁邊（見 updateSkirmish 的說明）
-      spawnX: kind === 'pirates' ? 380 : kind === 'gulls' ? 260 : ARENA_W / 2 - 11,
+      spawnX: kind === 'pirates' ? 380 : kind === 'gulls' ? 260 : kind === 'charybdis' ? 120 : ARENA_W / 2 - 11,
       isBoss: false,
       bossArena: { x: 0, y: 0, w: deckW, h: 480 },
-      ground: [{ x: 0, y: GY, w: deckW, h: Levels.GROUND_H }],
+      ground: kind === 'charybdis'
+        ? [{ x: 0, y: GY, w: EYE.x, h: Levels.GROUND_H }, { x: EYE.x + EYE.w, y: GY, w: ARENA_W - EYE.x - EYE.w, h: Levels.GROUND_H }]
+        : [{ x: 0, y: GY, w: deckW, h: Levels.GROUND_H }],
       water: [], spikes: [], props: [],
       platforms: kind === 'gulls'
         ? [{ x: 150, y: 290, w: 130, h: 18 }, { x: 680, y: 290, w: 130, h: 18 }]
@@ -593,6 +645,9 @@ const Encounter = (function () {
     }
     if (kind === 'serpent') { mini.hits = 0; mini.heads = HOLES.map(function (x) { return { x: x, up: 0, t: 0, spat: false }; }); mini.next = 40; mini.seq = 0; }
     if (kind === 'golden') { mini.caught = 0; mini.px = 700; mini.py = 200; mini.cool = 0; mini.phase = 0; mini.speed = 0.022; }
+    if (kind === 'charybdis') {
+      mini.got = 0; mini.buoy = null; mini.next = 40; mini.seq = 0; mini.junk = []; mini.junkCd = 120;
+    }
     if (kind === 'scylla') {
       mini.hits = 0; mini.next = 90; mini.seq = 0; mini.waves = []; mini.waveCd = 200; mini.waveSeq = 0;
       mini.heads = SCY_HOME.map(function (x, i) {
@@ -898,6 +953,49 @@ const Encounter = (function () {
         mini.waves = mini.waves.filter(function (w) { return w.x > -60 && w.x < ARENA_W + 60; });
       }
       if (!mini.done && mini.time <= 0) fail();
+
+    } else if (mini.kind === 'charybdis') {
+      const cx = EYE.x + EYE.w / 2;
+      // 漩渦往中間拖：地上推得比較用力（腳下的甲板在轉），空中比較輕
+      players.forEach(function (q) {
+        const qx = q.x + q.w / 2;
+        const dir = qx < cx ? 1 : -1;
+        q.x += dir * (q.onGround ? 1.15 : 0.6) * (1 + mini.got * 0.12);
+        // 掉進漩渦眼：痛一下、被甩回兩側
+        if (q.y > GY + 30) {
+          hurt(q, cx, events);
+          q.x = qx < cx ? 90 : ARENA_W - 110; q.y = GY - 200; q.vy = 0;
+        }
+      });
+      // 救生圈：輪流出現在左右兩側的高處，碰到就算抓到一個
+      if (!mini.buoy && --mini.next <= 0) {
+        const left = mini.seq++ % 2 === 0;
+        mini.buoy = { x: left ? 120 + (mini.seq % 3) * 60 : ARENA_W - 180 - (mini.seq % 3) * 60, y: GY - 130 - (mini.seq % 2) * 40, t: 0 };
+      }
+      if (mini.buoy) {
+        const b = mini.buoy;
+        b.t++;
+        const box = { x: b.x - 18, y: b.y - 18, w: 36, h: 36 };
+        if (players.some(function (q) { return U.overlap(q, box); })) {
+          mini.got++; mini.buoy = null; mini.next = 75; events.push('catch');
+          burst(state, b.x, b.y, '#ffffff', 12);
+          if (mini.got >= 5) win();
+        } else if (b.t > 360) { mini.buoy = null; mini.next = 20; }      // 太久沒抓就漂走，換一邊
+      }
+      // 漂流物：木桶從兩側被捲進來，沿著甲板滾向漩渦（跳過去）
+      if (--mini.junkCd <= 0) {
+        mini.junkCd = Math.max(70, 130 - mini.got * 15);
+        const fromLeft = mini.seq % 2 === 0;
+        mini.junk.push({ x: fromLeft ? -30 : ARENA_W + 10, dir: fromLeft ? 1 : -1, rot: 0 });
+      }
+      mini.junk.forEach(function (j) {
+        j.x += j.dir * 3.2; j.rot += j.dir * 0.2;
+        const box = { x: j.x, y: GY - 28, w: 28, h: 28 };
+        players.forEach(function (q) { if (U.overlap(q, box)) hurt(q, j.x + 14, events); });
+        if ((j.dir > 0 && j.x > EYE.x + 20) || (j.dir < 0 && j.x < EYE.x + EYE.w - 40)) j.gone = true;   // 被漩渦吞掉
+      });
+      mini.junk = mini.junk.filter(function (j) { return !j.gone; });
+      if (!mini.done && mini.time <= 0) fail();
     }
     return events;
   }
@@ -1029,6 +1127,8 @@ const Encounter = (function () {
         ctx.beginPath(); ctx.ellipse(h.x + 15, GY - 4, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       });
+    } else if (mini.kind === 'charybdis') {
+      drawCharybdisArena(ctx, mini, t, GY);
     } else if (mini.kind === 'scylla') {
       drawScyllaArena(ctx, mini, t, GY);
     } else if (mini.kind === 'golden') {
@@ -1086,6 +1186,58 @@ const Encounter = (function () {
         sparkle(ctx, h.x + Math.cos(a) * 20, h.y - 40 + Math.sin(a) * 5, 5, 0.95);
       }
     }
+  }
+
+  function drawCharybdisArena(ctx, mini, t, GY) {
+    const cx = EYE.x + EYE.w / 2;
+    // 背景的大漩渦（螺旋）
+    ctx.save();
+    ctx.lineWidth = 3;
+    for (let k = 0; k < 6; k++) {
+      ctx.strokeStyle = 'rgba(180, 225, 255, ' + (0.32 - k * 0.04).toFixed(2) + ')';
+      ctx.beginPath();
+      for (let a = 0; a < Math.PI * 4; a += 0.15) {
+        const r = 10 + a * 34;
+        const ang = a + t * 0.04 + k * Math.PI / 3;
+        const x = cx + Math.cos(ang) * r, y = GY - 120 + Math.sin(ang) * r * 0.32;
+        if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    // 漩渦眼（甲板中間的破洞看下去是旋轉的深水）
+    const g = ctx.createRadialGradient(cx, GY + 30, 6, cx, GY + 30, EYE.w * 0.6);
+    g.addColorStop(0, '#04101e'); g.addColorStop(1, '#1a5a8a');
+    ctx.fillStyle = g;
+    ctx.fillRect(EYE.x, GY - 2, EYE.w, 90);
+    ctx.strokeStyle = 'rgba(220, 245, 255, 0.6)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath(); ctx.ellipse(cx, GY + 20, 20 + k * 22, 6 + k * 4, 0, t * 0.08 + k, t * 0.08 + k + Math.PI * 1.2); ctx.stroke();
+    }
+    // 救生圈
+    if (mini.buoy) {
+      const b = mini.buoy, bob = Math.sin(t * 0.1) * 4;
+      ctx.lineWidth = 7;
+      for (let k = 0; k < 4; k++) {
+        ctx.strokeStyle = k % 2 ? '#ffffff' : '#e04a3a';
+        ctx.beginPath(); ctx.arc(b.x, b.y + bob, 13, k * Math.PI / 2, (k + 1) * Math.PI / 2); ctx.stroke();
+      }
+    }
+    // 漂流的木桶
+    mini.junk.forEach(function (j) {
+      ctx.save();
+      ctx.translate(j.x + 14, GY - 14);
+      ctx.rotate(j.rot);
+      ctx.fillStyle = '#8a5a30';
+      ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#c8a050'; ctx.fillRect(-2, -11, 4, 22);
+      ctx.restore();
+    });
+    // 兩側往中間的箭頭（拖力提示）
+    U.text(ctx, '≫ ≫', EYE.x - 60, GY - 30, { size: 16, color: 'rgba(200, 240, 255, 0.55)', stroke: false });
+    U.text(ctx, '≪ ≪', EYE.x + EYE.w + 60, GY - 30, { size: 16, color: 'rgba(200, 240, 255, 0.55)', stroke: false });
+    ctx.restore();
   }
 
   function drawScyllaArena(ctx, mini, t, GY) {
@@ -1159,6 +1311,7 @@ const Encounter = (function () {
     if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
+    else if (mini.kind === 'charybdis') goal = '救生圈 ' + mini.got + ' / 5　剩 ' + sec + ' 秒　（別被拖進中間的漩渦眼）';
     else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來了）');
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';
@@ -1181,6 +1334,8 @@ const Encounter = (function () {
     remove: remove,
     clear: function () { monsters = []; nearM = null; },
     /** 海上魔王本人（地圖上固定那隻；還沒生成就先補上） */
+    /** 剛逃出漩渦：一段時間不再吸 */
+    calmVortex: function (frames) { vortexCalm = frames || 360; },
     boss: function (kind) {
       ensureBosses();
       return monsters.filter(function (m) { return m.boss && m.kind === kind; })[0] || null;

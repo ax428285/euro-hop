@@ -292,6 +292,18 @@ const WorldMap = (function () {
         def: { role: '神祕商人', scene: 'shop', seller: m.seller, merchant: true, prompt: m.prompt }
       });
     });
+    // v1.27 貿易港（C 貿易、D 懸賞板）：位置在 trade.js
+    if (typeof Trade !== 'undefined') {
+      Trade.PORTS.forEach(function (tp) {
+        const p = EuropeWorld.project(tp.lon, tp.lat);
+        const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+        specials.push({
+          id: 'T_' + tp.id, name: tp.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
+          def: { role: '貿易港', scene: 'market', port: 'market', market: tp.id,
+                 prompt: '按 Enter 進入' + tp.name + '貿易港（買賣特產、接懸賞）' }
+        });
+      });
+    }
     PORT_DEFS.forEach(function (m) {
       const p = EuropeWorld.project(m.lon, m.lat);
       const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
@@ -342,7 +354,7 @@ const WorldMap = (function () {
     ctx.fillRect(-8, 1, 2, 4); ctx.fillRect(6, 1, 2, 4);
     // 徽章
     const by = -14 + (near ? Math.sin(t * 0.08) * 2 : 0);
-    ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : '#1f6a78';
+    ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : kind === 'market' ? '#b8862a' : '#1f6a78';
     ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.arc(0, by, 9.5, 0, Math.PI * 2); ctx.stroke();
@@ -353,6 +365,11 @@ const WorldMap = (function () {
       ctx.moveTo(-5, by + 1); ctx.quadraticCurveTo(-4, by + 6, 0, by + 6); ctx.quadraticCurveTo(4, by + 6, 5, by + 1);
       ctx.stroke();
       ctx.beginPath(); ctx.arc(0, by - 7, 1.6, 0, Math.PI * 2); ctx.stroke();
+    } else if (kind === 'market') {
+      // 貿易港：一箱貨（木箱＋交叉繩）
+      ctx.fillRect(-5, by - 4, 10, 8);
+      ctx.strokeStyle = '#b8862a'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(-5, by - 4); ctx.lineTo(5, by + 4); ctx.moveTo(5, by - 4); ctx.lineTo(-5, by + 4); ctx.stroke();
     } else {
       ctx.beginPath(); ctx.arc(0, by, 5.5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#1f6a78';

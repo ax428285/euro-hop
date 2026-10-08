@@ -333,6 +333,8 @@ const Voyage = (function () {
     build: build,
     reset: reset,
     placeShip: placeShip,
+    /** 外力推船（v1.27 卡律布狄斯大漩渦把船往中心吸） */
+    nudge: function (dx, dy) { if (ship.mode !== 'sea') return; ship.vx += dx * 0.12; ship.vy += dy * 0.12; ship.x += dx * 0.5; ship.y += dy * 0.5; clampToWorld(); },
     update: update,
     draw: draw,
     nearbyLevel: function () { return nearIdx; },

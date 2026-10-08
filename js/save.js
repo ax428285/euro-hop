@@ -33,6 +33,10 @@ const Save = (function () {
       seaWins: 0,         // 打贏幾場遭遇戰
       seaBosses: [],      // 打倒過的海上魔王 kind（v1.23 地中海海妖斯庫拉）
       ship: { sail: 0, cannon: 0, hull: 0, paint: 'oak', paints: ['oak'] },   // 造船廠升級（v1.26，見 shipyard.js）
+      day: 0,             // 貿易的「日子」：打完一關或一場海戰過一天，價格與懸賞跟著換（v1.27）
+      cargo: {},          // 船艙裡的貨 { goodId: 箱數 }
+      bounty: null,       // 接下的懸賞（一次一張，見 trade.js）
+      bountyDone: 0,      // 今天已完成幾張（完成後同一天換新的三張）
       relics: [],         // 沉船潛水撈到的寶物 id（v1.26 安提基特拉沉船）
       allies: 0,          // 海神夥伴（消耗品，亞特蘭提斯神殿拿到；魔王關自動出戰一次用掉一個）
       costumes: [],     // 擁有的時裝 id（稀有怪掉落）
@@ -54,6 +58,12 @@ const Save = (function () {
     out.exp = Math.max(0, parseInt(d.exp, 10) || 0);
     out.seaWins = Math.max(0, parseInt(d.seaWins, 10) || 0);
     out.allies = U.clamp(parseInt(d.allies, 10) || 0, 0, ALLY_MAX);
+    out.day = Math.max(0, parseInt(d.day, 10) || 0);
+    out.bountyDone = Math.max(0, parseInt(d.bountyDone, 10) || 0);
+    if (d.cargo && typeof d.cargo === 'object' && typeof Trade !== 'undefined') {
+      Trade.GOODS.forEach(function (g) { const n = parseInt(d.cargo[g.id], 10) || 0; if (n > 0) out.cargo[g.id] = n; });
+    }
+    if (d.bounty && typeof d.bounty === 'object' && typeof d.bounty.type === 'string') out.bounty = d.bounty;
     if (d.ship && typeof d.ship === 'object' && typeof Shipyard !== 'undefined') out.ship = Shipyard.sanitize(d.ship);
     if (Array.isArray(d.relics)) {
       d.relics.forEach(function (r) { if (typeof r === 'string' && out.relics.indexOf(r) < 0) out.relics.push(r); });
@@ -300,6 +310,25 @@ const Save = (function () {
       persist();
       return true;
     },
+    // ── 貿易與懸賞（v1.27）──
+    /** 過一天：價格換、今天完成數歸零 */
+    nextDay: function () { data.day++; data.bountyDone = 0; persist(); },
+    cargoCount: function () { return Object.keys(data.cargo).reduce(function (s, k) { return s + data.cargo[k]; }, 0); },
+    /** 船艙加減貨（n 可以是負的）；錢在呼叫端算好一起傳（正 = 收錢，負 = 付錢） */
+    moveCargo: function (goodId, n, money) {
+      const now = (data.cargo[goodId] || 0) + n;
+      if (now < 0 || data.wallet + money < 0) return false;
+      if (now === 0) delete data.cargo[goodId]; else data.cargo[goodId] = now;
+      data.wallet += money;
+      persist();
+      return true;
+    },
+    setBounty: function (b) { data.bounty = b; persist(); },
+    /** 懸賞完成：清掉、加今天的完成數（獎勵由呼叫端用 addCoins / addExp 給） */
+    finishBounty: function () { data.bounty = null; data.bountyDone++; persist(); },
+    /** 只改記憶體不存檔（送信倒數每帧都在減，呼叫端隔一段再 save） */
+    touch: function () { persist(); },
+
     /** 沉船寶物：第一次撈到回 true */
     addRelic: function (id) {
       if (data.relics.indexOf(id) >= 0) return false;
@@ -322,6 +351,9 @@ const Save = (function () {
       return true;
     },
     seaBossDown: function (kind) { return data.seaBosses.indexOf(kind) >= 0; },
+
+    /** 懸賞之類的額外 EXP（不算一場遭遇戰勝利） */
+    gainExp: function (n) { if (n > 0) { data.exp += n; persist(); } },
 
     /** 遭遇戰勝利：加 EXP，回傳加之前/之後（過關畫面要判斷是不是剛好解鎖） */
     addExp: function (n) {

@@ -38,6 +38,10 @@ const Game = (function () {
   let confirmWipe = false;   // 清除存檔的二次確認
   let shopCursor = 0;        // 商店選到第幾項
   let shopMsg = null;        // 商店的提示訊息 { text, color, life }
+  // 貿易港（v1.27）：哪一港、哪一頁（0 交易 / 1 懸賞）、游標（列 -1 = 分頁列；交易頁 col 0 買 / 1 賣）
+  let mkPort = null, mkTab = 0, mkRow = 0, mkCol = 0, mkMsg = null, mkAbandon = false;
+  let bountyNote = null;     // 懸賞完成／失敗的提示，回到地圖時顯示
+  let deadNote = null;       // 打輸時額外的一句話（海盜搶走一箱貨⋯⋯）
   let yardCursor = 0;        // 造船廠選到第幾列（v1.26）
   let yardPaint = 0;         // 油漆列選到第幾色
   let yardMsg = null;
@@ -145,8 +149,16 @@ const Game = (function () {
     net.levelLive = false;
     cursor = U.clamp(cursor, 0, Save.get().unlocked - 1);
     sceneTimer = 0;
+    // 從關卡或海戰回來 = 過了一天（貿易行情、懸賞跟著換）
+    if (state) Save.nextDay();
     if (shipBack) {
       // 打完遭遇戰：船回到開打的地方，不要瞬移回港口
+      // 卡律布狄斯：開打的地方就在漩渦眼上 → 甩到漩渦外面，而且一陣子不吸，不然一回來又被吸進去
+      if (skirmish && skirmish.kind === 'charybdis') {
+        const ang = Math.atan2(shipBack.y - skirmish.y, shipBack.x - skirmish.x) || -Math.PI / 2;
+        shipBack = { x: skirmish.x + Math.cos(ang) * 95, y: skirmish.y + Math.sin(ang) * 95 };
+        Encounter.calmVortex(420);
+      }
       Voyage.placeShip(shipBack.x, shipBack.y);
       shipBack = null;
     } else {
@@ -157,6 +169,7 @@ const Game = (function () {
     WorldMap.follow(sp.x, sp.y, true);
     skirmish = null;
     toast = null;      // 關卡裡的提示（「第 3/3 波」之類）不要帶到地圖上
+    if (bountyNote) { toast = bountyNote; bountyNote = null; }
     // 地圖有自己的曲子（從關卡回來就換曲；從商店回來則一路接著播）
     Music.playTrack('MAP');
     // 剛湊齊一整個洲的線索：先揭曉謎底（看完按返回就是地圖，船已經擺好了）
@@ -269,7 +282,7 @@ const Game = (function () {
 
   /** 在地圖系列畫面（地圖、商店、裝備、存檔）都播地圖曲 */
   function mapLike(s) {
-    return s === 'map' || s === 'shop' || s === 'inventory' || s === 'saveinfo' || s === 'mystery' || s === 'shipyard';
+    return s === 'map' || s === 'shop' || s === 'inventory' || s === 'saveinfo' || s === 'mystery' || s === 'shipyard' || s === 'market';
   }
 
   // ── 更新 ──────────────────────────────────────────────
@@ -329,6 +342,7 @@ const Game = (function () {
 
       case 'shop': updateShop(); break;
       case 'shipyard': updateShipyard(); break;
+      case 'market': updateMarket(); break;
 
       case 'mystery': updateMystery(); break;
 
@@ -626,7 +640,30 @@ const Game = (function () {
     // 地圖比畫面高：相機跟著船走
     WorldMap.follow(shipNow.x, shipNow.y);
     // 稀有怪出現時提示一下（牠待不久，而且會逃）
-    if (Encounter.updateMap(shipNow, Save.get().exp).indexOf('rare') >= 0) {
+    const mapEv = Encounter.updateMap(shipNow, Save.get().exp);
+    // E 卡律布狄斯：被吸到漩渦眼 → 漩渦逃生
+    if (mapEv.indexOf('vortex') >= 0) {
+      Sfx.bossRoar();
+      startSkirmish(Encounter.boss('charybdis'));
+      return;
+    }
+    if (mapEv.indexOf('vortexpull') >= 0 && t % 50 === 0) {
+      toast = { text: '被大漩渦吸住了！', sub: '用力往外開，不然會被捲進卡律布狄斯的漩渦眼', life: 90 };
+    }
+    // D 懸賞：限時送信只在大地圖上倒數
+    {
+      const b = Save.get().bounty;
+      if (b && b.type === 'letter') {
+        b.time--;
+        if (t % 120 === 0) Save.touch();
+        if (b.time <= 0) {
+          Save.finishBounty();
+          Sfx.clang();
+          toast = { text: '信送遲了⋯⋯', sub: '這張懸賞失敗了（到貿易港的懸賞板可以接新的）', life: 200 };
+        }
+      }
+    }
+    if (mapEv.indexOf('rare') >= 0) {
       Sfx.equip();
       toast = { text: '稀有怪出現了！', sub: '閃金光的黃金海馬 —— 抓到會掉時裝', life: 200 };
     }
@@ -684,6 +721,10 @@ const Game = (function () {
         startSkirmish({ kind: spNear.def.port, def: Encounter.KINDS[spNear.def.port], x: ship0.x, y: ship0.y, port: true });
         return;
       }
+      if (spNear.def.scene === 'market') {
+        mkPort = spNear.def.market; mkTab = 0; mkRow = 0; mkCol = 0; mkMsg = null; mkAbandon = false;
+        arriveAt(mkPort);
+      }
       if (spNear.def.scene === 'shipyard') {
         yardCursor = 0; yardMsg = null;
         yardPaint = Math.max(0, Shipyard.PAINTS.indexOf(Shipyard.paint(Save.ship())));
@@ -725,6 +766,7 @@ const Game = (function () {
     camel: ['駱駝商隊', '紅色鞍毯可以站上去，駱駝會載著你走過鹽湖'],
     column: ['羅馬古柱', '一靠近就會搖晃倒下，地上紅框是壓到的範圍 —— 衝過去，或等它倒完'],
     flood: ['潛進地中海', '這一段淹在海裡：跳躍 = 往上游、會慢慢下沉，頭上的氣泡用完會嗆水'],
+    vortex: ['卡律布狄斯', ''],
     current: ['暗流', '水流會把你往一邊推 —— 貼著海底走推力只剩一半，或趁空檔用力游過去'],
     clam: ['巨蚌', '一開一合，抖動之後就要夾起來了 —— 張開時裡面的珍珠可以拿'],
     relic: ['沉船寶物', '發光的就是兩千年前的寶物，沿路一共三件，終點船艙還有一件'],
@@ -1244,6 +1286,197 @@ const Game = (function () {
     U.text(ctx, '↑↓ 選擇　Enter 升級／購買　Esc、Q 回地圖', W / 2, H - 30, { size: 12, color: '#7d88a6' });
   }
 
+  // ── 貿易港（C 貿易、D 懸賞，v1.27）──────────────────────
+
+  /** 海戰打輸（時間到或沒命）：船上有貨的話，海盜搶走一箱（潛水不算：人下水了，船沒事） */
+  function loseCargo() {
+    deadNote = null;
+    if (!skirmish || skirmish.def.dive || !Save.cargoCount()) return;
+    const id = Object.keys(Save.get().cargo)[0];
+    Save.moveCargo(id, -1, 0);
+    deadNote = '趁亂被搶走了一箱' + Trade.good(id).name + '⋯⋯';
+  }
+
+  function completeBounty(b) {
+    Save.finishBounty();
+    Save.addCoins(b.reward);
+    Save.gainExp(b.exp);
+    Sfx.fanfare();
+    bountyNote = { text: '懸賞完成！', sub: Trade.describe(b) + '　＋€' + b.reward + '　＋' + b.exp + ' EXP', life: 240 };
+  }
+
+  /** 靠岸：送信、運貨的懸賞在這裡交件 */
+  function arriveAt(portId) {
+    const b = Save.get().bounty;
+    if (!b || b.to !== portId) return;
+    if (b.type === 'letter') { completeBounty(b); mkMsg = { text: bountyNote.sub, color: '#8fe3a0', life: 200 }; bountyNote = null; }
+    if (b.type === 'cargo' && (Save.get().cargo[b.good] || 0) >= b.n) {
+      Save.moveCargo(b.good, -b.n, 0);
+      completeBounty(b); mkMsg = { text: '貨交給委託人了！' + bountyNote.sub, color: '#8fe3a0', life: 220 }; bountyNote = null;
+    }
+  }
+
+  const MK_TOP = 168, MK_ROW = 52;
+  /** 今天的委託（已經接下的那張不再列出來） */
+  function mkOffers() {
+    const sv = Save.get();
+    return Trade.offers(sv.day, sv.bountyDone).filter(function (o) { return !sv.bounty || o.id !== sv.bounty.id; });
+  }
+
+  function mkTrade(row, col) {
+    const sv = Save.get();
+    const g = Trade.GOODS[row];
+    const pr = Trade.price(mkPort, g.id, sv.day);
+    if (col === 0) {
+      if (pr.buy == null) { mkMsg = { text: '這裡不產' + g.name + '：要到產地' + Trade.port(g.home).name + '買', color: '#9aa7c7', life: 130 }; Sfx.clang(); return; }
+      if (Save.cargoCount() >= Trade.capacity(Save.ship())) { mkMsg = { text: '船艙滿了（造船廠加厚船身可以多放）', color: '#ff9aa8', life: 130 }; Sfx.clang(); return; }
+      if (sv.wallet < pr.buy) { mkMsg = { text: '金幣不足（還差 ' + (pr.buy - sv.wallet) + '）', color: '#ff9aa8', life: 120 }; Sfx.clang(); return; }
+      Save.moveCargo(g.id, 1, -pr.buy);
+      Sfx.coin();
+      mkMsg = { text: '買進一箱' + g.name + '（€' + pr.buy + '）', color: '#8fe3a0', life: 100 };
+    } else {
+      if (!(sv.cargo[g.id] > 0)) { mkMsg = { text: '船上沒有' + g.name, color: '#9aa7c7', life: 100 }; Sfx.clang(); return; }
+      Save.moveCargo(g.id, -1, pr.sell);
+      Sfx.coin();
+      mkMsg = { text: '賣出一箱' + g.name + '，賺到 €' + pr.sell, color: '#ffd166', life: 110 };
+    }
+  }
+
+  function mkBounty(row) {
+    const sv = Save.get();
+    if (row === 0) {
+      if (!sv.bounty) return;
+      if (!mkAbandon) { mkAbandon = true; mkMsg = { text: '再按一次放棄這張懸賞', color: '#ff9aa8', life: 150 }; Sfx.clang(); return; }
+      Save.finishBounty(); mkAbandon = false;
+      mkMsg = { text: '放棄了懸賞', color: '#9aa7c7', life: 110 }; Sfx.select();
+      return;
+    }
+    const b = mkOffers()[row - 1];
+    if (!b) return;
+    if (sv.bounty) { mkMsg = { text: '一次只能接一張：先完成或放棄目前這張', color: '#ff9aa8', life: 140 }; Sfx.clang(); return; }
+    const copy = JSON.parse(JSON.stringify(b));
+    if (copy.type === 'hunt') copy.got = 0;
+    Save.setBounty(copy);
+    Sfx.equip();
+    mkMsg = { text: '接下懸賞：' + Trade.describe(copy), color: '#8fe3a0', life: 160 };
+  }
+
+  function updateMarket() {
+    if (mkMsg && --mkMsg.life <= 0) { mkMsg = null; mkAbandon = false; }
+    const rows = mkTab === 0 ? Trade.GOODS.length : 4;
+    if (Input.once('up')) { mkRow = mkRow <= -1 ? rows - 1 : mkRow - 1; Sfx.select(); }
+    if (Input.once('down')) { mkRow = mkRow >= rows - 1 ? -1 : mkRow + 1; Sfx.select(); }
+    if (mkRow === -1) {
+      if (Input.once('left') || Input.once('right')) { mkTab = 1 - mkTab; mkMsg = null; Sfx.select(); }
+    } else if (mkTab === 0) {
+      if (Input.once('left')) { mkCol = 0; Sfx.select(); }
+      if (Input.once('right')) { mkCol = 1; Sfx.select(); }
+    }
+    if (Input.once('confirm')) {
+      if (mkRow === -1) { mkTab = 1 - mkTab; Sfx.select(); }
+      else if (mkTab === 0) mkTrade(mkRow, mkCol);
+      else mkBounty(mkRow);
+    }
+    const click = Input.takeClick();
+    if (click) {
+      // 分頁
+      if (click.y >= 104 && click.y <= 136) {
+        const k = click.x < W / 2 ? 0 : 1;
+        if (k !== mkTab) { mkTab = k; mkRow = 0; Sfx.select(); }
+      } else {
+        const r = Math.floor((click.y - MK_TOP) / MK_ROW);
+        if (r >= 0 && r < rows && click.x > 150 && click.x < W - 150) {
+          mkRow = r;
+          if (mkTab === 0) {
+            if (click.x > 560 && click.x < 680) { mkCol = 0; mkTrade(r, 0); }
+            else if (click.x >= 680) { mkCol = 1; mkTrade(r, 1); }
+          } else mkBounty(r);
+        }
+      }
+    }
+    if (Input.once('back') || Input.once('tomap') || Input.once('shop')) { Sfx.select(); mkMsg = null; scene = 'map'; }
+  }
+
+  function drawCrate(x, y, color) {
+    ctx.fillStyle = '#8a5a30';
+    ctx.fillRect(x - 13, y - 11, 26, 22);
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2;
+    ctx.strokeRect(x - 13, y - 11, 26, 22);
+    ctx.beginPath(); ctx.moveTo(x - 13, y - 11); ctx.lineTo(x + 13, y + 11); ctx.moveTo(x + 13, y - 11); ctx.lineTo(x - 13, y + 11); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawMarket() {
+    const sv = Save.get();
+    drawMapBackdrop(sv);
+    ctx.fillStyle = 'rgba(8,12,24,0.86)';
+    ctx.fillRect(0, 0, W, H);
+    panel(120, 22, W - 240, H - 44);
+    const pt = Trade.port(mkPort);
+    U.text(ctx, pt.name + '・貿易港', W / 2, 50, { size: 24, color: '#ffd166' });
+    U.text(ctx, '第 ' + (sv.day + 1) + ' 天　錢包 \u20AC ' + sv.wallet + '　船艙 ' + Save.cargoCount() + ' / ' + Trade.capacity(Save.ship()) + ' 箱',
+      W / 2, 80, { size: 13, color: '#9fb4d8' });
+    // 分頁
+    ['交易', '懸賞板'].forEach(function (name, k) {
+      const x = k === 0 ? W / 2 - 150 : W / 2 + 10;
+      const on = mkTab === k, sel = mkRow === -1 && on;
+      ctx.fillStyle = on ? 'rgba(255, 209, 102, 0.2)' : 'rgba(255,255,255,0.05)';
+      U.roundRect(ctx, x, 104, 140, 30, 8); ctx.fill();
+      ctx.strokeStyle = sel ? '#ffffff' : on ? '#ffd166' : 'rgba(126,151,201,0.5)'; ctx.lineWidth = sel ? 2.4 : 1.2;
+      U.roundRect(ctx, x, 104, 140, 30, 8); ctx.stroke();
+      U.text(ctx, name + (k === 1 && sv.bounty ? '（進行中）' : ''), x + 70, 119, { size: 14, color: on ? '#ffd166' : '#c6d2e8' });
+    });
+
+    if (mkTab === 0) {
+      Trade.GOODS.forEach(function (g, r) {
+        const y = MK_TOP + r * MK_ROW, cy = y + (MK_ROW - 6) / 2;
+        const sel = mkRow === r;
+        ctx.fillStyle = sel ? 'rgba(255, 209, 102, 0.1)' : 'rgba(255,255,255,0.04)';
+        U.roundRect(ctx, 150, y, W - 300, MK_ROW - 6, 8); ctx.fill();
+        drawCrate(178, cy, g.color);
+        U.text(ctx, g.name, 204, cy - 8, { size: 15, color: '#ffffff', align: 'left' });
+        U.text(ctx, '產地：' + Trade.port(g.home).name + (g.home === mkPort ? '（這裡）' : ''), 204, cy + 11, { size: 11, color: '#9fb4d8', align: 'left' });
+        U.text(ctx, '船上 ' + (sv.cargo[g.id] || 0) + ' 箱', 420, cy, { size: 13, color: sv.cargo[g.id] ? '#ffe070' : '#7d88a6', align: 'left' });
+        const pr = Trade.price(mkPort, g.id, sv.day);
+        [[0, '買', pr.buy], [1, '賣', pr.sell]].forEach(function (bt) {
+          const bx = bt[0] === 0 ? 566 : 686;
+          const on = sel && mkCol === bt[0];
+          const ok = bt[0] === 0 ? pr.buy != null : (sv.cargo[g.id] || 0) > 0;
+          ctx.fillStyle = on ? 'rgba(255, 209, 102, 0.3)' : ok ? 'rgba(143, 227, 160, 0.12)' : 'rgba(255,255,255,0.04)';
+          U.roundRect(ctx, bx, cy - 15, 104, 30, 7); ctx.fill();
+          ctx.strokeStyle = on ? '#ffd166' : ok ? 'rgba(143,227,160,0.6)' : 'rgba(126,151,201,0.3)'; ctx.lineWidth = on ? 2 : 1;
+          U.roundRect(ctx, bx, cy - 15, 104, 30, 7); ctx.stroke();
+          U.text(ctx, bt[2] == null ? '不賣' : bt[1] + ' \u20AC' + bt[2], bx + 52, cy, { size: 13, color: ok ? '#ffffff' : '#7d88a6' });
+        });
+      });
+    } else {
+      const b = sv.bounty;
+      const rows = [b ? { text: '進行中：' + Trade.describe(b) + (b.type === 'letter' ? '　剩 ' + Math.ceil(b.time / 60) + ' 秒' : ''), sub: '獎勵 €' + b.reward + '・' + b.exp + ' EXP　（Enter 兩次＝放棄）', active: true }
+                        : { text: '目前沒有接懸賞', sub: '從下面挑一張（一次只能接一張）', active: false }];
+      mkOffers().forEach(function (o) { rows.push({ text: Trade.describe(o), sub: '獎勵 €' + o.reward + '・' + o.exp + ' EXP', offer: true }); });
+      rows.forEach(function (q, r) {
+        const y = MK_TOP + r * MK_ROW, cy = y + (MK_ROW - 6) / 2;
+        const sel = mkRow === r;
+        ctx.fillStyle = q.active ? 'rgba(143, 227, 160, 0.14)' : sel ? 'rgba(255, 209, 102, 0.1)' : 'rgba(255,255,255,0.04)';
+        U.roundRect(ctx, 150, y, W - 300, MK_ROW - 6, 8); ctx.fill();
+        ctx.strokeStyle = sel ? '#ffd166' : q.active ? '#8fe3a0' : 'rgba(126,151,201,0.4)'; ctx.lineWidth = sel ? 2 : 1;
+        U.roundRect(ctx, 150, y, W - 300, MK_ROW - 6, 8); ctx.stroke();
+        // 懸賞單：一張釘在板上的紙
+        ctx.fillStyle = q.offer ? '#e8dcc0' : q.active ? '#8fe3a0' : '#5a6a8a';
+        ctx.fillRect(166, cy - 13, 20, 26);
+        ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(176, cy - 11, 2.5, 0, Math.PI * 2); ctx.fill();
+        U.text(ctx, fitText(q.text, W - 400, 14), 200, cy - 8, { size: 14, color: '#ffffff', align: 'left' });
+        U.text(ctx, q.sub, 200, cy + 11, { size: 11, color: '#9fb4d8', align: 'left' });
+      });
+    }
+    const foot = mkMsg ? mkMsg.text
+      : mkTab === 0 ? '在產地買便宜、運到越遠的港口賣越貴；行情每天變（打完一關或一場海戰就過一天）・船上有貨海盜比較多'
+      : '完成後自動領賞・送信只有在大地圖上才會倒數';
+    U.text(ctx, fitText(foot, W - 280, 12), W / 2, H - 52, { size: 12, color: mkMsg ? mkMsg.color : '#9aa7c7' });
+    U.text(ctx, '↑↓ 選擇（最上面換分頁）　←→ 買／賣　Enter 確定　Esc、Q 回地圖', W / 2, H - 30, { size: 12, color: '#7d88a6' });
+  }
+
   function onSecret(idx) {
     const sc = state.secrets[idx];
     if (!sc) return;
@@ -1340,6 +1573,7 @@ const Game = (function () {
         return;
       }
       Sfx.gameover();
+      loseCargo();       // 海戰沒命：船上的貨被搶走一箱（見 loseCargo）
       // 死掉也保留撿到的金幣（否則練習關卡完全沒收益，玩家會覺得白跑）
       // 但只給一半，死亡仍有代價。
       const keep = Math.floor(runCoins / 2);
@@ -1392,6 +1626,7 @@ const Game = (function () {
   /** 海上小遊戲失敗（時間到、麵包被搶光⋯⋯）：跟關卡死掉走同一個畫面 */
   function onMiniFail() {
     Sfx.gameover();
+    loseCargo();
     coinsBanked = 0;
     runCoins = 0;
     Music.stop();
@@ -1421,7 +1656,7 @@ const Game = (function () {
       expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null };
       netProgress({ t: 'exp', n: state.def.exp, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
-      if ((skirmish.def.boss || skirmish.def.dive) && Save.markSeaBoss(skirmish.kind)) {
+      if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed) && Save.markSeaBoss(skirmish.kind)) {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
@@ -1449,6 +1684,15 @@ const Game = (function () {
         } else {
           Save.addCoins(150);
           coinsBanked += 150;
+        }
+      }
+      // D 懸賞：討伐、黃金海馬、斯庫拉
+      {
+        const b = Save.get().bounty;
+        if (b && !skirmish.def.dive) {
+          if (b.type === 'hunt') { b.got = (b.got || 0) + 1; if (b.got >= b.n) completeBounty(b); else Save.touch(); }
+          if (b.type === 'golden' && skirmish.def.rare) completeBounty(b);
+          if (b.type === 'scylla' && skirmish.kind === 'scylla') completeBounty(b);
         }
       }
       Encounter.remove(skirmish);
@@ -2710,6 +2954,7 @@ const Game = (function () {
       ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件'],
       ['密道', sv.secrets.length + ' 條'],
       ['魔王', sv.bosses.length + ' 隻'],
+      ['貿易', '第 ' + (sv.day + 1) + ' 天　船艙 ' + Save.cargoCount() + ' 箱' + (sv.bounty ? '　懸賞：' + Trade.describe(sv.bounty) : '')],
       ['船', '帆 Lv' + sv.ship.sail + '　砲 Lv' + sv.ship.cannon + '　船身 Lv' + sv.ship.hull + '　沉船收藏 ' + sv.relics.length + ' / ' + Encounter.RELICS.length],
       ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp +
         (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（全部篇章已解鎖）')],
@@ -3166,7 +3411,7 @@ const Game = (function () {
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
       W / 2, 252, { size: 13, color: '#ffd166' });
     U.text(ctx, skirmish
-        ? (skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : '怪物還在海上，準備好再去挑戰')
+        ? (deadNote || (skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
         : '裝備不會消失，回地圖再挑戰一次',
       W / 2, 280, { size: 14, color: '#c6d2e8' });
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
@@ -3284,6 +3529,7 @@ const Game = (function () {
       case 'inventory': drawInventory(); break;
       case 'shop': drawShop(); break;
       case 'shipyard': drawShipyard(); break;
+      case 'market': drawMarket(); break;
       case 'saveinfo': drawSaveInfo(); break;
       case 'mystery': drawMystery(); break;
       case 'play': drawPlay(); break;
