@@ -263,7 +263,42 @@ const Levels = (function () {
      * 放不下才退回地面小密室。cfg.secretKind = 'room' 可以強制用舊式密室。
      */
     let sc = null;
-    if (!tall && cfg.secretKind !== 'room') {
+    /*
+     * v1.31「洞裡的密道」（cfg.secretKind = 'pit'）：挑一個斷崖，底下不放尖刺 —— 看起來就是會摔死的洞，
+     * 其實跳下去會掉進地底的洞窟（game.js 的 pitcave）：發現密道、拿到洞裡的金幣和裝備，從斷崖對面爬上來。
+     * 挑的斷崖：不是第一個（剛開始的人還不熟操作）、兩邊都有地面、離終點遠、越靠近 secretNear 越好。
+     */
+    if (!tall && cfg.secretKind === 'pit') {
+      const total = g.segs[g.segs.length - 1].x + g.segs[g.segs.length - 1].w;
+      const cand = g.gaps.map(function (gp, gi) { return { gp: gp, gi: gi }; }).filter(function (o) {
+        const gp = o.gp;
+        return o.gi > 0 && gp.x + gp.w < goalX - 400 &&
+          LevelGen.groundAt(g.segs, gp.x - 6) != null && LevelGen.groundAt(g.segs, gp.x + gp.w + 60) != null;
+      }).sort(function (a, b) {
+        const pa = (a.gp.x + a.gp.w / 2) / total, pb = (b.gp.x + b.gp.w / 2) / total;
+        return Math.abs(pa - (cfg.secretNear || 0.5)) - Math.abs(pb - (cfg.secretNear || 0.5));
+      });
+      if (cand.length) {
+        const gp = cand[0].gp;
+        const ly = LevelGen.groundAt(g.segs, gp.x - 6), ry = LevelGen.groundAt(g.segs, gp.x + gp.w + 6);
+        const top = Math.max(ly, ry);
+        const exitX = gp.x + gp.w + 40;
+        const exitY = LevelGen.groundAt(g.segs, exitX + 11);
+        sc = {
+          kind: 'pit', pitGap: cand[0].gi,
+          pit: { x: gp.x, y: top + 30, w: gp.w, h: 200 },           // 掉到地面下 30 就算掉進洞窟
+          room: { x: gp.x, y: top, w: gp.w, h: 120 },               // 給擺裝飾、NPC 的時候避開用
+          trigger: { x: -9999, y: -9999, w: 1, h: 1 },
+          exit: { x: exitX, y: exitY },
+          hint: cfg.secretHint,
+          holdsEquip: true,
+          equipAt: { x: exitX + 11, y: exitY - 30 },
+          // 洞窟裡的金幣（掉進去就全部拿到；不算在關卡的金幣總數裡，跟其他密室一樣是額外的）
+          coins: [0, 1, 2, 3, 4, 5].map(function (k) { return { x: gp.x + 10 + (k % 3) * 24, y: top + 60 + Math.floor(k / 3) * 30 }; })
+        };
+      }
+    }
+    if (!sc && !tall && cfg.secretKind !== 'room') {
       const bOpts = { holdsEquip: true, hint: cfg.branchHint, near: cfg.secretNear, goal: goalX };
       sc = LevelGen.buildBranch(g.segs, g.gaps, platforms, movers, coins, enemies, bOpts);
       if (!sc) {
@@ -392,7 +427,8 @@ const Levels = (function () {
     // 危險區：斷崖底部放尖刺或水。
     // 火車的連結處、沒有海的纜車山谷不放：掉下去本來就摔出畫面（鐵軌、深谷），尖刺反而怪
     const openPits = vehicle === 'train' || (vehicle === 'cable' && !cfg.water);
-    const hazards = openPits ? [] : g.gaps.map(function (gp) {
+    const pitGap = secrets.length && secrets[0].kind === 'pit' ? secrets[0].pitGap : -1;
+    const hazards = openPits ? [] : g.gaps.filter(function (gp, gi) { return gi !== pitGap; }).map(function (gp) {
       const ly = LevelGen.groundAt(g.segs, gp.x - 6);
       const ry = LevelGen.groundAt(g.segs, gp.x + gp.w + 6);
       const top = Math.max(ly == null ? GROUND_Y : ly, ry == null ? GROUND_Y : ry);
@@ -533,7 +569,9 @@ const Levels = (function () {
     density: 1,
     // 招牌：咖啡館遮陽篷彈跳墊（彈很高，空中有金幣）
     features: [{ type: 'bouncers', count: 5 }],
-    secretHint: '往左回頭的牆後面，有地下酒窖的味道',
+    // v1.31 玩家：密道太明顯、其中一些密道放到會死掉的洞 → 這國的密道藏在一個沒有尖刺的斷崖裡（跳下去才找得到）
+    secretKind: 'pit',
+    secretHint: '掉進了巴黎的地下墓穴！幾百萬人的骨頭排成一面一面的牆',
     secretNear: 0.2,
     props: [
       { type: 'arcTriomphe', x: 1800, scale: 1 },
@@ -654,7 +692,9 @@ const Levels = (function () {
     density: 1.05,
     // 招牌：從前方山坡滾下來的啤酒桶（跳過或踩碎）
     features: [{ type: 'barrels', every: 190 }],
-    secretHint: '鐘樓底下的石牆，敲起來是空的',
+    // v1.31 玩家：密道太明顯、其中一些密道放到會死掉的洞 → 這國的密道藏在一個沒有尖刺的斷崖裡（跳下去才找得到）
+    secretKind: 'pit',
+    secretHint: '掉進了巴伐利亞的老鹽礦，礦工以前坐著木頭滑梯下來',
     secretNear: 0.45,
     props: [
       { type: 'brandenburg', x: 2000, scale: 0.95 },
@@ -908,7 +948,9 @@ const Levels = (function () {
     density: 1.15,
     // 招牌：維利奇卡鹽礦 —— 一段漆黑礦坑，只看得到身邊與礦燈
     features: [{ type: 'dark', from: 0.48, to: 0.68 }],
-    secretHint: '瓦維爾山腳的龍洞，傳說噴火龍就住在這裡',
+    // v1.31 玩家：密道太明顯、其中一些密道放到會死掉的洞 → 這國的密道藏在一個沒有尖刺的斷崖裡（跳下去才找得到）
+    secretKind: 'pit',
+    secretHint: '掉進了瓦維爾山腳的龍洞，傳說噴火龍就住在這裡',
     secretNear: 0.55,
     props: [
       { type: 'wawelDragon', x: 1500 },
@@ -1180,7 +1222,9 @@ const Levels = (function () {
     density: 1.05,
     // 招牌：撒哈拉流沙 —— 踩進去會走不快、跳不高、越陷越深，站太久會受傷
     features: [{ type: 'quicksand', count: 6 }, { type: 'mounts', at: [0.3] }],
-    secretHint: '地毯店後面的暗門，掀開掛毯就看得到',
+    // v1.31 玩家：密道太明顯、其中一些密道放到會死掉的洞 → 這國的密道藏在一個沒有尖刺的斷崖裡（跳下去才找得到）
+    secretKind: 'pit',
+    secretHint: '掉進了地下的 khettara 水道，沙漠裡的人靠它把山上的水引過來',
     secretNear: 0.55,
     props: [
       { type: 'paprikaStall', x: 900 },    // 香料攤（借用匈牙利紅椒攤的造型）
@@ -1545,7 +1589,9 @@ const Levels = (function () {
      * 巨大的細口壺定時沖下熱水（正中間的水柱會燙），濾杯裡的咖啡粉一吸水就悶蒸膨脹，把人托上去拿高處的金幣。
      */
     features: [{ type: 'pourover', count: 4 }],
-    secretHint: '咖啡園的烘豆小屋，香味是從地板縫飄出來的',
+    // v1.31 玩家：密道太明顯、其中一些密道放到會死掉的洞 → 這國的密道藏在一個沒有尖刺的斷崖裡（跳下去才找得到）
+    secretKind: 'pit',
+    secretHint: '掉進了綠洞（Green Grotto）！以前的走私販把東西藏在這裡',
     secretNear: 0.6,
     props: [
       { type: 'soundSystem', x: 900 },

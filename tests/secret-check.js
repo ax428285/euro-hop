@@ -118,6 +118,7 @@ function runSecretCheck() {
     // ── 密道本身 ──
     secrets.forEach(function (s, si) {
       const label = tag + ' 密道#' + (si + 1);
+      if (s.kind === 'pit') { pitCheck(def, li, s, si, label); return; }
       const r = s.room;
       if (!r) { issues.push(label + '：缺 room'); return; }
 
@@ -291,6 +292,7 @@ function runSecretCheck() {
      */
     secrets.forEach(function (s, si) {
       const label = tag + ' 密道#' + (si + 1);
+      if (s.kind === 'pit') return;            // 洞裡的密道沒有隱形磚（pitCheck 驗過了）
       if (!s.block) { issues.push(label + '：沒有隱形磚，密道一開始就看得到'); return; }
       // v1.9.2 引路金幣：磚正下方要有一枚主線金幣（跳起來吃就會頂到磚）
       const guide = (def.coins || []).some(function (c) {
@@ -440,5 +442,72 @@ function runSecretCheck() {
     });
   });
 
+  /*
+   * v1.31 洞裡的密道（secretKind 'pit'）：
+   *   洞剛好是一個斷崖、那個斷崖底下沒有尖刺（其他斷崖照樣有）、出口站在地面上、離終點夠遠；
+   *   從洞口上方掉下去 → 一定進洞窟（pitcave），不會先被判摔死
+   */
+  function pitCheck(def, li, s, si, label) {
+    const pt = s.pit;
+    if (!pt || !s.exit) { issues.push(label + '：洞裡的密道缺 pit / exit'); return; }
+    const gap = gapsOf(def).filter(function (g) { return Math.abs(g.x - pt.x) < 2 && Math.abs(g.w - pt.w) < 2; })[0];
+    if (!gap) issues.push(label + '：洞的位置不是斷崖（x=' + pt.x + '）');
+    (def.spikes || []).concat(def.water || []).forEach(function (hz) {
+      if (hz.x < pt.x + pt.w && hz.x + hz.w > pt.x) issues.push(label + '：洞裡還有尖刺或水（那就不是密道了）');
+    });
+    if ((def.spikes || []).length < gapsOf(def).length - 1) issues.push(label + '：別的斷崖的尖刺也被拿掉了');
+    const onGround = (def.ground || []).some(function (g) { return s.exit.x >= g.x && s.exit.x + PW <= g.x + g.w && Math.abs(g.y - s.exit.y) < 2; });
+    if (!onGround) issues.push(label + '：洞窟的出口沒有站在地面上（x=' + s.exit.x + '）');
+    if (def.goal && pt.x + pt.w > def.goal - 300) issues.push(label + '：洞離終點太近');
+    if (!s.holdsEquip) issues.push(label + '：洞窟裡沒有放這關的裝備');
+    // 掉下去
+    const st = buildLevelState(def, li, [], Equipment.resolve([]));
+    st.enemies = [];
+    const p = st.player;
+    p.x = pt.x + pt.w / 2 - PW / 2; p.y = pt.y - 90; p.vx = 0; p.vy = 0; p.onGround = false;
+    const inp = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+    let cave = false, fell = false;
+    for (let f = 0; f < 90 && !cave && !fell; f++) {
+      const ev = updatePlayer(st, inp, f);
+      ev.forEach(function (e) { if (String(e).indexOf('pitcave:') === 0) cave = true; if (e === 'fall') fell = true; });
+    }
+    if (fell) issues.push(label + '：掉進洞裡被判摔死了，沒有進洞窟');
+    else if (!cave) issues.push(label + '：掉進洞裡沒有進洞窟');
+  }
+
   return { issueCount: issues.length, issues: issues };
+}
+
+/**
+ * v1.31 洞裡的密道，整個流程（跑真的遊戲）：進關 → 掉進洞 → 洞窟畫面 → 發現密道、拿到裝備和洞裡的金幣 → 從對面爬上來。
+ * 在瀏覽器執行 runPitCaveCheck()（會動到存檔：密道、裝備會記成已拿到）。
+ */
+function runPitCaveCheck() {
+  const issues = [], report = [];
+  Levels.list.forEach(function (def, li) {
+    (def.secrets || []).forEach(function (s, si) {
+      if (s.kind !== 'pit') return;
+      const tag = def.country;
+      Game.debug.enter(li);
+      const st = Game.debug.getState(), p = st.player;
+      const hadEquip = st.equip && st.equip.taken;
+      p.x = s.pit.x + s.pit.w / 2 - p.w / 2; p.y = s.pit.y - 90; p.vx = 0; p.vy = 0; p.onGround = false;
+      let caveSeen = false, frames = 0;
+      for (; frames < 600; frames++) {
+        Game.debug.step(1);
+        if (st.pitCave) caveSeen = true;
+        if (caveSeen && !st.pitCave) break;
+      }
+      const atExit = Math.abs(p.x - s.exit.x) < 4 && Math.abs(p.y + p.h - s.exit.y) < 4;
+      if (Game.debug.getScene() !== 'play') issues.push(tag + '：掉進洞之後不在關卡裡了（' + Game.debug.getScene() + '）');
+      if (!caveSeen) issues.push(tag + '：掉進洞沒有看到洞窟');
+      if (!Save.hasSecret(li, si)) issues.push(tag + '：掉進洞沒有記成發現密道');
+      if (!hadEquip && !(st.equip && st.equip.taken)) issues.push(tag + '：洞窟裡沒拿到裝備');
+      if (!atExit) issues.push(tag + '：從洞窟出來沒有站在斷崖對面（x=' + Math.round(p.x) + '）');
+      report.push({ country: tag, frames: frames, atExit: atExit });
+    });
+  });
+  Game.debug.setScene('map');
+  if (report.length < 3) issues.push('洞裡的密道太少（' + report.length + '）');
+  return { issueCount: issues.length, issues: issues, report: report };
 }

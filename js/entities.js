@@ -389,7 +389,10 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
       padV: s.padV,
       padSquash: 0,
       path: (s.path || []).map(function (pf) { return { x: pf.x, y: pf.y, w: pf.w, h: pf.h }; }),
-      span: s.span || s.room
+      span: s.span || s.room,
+      // v1.31 洞裡的密道：沒有尖刺的斷崖（pit），掉進去會到地底洞窟，從 exit 爬上來
+      pit: s.pit ? { x: s.pit.x, y: s.pit.y, w: s.pit.w, h: s.pit.h } : null,
+      exit: s.exit ? { x: s.exit.x, y: s.exit.y } : null
     };
   });
 
@@ -2106,6 +2109,15 @@ function updatePlayer(state, input, t, who) {
       p.launched = true;
       sc.padSquash = 10;
       events.push('spring');
+    }
+    // v1.31 洞裡的密道：掉進那個沒有尖刺的斷崖 → 地底洞窟（game.js 接手：發現密道、拿金幣和裝備、從對面爬上來）
+    if (sc.pit) {
+      const cx = p.x + p.w / 2;
+      if (!state.pitIn && cx > sc.pit.x && cx < sc.pit.x + sc.pit.w && p.y > sc.pit.y) {
+        state.pitIn = true;
+        events.push('pitcave:' + sc.idx);
+      }
+      return;
     }
     // 還沒頂出隱形磚 → 密室入口還不存在，走過去什麼都不會發生
     if (sc.found || !sc.revealed || !U.overlap(p, sc.trigger)) return;

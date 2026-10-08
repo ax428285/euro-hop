@@ -2652,6 +2652,24 @@ const Sprites = (function () {
     ctx.save();
 
     /*
+     * v1.31 洞裡的密道：沒有尖刺的斷崖。畫成往下越來越黑的深洞（看起來就是會摔死的那種），
+     * 洞口兩邊掛幾根草根 —— 找過的也一樣（是個洞窟，不是門）。
+     */
+    if (sc.kind === 'pit' && sc.pit) {
+      const pt = sc.pit, x = pt.x - camX, top = pt.y - 30;
+      const g = ctx.createLinearGradient(0, top, 0, top + 120);
+      g.addColorStop(0, 'rgba(20, 14, 10, 0.25)'); g.addColorStop(1, 'rgba(8, 6, 4, 0.96)');
+      ctx.fillStyle = g; ctx.fillRect(x, top, pt.w, 600);
+      ctx.strokeStyle = 'rgba(90, 70, 40, 0.8)'; ctx.lineWidth = 1.5;
+      for (let i = 0; i < 4; i++) {
+        const rx = x + 4 + (i % 2 ? pt.w - 10 : 0) + (i > 1 ? (i % 2 ? -6 : 6) : 0);
+        ctx.beginPath(); ctx.moveTo(rx, top + 2); ctx.quadraticCurveTo(rx + (i % 2 ? -4 : 4), top + 14, rx + (i % 2 ? -2 : 2), top + 22 + i * 4); ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
+
+    /*
      * 三種狀態：
      *   隱藏   什麼都不畫。唯一的線索：磚的位置每隔幾秒閃一下極淡的光點
      *          （要剛好在看那裡才會注意到）
@@ -2662,25 +2680,14 @@ const Sprites = (function () {
       /*
        * v1.9.2：玩家回報「找不到密道」。原本唯一的線索是每 5 秒閃一下、
        * 透明度 0.35 的 8px 光點，實際上沒人看得到。改成由遠到近四層線索：
-       *   遠  地面嵌一塊刻金色記號的石板（跟一般地面明顯不同）
+       *   遠  （v1.31 拿掉了：地上那塊刻金色記號的石板太明顯）
        *   中  磚下方浮一枚引路金幣（在 levels.js 放的，跳起來吃就會頂到磚）
        *   近  玩家靠近時，磚的虛線輪廓浮現 + 細灰從磚縫掉下來
        *   光點更亮、更大、更常閃
        */
       const bk = sc.block;
       const bx = bk.x - camX + bk.w / 2, by = bk.y + bk.h / 2;
-      const floorY = bk.y + bk.h + 112;
-      // 記號石板
-      ctx.fillStyle = '#6f6656';
-      U.roundRect(ctx, bx - 17, floorY - 2, 34, 9, 2); ctx.fill();
-      ctx.fillStyle = '#a89a7c';
-      ctx.fillRect(bx - 15, floorY - 2, 30, 2);
-      const glow = 0.65 + Math.sin(t * 0.06) * 0.25;
-      ctx.fillStyle = 'rgba(240, 196, 90, ' + glow.toFixed(3) + ')';
-      ctx.beginPath();
-      ctx.moveTo(bx, floorY - 1); ctx.lineTo(bx + 4, floorY + 2.5);
-      ctx.lineTo(bx, floorY + 6); ctx.lineTo(bx - 4, floorY + 2.5);
-      ctx.closePath(); ctx.fill();
+      // v1.31 玩家：密道太明顯 → 拿掉地上那塊咖啡色的記號石板（只剩引路金幣、靠近時的虛線和閃光）
       // 靠近時：虛線輪廓 + 掉灰（near 由 game.js 算，0 = 遠、1 = 正下方）
       const near = sc.near || 0;
       if (near > 0) {

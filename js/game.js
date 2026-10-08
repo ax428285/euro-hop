@@ -1160,6 +1160,8 @@ const Game = (function () {
     if (Input.once('pause') || Input.once('back')) { scene = 'paused'; return; }
     // 回大地圖 = 放棄這一關（進度不計分），先跳確認框，避免誤按就白打
     if (Input.once('tomap')) { Sfx.select(); scene = 'quitconfirm'; return; }
+    // v1.31 洞裡的密道：在地底洞窟的這段時間整關停住（畫面播洞窟），時間到從斷崖對面爬上來
+    if (state.pitCave) { updatePitCave(); return; }
 
     // v1.31 往前衝的賽道關（race.js）：不跑橫向關卡的物理，事件格式一樣（'coin'、'p0:hurt'、'clear'⋯⋯）
     let events;
@@ -1218,6 +1220,11 @@ const Game = (function () {
         ev = raw.slice(3);
       }
       // 密道事件帶索引，格式 "secret:0"
+      // v1.31 洞裡的密道："pitcave:0" = 掉進了沒有尖刺的那個斷崖
+      if (ev.indexOf && ev.indexOf('pitcave:') === 0) {
+        startPitCave(parseInt(ev.split(':')[1], 10), pid);
+        return;
+      }
       if (ev.indexOf && ev.indexOf('secret:') === 0) {
         onSecret(parseInt(ev.split(':')[1], 10));
         return;
@@ -1855,6 +1862,99 @@ const Game = (function () {
       sub: first ? sc.hint : '（之前就找過這條）',
       life: 200
     };
+  }
+
+  /*
+   * v1.31 玩家：密道太明顯、其中一些密道放到會死掉的洞（某些刺換成洞）。
+   * 掉進那個洞：第一次 = 發現密道（存檔）＋洞窟裡的金幣＋這關的裝備；之後再掉進去只是繞一圈。
+   * 洞窟的畫面播 PIT_CAVE_T 帧，然後人從斷崖對面（sc.exit）爬上來，給一點無敵時間。
+   */
+  const PIT_CAVE_T = 170;
+  function startPitCave(idx, pid) {
+    const sc = state.secrets[idx];
+    if (!sc) return;
+    const first = !sc.found;
+    let coinsGot = 0, eq = null;
+    if (first) {
+      sc.found = true;
+      state.secretsFound++;
+      onSecret(idx);
+      sc.coins.forEach(function (c) {
+        if (c.taken) return;
+        c.taken = true; coinsGot++;
+        runCoins++; runScore += Math.round(10 * stats.coinMul);
+      });
+    }
+    if (state.equip && !state.equip.taken && state.equip.secretIdx === idx) {
+      state.equip.taken = true;
+      eq = state.equip.def;
+      onEquip();
+    }
+    Sfx.secret();
+    state.pitCave = { idx: idx, pid: pid || 0, t: 0, first: first, coins: coinsGot, eq: eq, hint: sc.hint };
+    toast = null;
+  }
+  function updatePitCave() {
+    const pc = state.pitCave;
+    if (++pc.t < PIT_CAVE_T && !(pc.t > 40 && (Input.once('confirm') || Input.once('jump')))) return;
+    const sc = state.secrets[pc.idx], p = state.players[pc.pid] || state.player;
+    if (p.mount) Features.dismount(state, p);
+    p.x = sc.exit.x; p.y = sc.exit.y - p.h; p.vx = 0; p.vy = 0; p.onGround = true;
+    p.invuln = Math.max(p.invuln || 0, 60);
+    state.pitCave = null; state.pitIn = false;
+    toast = pc.first ? { text: '從洞窟爬上來了！', sub: '洞裡的東西都拿到了', life: 140 } : null;
+  }
+  /** 地底洞窟的畫面：岩壁、火把、鐘乳石、這次拿到的金幣和裝備 */
+  function drawPitCave() {
+    const pc = state.pitCave;
+    const k = U.clamp(pc.t / 20, 0, 1), out = U.clamp((PIT_CAVE_T - pc.t) / 16, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = Math.min(k, out);
+    ctx.fillStyle = '#14100c'; ctx.fillRect(0, 0, W, H);
+    // 岩壁
+    ctx.fillStyle = '#3a2e24';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 40) ctx.lineTo(x, 360 + Math.sin(x * 0.03) * 24 + Math.sin(x * 0.011) * 18);
+    ctx.lineTo(W, H); ctx.fill();
+    ctx.fillStyle = '#2a2018';
+    for (let x = 30; x < W; x += 70) {
+      const h = 40 + ((x * 37) % 50);
+      ctx.beginPath(); ctx.moveTo(x - 14, 0); ctx.lineTo(x, h); ctx.lineTo(x + 14, 0); ctx.fill();   // 鐘乳石
+    }
+    // 火把的光
+    [[150, 230], [W - 150, 230]].forEach(function (f) {
+      const r = 120 + Math.sin(t * 0.2 + f[0]) * 6;
+      const g = ctx.createRadialGradient(f[0], f[1], 4, f[0], f[1], r);
+      g.addColorStop(0, 'rgba(255, 190, 90, 0.55)'); g.addColorStop(1, 'rgba(255, 190, 90, 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f[0], f[1], r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6a4a2a'; ctx.fillRect(f[0] - 3, f[1], 6, 26);
+      ctx.fillStyle = '#ffb040'; ctx.beginPath(); ctx.ellipse(f[0], f[1] - 4, 6, 10 + Math.sin(t * 0.4) * 2, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    U.text(ctx, pc.first ? '地底的洞窟！' : '又掉進洞窟了', W / 2, 120, { size: 30, color: '#ffd166' });
+    U.text(ctx, fitText(pc.hint || '', W - 160, 15), W / 2, 158, { size: 15, color: '#e8dcc0' });
+    // 拿到的東西
+    let y = 230;
+    if (pc.coins) {
+      for (let i = 0; i < pc.coins; i++) {
+        const bob = Math.sin(t * 0.1 + i) * 4;
+        Sprites.coin(ctx, { x: W / 2 - pc.coins * 17 + i * 34, y: y - 12 + bob }, t);
+      }
+      U.text(ctx, '金幣 +' + pc.coins, W / 2, y + 34, { size: 15, color: '#ffd166' });
+      y += 70;
+    }
+    if (pc.eq) {
+      ctx.fillStyle = 'rgba(255, 220, 130, 0.25)'; ctx.beginPath(); ctx.arc(W / 2, y + 10, 30, 0, Math.PI * 2); ctx.fill();
+      Sprites.equipIcon(ctx, pc.eq.id, W / 2, y + 10, 1);
+      U.text(ctx, (Equipment.get(pc.eq.id) ? '裝備：' : '紀念品：') + pc.eq.name, W / 2, y + 56, { size: 16, color: '#ffffff' });
+    } else if (!pc.coins) {
+      U.text(ctx, '洞裡已經空了，爬回上面吧', W / 2, y + 10, { size: 15, color: '#c6b89a' });
+    }
+    // 你（站在洞窟底，抬頭看）
+    const p = state.players[pc.pid] || state.player;
+    Sprites.player(ctx, { x: W / 2 - 160, y: 322, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: p.pid || 0,
+                          equipped: p.equipped || {}, costume: p.costume }, t);
+    if (pc.t > 40) U.text(ctx, '按跳躍爬上去', W / 2, H - 30, { size: 13, color: '#9a8a70' });
+    ctx.restore();
   }
 
   function onBossDown() {
@@ -2789,6 +2889,7 @@ const Game = (function () {
     if (def.skirmish) Encounter.drawHud(ctx, state, W);
     // 魔王血條（固定在畫面上，不受相機與震動影響）
     if (state.boss && !state.boss.defeated) Sprites.bossBar(ctx, state.boss, W);
+    if (state.pitCave) drawPitCave();
     if (toast) drawToast();
   }
 
