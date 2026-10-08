@@ -5784,6 +5784,56 @@ const Sprites = (function () {
     }
   }
 
+  /**
+   * 海神波賽頓：站在神殿終點迎接玩家（白鬍子、金冠、藍綠色長袍，一手拿三叉戟、一手揮手）。
+   * x = 腳底中心、baseY = 站的地面。約 96px 高，比玩家大一倍 —— 一看就知道是神。
+   */
+  function poseidon(ctx, x, baseY, t) {
+    const wave = Math.sin(t * 0.12) * 0.5;
+    ctx.save();
+    ctx.translate(x, baseY);
+    // 光環
+    const g = ctx.createRadialGradient(0, -60, 6, 0, -60, 70);
+    g.addColorStop(0, 'rgba(160, 250, 240, 0.35)');
+    g.addColorStop(1, 'rgba(160, 250, 240, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, -60, 70, 0, Math.PI * 2); ctx.fill();
+    // 長袍
+    ctx.fillStyle = '#2a8a8a';
+    ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-14, -56); ctx.lineTo(14, -56); ctx.lineTo(20, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e8d8b0';
+    ctx.beginPath(); ctx.moveTo(-14, -56); ctx.lineTo(4, -56); ctx.lineTo(-10, 0); ctx.lineTo(-18, 0); ctx.closePath(); ctx.fill();   // 斜披的白布
+    // 揮手的手臂（右）
+    ctx.save();
+    ctx.translate(13, -50);
+    ctx.rotate(-1.9 + wave);
+    ctx.fillStyle = '#7ac8c0';
+    U.roundRect(ctx, 0, -4, 24, 8, 4); ctx.fill();
+    ctx.beginPath(); ctx.arc(26, 0, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // 三叉戟（左手）
+    ctx.strokeStyle = '#f0c840'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-24, 2); ctx.lineTo(-24, -96);
+    ctx.moveTo(-32, -86); ctx.lineTo(-32, -100); ctx.moveTo(-16, -86); ctx.lineTo(-16, -100); ctx.moveTo(-32, -86); ctx.lineTo(-16, -86);
+    ctx.moveTo(-24, -96); ctx.lineTo(-24, -104);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = '#7ac8c0';
+    ctx.beginPath(); ctx.arc(-20, -46, 5, 0, Math.PI * 2); ctx.fill();
+    // 頭、白鬍子、金冠
+    ctx.fillStyle = '#8ad0c8';
+    ctx.beginPath(); ctx.arc(0, -66, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4f4f0';
+    ctx.beginPath(); ctx.moveTo(-10, -64); ctx.quadraticCurveTo(0, -38, 10, -64); ctx.quadraticCurveTo(0, -58, -10, -64); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -72, 10, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#1a1424';
+    ctx.fillRect(-5, -69, 2, 2); ctx.fillRect(3, -69, 2, 2);
+    ctx.fillStyle = '#f0c840';
+    ctx.beginPath();
+    ctx.moveTo(-10, -78); ctx.lineTo(-8, -88); ctx.lineTo(-4, -81); ctx.lineTo(0, -91); ctx.lineTo(4, -81); ctx.lineTo(8, -88); ctx.lineTo(10, -78);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
   /** 樓層：長青苔的石板；終點 = 海神殿（金色地板＋背後的神殿正面） */
   function atlantisFloor(ctx, f, x, y, w, h, t) {
     if (f.goal) {
@@ -5807,6 +5857,8 @@ const Sprites = (function () {
       const glow = 0.25 + Math.sin(t * 0.08) * 0.1;
       ctx.fillStyle = 'rgba(255, 230, 150, ' + glow.toFixed(2) + ')';
       ctx.fillRect(x, y - 4, w, 4);
+      // v1.25.1 玩家：要有海神站在終點迎接我們
+      poseidon(ctx, x + w - 80, y, t);
       return true;
     }
     if (f.type && f.type !== 'normal') return false;     // 滑台等特殊樓層照預設畫法

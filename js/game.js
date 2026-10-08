@@ -705,6 +705,7 @@ const Game = (function () {
     brine: ['杰里德鹽湖', '鹽泥陷得很快，硬走一定受傷 —— 等駱駝靠岸，跳上駝峰讓牠載你'],
     camel: ['駱駝商隊', '紅色鞍毯可以站上去，駱駝會載著你走過鹽湖'],
     column: ['羅馬古柱', '一靠近就會搖晃倒下，地上紅框是壓到的範圍 —— 衝過去，或等它倒完'],
+    flood: ['潛進地中海', '這一段淹在海裡：跳躍 = 往上游、會慢慢下沉，頭上的氣泡用完會嗆水'],
     vent: ['海底氣泡噴口', '頭上的氣泡是你的空氣 —— 游進噴口冒出來的氣泡柱就能補滿'],
     mount: ['駱駝坐騎', '碰一下就騎上去：跑得快、跳得高、不陷沙也不怕風沙；被打到駱駝會跑掉，但你不扣血']
   };
@@ -906,7 +907,9 @@ const Game = (function () {
           break;
         case 'chime': {
           const cs = state.def.shaft && state.def.shaft.chime;
-          if (cs && cs.sound === 'fanfare') Sfx.fanfare(); else Sfx.bell();
+          if (cs && cs.sound === 'fanfare') Sfx.fanfare();
+          else if (cs && cs.sound === 'rumble') { Sfx.bossRoar(); shake = 10; }   // 亞特蘭提斯：海底地震
+          else Sfx.bell();
           shake = 6;
           break;
         }
@@ -2235,7 +2238,7 @@ const Game = (function () {
     // 標題條
     ctx.fillStyle = 'rgba(10,16,30,0.72)';
     ctx.fillRect(0, 0, W, 40);
-    U.text(ctx, '世界地圖　海上開船・陸上步行', 16, 20,
+    U.text(ctx, '世界地圖', 16, 20,
       { size: 18, color: '#ffd166', align: 'left' });
 
     /*
@@ -2244,7 +2247,7 @@ const Game = (function () {
      * 進度是「上一篇門檻 → 下一篇門檻」這一段，不是從 0 算（不然解鎖東歐後條子一開始就快滿）。
      */
     {
-      const bx = 372, by = 14, bw = 140, bh = 12;   // 標題「海上開船・陸上步行」比較長，往右讓開
+      const bx = 160, by = 14, bw = 160, bh = 12;   // v1.25.1 標題只剩「世界地圖」，EXP 條往左靠
       const nx = Encounter.nextRegion(sv.exp);
       const done = !nx;
       const idx = nx ? Encounter.REGIONS.indexOf(nx) : Encounter.REGIONS.length;
@@ -2268,62 +2271,66 @@ const Game = (function () {
     const best = sv.best[cursor];
     const eq = Equipment.forLevel(cursor);
 
+    /*
+     * v1.25.1 玩家：下面這塊太大 → 資訊卡從 88 縮到 58，兩行：
+     *   第一行：國旗、關名（＋魔王標記）、小知識（放不下就截斷）｜右邊：這一關的裝備
+     *   第二行：密道進度｜中間：靠岸提示／操作說明｜右邊：最佳紀錄
+     */
+    const CARD = 58;
     ctx.fillStyle = 'rgba(10,16,30,0.86)';
-    ctx.fillRect(0, H - 88, W, 88);
+    ctx.fillRect(0, H - CARD, W, CARD);
     ctx.strokeStyle = 'rgba(126,151,201,0.6)';
     ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(0, H - 88); ctx.lineTo(W, H - 88); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H - CARD); ctx.lineTo(W, H - CARD); ctx.stroke();
 
     // 國旗
-    Sprites.flagFace(ctx, 18, H - 74, 39, 26, lv.flag, lv.flagDir);
+    Sprites.flagFace(ctx, 14, H - 50, 33, 22, lv.flag, lv.flagDir);
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = 1.2;
-    ctx.strokeRect(18, H - 74, 39, 26);
+    ctx.strokeRect(14, H - 50, 33, 22);
 
-    const nameStr = `${cursor + 1}. ${lv.country} · ${lv.city}`;
-    U.text(ctx, nameStr, 68, H - 66,
-      { size: 18, color: open ? '#ffffff' : '#8894b2', align: 'left' });
+    const nameStr = (cursor + 1) + '. ' + lv.country + ' · ' + lv.city;
+    U.text(ctx, nameStr, 56, H - 39,
+      { size: 16, color: open ? '#ffffff' : '#8894b2', align: 'left' });
+    ctx.font = '600 16px "Segoe UI", "Microsoft JhengHei", sans-serif';
+    let afterName = 56 + ctx.measureText(nameStr).width + 10;
 
     // 魔王關標記，接在關名後面
     if (lv.isBoss) {
-      ctx.font = '600 18px "Segoe UI", "Microsoft JhengHei", sans-serif';
-      const nameW = ctx.measureText(nameStr).width;
-      const bx = 68 + nameW + 10;
+      const bx = afterName;
       ctx.fillStyle = Save.bossBeaten(cursor) ? 'rgba(143,227,160,0.2)' : 'rgba(224,82,107,0.25)';
-      U.roundRect(ctx, bx, H - 78, 62, 22, 5); ctx.fill();
+      U.roundRect(ctx, bx, H - 49, 58, 20, 5); ctx.fill();
       ctx.strokeStyle = Save.bossBeaten(cursor) ? '#8fe3a0' : '#e0526b';
       ctx.lineWidth = 1.2;
-      U.roundRect(ctx, bx, H - 78, 62, 22, 5); ctx.stroke();
+      U.roundRect(ctx, bx, H - 49, 58, 20, 5); ctx.stroke();
       U.text(ctx, Save.bossBeaten(cursor) ? '魔王已破' : '魔王關',
-        bx + 31, H - 67, { size: 12, color: Save.bossBeaten(cursor) ? '#8fe3a0' : '#ff9aa8' });
+        bx + 29, H - 39, { size: 11, color: Save.bossBeaten(cursor) ? '#8fe3a0' : '#ff9aa8' });
+      afterName += 68;
     }
 
-    U.text(ctx, lv.fact, 68, H - 42, { size: 13, color: '#c2cde4', align: 'left' });
+    U.text(ctx, fitText(lv.fact, W - 236 - afterName, 12), afterName + 4, H - 39, { size: 12, color: '#aab6d0', align: 'left' });
 
     // 密道進度
     const scTotal = (lv.secrets || []).length;
     if (scTotal) {
       const found = Save.secretsFound(cursor);
-      U.text(ctx, `密道 ${found}/${scTotal}`, 68, H - 20,
+      U.text(ctx, '密道 ' + found + '/' + scTotal, 56, H - 15,
         { size: 12, color: found >= scTotal ? '#8fe3a0' : '#b9d4f5', align: 'left' });
     }
 
     // 這一關的裝備狀態
     if (eq) {
       const got = Save.hasEquip(eq.id);
-      Sprites.equipIcon(ctx, eq.id, W - 212, H - 56, 0.62);
-      U.text(ctx, got ? '已取得' : '藏有裝備', W - 190, H - 66,
-        { size: 13, color: got ? '#8fe3a0' : '#ffd166', align: 'left' });
-      U.text(ctx, eq.name, W - 190, H - 46, { size: 13, color: '#c2cde4', align: 'left' });
+      Sprites.equipIcon(ctx, eq.id, W - 206, H - 39, 0.5);
+      U.text(ctx, fitText((got ? '已取得 ' : '藏有 ') + eq.name, 176, 12), W - 190, H - 39,
+        { size: 12, color: got ? '#8fe3a0' : '#ffd166', align: 'left' });
     }
 
     if (best) {
-      U.text(ctx, `最佳 \u20AC ${best.coins}/${best.total}`, W - 20, H - 66,
-        { size: 13, color: '#f6d98a', align: 'right' });
-      U.text(ctx, `${best.score} 分`, W - 20, H - 46,
-        { size: 13, color: '#cfd8ec', align: 'right' });
+      U.text(ctx, '最佳 € ' + best.coins + '/' + best.total + '　' + best.score + ' 分', W - 14, H - 15,
+        { size: 12, color: '#f6d98a', align: 'right' });
     } else if (!open) {
-      U.text(ctx, '未解鎖', W - 20, H - 56, { size: 14, color: '#8894b2', align: 'right' });
+      U.text(ctx, '未解鎖', W - 14, H - 15, { size: 12, color: '#8894b2', align: 'right' });
     }
 
     // 靠岸提示：在港口圈內才顯示「可上岸」；旁邊有怪時優先提示挑戰
@@ -2338,18 +2345,18 @@ const Game = (function () {
         ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）`;
       U.text(ctx, blink ? bossTxt : '　',
-        W / 2, H - 14, { size: 15, color: '#ff9aa8' });
+        W / 2, H - 15, { size: 14, color: '#ff9aa8' });
     } else if (spot) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      U.text(ctx, blink ? (spot.def.prompt || '按 Enter 進入' + spot.name + '的' + spot.def.role) : '　', W / 2, H - 14,
-        { size: 15, color: spot.def.merchant ? '#d8b8ff' : '#ffd166' });
+      U.text(ctx, blink ? (spot.def.prompt || '按 Enter 進入' + spot.name + '的' + spot.def.role) : '　', W / 2, H - 15,
+        { size: 14, color: spot.def.merchant ? '#d8b8ff' : '#ffd166' });
     } else if (near >= 0 && near < sv.unlocked) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      U.text(ctx, blink ? '按 Enter 進入' + Levels.list[near].city : '　', W / 2, H - 14,
-        { size: 15, color: '#ffd166' });
+      U.text(ctx, blink ? '按 Enter 進入' + Levels.list[near].city : '　', W / 2, H - 15,
+        { size: 14, color: '#ffd166' });
     } else {
-      U.text(ctx, '方向鍵 移動（海上開船、陸上步行）　Enter 進城　B 商店　I 裝備　N 世界之謎　F2 存檔',
-        W / 2, H - 14, { size: 13, color: '#9aa7c7' });
+      U.text(ctx, '方向鍵 移動　Enter 進城　B 商店　I 裝備　N 世界之謎　F2 存檔',
+        W / 2, H - 15, { size: 12, color: '#8a97b7' });
     }
   }
 
@@ -2836,8 +2843,8 @@ const Game = (function () {
       ctx.fillStyle = 'rgba(120, 240, 230, 0.14)';
       U.roundRect(ctx, 230, top + tall - 96, 500, 40, 8); ctx.fill();
       Sprites.seaAlly(ctx, 262, top + tall - 70, t, 1, 0.7);
-      U.text(ctx, r.ally.full ? '海神夥伴已經帶滿 ' + Save.ALLY_MAX + ' 個了（魔王關會自動出戰）'
-                              : '獲得海神夥伴！目前 ' + r.ally.now + ' 個・魔王關會自動出戰幫你打', W / 2 + 14, top + tall - 76,
+      U.text(ctx, r.ally.full ? '海神夥伴已經跟著你了（最多只能帶一位，魔王關會自動出戰）'
+                              : '獲得海神夥伴！下一場魔王關牠會自動出戰幫你打', W / 2 + 14, top + tall - 76,
         { size: 15, color: '#a8f0e8' });
     }
     if (r.costume) {

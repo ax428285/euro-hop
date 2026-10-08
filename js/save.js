@@ -38,7 +38,7 @@ const Save = (function () {
     };
   }
 
-  const ALLY_MAX = 3;     // 海神夥伴最多帶幾個
+  const ALLY_MAX = 1;     // 海神夥伴最多帶幾個（v1.25.1 玩家：最多只能一位）
   let data = blank();
 
   function sanitize(d) {

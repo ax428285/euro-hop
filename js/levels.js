@@ -391,7 +391,8 @@ const Levels = (function () {
     airTypes: ['flyer'],
     density: 0.9,
     // 招牌：奔牛 —— 中段一群公牛從後面衝過來
-    features: [{ type: 'stampede', from: 0.42, to: 0.64 }],
+    // v1.25.1：最後一段淹在地中海裡，要潛水過去（從亞特蘭提斯移植的橫向游泳；一說亞特蘭提斯就在西班牙的加地斯外海）
+    features: [{ type: 'stampede', from: 0.42, to: 0.64 }, { type: 'flood', from: 0.7, to: 0.88 }],
     secretHint: '舊城區的巷底，牆磚鬆了一塊',
     secretNear: 0.3,
     props: [

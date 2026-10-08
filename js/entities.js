@@ -1185,7 +1185,8 @@ function updatePlayer(state, input, t, who) {
    * 潛水（v1.23.1 亞特蘭提斯，def.underwater）：
    *   重力只剩 28%、下沉最快 2.6；跳躍鍵 = 划水（隨時都能按，往上游一下）；橫向慢 20%。
    */
-  const uw = !!state.def.underwater;
+  // 整關潛水（亞特蘭提斯）或游進淹水段（v1.25.1 西班牙，features 'flood' 設 p.inWater）
+  const uw = !!state.def.underwater || !!p.inWater;
   const maxRun = PHYS.MAX_RUN * st.speed * (p.mount ? 1.3 : 1) * (uw ? 0.8 : 1);
   const accel = PHYS.ACCEL * (st.speed > 1 ? 1.15 : 1) * (onIce ? 0.3 : 1);
   const friction = onIce ? 0.95 : PHYS.FRICTION;
@@ -1360,7 +1361,7 @@ function updatePlayer(state, input, t, who) {
   const pHeadBefore = p.y;
   p.y += p.vy;
   // 潛水：游不出水面（畫面上方 HUD 底下是水面）
-  if (uw && p.y < 64) { p.y = 64; if (p.vy < 0) p.vy = 0; }
+  if (state.def.underwater && p.y < 64) { p.y = 64; if (p.vy < 0) p.vy = 0; }
 
   /*
    * 頂隱形磚：往上跳、頭頂這一帧從磚的下方穿過磚底 → 磚現形。

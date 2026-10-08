@@ -429,7 +429,12 @@ const Encounter = (function () {
         gapY: 112,
         platW: 120,
         shaftW: 600,
-        scroll: [0.7, 1.25],
+        /*
+         * v1.25.1 玩家：礁石崩落的速度途中會加快 ——
+         *   越往下越快（0.7 → 1.45），而且每 11 秒一次海底地震：之後 2.5 秒崩落速度 ×1.6
+         */
+        scroll: [0.7, 1.45],
+        chime: { every: 660, dur: 150, boost: 1.6, label: '轟隆——', sub: '海底地震！礁石崩得更快了', sound: 'rumble' },
         extras: ['slide']
       });
       diveBase.underwater = true;

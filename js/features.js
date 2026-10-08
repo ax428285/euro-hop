@@ -164,6 +164,22 @@ const Features = (function () {
           list.push({ type: 'sand', x: sx, y: sp.y, w: BRINE_W, brine: true, limit: BRINE_LIMIT });
           ctx.avoid.push({ x: sp.x - 100, y: 0, w: BRINE_W + 2 * CAMEL_MARGIN + 200, h: 600 });
         }
+      } else if (c.type === 'flood') {
+        /*
+         * 淹水段（v1.25.1 玩家：上一版亞特蘭提斯的橫向游泳很有創意，移植到現有的某一關）：
+         * 一段地形整個泡在海裡，進到水裡就換潛水物理（跳躍 = 往上游、慢慢下沉），頭上有空氣計，
+         * 裡面放幾個氣泡噴口。出了水面就是一般物理、空氣馬上補滿。
+         */
+        const x0 = Math.round(W * (c.from || 0.7)), x1 = Math.round(W * (c.to || 0.88));
+        // ⚠️ 不能用 Levels.GROUND_Y：規劃時 levels.js 還在定義關卡，Levels 還不存在 → 用這段地面的高度
+        const gy = LevelGen.groundAt(ctx.segs, x0) || ctx.segs[0].y;
+        list.push({ type: 'flood', x0: x0, x1: x1, top: gy - (c.depth || 250) });
+        for (let x = x0 + 380; x < x1 - 200; x += 560) {
+          const sp = findSpot(ctx, x, 40, 60);
+          if (!sp || sp.x <= x0 || sp.x >= x1 - 60) continue;
+          if (list.some(function (q) { return q.type === 'vent' && Math.abs(q.x - sp.x) < 300; })) continue;   // 兩個噴口不要擠在一起
+          list.push({ type: 'vent', x: sp.x, y: sp.y, w: 40 });
+        }
       } else if (c.type === 'air') {
         /*
          * 亞特蘭提斯（潛水）：海底的氣泡噴口，每隔 VENT_EVERY 一個。
@@ -585,10 +601,21 @@ const Features = (function () {
     });
 
     // 潛水：空氣每帧減少，碰到噴口的氣泡柱補回來；用完 → 嗆水（扣一顆愛心、空氣補滿）
-    if (def.underwater) {
+    // 淹水段：身體中心在水面以下就算在水裡（entities.js 用 p.inWater 換潛水物理）
+    const floods = fs.list.filter(function (f) { return f.type === 'flood'; });
+    if (floods.length) {
+      players.forEach(function (p) {
+        const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+        const was = p.inWater;
+        p.inWater = floods.some(function (f) { return cx > f.x0 && cx < f.x1 && cy > f.top; });
+        if (p.inWater && !was) state.particles.push({ x: cx, y: p.y, vx: 0, vy: -1, life: 18, color: '#e0f6ff' });
+      });
+    }
+    if (def.underwater || floods.length) {
       const vents = fs.list.filter(function (f) { return f.type === 'vent'; });
       players.forEach(function (p, i) {
         if (p.air == null) p.air = AIR_MAX;
+        if (!def.underwater && !p.inWater) { p.air = AIR_MAX; p.breathing = false; return; }   // 出水面就能呼吸
         const inBubbles = vents.some(function (v) {
           return p.x + p.w > v.x && p.x < v.x + v.w && p.y + p.h > v.y - VENT_H && p.y < v.y;
         });
@@ -1069,6 +1096,63 @@ const Features = (function () {
     ctx.restore();
   }
 
+  /**
+   * 淹水段（西班牙）：只在那一段畫半透明的海水、水面波紋、光束；在水裡的玩家頭上畫空氣計。
+   * 畫在所有東西之上（含玩家），看起來人就是泡在水裡。
+   */
+  function drawFlood(ctx, state, camX, t, W, H) {
+    state.features.list.forEach(function (f) {
+      if (f.type !== 'flood') return;
+      const a = f.x0 - camX, b = f.x1 - camX;
+      if (b < 0 || a > W) return;
+      ctx.save();
+      const g = ctx.createLinearGradient(0, f.top, 0, H);
+      g.addColorStop(0, 'rgba(20, 130, 220, 0.42)');
+      g.addColorStop(1, 'rgba(8, 50, 130, 0.62)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(a, H);
+      for (let x = a; x <= b; x += 12) ctx.lineTo(x, f.top + Math.sin((x + camX) * 0.03 + t * 0.06) * 3);
+      ctx.lineTo(b, H);
+      ctx.closePath(); ctx.fill();
+      // 水面亮線
+      ctx.strokeStyle = 'rgba(230, 248, 255, 0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = a; x <= b; x += 12) {
+        const y = f.top + Math.sin((x + camX) * 0.03 + t * 0.06) * 3;
+        if (x === a) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      // 光束
+      ctx.globalCompositeOperation = 'lighter';
+      for (let x = Math.ceil((f.x0) / 240) * 240; x < f.x1 - 60; x += 240) {
+        const sx = x - camX + Math.sin(t * 0.02 + x) * 10;
+        ctx.fillStyle = 'rgba(180, 230, 255, 0.06)';
+        ctx.beginPath(); ctx.moveTo(sx, f.top); ctx.lineTo(sx + 40, f.top); ctx.lineTo(sx + 120, H); ctx.lineTo(sx + 60, H); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    });
+    drawAirMeters(ctx, state, camX, t, 0);
+  }
+
+  /** 頭上的空氣計（快用完時變紅閃爍；滿的時候不畫，不擋畫面） */
+  function drawAirMeters(ctx, state, camX, t, camY) {
+    state.players.forEach(function (p) {
+      if (p.out || p.air == null) return;
+      const k = p.air / AIR_MAX;
+      if (k > 0.98) return;
+      const cx = p.x + p.w / 2 - camX, y = p.y - 22 - camY;
+      const low = k < 0.3;
+      if (low && Math.floor(t / 8) % 2 === 0) return;
+      const n = 6, on = Math.ceil(k * n);
+      for (let i = 0; i < n; i++) {
+        ctx.strokeStyle = low ? '#ff8a8a' : '#d8f4ff';
+        ctx.fillStyle = i < on ? (low ? 'rgba(255,120,120,0.85)' : 'rgba(170,225,255,0.85)') : 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(cx - (n - 1) * 5 + i * 10, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    });
+  }
   /** 低解析度遮罩：整片塗 color，再用 holes(hole) 挖出柔邊的圓（hole(x, y, r)） */
   function maskWithHoles(ctx, W, H, color, holes) {
     if (!dark) {
@@ -1098,6 +1182,7 @@ const Features = (function () {
     const fs = state.features;
     if (!fs) return;
     if (state.def.underwater) drawUnderwater(ctx, state, camX, t, W, H, camY);
+    else if (fs.list.some(function (f) { return f.type === 'flood'; })) drawFlood(ctx, state, camX, t, W, H);
     /*
      * 流沙：陷進去的玩家，腳邊蓋一圈沙（畫在玩家之後，看起來就像身體陷進沙裡）。
      * 越久越高，快到上限時沙子變紅閃爍 —— 提醒玩家「要受傷了，快跳」。
