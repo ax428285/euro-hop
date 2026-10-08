@@ -231,7 +231,6 @@ const Race = (function () {
       s.obs.forEach(function (o) {
         if (rs.invuln > 0) return;
         if (o.low && rs.hop > HOP_CLEAR) return;            // 跳在半空中：矮的障礙飛過去
-        if (o.kind === 'wave' && st.waveProof) { rs.speed *= 0.7; return; }   // v1.31 古巴襯衫：浪打到不痛，只是慢下來
         if (Math.abs(rs.x - o.x) < (o.w + PLAYER_W) / 2) {
           rs.invuln = INVULN;
           rs.speed *= 0.35;

@@ -841,9 +841,7 @@ const Features = (function () {
           // 落點在玩家附近（偏前方），用序號錯開，不用 Math.random —— 結果可重現
           const tx = lead.x + lead.w / 2 + [-30, 140, 60, 220, 10, 180][f.seq++ % 6];
           const ty = groundTop(def, tx);
-          // v1.31 哥倫比亞咖啡：紅圈提早出現（引信多 30 帧）
-          const early = players.some(function (p) { return p.stats && p.stats.earlyWarn; });
-          if (ty != null) f.shells.push({ x: tx, y: ty, fuse: SHELL_FUSE + (early ? 30 : 0), fuse0: SHELL_FUSE + (early ? 30 : 0) });
+          if (ty != null) f.shells.push({ x: tx, y: ty, fuse: SHELL_FUSE, fuse0: SHELL_FUSE });
         }
         f.shells.forEach(function (s) {
           if (--s.fuse === 0) {
@@ -909,11 +907,10 @@ const Features = (function () {
         f.box.dy = ny - f.box.y; f.box.y = ny; f.lift = ps.lift;
         if (ps.k === POUR_CYCLE - POUR_TIME - POUR_HOLD - 60 && Math.abs(lead.x - f.x) < 600) events.push('pour');
         if (ps.pour) {
-          // 正中間的熱水柱：從壺嘴一路到咖啡粉的面（v1.31 手沖細口壺：熱水燙不到）
+          // 正中間的熱水柱：從壺嘴一路到咖啡粉的面
           const sx = f.x + f.w / 2 - POUR_STREAM / 2;
           const stream = { x: sx, y: f.y - POUR_TOP, w: POUR_STREAM, h: (ny) - (f.y - POUR_TOP) };
           players.forEach(function (p, i) {
-            if (p.stats && p.stats.pourProof) return;
             if (U.overlap(p, stream)) hurt(p, f.x + f.w / 2, events, pidOf(p, i));
           });
         }
@@ -953,10 +950,6 @@ const Features = (function () {
             if (cx < f.x0 || cx > f.x1) return;
             const gy = groundTop(def, cx);
             if (gy == null || p.y + p.h <= gy - WAVE_H) return;
-            if (p.stats && p.stats.waveProof) {            // v1.31 古巴襯衫：浪打到不會痛，只被推一下
-              p.vx = Math.min(p.vx, -2);
-              return;
-            }
             hurt(p, p.x + p.w + 40, events, pidOf(p, i));
           });
         }

@@ -5,9 +5,9 @@
  *      最急的彎在極速時壓得住（離心力 < 轉向力）
  *   B) 會開車的機器人（看前面的路選車道、矮的障礙就跳、高的閃開）沒有任何裝備也開得到終點，受傷不超過 2 次
  *   C) 站著不動（不轉向、不跳）一定會撞到東西 —— 不是放著就會過
- *   D) 古巴襯衫：大浪打到不痛
+ *   D) 大浪打到會痛（v1.31 古巴襯衫拿掉了，浪一定要躲）
  *   E) 上帝視角（v1.31 古巴，topdown.js）：路一直在畫面範圍內、終點後面沒有障礙；大浪前有預告、浪只蓋左邊（右車道安全）；
- *      會開車的機器人（看前面選車道、浪來就往右）開得到終點、受傷不超過 2 次；完全不轉向一定會撞到；古巴襯衫浪打到不痛
+ *      會開車的機器人（看前面選車道、浪來就往右）開得到終點、受傷不超過 2 次；完全不轉向一定會撞到；浪打到會痛
  */
 function runRaceCheck() {
   const issues = [];
@@ -84,11 +84,11 @@ function runRaceCheck() {
     if (idle.hurts === 0) issues.push(tag + '：完全不轉向、不跳也不會撞到東西，沒有挑戰性');
     // ── D) ──
     if (def.id === 'CU') {
-      const st = buildLevelState(def, li, ['guayabera'], Equipment.resolve(['guayabera']));
+      const st = buildLevelState(def, li, [], Equipment.resolve([]));
       const wi = pl.segs.findIndex(function (s) { return s.obs.some(function (o) { return o.kind === 'wave'; }); });
       st.race.pos = wi * Race.SEG - Race.PLAYER_Z - Race.SEG * 0.5; st.race.speed = pl.maxSpeed; st.race.x = 0;
       const ev = Race.update(st, { isDown: function () { return false; }, once: function () { return false; } }, 1);
-      if (ev.some(function (e) { return /hurt$/.test(e); })) issues.push('古巴襯衫：大浪打到還是會痛');
+      if (!ev.some(function (e) { return /hurt$/.test(e); })) issues.push(tag + '：大浪打到不會痛');
     }
   });
   if (!Object.keys(report).length) issues.push('沒有任何賽道關');
@@ -148,12 +148,12 @@ function topCheck(def, li, issues, report) {
   if (r.frames < 1800) issues.push(tag + '：太短了（' + r.frames + ' 帧就到終點）');
   const idle = drive(false);
   if (idle.hurts === 0) issues.push(tag + '：完全不轉向也不會撞到東西，沒有挑戰性');
-  // 古巴襯衫：只在浪裡（左車道）停著，浪打到不痛
-  const st = buildLevelState(def, li, ['guayabera'], Equipment.resolve(['guayabera']));
+  // 停在浪裡（左車道）：浪打到要會痛
+  const st = buildLevelState(def, li, [], Equipment.resolve([]));
   const w = st.race.waves[0];
   st.race.d = w.y + 40; st.race.x = TopRace.centerAt(pl, st.race.d) - TopRace.LANE; st.race.speed = 0;
   w.state = 'hit'; w.t = 20;
   st.race.cars = [];
   const ev = TopRace.update(st, { isDown: function () { return false; }, once: function () { return false; } }, 1);
-  if (ev.some(function (e) { return /hurt$/.test(e); })) issues.push('古巴襯衫：大浪打到還是會痛');
+  if (!ev.some(function (e) { return /hurt$/.test(e); })) issues.push(tag + '：大浪打到不會痛');
 }

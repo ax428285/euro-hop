@@ -24,17 +24,17 @@
 const Shipyard = (function () {
 
   const ITEMS = [
-    { id: 'sail',   name: '加大船帆', max: 3, prices: [80, 160, 280],
+    { id: 'sail',   name: '加大船帆', max: 3, prices: [150, 300, 500],
       desc: function (lv) { return '大地圖開船速度 +' + (lv * 15) + '%'; },
       note: '地中海的三角帆（拉丁帆）可以逆風斜著走，大航海時代的卡拉維爾帆船就是靠它出海。' },
-    { id: 'cannon', name: '船首砲',   max: 2, prices: [120, 260],
+    { id: 'cannon', name: '船首砲',   max: 2, prices: [220, 460],
       desc: function (lv) { return (lv >= 2 ? '海盜戰裝填快 50%、開場先轟一砲' : lv === 1 ? '海盜戰裝填快 25%' : '海盜戰的大砲沒有強化') + '・戰艦海戰甲板 ' + (lv + 1) + ' 門砲'; },
       note: '16 世紀的地中海槳帆船，砲都裝在船頭 —— 船要正對敵人才打得到。' },
-    { id: 'hull',   name: '加厚船身', max: 2, prices: [150, 300],
+    { id: 'hull',   name: '加厚船身', max: 2, prices: [280, 540],
       desc: function (lv) { return '海上遭遇戰愛心 +' + lv + (lv ? '・戰艦海戰砲壞了修得快' : ''); },
       note: '威尼斯兵工廠用標準化零件造船，全盛時期一天就能組好一艘槳帆船。' },
     // v1.30 哥倫布的戰艦海戰
-    { id: 'powder', name: '火藥庫',   max: 2, prices: [140, 280],
+    { id: 'powder', name: '火藥庫',   max: 2, prices: [260, 500],
       desc: function (lv) { return lv ? '戰艦海戰砲彈威力 +' + (lv * 50) + '%' : '戰艦海戰的砲彈沒有強化'; },
       note: '大航海時代的戰艦把火藥放在船底最深的艙房，旁邊的燈要隔著玻璃點，免得整艘船炸掉。' },
     { id: 'paint',  name: '船身油漆', max: 0, prices: [],
@@ -44,9 +44,9 @@ const Shipyard = (function () {
   /** 油漆：hull 船身、sail 帆、trim 船舷飾條 */
   const PAINTS = [
     { id: 'oak',    name: '原木',     price: 0,  hull: '#8a5a3c', sail: '#f4efe2', trim: '#6b4530' },
-    { id: 'navy',   name: '海軍藍',   price: 60, hull: '#2a4a7a', sail: '#f4efe2', trim: '#e8c060' },
-    { id: 'crimson',name: '腓尼基紫', price: 60, hull: '#6a2a5a', sail: '#c070b0', trim: '#e8c060' },
-    { id: 'gold',   name: '黃金帆船', price: 120, hull: '#3a2a1a', sail: '#f2c94c', trim: '#f2c94c' }
+    { id: 'navy',   name: '海軍藍',   price: 150, hull: '#2a4a7a', sail: '#f4efe2', trim: '#e8c060' },
+    { id: 'crimson',name: '腓尼基紫', price: 150, hull: '#6a2a5a', sail: '#c070b0', trim: '#e8c060' },
+    { id: 'gold',   name: '黃金帆船', price: 300, hull: '#3a2a1a', sail: '#f2c94c', trim: '#f2c94c' }
   ];
 
   function item(id) { return ITEMS.filter(function (i) { return i.id === id; })[0]; }

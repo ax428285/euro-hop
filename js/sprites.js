@@ -1203,7 +1203,7 @@ const Sprites = (function () {
 
   /** 畫裝備圖示（x,y 為中心） */
   function equipIcon(ctx, id, x, y, scale) {
-    const d = Equipment.get(id);
+    const d = Equipment.get(id) || (typeof Souvenirs !== 'undefined' && Souvenirs.get(id));   // v1.31 美洲篇的紀念品走同一條路
     if (!d) return;
     const fn = icons[d.icon];
     if (!fn) return;

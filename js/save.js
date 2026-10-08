@@ -24,6 +24,7 @@ const Save = (function () {
       wallet: 0,          // 可花用的金幣（商店用）
       upgrades: {},       // 已買的強化 { id: level }
       equipment: [],      // 已取得的裝備 id
+      souvenirs: [],      // v1.31 美洲篇撿到的紀念品 id（souvenirs.js，只是收藏）
       worn: null,         // 裝上的裝備 { 部位: id }（v1.22 分部位；null = 舊存檔，讀進來時自動轉換）
       best: {},           // 各關最佳紀錄 { "0": {coins, total, cleared} }
       cleared: [],        // 已通關的關卡 index
@@ -129,6 +130,12 @@ const Save = (function () {
         const lv = parseInt(d.upgrades[id], 10);
         if (!(lv > 0)) return;
         out.upgrades[id] = Math.min(lv, it.maxLevel);
+      });
+    }
+
+    if (Array.isArray(d.souvenirs) && typeof Souvenirs !== 'undefined') {
+      d.souvenirs.forEach(function (id) {
+        if (Souvenirs.get(id) && out.souvenirs.indexOf(id) < 0) out.souvenirs.push(id);
       });
     }
 
@@ -239,6 +246,15 @@ const Save = (function () {
     },
 
     hasEquip: function (id) { return data.equipment.indexOf(id) >= 0; },
+
+    /** v1.31 紀念品（美洲篇）：有沒有／拿到一個（已經有就回 false） */
+    hasSouvenir: function (id) { return data.souvenirs.indexOf(id) >= 0; },
+    addSouvenir: function (id) {
+      if (typeof Souvenirs === 'undefined' || !Souvenirs.get(id) || data.souvenirs.indexOf(id) >= 0) return false;
+      data.souvenirs.push(id);
+      persist();
+      return true;
+    },
 
     /** 拿到一件裝備。那個部位空著就順便裝上（v1.22：部位有東西了就只放進背包） */
     addEquip: function (id) {

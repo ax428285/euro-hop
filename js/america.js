@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 美洲篇（v1.31）的美術：國旗、地標、遠景、各國敵人、道具、裝備圖示、亞馬遜大蛇（賽道關的畫面在 race.js）。
+ * 美洲篇（v1.31）的美術：國旗、地標、遠景、各國敵人、道具、紀念品與時裝圖示、亞馬遜大蛇（賽道關的畫面在 race.js）。
  *
  * 跟 expedition.js 一樣「從外面掛進 Sprites」：Sprites 回傳的 landmarks / skylines / props / icons /
  * countryEnemies / shaftThemes / bossKinds / flagDirs 都是可以加東西的物件；大蛇的身體（彈射物）則是包一層 Sprites.shot。
@@ -516,64 +516,97 @@ const America = (function () {
     ctx.restore();
   };
 
-  // ── 裝備圖示 ────────────────────────────────────────────
+  // ── 紀念品圖示（v1.31 美洲篇不給裝備，改給紀念品：souvenirs.js）────────────
 
   const IC = Sprites.icons;
-  /** 古巴襯衫：白色、四個口袋、兩排細褶 */
-  IC.guayabera = function (ctx, s) {
-    ctx.fillStyle = '#f4f0e6';
-    ctx.beginPath(); ctx.moveTo(-14 * s, -10 * s); ctx.lineTo(-6 * s, -14 * s); ctx.lineTo(6 * s, -14 * s); ctx.lineTo(14 * s, -10 * s);
-    ctx.lineTo(12 * s, 12 * s); ctx.lineTo(-12 * s, 12 * s); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#c8c0a8'; ctx.lineWidth = 1 * s;
-    [-5, 5].forEach(function (px) { ctx.beginPath(); ctx.moveTo(px * s, -12 * s); ctx.lineTo(px * s, 12 * s); ctx.stroke(); });
-    ctx.fillStyle = '#d8d0b8';
-    [[-11, -6], [5, -6], [-11, 3], [5, 3]].forEach(function (p) { ctx.fillRect(p[0] * s, p[1] * s, 6 * s, 5 * s); });
+  /** 古巴沙鈴：兩支交叉的彩色沙鈴 */
+  IC.maracas = function (ctx, s) {
+    [[-1, '#e84a3a', '#f2c230'], [1, '#2f9a4a', '#f2c230']].forEach(function (m) {
+      ctx.save(); ctx.rotate(m[0] * 0.45);
+      ctx.fillStyle = '#8a5a2a'; ctx.fillRect(-1.6 * s, 0, 3.2 * s, 14 * s);
+      ctx.fillStyle = m[1];
+      ctx.beginPath(); ctx.ellipse(0, -6 * s, 6.5 * s, 8 * s, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = m[2]; ctx.fillRect(-6 * s, -7 * s, 12 * s, 2.4 * s);
+      ctx.restore();
+    });
   };
-  /** 手沖細口壺：銀色壺身、細長的鵝頸壺嘴 */
-  IC.kettle = function (ctx, s) {
-    ctx.fillStyle = '#c8ccd4';
-    U.roundRect(ctx, -10 * s, -8 * s, 18 * s, 18 * s, 4 * s); ctx.fill();
-    ctx.fillStyle = '#e8ecf2'; ctx.fillRect(-8 * s, -6 * s, 4 * s, 14 * s);
-    ctx.fillStyle = '#2a2a30'; ctx.fillRect(-14 * s, -4 * s, 4 * s, 10 * s); ctx.fillRect(-4 * s, -11 * s, 6 * s, 3 * s);
-    ctx.strokeStyle = '#b8bcc4'; ctx.lineWidth = 2.4 * s;
-    ctx.beginPath(); ctx.moveTo(8 * s, 6 * s); ctx.quadraticCurveTo(16 * s, 4 * s, 15 * s, -8 * s); ctx.stroke();
+  /** 藍山咖啡豆：小木桶＋桶口兩顆咖啡豆 */
+  IC.bmcoffee = function (ctx, s) {
+    ctx.fillStyle = '#a8743a';
+    ctx.beginPath(); ctx.moveTo(-10 * s, -10 * s); ctx.quadraticCurveTo(-13 * s, 2 * s, -10 * s, 13 * s);
+    ctx.lineTo(10 * s, 13 * s); ctx.quadraticCurveTo(13 * s, 2 * s, 10 * s, -10 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a4a50'; ctx.fillRect(-12 * s, -5 * s, 24 * s, 2.4 * s); ctx.fillRect(-12 * s, 7 * s, 24 * s, 2.4 * s);
+    ctx.fillStyle = '#2f6aa8'; ctx.fillRect(-6 * s, -1 * s, 12 * s, 6 * s);
+    ctx.fillStyle = '#5a3418';
+    [[-3.5, -12], [3.5, -12.5]].forEach(function (b) {
+      ctx.beginPath(); ctx.ellipse(b[0] * s, b[1] * s, 3.6 * s, 2.6 * s, 0.3, 0, Math.PI * 2); ctx.fill();
+    });
   };
-  /** 馬雅玉面具：綠色玉片拼成的臉 */
-  IC.jade = function (ctx, s) {
-    ctx.fillStyle = '#3a9a6a';
-    ctx.beginPath(); ctx.ellipse(0, 0, 12 * s, 15 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#1e6a44'; ctx.lineWidth = 1 * s;
-    for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(k * 5 * s, -14 * s); ctx.lineTo(k * 5 * s, 14 * s); ctx.stroke(); }
-    ctx.fillStyle = '#f4f0e6'; ctx.fillRect(-8 * s, -4 * s, 5 * s, 3 * s); ctx.fillRect(3 * s, -4 * s, 5 * s, 3 * s);
-    ctx.fillStyle = '#16161c'; ctx.fillRect(-6 * s, -4 * s, 2 * s, 3 * s); ctx.fillRect(5 * s, -4 * s, 2 * s, 3 * s);
-    ctx.fillStyle = '#c8402a'; ctx.fillRect(-4 * s, 6 * s, 8 * s, 2 * s);
+  /** 墨西哥皮納塔：彩色紙糊的星星，七個角掛著流蘇 */
+  IC.pinata = function (ctx, s) {
+    const cols = ['#e84a8a', '#f2c230', '#3ab0e0', '#2f9a4a', '#e8742a', '#9a5ad8', '#e84a3a'];
+    for (let k = 0; k < 7; k++) {
+      const a = -Math.PI / 2 + k * Math.PI * 2 / 7;
+      ctx.fillStyle = cols[k];
+      ctx.beginPath(); ctx.moveTo(Math.cos(a - 0.35) * 6 * s, Math.sin(a - 0.35) * 6 * s);
+      ctx.lineTo(Math.cos(a) * 15 * s, Math.sin(a) * 15 * s);
+      ctx.lineTo(Math.cos(a + 0.35) * 6 * s, Math.sin(a + 0.35) * 6 * s); ctx.fill();
+    }
+    ctx.fillStyle = '#f4e8c8';
+    ctx.beginPath(); ctx.arc(0, 0, 7 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e84a8a'; ctx.fillRect(-7 * s, -1.2 * s, 14 * s, 2.4 * s);
   };
-  /** 巴拿馬草帽：草編的米色帽子＋黑色帽帶 */
-  IC.panama = function (ctx, s) {
-    ctx.fillStyle = '#e8d8a8';
-    ctx.beginPath(); ctx.ellipse(0, 6 * s, 16 * s, 5 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-9 * s, 6 * s); ctx.quadraticCurveTo(-10 * s, -12 * s, 0, -12 * s); ctx.quadraticCurveTo(10 * s, -12 * s, 9 * s, 6 * s); ctx.fill();
-    ctx.fillStyle = '#2a2a30'; ctx.fillRect(-9 * s, 0, 18 * s, 3 * s);
+  /** 古納族莫拉布：一層層剪開的彩色布，中間一隻鳥 */
+  IC.mola = function (ctx, s) {
+    [['#c8303a', 14], ['#16161c', 11.5], ['#f28a2a', 9], ['#16161c', 6.5]].forEach(function (l) {
+      ctx.fillStyle = l[0]; ctx.fillRect(-l[1] * s, -l[1] * 0.8 * s, l[1] * 2 * s, l[1] * 1.6 * s);
+    });
+    ctx.fillStyle = '#3ab0e0';
+    ctx.beginPath(); ctx.ellipse(0, 1 * s, 4 * s, 2.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.6 * s, -1.6 * s, 1.8 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2c230';
+    ctx.beginPath(); ctx.moveTo(5.2 * s, -2 * s); ctx.lineTo(7.4 * s, -1.2 * s); ctx.lineTo(5.2 * s, -0.6 * s); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-4 * s, 0); ctx.lineTo(-7 * s, -3 * s); ctx.lineTo(-6 * s, 2 * s); ctx.fill();
   };
-  /** 哥倫比亞咖啡：冒煙的咖啡杯＋咖啡豆 */
-  IC.coffee = function (ctx, s) {
-    ctx.fillStyle = '#f4f0e6';
-    ctx.fillRect(-10 * s, -4 * s, 18 * s, 14 * s);
-    ctx.strokeStyle = '#f4f0e6'; ctx.lineWidth = 2.4 * s;
-    ctx.beginPath(); ctx.arc(9 * s, 3 * s, 4 * s, -Math.PI / 2, Math.PI / 2); ctx.stroke();
-    ctx.fillStyle = '#5a3a20'; ctx.fillRect(-9 * s, -4 * s, 16 * s, 3 * s);
-    ctx.strokeStyle = 'rgba(200, 200, 200, 0.8)'; ctx.lineWidth = 1.2 * s;
-    [-4, 2].forEach(function (px) { ctx.beginPath(); ctx.moveTo(px * s, -6 * s); ctx.quadraticCurveTo((px + 3) * s, -10 * s, px * s, -14 * s); ctx.stroke(); });
+  /** 哥倫比亞祖母綠：切成八角形的綠寶石 */
+  IC.emerald = function (ctx, s) {
+    ctx.fillStyle = '#1e8a50';
+    ctx.beginPath();
+    [[-6, -12], [6, -12], [11, -6], [11, 6], [6, 12], [-6, 12], [-11, 6], [-11, -6]].forEach(function (p, i) {
+      if (i) ctx.lineTo(p[0] * s, p[1] * s); else ctx.moveTo(p[0] * s, p[1] * s);
+    });
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3ad880'; ctx.fillRect(-6 * s, -7 * s, 12 * s, 14 * s);
+    ctx.fillStyle = 'rgba(220, 255, 230, 0.75)';
+    ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-1 * s, -6 * s); ctx.lineTo(-5 * s, -1 * s); ctx.fill();
   };
-  /** 巴西幸運手符 figa：握拳的小手 */
-  IC.figa = function (ctx, s) {
-    ctx.fillStyle = '#2a2a30';
-    ctx.beginPath(); ctx.ellipse(0, 2 * s, 9 * s, 11 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillRect(-5 * s, -16 * s, 10 * s, 8 * s);
-    ctx.fillStyle = '#f2c230'; ctx.fillRect(-6 * s, -18 * s, 12 * s, 3 * s);
-    ctx.strokeStyle = '#4a4a50'; ctx.lineWidth = 1 * s;
-    for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(-7 * s, k * 4 * s); ctx.lineTo(5 * s, k * 4 * s); ctx.stroke(); }
+  /** 世界盃足球：黑白足球，下面一條黃綠色的彩帶 */
+  IC.cupball = function (ctx, s) {
+    ctx.fillStyle = '#f4f4f4';
+    ctx.beginPath(); ctx.arc(0, -2 * s, 11 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#16161c';
+    ctx.beginPath();
+    for (let k = 0; k < 5; k++) {
+      const a = -Math.PI / 2 + k * Math.PI * 2 / 5;
+      if (k) ctx.lineTo(Math.cos(a) * 4 * s, -2 * s + Math.sin(a) * 4 * s); else ctx.moveTo(Math.cos(a) * 4 * s, -2 * s + Math.sin(a) * 4 * s);
+    }
+    ctx.closePath(); ctx.fill();
+    [0, 1, 2, 3, 4].forEach(function (k) {
+      const a = -Math.PI / 2 + k * Math.PI * 2 / 5;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 9.5 * s, -2 * s + Math.sin(a) * 9.5 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = '#2f9a4a'; ctx.fillRect(-12 * s, 9 * s, 24 * s, 3 * s);
+    ctx.fillStyle = '#f2c230'; ctx.fillRect(-12 * s, 12 * s, 24 * s, 2.4 * s);
   };
+
+  // ── 聖胡安服裝店的時裝圖示：縮小的主角穿上那一套（shop.js 的 cos_*）──
+  ['captain', 'matador', 'viking', 'harlequin', 'royal', 'golden', 'pharaoh'].forEach(function (id) {
+    IC['cos_' + id] = function (ctx, s) {
+      ctx.save(); ctx.scale(s * 0.8, s * 0.8);
+      Sprites.player(ctx, { x: -11, y: -18, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: 0, equipped: {}, costume: id }, 0);
+      ctx.restore();
+    };
+  });
 
   // ── 亞馬遜大蛇 Boiúna ───────────────────────────────────
 

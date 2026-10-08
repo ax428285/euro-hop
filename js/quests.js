@@ -9,7 +9,7 @@
  *              回來再找索爾 → 一段逗趣的對話，結界解開 = 北歐篇開放（取代原本的 700 EXP）。
  *   哥倫布     塞維亞：委託你打敗西歐五國的戰艦（expedition.js 的戰艦海戰），完成 → 美洲篇開放（v1.31）。
  *              美洲篇是另一張「新大陸」地圖：歐洲地圖往西開到底就橫越大西洋；哥倫布在他第一次上岸的小島等你（AM_SPOTS）。
- *   瑞士銀行   日內瓦：歐洲每一關的金幣都收滿過才能開戶；之後每分鐘生 1 枚金幣的利息（離開遊戲也算，最多一天份）。
+ *   瑞士銀行   日內瓦：歐洲任意 10 國的金幣收滿過就能開戶（v1.31 從「全部」降到 10 國）；之後每分鐘生 1 枚金幣的利息（離開遊戲也算，最多一天份）。
  *   動物園     阿爾及爾：放撒哈拉動物大遷徙抓回來的動物，每過一天收一次門票。
  *   金字塔     吉薩：直接進「金字塔探險」（expedition.js）。
  *   埃及豔后   西奈半島：賣「聖蛇護身符」（ASP_COST 金幣）—— 買過之後比利時的扒手永遠偷不到你（聖蛇會把他嚇跑）。
@@ -22,7 +22,7 @@ const Quests = (function () {
 
   // 西奈半島（埃及的圖釘、亞歷山卓港、失落的金字塔附近都很擠，這裡最空）
   const CLEO_AT = [33.8, 29.3];
-  const ASP_COST = 200;
+  const ASP_COST = 500;          // v1.31 金幣來源變多 → 200 調到 500
 
   const SPOTS = [
     { id: 'Q_thor', npc: 'thor', name: '雷神索爾', lon: 5.6, lat: 58.4, prompt: '按 Enter 跟雷神索爾說話' },
@@ -41,7 +41,10 @@ const Quests = (function () {
    *   哥倫布：聖薩爾瓦多島（巴哈馬），1492 年 10 月 12 日他第一次踏上美洲的地方。
    */
   const AM_SPOTS = [
-    { id: 'Q_columbusAm', npc: 'columbusAm', name: '哥倫布', lon: -74.5, lat: 24.1, prompt: '按 Enter 跟哥倫布說話' }
+    { id: 'Q_columbusAm', npc: 'columbusAm', name: '哥倫布', lon: -74.5, lat: 24.1, prompt: '按 Enter 跟哥倫布說話' },
+    // v1.31 玩家：除了能力想想還能買甚麼 → 兩家只賣外觀的店（shop.js 的 boutique / petshop）
+    { id: 'M_boutique', seller: 'boutique', name: '聖胡安服裝店', lon: -66.1, lat: 18.4, prompt: '按 Enter 逛聖胡安服裝店' },
+    { id: 'M_petshop', seller: 'petshop', name: '千里達寵物用品店', lon: -61.3, lat: 10.6, prompt: '按 Enter 逛千里達寵物用品店' }
   ];
 
   const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后' };
@@ -288,6 +291,7 @@ const Quests = (function () {
   // ── 銀行 ───────────────────────────────────────────────
 
   const BANK_OFFLINE_MAX = 24 * 60;      // 離開遊戲的期間最多算一天份的利息
+  const BANK_NEED = 10;                  // v1.31 玩家：要收滿歐洲全部國家太多了 → 任意 10 國的金幣收滿就能開戶
   /** 歐洲（西歐、東歐、北歐篇）每一關：金幣有沒有收滿過 */
   function coinProgress() {
     const sv = Save.get();
@@ -298,7 +302,7 @@ const Quests = (function () {
       const b = sv.best[i];
       if (b && b.total > 0 && b.coins >= b.total) got++;
     });
-    return { got: got, total: total };
+    return { got: got, total: total, need: Math.min(BANK_NEED, total) };
   }
   /** 地圖上每帧呼叫：開戶後每過一分鐘存入 1 枚（用真實時間算，所以在關卡裡、離開遊戲都有在算） */
   let tickT = 0;
@@ -450,16 +454,16 @@ const Quests = (function () {
   function talkBank() {
     const b = Save.bank();
     const pr = coinProgress();
-    if (!b.open && pr.got < pr.total) {
+    if (!b.open && pr.got < pr.need) {
       return { who: 'banker', lines: [
         L('banker', '歡迎光臨瑞士銀行。很抱歉，本行只接待真正的收藏家。'),
-        L('banker', '請把歐洲每一國的金幣都收集齊全（每一關都拿滿過一次），再來開戶。'),
-        L('banker', '目前您收滿了 ' + pr.got + ' / ' + pr.total + ' 國。祝您好運。')
+        L('banker', '請在歐洲任意 ' + pr.need + ' 個國家把金幣收集齊全（那一關的金幣拿滿過一次），再來開戶。'),
+        L('banker', '目前您收滿了 ' + pr.got + ' / ' + pr.need + ' 國。祝您好運。')
       ] };
     }
     if (!b.open) {
       return { who: 'banker', lines: [
-        L('banker', '⋯⋯歐洲每一國的金幣，全都收齊了？了不起。'),
+        L('banker', '⋯⋯' + pr.need + ' 個國家的金幣，全都收齊了？了不起。'),
         L('banker', '從今天起，您就是本行的尊貴客戶。'),
         L('banker', '您的帳戶每分鐘會生 1 枚金幣的利息 —— 就算您不在，金幣也會一直存進來。'),
         L('banker', '想領錢的時候，隨時回來找我。')
@@ -680,6 +684,7 @@ const Quests = (function () {
     northOpen: northOpen,
     americaOpen: americaOpen,
     AM_SPOTS: AM_SPOTS,
+    BANK_NEED: BANK_NEED,
     helReady: helReady,
     blocked: blocked,
     drawShield: drawShield,

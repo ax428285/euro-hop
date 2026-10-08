@@ -6,12 +6,12 @@
  *   C) 開放條件：沒完成哥倫布的委託，美洲篇鎖著；完成（columbus = 2）就開
  *   D) 招牌機制：
  *      （古巴、墨西哥是往前衝的賽道關，由 race-check 驗）
- *      牙買加手沖咖啡 —— 沖水前有預告；站在水柱裡會燙、站在旁邊不會，而且會被咖啡粉托上去；手沖細口壺不會燙
+ *      牙買加手沖咖啡 —— 沖水前有預告；站在水柱裡會燙、站在旁邊不會，而且會被咖啡粉托上去
  *      巴拿馬船閘 —— 閘門比跳躍高（從岸上跳不過）、小船升到頂比閘門高；兩艘船差半個週期
  *      哥倫比亞盪繩 —— 把手擺到岸邊時從岸上跳得到；從正中間往前衝時放手飛得過對岸
  *   E) 巴西足球：踩守門員的頭沒用；球滾進球門 = 扣一格；守門員站著時貼地球會被擋回來；
  *      他躺下（破綻期）時完全擋不到球（貼地球也進得去）；守門員不會撞傷人；踢球機器人贏得了
- *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型
+ *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型；每一關放一個紀念品（不是裝備）
  *   G) 新大陸的海上怪：新大陸只生新大陸的怪（食人魚、黑鬍子、海豚、黃金海龜），四種都是自己的玩法（不跟歐洲重複）；
  *      海豚關的星星自己跳（二段跳也是）碰不到、從海豚背上彈起來才碰得到；
  *      打贏給「美洲 EXP」（跟歐洲的分開）；美洲 EXP 夠了才解鎖南美（哥倫比亞、巴西），中美洲一開始就能玩
@@ -114,11 +114,6 @@ function runAmericaCheck() {
     const reach = Features.POUR_BASE + Features.POUR_LIFT + jumpH + 40;
     const top = Math.min.apply(null, def.coins.filter(function (c) { return c.x > f.x - 20 && c.x < f.x + f.w + 20; }).map(function (c) { return c.y; }));
     if (f.y - top > reach) issues.push('牙買加：濾杯上方的金幣（離地 ' + Math.round(f.y - top) + '）托上去也碰不到');
-    // 手沖細口壺：不怕燙
-    const stC = stateOf(def), pro = player(f.x + f.w / 2 - 11, f.y - Features.POUR_BASE - 40);
-    pro.stats = Equipment.resolve(['kettle']); stC.players = [pro];
-    for (let t = pourT; t < pourT + 10; t++) Features.update(stC, t);
-    if (pro.invuln > 0) issues.push('手沖細口壺：熱水還是會燙');
   })();
   // 巴拿馬船閘
   (function () {
@@ -283,7 +278,15 @@ function runAmericaCheck() {
     if (!Sprites.skylines[lv.id]) issues.push(lv.country + '：沒有遠景');
     if (!Sprites.flagDirs[lv.flagDir]) issues.push(lv.country + '：國旗畫法 ' + lv.flagDir + ' 沒有註冊');
     if (!lv.isBoss && lv.layout !== 'shaft' && lv.layout !== 'race' && !(Sprites.countryEnemies[lv.id] && Sprites.countryEnemies[lv.id].walker)) issues.push(lv.country + '：沒有自己的敵人外型');
-    if (!Equipment.forLevel(o.i)) issues.push(lv.country + '：沒有裝備');
+    // v1.31 美洲篇不給裝備，改給紀念品（放在原本裝備的位置，撿到只收藏）
+    if (Equipment.forLevel(o.i)) issues.push(lv.country + '：美洲篇應該給紀念品，不是裝備');
+    const sv = Souvenirs.forLevel(o.i);
+    if (!sv) issues.push(lv.country + '：沒有紀念品');
+    else {
+      if (!Sprites.icons[sv.icon]) issues.push(lv.country + '：紀念品沒有圖示');
+      const stS = buildLevelState(lv, o.i, [], Equipment.resolve([]));
+      if (!stS.equip || !stS.equip.souvenir || stS.equip.id !== sv.id) issues.push(lv.country + '：關卡裡沒有放紀念品');
+    }
     if (!Mystery.clueFor || !Mystery.clueFor(o.i)) issues.push(lv.country + '：沒有美洲之謎的線索');
   });
   if (Levels.list.filter(function (lv) { return lv.region === 'america' && lv.layout === 'race'; }).length !== 2) issues.push('美洲篇應該有兩關往前衝的賽道關（古巴、墨西哥）');

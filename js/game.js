@@ -1237,13 +1237,6 @@ const Game = (function () {
         case 'fall': {
           const faller = state.players[pid || 0];
           if (faller && faller.mount) Features.dismount(state, faller);
-          // v1.31 巴西幸運手符：每關第一次掉下去不扣愛心
-          if (faller && faller.stats && faller.stats.pitSave && !(state.pitUsed && state.pitUsed[pid || 0])) {
-            state.pitUsed = state.pitUsed || {};
-            state.pitUsed[pid || 0] = true;
-            lives[pid || 0]++;
-            toast = { text: '幸運手符救了你！', sub: '掉下去不扣愛心（這一關只有一次）', life: 160 };
-          }
           Sfx.hurt(); shake = 14; loseLife(true, pid); break;
         }
         case 'mount': Sfx.equip(); break;
@@ -1429,8 +1422,12 @@ const Game = (function () {
     if (n && Input.once('confirm')) {
       const it = list[shopCursor];
       const price = Shop.priceOf(it.id);
+      const why = Shop.blockedOf(it.id);
       if (price == null) {
-        shopMsg = { text: '已經買到最高階了', color: '#9aa7c7', life: 110 };
+        shopMsg = { text: it.kind === 'look' ? '已經有了' : '已經買到最高階了', color: '#9aa7c7', life: 110 };
+        Sfx.clang();
+      } else if (why) {
+        shopMsg = { text: why, color: '#ff9aa8', life: 150 };
         Sfx.clang();
       } else if (!Shop.canBuy(it.id)) {
         shopMsg = {
@@ -1444,7 +1441,9 @@ const Game = (function () {
         shopBonus = Shop.resolve();
         stats = Equipment.resolve(Save.wornIds());
         maxLives = stats.maxLives;
-        shopMsg = { text: it.name + ' 升級了！', color: '#8fe3a0', life: 130 };
+        shopMsg = { text: it.costume ? '買下「' + it.name + '」，已經穿上了！（按 I 可以換）'
+                        : it.acc ? '狗狗戴上了' + it.name + '！'
+                        : it.name + ' 升級了！', color: '#8fe3a0', life: 150 };
         Sfx.equip();
       }
     }
@@ -1813,6 +1812,15 @@ const Game = (function () {
   function onEquip() {
     const e = state.equip;
     Sfx.equip();
+    // v1.31 美洲篇：紀念品只收藏，不重算能力
+    if (e.souvenir || !Equipment.get(e.id)) {
+      Save.addSouvenir(e.id);
+      newEquip = e.def;
+      toast = { text: '取得紀念品：' + e.def.name, sub: e.def.note, life: 260 };
+      netProgress({ t: 'equip', id: e.id });
+      runScore += 200;
+      return;
+    }
     Save.addEquip(e.id);
     newEquip = e.def;
     toast = { text: '取得 ' + e.def.name, sub: e.def.desc, life: 220 };
@@ -2553,8 +2561,6 @@ const Game = (function () {
       if (sc.block) {
         const d = Math.abs(state.player.x + state.player.w / 2 - (sc.block.x + sc.block.w / 2));
         sc.near = U.clamp(1 - (d - 50) / 230, 0, 1);
-        // v1.31 馬雅玉面具：隱形磚遠遠就看得到（微微閃）
-        if (stats && stats.secretSense && !sc.revealed) sc.near = Math.max(sc.near, 0.5 + Math.sin(t * 0.1) * 0.2);
       }
       Sprites.secretRoom(ctx, sc, def, t, camX);
     });
@@ -3141,7 +3147,7 @@ const Game = (function () {
     const lv = Levels.list[cursor];
     const open = cursor < sv.unlocked;
     const best = sv.best[cursor];
-    const eq = Equipment.forLevel(cursor);
+    const eq = Equipment.forLevel(cursor) || Souvenirs.forLevel(cursor);   // v1.31 美洲篇是紀念品
 
     /*
      * v1.25.1 玩家：下面這塊太大 → 資訊卡從 88 縮到 58，兩行：
@@ -3192,9 +3198,9 @@ const Game = (function () {
 
     // 這一關的裝備狀態
     if (eq) {
-      const got = Save.hasEquip(eq.id);
+      const got = Equipment.get(eq.id) ? Save.hasEquip(eq.id) : Save.hasSouvenir(eq.id);
       Sprites.equipIcon(ctx, eq.id, W - 206, H - 39, 0.5);
-      U.text(ctx, fitText((got ? '已取得 ' : '藏有 ') + eq.name, 176, 12), W - 190, H - 39,
+      U.text(ctx, fitText((got ? '已取得 ' : '藏有 ') + (Equipment.get(eq.id) ? '' : '紀念品') + eq.name, 176, 12), W - 190, H - 39,
         { size: 12, color: got ? '#8fe3a0' : '#ffd166', align: 'left' });
     }
 
@@ -3398,7 +3404,7 @@ const Game = (function () {
       ['狀態', info.writable ? '可寫入，進度會自動儲存' : '無法寫入（無痕模式？進度不會保留）'],
       ['目前大小', info.bytes + ' bytes'],
       ['通關', sv.cleared.length + ' / ' + Levels.count + ' 關'],
-      ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件'],
+      ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件　美洲紀念品 ' + sv.souvenirs.length + ' / ' + Souvenirs.count + '　時裝 ' + sv.costumes.length + ' / ' + Costumes.count],
       ['密道', sv.secrets.length + ' 條'],
       ['魔王', sv.bosses.length + ' 隻'],
       ['貿易', '第 ' + (sv.day + 1) + ' 天　船艙 ' + Save.cargoCount() + ' 箱' + (sv.bounty ? '　懸賞：' + Trade.describe(sv.bounty) : '')],
@@ -3448,7 +3454,7 @@ const Game = (function () {
       const onRow = invCursor < 0;
       const label = sv.costumes.length
         ? '時裝：' + (cos ? cos.name : '條紋衫（原本的樣子）') + (onRow ? '　◀ ▶ 切換' : '　（往上選到這列可以換）') + '　收集 ' + sv.costumes.length + ' / ' + Costumes.count
-        : '時裝：還沒有 —— 地圖上閃金光的稀有怪會掉落（收集 0 / ' + Costumes.count + '）';
+        : '時裝：還沒有 —— 地圖上閃金光的稀有怪會掉落，新大陸的聖胡安服裝店也買得到（收集 0 / ' + Costumes.count + '）';
       if (onRow) {
         ctx.fillStyle = 'rgba(255, 209, 102, 0.14)';
         U.roundRect(ctx, 120, 56, W - 240, 28, 8); ctx.fill();
@@ -3629,7 +3635,9 @@ const Game = (function () {
       const lv = Shop.levelOf(it.id);
       const price = Shop.priceOf(it.id);
       const maxed = price == null;
-      const afford = !maxed && sv.wallet >= price;
+      const look = it.kind === 'look';          // v1.31 外觀商品（時裝、狗狗配件）：買一次就有，沒有階級
+      const why = maxed ? null : Shop.blockedOf(it.id);
+      const afford = !maxed && !why && sv.wallet >= price;
       const sel = i === shopCursor;
 
       ctx.fillStyle = lv > 0 ? 'rgba(32,46,82,0.95)' : 'rgba(22,26,40,0.92)';
@@ -3657,24 +3665,26 @@ const Game = (function () {
         { size: 12, color: '#9fb4d8', align: 'left' });
 
       // 階級條：每階一格，買到就點亮
-      for (let k = 0; k < it.maxLevel; k++) {
+      for (let k = 0; k < (look ? 0 : it.maxLevel); k++) {
         const bx = cx + 76 + k * 30;
         const by = cy + 60;
         ctx.fillStyle = k < lv ? '#ffd166' : 'rgba(255,255,255,0.14)';
         U.roundRect(ctx, bx, by, 24, 7, 3); ctx.fill();
       }
-      U.text(ctx, maxed ? '已滿級' : ('第 ' + (lv + 1) + ' 階'),
-        cx + 76 + it.maxLevel * 30 + 8, cy + 64,
-        { size: 11, color: maxed ? '#8fe3a0' : '#9aa7c7', align: 'left' });
+      if (!look) {
+        U.text(ctx, maxed ? '已滿級' : ('第 ' + (lv + 1) + ' 階'),
+          cx + 76 + it.maxLevel * 30 + 8, cy + 64,
+          { size: 11, color: maxed ? '#8fe3a0' : '#9aa7c7', align: 'left' });
+      }
 
       // 價格 / 狀態
       if (maxed) {
-        U.text(ctx, '已滿級', cx + 16, cy + 98,
+        U.text(ctx, look ? '已擁有' : '已滿級', cx + 16, cy + 98,
           { size: 14, color: '#8fe3a0', align: 'left' });
       } else {
         U.text(ctx, '\u20AC ' + price, cx + 16, cy + 98,
           { size: 15, color: afford ? '#ffd166' : '#8894b2', align: 'left' });
-        U.text(ctx, afford ? '按 Enter 購買' : '金幣不足',
+        U.text(ctx, afford ? '按 Enter 購買' : why ? '要先有狗狗' : '金幣不足',
           cx + cw - 16, cy + 98,
           { size: 12, color: afford ? '#8fe3a0' : '#ff9aa8', align: 'right' });
       }
@@ -3683,6 +3693,8 @@ const Game = (function () {
     // 提示訊息（買成功 / 錢不夠）
     if (shopMsg) {
       U.text(ctx, shopMsg.text, W / 2, H - 44, { size: 16, color: shopMsg.color });
+    } else if (seller.look) {
+      U.text(ctx, '這裡賣的都是外觀，不會增加能力，純粹好看', W / 2, H - 44, { size: 13, color: '#9aa7c7' });
     } else {
       // 沒訊息時顯示目前加成總覽，讓玩家知道買下去有什麼差
       const b = Shop.resolve();
@@ -3822,9 +3834,10 @@ const Game = (function () {
       ctx.lineWidth = 1.5;
       U.roundRect(ctx, 210, y, 540, 68, 8); ctx.stroke();
       Sprites.equipIcon(ctx, newEquip.id, 250, y + 34, 0.9);
-      U.text(ctx, '新裝備：' + newEquip.name, 288, y + 22,
+      const souv = !Equipment.get(newEquip.id);       // v1.31 美洲篇的紀念品
+      U.text(ctx, (souv ? '紀念品：' : '新裝備：') + newEquip.name, 288, y + 22,
         { size: 17, color: '#ffd166', align: 'left' });
-      U.text(ctx, newEquip.desc + '（已存檔，下次還能用）', 288, y + 48,
+      U.text(ctx, souv ? fitText(newEquip.note, 450, 13) : newEquip.desc + '（已存檔，下次還能用）', 288, y + 48,
         { size: 13, color: '#dce5f5', align: 'left' });
       y += 80;
     }
@@ -4227,7 +4240,7 @@ const Game = (function () {
         case 'sceneTimer': sceneTimer = v.sceneTimer; break;
         case 'coinsBanked': coinsBanked = v.coinsBanked; break;
         case 'expResult': expResult = v.expResult; break;
-        case 'newEquip': newEquip = v.newEquip ? Equipment.get(v.newEquip.id) || v.newEquip : null; break;
+        case 'newEquip': newEquip = v.newEquip ? Equipment.get(v.newEquip.id) || Souvenirs.get(v.newEquip.id) || v.newEquip : null; break;
         case 'skirmish': skirmish = v.skirmish; break;
       }
     });
@@ -4235,7 +4248,7 @@ const Game = (function () {
     state.def = net.guestDef;
     if (state.players) state.player = state.players[0];
     // JSON 傳不了函式：裝備定義換回本地那份
-    if (state.equip && state.equip.id) state.equip.def = Equipment.get(state.equip.id) || state.equip.def;
+    if (state.equip && state.equip.id) state.equip.def = Equipment.get(state.equip.id) || Souvenirs.get(state.equip.id) || state.equip.def;
     coop = true;
     (msg.fx || []).forEach(function (f) {
       const obj = f[0] === 'S' ? Sfx : Music;
@@ -4262,6 +4275,7 @@ const Game = (function () {
         break;
       }
       case 'equip':
+        if (!Equipment.get(msg.id)) { Save.addSouvenir(msg.id); break; }   // 紀念品
         Save.addEquip(msg.id);
         stats = Equipment.resolve(Save.wornIds());
         break;

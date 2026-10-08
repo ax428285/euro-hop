@@ -42,4 +42,7 @@
     給「美洲 EXP」（Save.expAm，跟歐洲的 EXP 分開）；累積 Encounter.SOUTH_EXP 解鎖南美（關卡標 `gate: 'samerica'`：哥倫比亞、巴西）。
   - 巴西魔王是踢足球（entities.js 的 pattern `'soccer'`：進球才扣血，踩頭沒用）；測試用 `runSoccerBot`（tests/traversal-bot.js）。
     原本的亞馬遜大蛇 Boiúna（pattern `'boiuna'`）程式還留著，目前沒有關卡用。
+  - 美洲篇不給裝備（Equipment 只到冰島，28 件），改給紀念品（`js/souvenirs.js`、`Save.souvenirs`）：放在原本裝備的位置，走同一條 `state.equip`（`souvenir: true`）。
+  - 只賣外觀的店（shop.js `kind: 'look'`）：聖胡安服裝店（seller `boutique`，時裝；擁有看 `Save.costumes`）、千里達寵物用品店（`petshop`，狗的配件 `Shop.dogAccs()`，要先收養狗）。地點在 quests.js 的 `AM_SPOTS`。
+  - 瑞士銀行：歐洲任意 `Quests.BANK_NEED`（10）國金幣收滿就能開戶。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

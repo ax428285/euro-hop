@@ -357,8 +357,11 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
   const wornList = st.worn || ownedEquip || [];
   wornList.forEach(function (id) { p.equipped[id] = true; });
 
-  const levelEquip = Equipment.forLevel(levelIndex);
-  const equipTaken = !levelEquip || (ownedEquip || []).indexOf(levelEquip.id) >= 0;
+  // v1.31 美洲篇沒有裝備，同一個位置改放紀念品（souvenir: true；撿到只收藏，見 game.js onEquip）
+  const souv = Equipment.forLevel(levelIndex) ? null : (typeof Souvenirs !== 'undefined' ? Souvenirs.forLevel(levelIndex) : null);
+  const levelEquip = Equipment.forLevel(levelIndex) || souv;
+  const equipTaken = !levelEquip || (souv ? (typeof Save !== 'undefined' && Save.hasSouvenir(souv.id))
+                                          : (ownedEquip || []).indexOf(levelEquip.id) >= 0);
 
   // 密道：每條有入口觸發區、內部空間、獎勵
   const secrets = (def.secrets || []).map(function (s, i) {
@@ -439,7 +442,8 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
       w: 30, h: 30,
       taken: equipTaken,
       // 要先找到對應密道才看得到（-1 表示不在密道裡）
-      secretIdx: equipSecretIdx
+      secretIdx: equipSecretIdx,
+      souvenir: !!souv
     } : null,
     particles: [],
     // 豎井關的執行期狀態（非豎井關是 null）

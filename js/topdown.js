@@ -8,7 +8,7 @@
  *   ←→ 轉向，車子自己往前開；開上路邊的紅白路緣會變慢，海堤、房子撞不過去。
  *   路上：慢吞吞的老爺車（同方向、比你慢）、坑洞、三角錐、水果推車 —— 撞到扣一顆愛心、速度掉一大截。
  *   大浪（參考圖裡兩旁噴火的那種「旁邊打過來」的危險）：海堤先冒水花預告，接著浪從左邊打上路面，
- *   蓋住左邊三分之二的馬路 —— 要趕快開到最右邊的車道（古巴襯衫：浪打到不痛）。
+ *   蓋住左邊三分之二的馬路 —— 要趕快開到最右邊的車道。
  *
  * 座標：世界 y 往前開是增加；畫面上 sy = PLAYER_SY − (y − d)（d = 車子跑了多遠）。
  * 由 race.js 轉發（def.race.view === 'top'），對外介面跟 Race 一樣：plan / makeState / update / draw。
@@ -172,8 +172,7 @@ const TopRace = (function () {
       } else if (w.state === 'hit') {
         const box = waveBox(pl, w);
         if (rs.invuln <= 0 && rectHit(me, box)) {
-          if (st.waveProof) rs.speed *= 0.92;                   // 古巴襯衫：浪打到不痛，只是慢下來
-          else { rs.invuln = INVULN; rs.speed *= 0.4; rs.vx = 6; events.push('p0:hurt'); }
+          rs.invuln = INVULN; rs.speed *= 0.4; rs.vx = 6; events.push('p0:hurt');
         }
         if (--w.t <= 0) w.state = 'done';
       }

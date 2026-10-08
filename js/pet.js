@@ -69,7 +69,35 @@ const Pet = (function () {
 
   // ── 繪製（大地圖座標，WorldMap 的 view 裡）──
 
-  /** 黃金獵犬：坐著（sit）或走路；s = 縮放 */
+  // ── v1.31 千里達寵物用品店的配件（Shop.dogAccs()；全部一起戴）。座標是狗自己的座標（頭在 (4, hy)）──
+  function accHas(o, k) { return !!(o.accs && o.accs.indexOf(k) >= 0); }
+  function drawCape(ctx, hy, t) {
+    const w = Math.sin(t * 0.2) * 1.2;
+    ctx.fillStyle = '#c8303a';
+    ctx.beginPath(); ctx.moveTo(2.6, hy + 1.8); ctx.lineTo(0, hy + 1.2);
+    ctx.quadraticCurveTo(-5, -6 + w, -8, -3.5 + w); ctx.lineTo(-3.5, -2.2); ctx.closePath(); ctx.fill();
+  }
+  function drawHeadAccs(ctx, o, hx, hy) {
+    if (accHas(o, 'bandana')) {
+      ctx.fillStyle = '#d8303a';
+      ctx.beginPath(); ctx.moveTo(hx - 2.6, hy + 2); ctx.lineTo(hx + 1.8, hy + 2.8); ctx.lineTo(hx - 0.8, hy + 5.4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(hx - 0.9, hy + 3, 0.7, 0.7);
+    }
+    if (accHas(o, 'shades')) {
+      ctx.fillStyle = '#16161c';
+      ctx.fillRect(hx + 0.4, hy - 2, 3.4, 1.8);
+      ctx.fillRect(hx - 1.6, hy - 1.6, 2, 0.6);
+      ctx.fillStyle = 'rgba(160, 220, 255, 0.7)'; ctx.fillRect(hx + 2.4, hy - 1.8, 0.8, 0.6);
+    }
+    if (accHas(o, 'sombrero')) {
+      ctx.fillStyle = '#e8c870';
+      ctx.beginPath(); ctx.ellipse(hx, hy - 2.8, 5.4, 1.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx, hy - 4.2, 2.4, 2, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#c8303a'; ctx.fillRect(hx - 2.4, hy - 3.6, 4.8, 0.8);
+    }
+  }
+
+  /** 黃金獵犬：坐著（sit）或走路；s = 縮放；o.accs = 戴著的配件 */
   function drawDog(ctx, x, y, t, o) {
     o = o || {};
     const fur = '#e0a64a', dark = '#b97a2a';
@@ -90,6 +118,7 @@ const Pet = (function () {
       ctx.fillStyle = '#2a1a10';
       ctx.fillRect(5.4, -2.2, 1.2, 1.2);
       ctx.fillRect(2, -3.4, 0.9, 0.9);
+      drawHeadAccs(ctx, { accs: (o.accs || []).filter(function (k) { return k !== 'bandana'; }) }, 1.4, -2);
       ctx.restore();
       return;
     }
@@ -118,6 +147,7 @@ const Pet = (function () {
     }
     // 頭
     const hy = o.sit ? -9 : -7;
+    if (accHas(o, 'cape')) drawCape(ctx, hy, t);
     ctx.fillStyle = fur;
     ctx.beginPath(); ctx.arc(4, hy, 3.2, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(7, hy + 1, 2.2, 1.5, 0, 0, Math.PI * 2); ctx.fill();   // 嘴
@@ -131,7 +161,19 @@ const Pet = (function () {
       ctx.fillStyle = '#e86a7a';
       ctx.fillRect(6.4, hy + 2.2, 1.2, 1.6 + Math.max(0, Math.sin(t * 0.2)) * 0.8);
     }
+    drawHeadAccs(ctx, o, 4, hy);
     ctx.restore();
+  }
+
+  // 寵物用品店的商品圖示：坐著的狗只戴那一樣（Sprites.icon 的格式：原點在中心、s = 縮放）
+  if (typeof Sprites !== 'undefined') {
+    ['bandana', 'shades', 'sombrero', 'cape'].forEach(function (k) {
+      Sprites.icons['dog_' + k] = function (ctx, s) {
+        ctx.save(); ctx.scale(s * 1.7, s * 1.7);
+        drawDog(ctx, -3, 8, 0, { sit: true, facing: 1, accs: [k] });
+        ctx.restore();
+      };
+    });
   }
 
   /** 還沒收養：坐在岸邊等人（near = 船靠近，頭上冒個愛心） */
@@ -145,13 +187,13 @@ const Pet = (function () {
       ctx.arc(x + 2, y - 21 + hb, 2, 0, Math.PI * 2); ctx.arc(x + 5.6, y - 21 + hb, 2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.moveTo(x + 0.2, y - 20.4 + hb); ctx.lineTo(x + 3.8, y - 16.5 + hb); ctx.lineTo(x + 7.4, y - 20.4 + hb); ctx.fill();
     }
-    drawDog(ctx, x, y, t, { sit: true, facing: -1 });
+    drawDog(ctx, x, y, t, { sit: true, facing: -1, accs: typeof Shop !== 'undefined' ? Shop.dogAccs() : [] });
   }
 
   /** 收養之後：跟在主角後面（WorldMap 畫完、主角畫之前呼叫，狗在主角下面一層） */
   function drawFollower(ctx, t) {
     if (!adopted() || !dog.ready) return;
-    drawDog(ctx, dog.x, dog.y, t, { facing: dog.facing, swim: dog.inWater });
+    drawDog(ctx, dog.x, dog.y, t, { facing: dog.facing, swim: dog.inWater, accs: typeof Shop !== 'undefined' ? Shop.dogAccs() : [] });
   }
 
   return {

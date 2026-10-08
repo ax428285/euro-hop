@@ -39,7 +39,8 @@ const Shop = (function () {
       desc: '每關開始時多一條命',
       // v1.9.1：裝備不再大量加愛心（改成新能力），商店多開第 3 階補回來
       maxLevel: 3,
-      cost: [60, 150, 280],
+      // v1.31 玩家：金幣的來源變多了（銀行利息、貿易、懸賞⋯⋯）→ 商店的價格大約翻倍
+      cost: [150, 350, 650],
       apply: function (b, lv) { b.bonusLives += lv; }
     },
     {
@@ -48,7 +49,7 @@ const Shop = (function () {
       icon: 'magnet',
       desc: '附近的金幣會被吸過來',
       maxLevel: 2,
-      cost: [80, 180],
+      cost: [200, 420],
       apply: function (b, lv) { b.magnet = lv * 46; }
     },
     // v1.18 拿掉「加長揮擊」（遊戲不再有近戰揮擊）；買過的不退費，存檔裡的紀錄留著但不再有作用
@@ -58,7 +59,7 @@ const Shop = (function () {
       icon: 'shield',
       desc: '受傷後的無敵時間更長',
       maxLevel: 2,
-      cost: [50, 120],
+      cost: [120, 300],
       apply: function (b, lv) { b.invulnBonus += lv * 40; }
     },
     {
@@ -67,7 +68,7 @@ const Shop = (function () {
       icon: 'boots',
       desc: '跳得更高一點',
       maxLevel: 2,
-      cost: [90, 200],
+      cost: [220, 480],
       apply: function (b, lv) { b.jumpBoost = lv * 0.6; }
     },
     {
@@ -76,10 +77,37 @@ const Shop = (function () {
       icon: 'luck',
       desc: '金幣分數加成',
       maxLevel: 2,
-      cost: [100, 220],
+      cost: [240, 520],
       apply: function (b, lv) { b.coinBonus = lv * 0.5; }
     }
   ];
+
+  /*
+   * v1.31 玩家：「除了能力想想還能買甚麼」→ 新大陸開了兩家只賣外觀的店（kind: 'look'，不加任何能力，買一次就有）。
+   *   聖胡安服裝店（波多黎各）：時裝。原本只有稀有怪會掉；黃金套裝和法老還是只能打怪／探險拿。
+   *     擁有與否直接看 Save 的 costumes（打怪拿過的這裡會顯示「已擁有」）。
+   *   千里達寵物用品店：給黃金獵犬的小配件，買了地圖上的狗就戴著（全部一起戴）。要先收養狗才能買。
+   *     擁有與否存在 Save.upgrades（跟強化一樣，maxLevel 1）。
+   */
+  [
+    ['captain', '海盜船長', '三角帽 + 紅色長大衣', 600],
+    ['matador', '鬥牛士', '金色刺繡短外套 + 黑色鬥牛士帽', 600],
+    ['viking', '維京戰士', '牛角頭盔 + 毛皮背心', 600],
+    ['harlequin', '威尼斯小丑', '菱格紋衣 + 雙角鈴鐺帽', 800],
+    ['royal', '歐羅巴王子', '金王冠 + 紫色披風', 1200]
+  ].forEach(function (c) {
+    items.push({ id: 'cos_' + c[0], costume: c[0], name: c[1], icon: 'cos_' + c[0], desc: '時裝：' + c[2],
+                 kind: 'look', maxLevel: 1, cost: [c[3]] });
+  });
+  [
+    ['bandana', '紅色領巾', '綁在脖子上的紅色三角巾', 250],
+    ['shades', '酷酷墨鏡', '加勒比海的太陽好大', 300],
+    ['sombrero', '小草帽', '墨西哥的寬邊草帽，縮小版', 400],
+    ['cape', '英雄披風', '跑起來會飄的紅色小披風', 600]
+  ].forEach(function (c) {
+    items.push({ id: 'dog_' + c[0], acc: c[0], name: c[1], icon: 'dog_' + c[0], desc: c[2],
+                 kind: 'look', maxLevel: 1, cost: [c[3]], needDog: true });
+  });
 
   /*
    * 賣家（v1.22 玩家要求：地圖放神祕商人，某些東西要去那邊買）。
@@ -90,16 +118,28 @@ const Shop = (function () {
     portugal: { name: '金幣商店', who: '葡萄牙的港口商店', line: '關卡裡撿的金幣會存進錢包，在這裡換永久強化' },
     isle:     { name: '神祕商人・藥草婆婆', who: '地中海小島上的藥草婆婆', line: '「海風吹來的金幣，我這道符都吸得過來。」' },
     fjord:    { name: '神祕商人・峽灣老漁夫', who: '北歐峽灣的老漁夫', line: '「在冰冷的海上跑船，護身符和好鞋子少不了。」' },
-    oasis:    { name: '神祕商人・駱駝商隊', who: '撒哈拉綠洲的駱駝商隊', line: '「穿過沙漠的人，都相信這枚幸運徽章。」' }
+    oasis:    { name: '神祕商人・駱駝商隊', who: '撒哈拉綠洲的駱駝商隊', line: '「穿過沙漠的人，都相信這枚幸運徽章。」' },
+    // v1.31 新大陸
+    boutique: { name: '聖胡安服裝店', who: '波多黎各聖胡安的服裝店', line: '「出門旅行，總要有幾套體面的衣服。」買了就穿上，按 I 可以換', look: true },
+    petshop:  { name: '千里達寵物用品店', who: '千里達的寵物用品店', line: '「給你的狗狗也打扮一下吧！」買了狗狗就會戴上', look: true }
   };
   const SELLER_OF = { heart: 'portugal', magnet: 'isle', shield: 'fjord', boots: 'fjord', luck: 'oasis' };
-  items.forEach(function (it) { it.seller = SELLER_OF[it.id] || 'portugal'; });
+  items.forEach(function (it) { it.seller = it.costume ? 'boutique' : it.acc ? 'petshop' : (SELLER_OF[it.id] || 'portugal'); });
 
   const byId = {};
   items.forEach(function (it) { byId[it.id] = it; });
 
   function levelOf(id) {
+    const it = byId[id];
+    if (it && it.costume) return Save.get().costumes.indexOf(it.costume) >= 0 ? 1 : 0;
     return Save.upgradeLevel(id);
+  }
+
+  /** 買不買得了（跟錢無關的條件）：回傳不能買的原因，可以買回 null */
+  function blockedOf(id) {
+    const it = byId[id];
+    if (it && it.needDog && !(typeof Pet !== 'undefined' && Pet.adopted())) return '要先有一隻狗狗（蘇格蘭高地的黃金獵犬）';
+    return null;
   }
 
   /** 下一階價格；已滿級回 null */
@@ -113,16 +153,17 @@ const Shop = (function () {
 
   function canBuy(id) {
     const p = priceOf(id);
-    if (p == null) return false;
+    if (p == null || blockedOf(id)) return false;
     return Save.get().wallet >= p;
   }
 
   function buy(id) {
     const p = priceOf(id);
     if (p == null) return false;
-    if (Save.get().wallet < p) return false;
+    if (Save.get().wallet < p || blockedOf(id)) return false;
     Save.spendCoins(p);
-    Save.addUpgrade(id);
+    if (byId[id].costume) Save.addCostume(byId[id].costume);     // 時裝：買了就穿上
+    else Save.addUpgrade(id);
     return true;
   }
 
@@ -136,6 +177,7 @@ const Shop = (function () {
       coinBonus: 0
     };
     items.forEach(function (it) {
+      if (!it.apply) return;           // 外觀商品沒有加成
       const lv = levelOf(it.id);
       if (lv > 0) it.apply(b, lv);
     });
@@ -156,6 +198,11 @@ const Shop = (function () {
     itemsOf: function (seller) { return items.filter(function (it) { return it.seller === seller; }); },
     get: function (id) { return byId[id]; },
     levelOf: levelOf,
+    blockedOf: blockedOf,
+    /** 黃金獵犬戴著哪些配件（寵物用品店買的） */
+    dogAccs: function () {
+      return items.filter(function (it) { return it.acc && Save.upgradeLevel(it.id) > 0; }).map(function (it) { return it.acc; });
+    },
     priceOf: priceOf,
     canBuy: canBuy,
     buy: buy,

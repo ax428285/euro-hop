@@ -438,9 +438,46 @@ const WorldMap = (function () {
       const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
       specials.push({
         id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
-        def: { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+        // v1.31 服裝店／寵物用品店：跟神祕商人一樣進商店（merchant 讓字放在店底下），畫成小店面
+        def: q.seller ? { role: '商店', scene: 'shop', seller: q.seller, merchant: true, stall: q.seller, prompt: q.prompt }
+                      : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
       });
     });
+  }
+
+  /** v1.31 新大陸的小店面：條紋遮雨棚＋招牌（服裝店掛衣架、寵物店掛骨頭） */
+  function drawStall(ctx, x, y, t, near, kind) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (near) {
+      ctx.strokeStyle = 'rgba(255, 209, 102, 0.9)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, -8, 17 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 10, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    // 牆＋門
+    ctx.fillStyle = '#f2e6cc'; ctx.fillRect(-9, -12, 18, 12);
+    ctx.fillStyle = '#7a4a2a'; ctx.fillRect(-2.5, -7, 5, 7);
+    // 遮雨棚（紅白／藍白條紋）
+    const c = kind === 'petshop' ? '#3a7ac8' : '#d0405a';
+    for (let k = 0; k < 5; k++) {
+      ctx.fillStyle = k % 2 ? '#ffffff' : c;
+      ctx.beginPath(); ctx.moveTo(-11 + k * 4.4, -12); ctx.lineTo(-11 + (k + 1) * 4.4, -12);
+      ctx.lineTo(-11 + (k + 1) * 4.4, -15.5); ctx.lineTo(-11 + k * 4.4, -15.5); ctx.fill();
+    }
+    // 招牌
+    const sw = Math.sin(t * 0.05) * 0.12;
+    ctx.save(); ctx.translate(0, -20); ctx.rotate(sw);
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#3a2410'; ctx.fillStyle = '#3a2410'; ctx.lineWidth = 1.1;
+    if (kind === 'petshop') {
+      ctx.fillRect(-2.4, -0.6, 4.8, 1.2);
+      [[-2.6, -1], [-2.6, 1], [2.6, -1], [2.6, 1]].forEach(function (q) { ctx.beginPath(); ctx.arc(q[0], q[1], 1.1, 0, Math.PI * 2); ctx.fill(); });
+    } else {
+      ctx.beginPath(); ctx.moveTo(0, -2.6); ctx.lineTo(0, -1.2); ctx.lineTo(-3.4, 1.8); ctx.lineTo(3.4, 1.8); ctx.lineTo(0, -1.2); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore();
   }
 
   /** 神祕商人：紫色斗篷 + 兜帽 + 提燈（燈會微微晃，遠遠就看得到） */
@@ -547,6 +584,7 @@ const WorldMap = (function () {
       if (s.def.gone && s.def.gone()) return;
       if (s.def.dog) { Pet.drawWaiting(ctx, x, y, t, near); return; }
       if (s.def.npc) { Quests.drawMapIcon(ctx, s.def.npc, x, y, t, near); return; }
+      if (s.def.stall) { drawStall(ctx, x, y, t, near, s.def.stall); return; }
       if (s.def.merchant) {
         if (near) {
           ctx.strokeStyle = 'rgba(216, 184, 255, 0.95)'; ctx.lineWidth = 2.5;
