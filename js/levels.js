@@ -1210,6 +1210,8 @@ const Levels = (function () {
     BASE_WIDTH: BASE_WIDTH,
     // v1.23.1：亞特蘭提斯（潛水）不在關卡清單裡（不佔存檔的關卡編號），由 Encounter 用同一個產生器臨時做
     make: makeLevel,
+    // v1.24.2：亞特蘭提斯改成往下潛的豎井關（同倫敦鐘塔的玩法）
+    makeShaft: shaftLevel,
     list: list,
     count: list.length
   };

@@ -419,6 +419,8 @@ function runShaftCheck() {
 
       updateShaftFloors(st);
       const evs = updatePlayer(st, input, f);
+      // 亞特蘭提斯（潛水豎井）：空氣與噴口也要跑，嗆水算受傷
+      if (st.features) Features.update(st, f).forEach(function (e) { if (/drown$/.test(e)) { hurt++; drowned++; } });
 
       if (evs.indexOf('hurt') >= 0 || evs.indexOf('spikefloor') >= 0 ||
           evs.indexOf('hazard') >= 0) hurt++;
@@ -464,7 +466,7 @@ function runShaftCheck() {
 
     let camY = Shaft.camStart(pl, Shaft.VIEW_H);
     st.shaft.camY = camY;
-    let hurt = 0;
+    let hurt = 0, drowned = 0;
     let held = {};
     const input = {
       isDown: function (a) { return !!held[a]; },
@@ -625,6 +627,8 @@ function runShaftCheck() {
 
       updateShaftFloors(st);
       const evs = updatePlayer(st, input, f);
+      // 亞特蘭提斯（潛水豎井）：空氣與噴口也要跑，嗆水算受傷
+      if (st.features) Features.update(st, f).forEach(function (e) { if (/drown$/.test(e)) { hurt++; drowned++; } });
 
       if (evs.indexOf('hurt') >= 0 || evs.indexOf('spikefloor') >= 0 ||
           evs.indexOf('hazard') >= 0) hurt++;
@@ -635,7 +639,7 @@ function runShaftCheck() {
                  frames: f, hurt: hurt };
       }
       if (evs.indexOf('clear') >= 0 || st.cleared) {
-        return { ok: true, deepest: st.shaft.deepest, frames: f, hurt: hurt };
+        return { ok: true, deepest: st.shaft.deepest, frames: f, hurt: hurt, drowned: drowned };
       }
       // 受傷太多次等於死了（真人會沒命）
       if (hurt > 30) {
@@ -647,9 +651,23 @@ function runShaftCheck() {
              deepest: st.shaft.deepest, frames: MAXF, hurt: hurt };
   }
 
+  /*
+   * 亞特蘭提斯（v1.24.2 改成往下潛的豎井，不在 Levels.list 裡）：同一個機器人潛到底，
+   * 不能嗆水（噴口要夠密），也不能受傷太多次。
+   */
+  let dive = null;
+  if (typeof Encounter !== 'undefined' && Encounter.boss) {
+    const ddef = Encounter.makeDef(Encounter.boss('atlantis'));
+    dive = playShaft(-1, ddef);
+    if (!dive.ok) issues.push('亞特蘭提斯：機器人潛不到神殿 —— ' + dive.why + '（第 ' + dive.deepest + '/' + ddef.shaft.floors + ' 層，受傷 ' + dive.hurt + ' 次）');
+    else if (dive.drowned) issues.push('亞特蘭提斯：照路線潛下去也會嗆水 ' + dive.drowned + ' 次（噴口太少）');
+    else if (dive.hurt > 6) issues.push('亞特蘭提斯：機器人潛到了但受傷 ' + dive.hurt + ' 次，可能太難');
+  }
+
   return {
     issueCount: issues.length,
     issues: issues,
+    dive: dive,
     levels: shaftLevels.length
   };
 }

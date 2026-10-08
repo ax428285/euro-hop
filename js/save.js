@@ -32,11 +32,13 @@ const Save = (function () {
       exp: 0,             // 海上遭遇戰累積的經驗值（解鎖東歐篇用）
       seaWins: 0,         // 打贏幾場遭遇戰
       seaBosses: [],      // 打倒過的海上魔王 kind（v1.23 地中海海妖斯庫拉）
+      allies: 0,          // 海神夥伴（消耗品，亞特蘭提斯神殿拿到；魔王關自動出戰一次用掉一個）
       costumes: [],     // 擁有的時裝 id（稀有怪掉落）
       costume: null       // 目前穿的時裝（null = 原本的條紋衫）
     };
   }
 
+  const ALLY_MAX = 3;     // 海神夥伴最多帶幾個
   let data = blank();
 
   function sanitize(d) {
@@ -49,6 +51,7 @@ const Save = (function () {
     out.wallet = Math.max(0, parseInt(d.wallet, 10) || 0);
     out.exp = Math.max(0, parseInt(d.exp, 10) || 0);
     out.seaWins = Math.max(0, parseInt(d.seaWins, 10) || 0);
+    out.allies = U.clamp(parseInt(d.allies, 10) || 0, 0, ALLY_MAX);
     if (Array.isArray(d.seaBosses)) {
       d.seaBosses.forEach(function (k) {
         if (typeof k === 'string' && out.seaBosses.indexOf(k) < 0) out.seaBosses.push(k);
@@ -280,6 +283,12 @@ const Save = (function () {
       persist();
       return true;
     },
+
+    /** 海神夥伴：拿到一個（最多 ALLY_MAX，回傳拿到後的數量） */
+    addAlly: function () { data.allies = Math.min(ALLY_MAX, (data.allies || 0) + 1); persist(); return data.allies; },
+    /** 用掉一個海神夥伴（沒有就回 false） */
+    useAlly: function () { if (!(data.allies > 0)) return false; data.allies--; persist(); return true; },
+    ALLY_MAX: ALLY_MAX,
 
     /** 海上魔王：第一次打倒回 true（之後再打只給一般獎勵） */
     markSeaBoss: function (kind) {

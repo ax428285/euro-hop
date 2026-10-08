@@ -80,6 +80,11 @@ const Game = (function () {
       toast = { text: vi[0], sub: vi[1], life: 260 };
     }
     state = buildLevelState(def, i, sv.equipment, stats, coop);
+    // 海神夥伴（消耗品）：有的話魔王關自動出戰，第一次出手才扣掉一個（還沒出手就輸了不算）
+    if (def.isBoss && Save.get().allies > 0) {
+      state.ally = { x: def.spawnX - 30, y: Levels.GROUND_Y - 110, throws: ALLY_THROWS, used: false, wait: 0, shot: null, cool: false };
+      toast = { text: '海神夥伴出戰！', sub: '魔王倒地露出破綻時，牠會丟三叉戟幫你打（這場最多 ' + ALLY_THROWS + ' 下）', life: 220 };
+    }
     camX = 0;
     /*
      * 豎井關的相機起點由 Shaft 決定。
@@ -115,7 +120,10 @@ const Game = (function () {
     skirmish = m;
     const def = Encounter.makeDef(m, stats);
     state = buildLevelState(def, -1, sv.equipment, stats, coop);
-    camX = 0; camY = 0;
+    camX = 0;
+    // 亞特蘭提斯是往下潛的豎井關：相機起點跟一般豎井一樣由 Shaft 決定
+    camY = def.layout === 'shaft' ? Shaft.camStart(def.shaft, H) : 0;
+    if (state.shaft) state.shaft.camY = camY;
     scene = 'play';
     sceneTimer = 0;
     toast = { text: m.def.name + '・' + m.def.game, sub: m.def.goal, life: 170 };
@@ -722,6 +730,53 @@ const Game = (function () {
   /** 這一篇解鎖了嗎（西歐篇與不在 Encounter.REGIONS 的篇章一開始就開放） */
   function regionUnlocked(region) { return Encounter.regionUnlocked(region, Save.get().exp); }
 
+  /*
+   * 海神夥伴（v1.24.2 玩家：亞特蘭提斯終點拿到海神夥伴，用來幫忙打魔王，是消耗品）。
+   * 騎著海豚的小海神，跟在玩家身後飄；魔王倒地露出破綻 ALLY_WAIT 帧後丟一支三叉戟，
+   * 打中算一下傷害（跟玩家踩到一樣）。每次破綻只丟一支、一場最多 ALLY_THROWS 支，
+   * 所以還是要自己打 —— 牠是幫忙，不是代打。第一次出手時才從存檔扣掉一個。
+   */
+  const ALLY_THROWS = 2;
+  const ALLY_WAIT = 24;
+  function updateAlly() {
+    const a = state.ally, b = state.boss;
+    const events = [];
+    if (!a || !b) return events;
+    const p = state.player;
+    a.x += (p.x - (p.facing || 1) * 34 - a.x) * 0.08;
+    a.y += (p.y - 78 + Math.sin(t * 0.08) * 6 - a.y) * 0.08;     // 飄在玩家頭上斜後方（再低會被 NPC 對話泡泡蓋住）
+    a.facing = (b.x + b.w / 2) > a.x ? 1 : -1;
+    if (a.shot) {
+      const s = a.shot;
+      const tx = b.x + b.w / 2, ty = b.y + b.h / 2;
+      const dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy);
+      if (d < 18) {
+        a.shot = null;
+        if (bossVulnerable(b)) {
+          events.push(damageBoss(state, b));
+        } else {
+          a.throws++;        // 魔王剛好被玩家打起來了：這支不算，下次破綻再丟
+        }
+      } else {
+        s.x += dx / d * 9; s.y += dy / d * 9;
+        s.a = Math.atan2(dy, dx);
+      }
+    } else if (!b.defeated && bossVulnerable(b)) {
+      if (!a.cool && a.throws > 0 && ++a.wait >= ALLY_WAIT) {
+        a.wait = 0;
+        a.cool = true;                       // 這次破綻丟過了
+        a.throws--;
+        if (!a.used) { a.used = true; Save.useAlly(); }
+        a.shot = { x: a.x, y: a.y, a: 0 };
+        events.push('allythrow');
+      }
+    } else {
+      a.wait = 0;
+      a.cool = false;
+    }
+    return events;
+  }
+
   function updatePlay() {
     // 沒有關卡狀態就不該在 play（只會發生在狀態被外部改動時），退回地圖
     if (!state) { toMap(); return; }
@@ -732,6 +787,7 @@ const Game = (function () {
     updateMovers(state.movers, t);
     const enemyEvents = updateEnemies(state, t);
     const bossEvents = updateBoss(state, t);
+    updateAlly().forEach(function (e) { bossEvents.push(e); });
     updateShots(state);
     // 豎井關：塌陷平台的倒數（要在玩家物理之前，塌掉這帧就不該接住人）
     const shaftEvents = updateShaftFloors(state);
@@ -824,6 +880,7 @@ const Game = (function () {
           Sfx.hurt(); shake = 14; loseLife(true, pid); break;
         }
         case 'mount': Sfx.equip(); break;
+        case 'allythrow': Sfx.shoot(); break;
         // 潛水（亞特蘭提斯）
         case 'swim': break;
         case 'breathe': Sfx.coin(); break;
@@ -1189,6 +1246,11 @@ const Game = (function () {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
+      }
+      // 亞特蘭提斯：每次潛到神殿都拿到一個海神夥伴（最多 Save.ALLY_MAX 個）
+      if (skirmish.def.dive) {
+        const before = Save.get().allies;
+        expResult.ally = { now: Save.addAlly(), full: before >= Save.ALLY_MAX };
       }
       // 稀有怪：掉一套還沒有的時裝（全部都有了就改給金幣）
       if (skirmish.def.rare) {
@@ -1577,6 +1639,9 @@ const Game = (function () {
       Sprites.equipPickup(ctx, state.equip.x, state.equip.y, state.equip.id, t);
     }
 
+    // 招牌機制（亞特蘭提斯的氣泡噴口）
+    if (state.features) Features.drawWorld(ctx, state, 0, t, 'fg');
+
     // 玩家的遠程攻擊（豎井裡也丟得出去）
     (state.pshots || []).forEach(function (s) { Sprites.playerShot(ctx, s, 0, t); });
 
@@ -1613,6 +1678,8 @@ const Game = (function () {
     ctx.restore();   // 收掉震動
 
     if (sh.chime > 0) Sprites.chimeOverlay(ctx, sh.chime, W, H, pl.chime);
+    // 潛水：水的濾鏡＋頭上的空氣計（豎井要扣掉 camY）
+    if (state.features) Features.drawOverlay(ctx, state, 0, t, W, H, camY);
 
     drawHud();
     drawShaftGauge();
@@ -1632,12 +1699,13 @@ const Game = (function () {
       const by = climb ? 92 : H - 74;
       ctx.fillStyle = 'rgba(10,14,26,0.82)';
       U.roundRect(ctx, W / 2 - 215, by, 430, 48, 8); ctx.fill();
-      U.text(ctx, pl.calm ? '往上爬到山頂！' : climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
+      U.text(ctx, def.dive ? '往下潛到海神的神殿！上面的礁石會崩下來' : pl.calm ? '往上爬到山頂！' : climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
         W / 2, by + 18, { size: 16, color: '#ffd166' });
       U.text(ctx, climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・藍色冰面會滑，要提早放開方向鍵'
                                                 : '←→ 移動　空白 跳躍　平台可以從下面穿過去')
                         : def.theme === 'bigben' ? '往下掉時小心鐘擺・鐘聲響起時會加速'
                         : def.theme === 'opera' ? '鋼琴鍵平台第 3 拍會消失・小心飛來的音符'
+                        : def.dive ? '跳躍 = 往上游・頭上的氣泡用完會嗆水，游進噴口的氣泡柱補氣'
                         : '←→ 移動　掉出畫面下方也會死',
         W / 2, by + 38, { size: 13, color: '#c6d2e8' });
       ctx.restore();
@@ -1853,6 +1921,12 @@ const Game = (function () {
       // 騎駱駝（非洲關坐騎）：駱駝蓋在玩家腿上
       if (p.mount) Features.drawMount(ctx, p, p.x - camX, t);
     });
+    // 海神夥伴（魔王關）與牠丟出去的三叉戟
+    if (state.ally) {
+      const al = state.ally;
+      Sprites.seaAlly(ctx, al.x - camX, al.y, t, al.facing || 1, 1);
+      if (al.shot) Sprites.trident(ctx, al.shot.x - camX, al.shot.y, al.shot.a);
+    }
 
     ctx.restore();   // 收掉 camY 的位移
     ctx.restore();   // 收掉震動
@@ -1904,6 +1978,12 @@ const Game = (function () {
     }
 
     U.text(ctx, `分數 ${runScore}`, 606, 23, { size: 15, align: 'left', color: '#cfd8ec' });
+
+    // 海神夥伴：這場還能幫忙打幾下（左下角，不跟魔王血條搶位置）
+    if (state.ally) {
+      U.text(ctx, '海神夥伴　還能丟 ' + state.ally.throws + ' 支三叉戟', 20, H - 18,
+        { size: 14, align: 'left', color: state.ally.throws ? '#a8f0e8' : '#7d88a6' });
+    }
 
     // 豎井關：在 HUD 顯示目前深度（右側的計量條是圖示，這裡給精確數字）
     if (def.layout === 'shaft' && state.shaft) {
@@ -2578,7 +2658,9 @@ const Game = (function () {
       { label: '二段跳', val: st.doubleJump ? '開' : '關', on: st.doubleJump },
       { label: '蹬牆跳', val: st.wallJump ? '開' : '關', on: st.wallJump },
       { label: '遠程', val: st.ranged === 'fire' ? '火球' : (st.ranged ? '板球' : '關'), on: !!st.ranged },
-      { label: '金幣', val: 'x' + st.coinMul, on: st.coinMul > 1 }
+      { label: '金幣', val: 'x' + st.coinMul, on: st.coinMul > 1 },
+      // 海神夥伴（亞特蘭提斯拿到的消耗品）
+      { label: '海神夥伴', val: String(sv.allies || 0), on: sv.allies > 0 }
     ];
 
     // 先量總寬再置中排版，避免用 join 無法分別上色
@@ -2742,13 +2824,22 @@ const Game = (function () {
     const target = opened || Encounter.nextRegion(r.after) || Encounter.REGIONS[Encounter.REGIONS.length - 1];
     const need = target.exp;
     const justOpened = !!opened;
-    const tall = (justOpened ? 280 : 240) + (r.costume ? 50 : 0);
+    const tall = (justOpened ? 280 : 240) + (r.ally ? 70 : r.costume ? 50 : 0);
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
     const md = def.monster.def;
     U.text(ctx, md.dive ? '潛到了亞特蘭提斯的神殿！' : (md.rare ? '抓到了 ' : md.boss ? '打倒了魔王 ' : '擊退了 ') + md.name + '！', W / 2, top + 42,
       { size: 32, color: md.dive ? '#8ff0e0' : md.rare || md.boss ? '#ffe070' : '#8fe3a0' });
     // 稀有怪掉的時裝（已經自動穿上，到裝備畫面可以換）
+    if (r.ally) {
+      // 亞特蘭提斯：神殿裡的海神夥伴
+      ctx.fillStyle = 'rgba(120, 240, 230, 0.14)';
+      U.roundRect(ctx, 230, top + tall - 96, 500, 40, 8); ctx.fill();
+      Sprites.seaAlly(ctx, 262, top + tall - 70, t, 1, 0.7);
+      U.text(ctx, r.ally.full ? '海神夥伴已經帶滿 ' + Save.ALLY_MAX + ' 個了（魔王關會自動出戰）'
+                              : '獲得海神夥伴！目前 ' + r.ally.now + ' 個・魔王關會自動出戰幫你打', W / 2 + 14, top + tall - 76,
+        { size: 15, color: '#a8f0e8' });
+    }
     if (r.costume) {
       ctx.fillStyle = 'rgba(255, 224, 112, 0.14)';
       U.roundRect(ctx, 260, top + tall - 96, 440, 40, 8); ctx.fill();
@@ -3565,6 +3656,18 @@ const Game = (function () {
       },
       warpToGoal: function () {
         if (!state) return;
+        // 豎井關（含亞特蘭提斯）：放到抵達層上方，相機直接移到底
+        if (state.shaft) {
+          const g = state.shaft.floors.filter(function (f) { return f.goal; })[0];
+          if (g) {
+            state.player.x = g.rect.x + g.rect.w / 2 - state.player.w / 2;
+            state.player.y = g.rect.y - state.player.h - 2;
+            state.player.vx = 0; state.player.vy = 0;
+            camY = Math.max(0, g.rect.y - H * 0.6);
+            state.shaft.camY = camY;
+          }
+          return;
+        }
         // 要真的跨過終點線（條件是 x + w >= goal）
         state.player.x = state.def.goal - state.player.w + 4;
         state.player.y = Levels.GROUND_Y - state.player.h;

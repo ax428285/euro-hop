@@ -3101,6 +3101,7 @@ const Sprites = (function () {
   function shaftFloor(ctx, f, t, theme) {
     const r = f.rect;
     const x = r.x, y = r.y, w = r.w, h = r.h;
+    if (theme === 'atlantis' && atlantisFloor(ctx, f, x, y, w, h, t)) return;
 
     if (f.goal && theme === 'opera') {
       // 歌劇院的終點：舞台地板（深色木板 + 金色台口線 + 腳燈）
@@ -3887,6 +3888,7 @@ const Sprites = (function () {
    *   近：飄動的灰塵光點
    */
   function shaftBackdrop(ctx, theme, camY, t, W, H) {
+    if (theme === 'atlantis') { atlantisBackdrop(ctx, camY, t, W, H); return; }
     if (theme === 'opera') { operaBackdrop(ctx, camY, t, W, H); return; }
     if (theme === 'alps') { alpsBackdrop(ctx, camY, t, W, H); return; }
     if (theme !== 'bigben') return;
@@ -4343,6 +4345,7 @@ const Sprites = (function () {
     if (theme === 'bigben') { bigBenWall(ctx, wall, camY, viewH, t || 0); return; }
     if (theme === 'opera') { operaWall(ctx, wall, camY, viewH, t || 0); return; }
     if (theme === 'alps') { alpsWall(ctx, wall, camY, viewH); return; }
+    if (theme === 'atlantis') { atlantisWall(ctx, wall, camY, viewH, t || 0); return; }
     ctx.fillStyle = '#2f2b36';
     ctx.fillRect(wall.x, camY - 20, wall.w, viewH + 40);
     // 內緣亮線，讓井道邊界明確
@@ -4375,6 +4378,7 @@ const Sprites = (function () {
   function shaftCeiling(ctx, screenTop, h, w, t, theme) {
     if (theme === 'bigben') { bigBenCeiling(ctx, screenTop, h, w, t); return; }
     if (theme === 'opera') { operaCeiling(ctx, screenTop, h, w, t); return; }
+    if (theme === 'atlantis') { atlantisCeiling(ctx, screenTop, h, w, t); return; }
     ctx.save();
     // 底座
     ctx.fillStyle = '#3a2f3a';
@@ -5713,6 +5717,188 @@ const Sprites = (function () {
   }
   bossKinds.sphinx = bossSphinx;
 
+  // ── v1.24.2 亞特蘭提斯改成往下潛的豎井：主題 'atlantis' ──
+
+  /** 背景：越往下越深的藍，遠處一排排沉沒的柱子與拱門（視差）、往上飄的氣泡、斜射的光 */
+  function atlantisBackdrop(ctx, camY, t, W, H) {
+    ctx.save();
+    // 遠處的廢墟（視差 0.3）
+    const par = camY * 0.3;
+    ctx.fillStyle = 'rgba(120, 180, 200, 0.12)';
+    for (let row = Math.floor(par / 260) - 1; row < Math.floor(par / 260) + 3; row++) {
+      const y0 = row * 260 - par;
+      for (let k = 0; k < 4; k++) {
+        const x = ((row * 157 + k * 260) % 1040) - 40;
+        ctx.fillRect(x, y0 + 40, 16, 150);
+        ctx.fillRect(x + 60, y0 + 40, 16, 150);
+        ctx.fillRect(x - 10, y0 + 30, 96, 12);
+        ctx.beginPath(); ctx.moveTo(x - 10, y0 + 30); ctx.lineTo(x + 38, y0); ctx.lineTo(x + 86, y0 + 30); ctx.fill();
+      }
+    }
+    // 光
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 4; k++) {
+      const x = 120 + k * 230 + Math.sin(t * 0.01 + k) * 20;
+      ctx.fillStyle = 'rgba(160, 220, 255, 0.05)';
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 40, 0); ctx.lineTo(x + 140, H); ctx.lineTo(x + 70, H); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    // 氣泡
+    ctx.strokeStyle = 'rgba(210, 240, 255, 0.35)'; ctx.lineWidth = 1;
+    for (let k = 0; k < 14; k++) {
+      const x = (k * 71) % W + Math.sin(t * 0.03 + k) * 6;
+      const y = H - ((t * (0.5 + (k % 3) * 0.2) + k * 97 + camY * 0.5) % (H + 40));
+      ctx.beginPath(); ctx.arc(x, y, 2 + (k % 3), 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /** 兩側：長滿珊瑚與海藻的石壁 */
+  function atlantisWall(ctx, wall, camY, viewH, t) {
+    ctx.fillStyle = '#20414e';
+    ctx.fillRect(wall.x, camY - 20, wall.w, viewH + 40);
+    const inner = wall.x < 480 ? wall.x + wall.w : wall.x;
+    const side = wall.x < 480 ? -1 : 1;
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    const bh = 30, start = Math.floor((camY - 20) / bh);
+    for (let i = 0; i < viewH / bh + 3; i++) {
+      const by = (start + i) * bh;
+      const st = ((start + i) % 2) * 22;
+      for (let bx = wall.x + st; bx < wall.x + wall.w; bx += 44) ctx.fillRect(bx + 2, by + 2, 38, bh - 4);
+    }
+    // 內緣的珊瑚與海藻（照世界座標排，捲動時不會跳）
+    for (let i = 0; i < viewH / 60 + 3; i++) {
+      const wy = (Math.floor((camY - 20) / 60) + i) * 60;
+      const kind = Math.abs(wy / 60) % 3;
+      if (kind === 0) {
+        ctx.fillStyle = '#e0708a';
+        for (let b = 0; b < 3; b++) {
+          ctx.beginPath(); ctx.ellipse(inner + side * (6 + b * 4), wy + 10 + b * 8, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (kind === 1) {
+        ctx.strokeStyle = '#3fa86a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(inner, wy + 40);
+        ctx.quadraticCurveTo(inner - side * (10 + Math.sin(t * 0.05 + wy) * 6), wy + 20, inner - side * 4, wy);
+        ctx.stroke();
+      }
+    }
+  }
+
+  /** 樓層：長青苔的石板；終點 = 海神殿（金色地板＋背後的神殿正面） */
+  function atlantisFloor(ctx, f, x, y, w, h, t) {
+    if (f.goal) {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#d8d0b0';
+      ctx.fillRect(x + 20, y - 150, w - 40, 14);
+      ctx.beginPath(); ctx.moveTo(x + 10, y - 150); ctx.lineTo(x + w / 2, y - 200); ctx.lineTo(x + w - 10, y - 150); ctx.closePath(); ctx.fill();
+      for (let cx = x + 40; cx < x + w - 40; cx += 70) ctx.fillRect(cx, y - 136, 18, 136);
+      // 山牆上的三叉戟
+      ctx.strokeStyle = '#e8c050'; ctx.lineWidth = 3;
+      const tx = x + w / 2, ty = y - 172;
+      ctx.beginPath(); ctx.moveTo(tx, ty + 20); ctx.lineTo(tx, ty - 10);
+      ctx.moveTo(tx - 10, ty - 6); ctx.lineTo(tx - 10, ty + 4); ctx.lineTo(tx + 10, ty + 4); ctx.lineTo(tx + 10, ty - 6);
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = '#8a6a30';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = '#f0cc60';
+      ctx.fillRect(x, y, w, 4);
+      const glow = 0.25 + Math.sin(t * 0.08) * 0.1;
+      ctx.fillStyle = 'rgba(255, 230, 150, ' + glow.toFixed(2) + ')';
+      ctx.fillRect(x, y - 4, w, 4);
+      return true;
+    }
+    if (f.type && f.type !== 'normal') return false;     // 滑台等特殊樓層照預設畫法
+    ctx.fillStyle = '#6a7a72';
+    U.roundRect(ctx, x, y, w, h, 4); ctx.fill();
+    ctx.fillStyle = '#4f9a6a';
+    ctx.beginPath();
+    ctx.moveTo(x, y + 5);
+    for (let px = x; px < x + w; px += 12) ctx.quadraticCurveTo(px + 6, y - 2, px + 12, y + 4);
+    ctx.lineTo(x + w, y + 6); ctx.lineTo(x, y + 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(x + w * 0.3, y + 8, 2, h - 8);
+    ctx.fillRect(x + w * 0.7, y + 8, 2, h - 8);
+    return true;
+  }
+
+  /** 上面追下來的：崩落的礁石，底下一排紫色海膽刺 */
+  function atlantisCeiling(ctx, screenTop, h, w, t) {
+    ctx.save();
+    ctx.fillStyle = '#2c3a48';
+    ctx.fillRect(0, screenTop, w, h - 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    for (let x = 0; x < w; x += 46) ctx.fillRect(x + 4, screenTop + 4, 38, h - 18);
+    const n = Math.ceil(w / 24);
+    for (let i = 0; i < n; i++) {
+      const sx = i * 24, len = 12 + (i % 3) * 3 + Math.sin(t * 0.2 + i) * 1.5;
+      ctx.fillStyle = '#7a3a8a';
+      ctx.beginPath(); ctx.arc(sx + 12, screenTop + h - 10, 7, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = '#c070d8'; ctx.lineWidth = 2;
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath(); ctx.moveTo(sx + 12, screenTop + h - 8); ctx.lineTo(sx + 12 + k * 6, screenTop + h - 8 + len); ctx.stroke();
+      }
+    }
+    // 碎石往下掉
+    ctx.fillStyle = 'rgba(120, 140, 150, 0.7)';
+    for (let k = 0; k < 6; k++) {
+      const x = (k * 167 + t * 0.7) % w, y = screenTop + h + ((t * 1.3 + k * 31) % 40);
+      ctx.fillRect(x, y, 3, 3);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * 海神夥伴：騎著海豚的小海神（藍綠色皮膚、金冠、拿三叉戟）。
+   * x, y = 中心；s = 大小倍率（過關畫面用小一號的）。
+   */
+  function seaAlly(ctx, x, y, t, facing, s) {
+    s = s || 1;
+    ctx.save();
+    ctx.translate(x, y + Math.sin(t * 0.08) * 2);
+    ctx.scale((facing < 0 ? -1 : 1) * s, s);
+    // 光暈
+    ctx.fillStyle = 'rgba(140, 240, 230, 0.18)';
+    ctx.beginPath(); ctx.arc(0, -2, 26, 0, Math.PI * 2); ctx.fill();
+    // 海豚
+    ctx.fillStyle = '#5a9ac8';
+    ctx.beginPath();
+    ctx.moveTo(-22, 4); ctx.quadraticCurveTo(-4, -8, 16, 2); ctx.lineTo(24, 4); ctx.lineTo(16, 7);
+    ctx.quadraticCurveTo(-2, 14, -22, 6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-20, 5); ctx.lineTo(-28, -2 + Math.sin(t * 0.3) * 2); ctx.lineTo(-27, 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d8ecf8';
+    ctx.beginPath(); ctx.ellipse(2, 8, 12, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1424'; ctx.fillRect(13, 1, 2, 2);
+    // 小海神
+    ctx.fillStyle = '#4ab8a8';
+    U.roundRect(ctx, -6, -14, 10, 14, 3); ctx.fill();
+    ctx.beginPath(); ctx.arc(-1, -19, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f0c840';
+    ctx.beginPath(); ctx.moveTo(-6, -23); ctx.lineTo(-5, -29); ctx.lineTo(-2, -25); ctx.lineTo(1, -30); ctx.lineTo(3, -25); ctx.lineTo(5, -29); ctx.lineTo(5, -23); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1a1424'; ctx.fillRect(1, -20, 2, 2);
+    // 三叉戟
+    ctx.strokeStyle = '#f0c840'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(6, -4); ctx.lineTo(6, -30);
+    ctx.moveTo(2, -26); ctx.lineTo(2, -32); ctx.moveTo(10, -26); ctx.lineTo(10, -32); ctx.moveTo(2, -26); ctx.lineTo(10, -26);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** 飛出去的三叉戟（a = 飛行方向角度） */
+  function tridentShot(ctx, x, y, a) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a || 0);
+    ctx.strokeStyle = '#f0c840'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(10, 0);
+    ctx.moveTo(10, -7); ctx.lineTo(18, -7); ctx.moveTo(10, 7); ctx.lineTo(18, 7); ctx.moveTo(10, -7); ctx.lineTo(10, 7); ctx.moveTo(10, 0); ctx.lineTo(19, 0);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(160, 240, 230, 0.5)'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(-18, 0); ctx.stroke();
+    ctx.restore();
+  }
+
   // ── v1.23.1 亞特蘭提斯（潛水關）──
 
   /** 海帶：幾條會隨水流擺動的長葉（植物欄位用，跟樹一樣種在海床上） */
@@ -5919,6 +6105,8 @@ const Sprites = (function () {
     shaftFloor: shaftFloor,
     shaftWall: shaftWall,
     shaftCeiling: shaftCeiling,
+    seaAlly: function () { return seaAlly.apply(null, arguments); },
+    trident: function () { return tridentShot.apply(null, arguments); },
     shaftFlood: shaftFlood,
     trainCar: trainCar,
     trainTrack: trainTrack,

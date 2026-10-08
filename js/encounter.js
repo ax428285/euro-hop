@@ -79,10 +79,11 @@ const Encounter = (function () {
   /*
    * 亞特蘭提斯（v1.23.1 玩家：找個海域插一個亞特蘭提斯，關卡方式是潛水）——
    * 柏拉圖說它在「海克力斯之柱（直布羅陀海峽）之外」，所以放在海峽西邊的大西洋。
-   * 不是小遊戲，是一整段潛水的橫向關卡（Levels.make 產生，見 diveDef）；不佔關卡編號、不影響存檔順序。
+   * 不是小遊戲，是一整段往下潛的豎井關（Levels.makeShaft 產生，見 diveDef）；不佔關卡編號、不影響存檔順序。
+   * 潛到底的神殿裡拿到「海神夥伴」（消耗品，魔王關自動出戰，見 game.js updateAlly）。
    */
   KINDS.atlantis = { name: '亞特蘭提斯', lv: '遺跡', exp: 120, bossExp: 200, bossCoins: 250, game: '潛水探險',
-                     goal: '按跳躍往上游；頭上的氣泡用完會嗆水 —— 碰到海底噴口的氣泡就能補氣', dive: true };
+                     goal: '往下潛到最底層的神殿！跳躍 = 往上游・頭上的氣泡用完會嗆水，游進噴口的氣泡柱補氣', dive: true };
   /** 地圖上固定的地點（經緯度；不能航行的話往附近找開闊海面）：海上魔王＋亞特蘭提斯 */
   const SEA_BOSSES = [{ kind: 'scylla', lon: 15.3, lat: 38.7 }, { kind: 'atlantis', lon: -10.8, lat: 33.4 }];
 
@@ -405,34 +406,38 @@ const Encounter = (function () {
   const DECK_W = 560;     // 艦砲對決：玩家的甲板寬度（右邊是海）
 
   /**
-   * 亞特蘭提斯的潛水關（第一次叫的時候才產生，之後重用同一份地形）。
-   * 用一般橫向關的產生器（Levels.make）鋪海床、斷崖、平台與敵人，再標 underwater：
-   *   entities.js 改用潛水物理（划水、慢慢下沉），features.js 管空氣與噴口，畫面加藍色水濾鏡。
+   * 亞特蘭提斯的潛水關（第一次叫的時候才產生，之後重用同一份）。
+   * v1.24.2 玩家：改成垂直往下、類似倫敦那種，但要是潛水；終點是神殿，可以獲得海神夥伴。
+   *   → 用豎井關的產生器（Levels.makeShaft，descend），標 underwater：
+   *     entities.js 換潛水物理（划水、慢慢下沉），上面追下來的是崩落的珊瑚礁（尖刺天花板換皮），
+   *     每隔幾層有氣泡噴口補空氣（features 'vent'），最底層是海神的神殿。
    */
+  const DIVE_VENT_EVERY = 4;     // 每幾層放一個氣泡噴口
   let diveBase = null;
   function diveDef(m) {
     if (!diveBase) {
-      diveBase = Levels.make({
-        seed: 1050,
+      diveBase = Levels.makeShaft({
+        seed: 1051,
         id: 'ATL', country: '亞特蘭提斯', city: '沉沒的神殿', region: 'sea',
         flag: ['#1a5a8a', '#e8d8a0', '#1a5a8a'], flagDir: 'h',
         landmark: 'atlantis',
         fact: '柏拉圖寫道：海克力斯之柱外有一座強大的島國亞特蘭提斯，在一天一夜之間沉入了海底。',
-        sky: ['#0c3c6c', '#2a86b8'], hill: '#1c4c6c', cloud: 'rgba(190, 235, 255, 0.10)',
+        sky: ['#1c5a8c', '#06203c'], hill: '#1c4c6c',
         groundTop: '#d0c090', groundBody: '#5a6a6c',
-        deco: 'kelp',
-        layout: 'flat',
-        width: 5600,
-        groundTypes: ['walker', 'spiker', 'walker'],
-        airTypes: ['flyer', 'chaser'],
-        density: 0.9,
-        features: [{ type: 'air' }],
-        secretHint: '倒塌的神殿柱子後面，有一道微光',
-        secretNear: 0.6,
-        props: []
+        theme: 'atlantis',
+        floors: 24,
+        gapY: 112,
+        platW: 120,
+        shaftW: 600,
+        scroll: [0.7, 1.25],
+        extras: ['slide']
       });
       diveBase.underwater = true;
       diveBase.dive = true;
+      // 氣泡噴口：放在第 3、7、11⋯ 層的中央
+      diveBase.features = diveBase.shaftFloors
+        .filter(function (f, i) { return i >= 3 && i % DIVE_VENT_EVERY === 3 && !f.goal && f.w >= 80; })
+        .map(function (f) { return { type: 'vent', x: Math.round(f.x + f.w / 2 - 20), y: f.y, w: 40 }; });
     }
     const k = m.def;
     const first = !(typeof Save !== 'undefined' && Save.seaBossDown(m.kind));

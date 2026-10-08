@@ -180,27 +180,18 @@ function runEncounterCheck() {
     if (!m) { issues.push('地圖上找不到亞特蘭提斯'); return; }
     if (!Voyage.isNavigable(m.x, m.y)) issues.push('亞特蘭提斯的入口不在能航行的海面上');
     const def = Encounter.makeDef(m, Equipment.resolve([]));
-    if (!def.underwater) issues.push('亞特蘭提斯不是潛水關');
-    function dive(holdRight) {
-      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
-      st.enemies = [];
-      const p = st.player;
-      let press = false, lastX = 0, stuck = 0, drown = 0, f;
-      const input = { isDown: function (a) { return (holdRight && a === 'right') || a === 'jump'; },
-                      once: function (a) { return a === 'jump' && press; }, endFrame: function () {} };
-      for (f = 0; f < 4000 && p.x < def.goal; f++) {
-        press = f % 14 === 0 && (p.y > 300 || stuck > 10);
-        updateMovers(st.movers, f);
-        updatePlayer(st, input, f).concat(Features.update(st, f)).forEach(function (e) { if (/drown$/.test(e)) drown++; });
-        stuck = Math.abs(p.x - lastX) < 0.5 ? stuck + 1 : 0; lastX = p.x;
-      }
-      return { reached: p.x >= def.goal, drown: drown, frames: f };
+    // v1.24.2 改成往下潛的豎井（潛到底由 shaft-check 的機器人驗）；這裡驗設定與空氣系統
+    if (!def.underwater || def.layout !== 'shaft') issues.push('亞特蘭提斯應該是往下潛的潛水豎井');
+    const vents = (def.features || []).filter(function (f) { return f.type === 'vent'; });
+    if (vents.length < 4) issues.push('亞特蘭提斯的氣泡噴口太少（' + vents.length + ' 個）');
+    const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+    const p = st.player;
+    let drown = 0;
+    for (let f = 0; f < Features.AIR_MAX + 30; f++) {
+      p.x = 40; p.y = 100;     // 待在井外的角落，碰不到任何噴口
+      Features.update(st, f).forEach(function (e) { if (/drown$/.test(e)) drown++; });
     }
-    const go = dive(true), idle = dive(false);
-    report.atlantis = go;
-    if (!go.reached) issues.push('潛水關：一直往右游到不了終點');
-    if (go.drown) issues.push('潛水關：正常往前游也會嗆水 ' + go.drown + ' 次（噴口太少？）');
-    if (!idle.drown) issues.push('潛水關：原地不動也不會嗆水，空氣系統沒作用');
+    if (!drown) issues.push('潛水關：一直沒補氣也不會嗆水，空氣系統沒作用');
   })();
 
   return { issueCount: issues.length, issues: issues, report: report };

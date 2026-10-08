@@ -1025,7 +1025,9 @@ const Features = (function () {
    * 潛水的水面效果：整片藍色濾鏡、從水面斜射下來的光束、水面的波紋，
    * 以及每位玩家頭上的空氣計（快用完時變紅閃爍）。
    */
-  function drawUnderwater(ctx, state, camX, t, W, H) {
+  function drawUnderwater(ctx, state, camX, t, W, H, camY) {
+    camY = camY || 0;
+    const shaft = state.def.layout === 'shaft';
     ctx.save();
     ctx.fillStyle = 'rgba(20, 90, 150, 0.22)';
     ctx.fillRect(0, 0, W, H);
@@ -1038,7 +1040,8 @@ const Features = (function () {
       ctx.beginPath(); ctx.moveTo(x, 60); ctx.lineTo(x + 50, 60); ctx.lineTo(x + 170, H); ctx.lineTo(x + 70, H); ctx.closePath(); ctx.fill();
     }
     ctx.globalCompositeOperation = 'source-over';
-    // 水面
+    // 水面（豎井是往深處潛，看不到水面）
+    if (!shaft) {
     ctx.strokeStyle = 'rgba(220, 245, 255, 0.55)'; ctx.lineWidth = 2;
     ctx.beginPath();
     for (let x = 0; x <= W; x += 12) {
@@ -1046,12 +1049,13 @@ const Features = (function () {
       if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
+    }
     // 空氣計
     state.players.forEach(function (p) {
       if (p.out || p.air == null) return;
       const k = p.air / AIR_MAX;
       if (k > 0.98) return;                    // 滿的時候不擋畫面
-      const cx = p.x + p.w / 2 - camX, y = p.y - 22;
+      const cx = p.x + p.w / 2 - camX, y = p.y - 22 - camY;
       const low = k < 0.3;
       if (low && Math.floor(t / 8) % 2 === 0) return;
       const n = 6, on = Math.ceil(k * n);
@@ -1090,10 +1094,10 @@ const Features = (function () {
     ctx.drawImage(dark, 0, 0, W, H);
   }
 
-  function drawOverlay(ctx, state, camX, t, W, H) {
+  function drawOverlay(ctx, state, camX, t, W, H, camY) {
     const fs = state.features;
     if (!fs) return;
-    if (state.def.underwater) drawUnderwater(ctx, state, camX, t, W, H);
+    if (state.def.underwater) drawUnderwater(ctx, state, camX, t, W, H, camY);
     /*
      * 流沙：陷進去的玩家，腳邊蓋一圈沙（畫在玩家之後，看起來就像身體陷進沙裡）。
      * 越久越高，快到上限時沙子變紅閃爍 —— 提醒玩家「要受傷了，快跳」。
