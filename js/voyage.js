@@ -352,7 +352,9 @@ const Voyage = (function () {
     }
 
     if (opts.beforeShip) opts.beforeShip();
-    if (ship.mode === 'sea') drawShip(ctx, t); else drawWalker(ctx, t);
+    // v1.31.2 海底城：在水裡是坐潛水鐘（不是開船）
+    if (ship.mode === 'sea' && WorldMap.world() === 'sea') Abyss.drawBell(ctx, ship.x, ship.y, t, Math.cos(ship.heading) < 0 ? -1 : 1);
+    else if (ship.mode === 'sea') drawShip(ctx, t); else drawWalker(ctx, t);
   }
 
   return {

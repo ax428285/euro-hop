@@ -492,6 +492,7 @@ const Levels = (function () {
       deco: cfg.deco,
       vehicle: vehicle,
       autorun: !!cfg.autorun,       // v1.30 瑞典馴鹿雪橇：自動往前衝，只能跳
+      intro: cfg.intro || null,     // v1.31.2 開場提示（兩行；海底城的珊瑚市集要先講怎麼游）
       gate: cfg.gate || null,       // v1.31 除了篇章，還要另外解鎖（南美：美洲 EXP）
       ride: cfg.ride || null,       // v1.31 自動往前衝時坐的是什麼：預設馴鹿雪橇，'car' = 古巴老爺車
       channels: channels,           // v1.30 挪威冰海水道（要踩浮冰過，level-check 另外驗）
@@ -1733,6 +1734,124 @@ const Levels = (function () {
       { x: 80, y: 250 }, { x: 114, y: 250 }, { x: 148, y: 250 },
       { x: 400, y: 332 }, { x: 434, y: 332 }, { x: 468, y: 332 }, { x: 502, y: 332 },
       { x: 700, y: 300 }, { x: 734, y: 300 }, { x: 768, y: 300 }
+    ]
+  }));
+
+  // ════════════════════════════════════════════════════════════
+  // 亞特蘭提斯海底城（v1.31.2）：第一次潛到亞特蘭提斯的神殿之後，那裡變成海底城的入口（另一張地圖 'sea'，見 abyss.js）
+  // 一定要接在最後面（存檔照關卡順序記）。珊瑚市集 → 水晶宮 → 海馬競技場 → 海神神殿（最終魔王）
+  // ════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────────
+  // 35. 珊瑚市集 —— 水下游泳關：發光水母（踩傘蓋彈高、碰到觸手被電）、暗流、氣泡噴口
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1061,
+    id: 'A1', country: '珊瑚市集', city: '亞特蘭提斯', region: 'abyss',
+    flag: ['#1a6a8a', '#e86a8a', '#e8c050'], flagDir: 'atlantis',
+    landmark: 'coralBazaar',
+    fact: '柏拉圖說亞特蘭提斯的城市一圈一圈的，陸地和水道互相圍著，正中間是海神的神殿。',
+    sky: ['#0c4a78', '#2a90c0'], hill: '#1c4c6c', cloud: 'rgba(190, 235, 255, 0.08)',
+    groundTop: '#e0c890', groundBody: '#5a6a6c',
+    deco: 'kelp',
+    layout: 'hills',
+    groundTypes: ['walker', 'walker', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.9,
+    features: [{ type: 'air' }, { type: 'currents' }, { type: 'jellies', count: 7 }],
+    // 水裡游泳跳不高，頂不到隱形磚 → 密道藏在沒有尖刺的海溝裡（跟法國、德國⋯⋯一樣，掉下去才找得到）
+    secretKind: 'pit',
+    secretHint: '掉進了市集底下的海溝！以前的商人把最好的珍珠藏在這裡',
+    secretNear: 0.55,
+    intro: ['珊瑚市集：要游泳的海底市場！跳躍 = 往上游', '頭上的氣泡是空氣，游進噴口補氣；發光水母的傘蓋可以踩，碰到觸手會被電'],
+    props: []
+  }));
+  list[list.length - 1].underwater = true;     // 整關都在水裡（游泳的物理、空氣條，跟沉船潛水一樣）
+
+  // ────────────────────────────────────────────────────────────
+  // 36. 水晶宮 —— 氣泡罩住的宮殿（不用游泳）：水晶光束貼著地面掃過去，要跳起來閃
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1062,
+    id: 'A2', country: '水晶宮', city: '亞特蘭提斯', region: 'abyss',
+    flag: ['#2a4a7a', '#a8e8ff', '#ffffff'], flagDir: 'atlantis',
+    landmark: 'crystalPalace',
+    fact: '傳說亞特蘭提斯有一種會發光的金屬「山銅」（orichalcum），神殿的牆壁整面都包著它。',
+    sky: ['#1a5a7a', '#8ad0e0'], hill: '#2a6a8a',
+    groundTop: '#d8ecf4', groundBody: '#6a8a9a',
+    deco: 'kelp',
+    layout: 'flat',
+    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 1.05,
+    features: [{ type: 'beams', count: 7 }],
+    secretHint: '水晶柱後面的牆，映出來的影子少了一根柱子',
+    secretNear: 0.45,
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 37. 海馬競技場 —— 騎海馬往前衝的賽道（race.js 主題 'seahorse'）
+  // ────────────────────────────────────────────────────────────
+  list.push(raceLevel({
+    seed: 1063,
+    id: 'A3', country: '海馬競技場', city: '亞特蘭提斯', region: 'abyss',
+    flag: ['#1a5a6a', '#e8b040', '#ffffff'], flagDir: 'atlantis',
+    landmark: 'hippodrome',
+    fact: '柏拉圖寫道：亞特蘭提斯的國王們養了很多戰馬，城裡有一條圍著整座島的賽馬跑道。',
+    sky: ['#0a3a62', '#3a9ac0'], hill: '#1e5a7a',
+    groundTop: '#c8b88a', groundBody: '#8a7a5a',
+    deco: 'kelp',
+    theme: 'seahorse',
+    /*
+     * 騎著海馬繞競技場：珊瑚柱、大水母要閃，海膽可以跳；一整排從沙裡冒出來的礁石牆要跳（前面兩旁先冒泡泡）。
+     */
+    course: [[60, 0, 0], [110, 2, 600], [100, -3, -400], [120, 3, 800], [90, -2, -800], [120, 2, 400], [110, -3, -600],
+             [120, 3, 600], [100, -2, -400], [130, 0, 0], [90, 0, 0]],
+    obsEvery: 40,
+    maxSpeed: 112,
+    reefs: [0.28, 0.56, 0.84],
+    intro: ['海馬競技場！騎上海馬繞場一圈', '←→ 閃開珊瑚柱和水母，海膽、整排的礁石牆按跳躍跳過去']
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 38. 海神神殿 —— ⚔ 海底城最終魔王：巨型章魚克拉肯
+  // ────────────────────────────────────────────────────────────
+  list.push(bossLevel({
+    id: 'A4', country: '海神神殿', city: '亞特蘭提斯', region: 'abyss',
+    finale: true,     // 海底城最後一關
+    flag: ['#3a2a6a', '#e8c050', '#e8c050'], flagDir: 'atlantis',
+    landmark: 'poseidonTemple',
+    fact: '柏拉圖說亞特蘭提斯在「一天一夜之間」沉進海裡；有人認為他寫的是三千六百年前希臘聖托里尼島的火山大爆發。',
+    sky: ['#06203c', '#1c5a8c'], hill: '#1c4c6c', cloud: 'rgba(190, 235, 255, 0.06)',
+    groundTop: '#d8d0bc', groundBody: '#5a5a6c',
+    deco: 'kelp',
+    boss: {
+      name: '巨型章魚 克拉肯',
+      kind: 'kraken',
+      /*
+       * 觸手（跟人面獅身同一套 pattern 'sphinx'，見 entities.js）：坐定之後，你腳下冒出墨汁漩渦（預告），
+       * 一會兒後一根觸手從地底竄出來 —— 要一直換位置。連三根（狂暴五根）；打完累倒在地上，跳上去踩頭。
+       */
+      pattern: 'sphinx',
+      x: 760, w: 120, h: 96,
+      hp: 4,
+      rageAt: 2,
+      recoverTime: 140,
+      idleTime: 70,
+      left: 300, right: 860,          // 克拉肯比人面獅身寬（120），右邊縮一點才不會穿過右邊的平台
+      speed: 1.2
+    },
+    equipAt: { x: 620, y: 380 },
+    props: [],
+    platforms: [
+      { x: 70, y: 290, w: 160, h: 20 },
+      { x: 1050, y: 290, w: 160, h: 20 }
+    ],
+    coins: [
+      { x: 100, y: 248 }, { x: 134, y: 248 }, { x: 168, y: 248 }, { x: 202, y: 248 },
+      { x: 1080, y: 248 }, { x: 1114, y: 248 }, { x: 1148, y: 248 }, { x: 1182, y: 248 },
+      { x: 520, y: 330 }, { x: 554, y: 330 }, { x: 588, y: 330 }, { x: 622, y: 330 }
     ]
   }));
 

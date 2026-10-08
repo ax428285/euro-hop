@@ -90,7 +90,7 @@ const Game = (function () {
       const vi = VEHICLE_INTRO[def.vehicle];
       toast = { text: vi[0], sub: vi[1], life: 260 };
     }
-    if (def.layout === 'race' && def.intro) toast = { text: def.intro[0], sub: def.intro[1], life: 300 };
+    if ((def.layout === 'race' || !def.isBoss && def.layout !== 'shaft') && def.intro) toast = { text: def.intro[0], sub: def.intro[1], life: 300 };
     if (def.autorun) {
       toast = def.ride === 'car'
         ? { text: '坐上古巴老爺車！', sub: '車子會自己往前開、停不下來 —— 只要按跳躍・海堤後面捲起浪頭就準備跳', life: 280 }
@@ -240,9 +240,12 @@ const Game = (function () {
 
   // ── 兩張地圖（v1.31 美洲篇）──────────────────────────
   // 歐洲地圖往西開到底 → 新大陸；新大陸往東開到底 → 回歐洲。兩邊各記得上次停在哪一國（cursor）。
-  const lastCursor = { eu: 0, am: -1 };
+  const lastCursor = { eu: 0, am: -1, sea: -1 };
   let crossToastT = 0;
-  function worldOfLevel(i) { return Levels.list[i] && Levels.list[i].region === 'america' ? 'am' : 'eu'; }
+  function worldOfLevel(i) {
+    const r = Levels.list[i] && Levels.list[i].region;
+    return r === 'america' ? 'am' : r === 'abyss' ? 'sea' : 'eu';      // v1.31.2 海底城的四區在 'sea' 地圖
+  }
   function switchWorld(id) {
     if (WorldMap.world() !== id) lastCursor[WorldMap.world()] = cursor;
     if (!WorldMap.useWorld(id)) return false;
@@ -274,6 +277,39 @@ const Game = (function () {
     toast = to === 'am'
       ? { text: '橫越大西洋，抵達新大陸！', sub: '1492 年哥倫布也是這樣一路往西開・往東開到地圖最東邊就回歐洲', life: 280 }
       : { text: '回到歐洲', sub: '想再去新大陸：往西開到地圖最西邊', life: 200 };
+  }
+
+  /*
+   * v1.31.2 亞特蘭提斯海底城：歐洲地圖的亞特蘭提斯（第一次潛到神殿之後）按 Enter 潛下去；
+   * 海底城最上面的「光之井」按 Enter 往上游，回到歐洲的亞特蘭提斯旁邊。
+   */
+  function enterAbyss() {
+    switchWorld('sea');
+    const sp = Abyss.SPOTS.filter(function (q) { return q.surface; })[0];
+    Voyage.placeShip(sp.x, sp.y + 40);
+    WorldMap.follow(sp.x, sp.y + 40, true);
+    const first = Levels.list.findIndex(function (lv) { return lv.region === 'abyss'; });
+    cursor = lastCursor.sea >= 0 ? lastCursor.sea : first;
+    Sfx.fanfare();
+    toast = { text: '潛進了亞特蘭提斯海底城！', sub: '去中央廣場找人魚 Thalassa 說話・想回海面就游到最上面的光之井', life: 280 };
+  }
+  function leaveAbyss() {
+    switchWorld('eu');
+    const atl = Encounter.monsters().filter(function (m) { return m.kind === 'atlantis'; })[0];
+    const p = atl ? [atl.x, atl.y] : EuropeWorld.project(-9.4, 33.4);
+    let at = null;
+    for (let r = 40; r <= 200 && !at; r += 8) {
+      for (let k = 0; k < 16 && !at; k++) {
+        const a = k * Math.PI / 8, x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
+        if (Voyage.isNavigable(x, y)) at = { x: x, y: y };
+      }
+    }
+    at = at || { x: p[0], y: p[1] + 40 };
+    Voyage.placeShip(at.x, at.y);
+    WorldMap.follow(at.x, at.y, true);
+    cursor = lastCursor.eu;
+    Sfx.select();
+    toast = { text: '回到海面了', sub: '想再去海底城：到亞特蘭提斯按 Enter 潛下去', life: 200 };
   }
 
   // ── 劇情對話（v1.30，quests.js）────────────────────────
@@ -856,6 +892,7 @@ const Game = (function () {
      * 怪物跟港口同時在旁邊時，以挑戰怪物優先（港口跑不掉，怪會游走）。
      */
     const monster = Encounter.nearby();
+    if (monster && monster.kind === 'atlantis' && Quests.abyssOpen() && Input.once('confirm')) { enterAbyss(); return; }
     if (monster && Input.once('confirm')) {
       Sfx.bossRoar();
       startSkirmish(monster);
@@ -1001,6 +1038,7 @@ const Game = (function () {
         openTalk(spNear.def.npc);
         return;
       }
+      if (spNear.def.scene === 'surface') { leaveAbyss(); return; }
       if (spNear.def.scene === 'dive') {
         const ship0 = Voyage.shipPos();
         startSkirmish({ kind: spNear.def.port, def: Encounter.KINDS[spNear.def.port], x: ship0.x, y: ship0.y, port: true });
@@ -1083,7 +1121,11 @@ const Game = (function () {
     ski_kick: ['跳台！', '衝上跳台會飛起來 —— 空中的金幣只有飛過去才拿得到'],
     ski_chair: ['低低的纜車椅！', '跳不過去 —— 按住 ↓ 壓低身體，從椅子底下鑽過去'],
     badminton: ['玫瑰谷羽球對決', '球飛過來就自動揮拍：按住 ↓ 打網前小球，跳起來打是殺球。先拿 5 分獲勝！'],
-    rope: ['海盜盪繩', '跳起來抓住繩子，盪到往前衝的那一下按跳躍放手，就能飛過水道']
+    rope: ['海盜盪繩', '跳起來抓住繩子，盪到往前衝的那一下按跳躍放手，就能飛過水道'],
+    // v1.31.2 亞特蘭提斯海底城
+    jelly: ['發光水母', '從上面踩傘蓋會被彈得很高（上面有金幣）；碰到側邊或觸手會被電'],
+    beam: ['水晶光束', '水晶亮起來、地上出現虛線 = 光束要掃過來了 —— 跳起來閃'],
+    race_reefwall: ['礁石牆！', '一整排礁石從沙裡冒出來擋住整條路 —— 按跳躍讓海馬跳過去']
   };
   // 交通關（v1.20）同一個機制換了場景，提示也要換說法
   const VEHICLE_TIPS = {
@@ -1108,7 +1150,7 @@ const Game = (function () {
   function regionUnlocked(region) { return Encounter.regionUnlocked(region, Save.get().exp); }
 
   /*
-   * 海神夥伴（v1.24.2 玩家：亞特蘭提斯終點拿到海神夥伴，用來幫忙打魔王，是消耗品）。
+   * 海神夥伴（v1.24.2 玩家：亞特蘭提斯終點拿到海神夥伴，用來幫忙打魔王，是消耗品；v1.31.2 改成安提基特拉沉船拿到）。
    * 騎著海豚的小海神，跟在玩家身後飄；魔王倒地露出破綻 ALLY_WAIT 帧後丟一支三叉戟，
    * 打中算一下傷害（跟玩家踩到一樣）。每次破綻只丟一支、一場最多 ALLY_THROWS 支，
    * 所以還是要自己打 —— 牠是幫忙，不是代打。第一次出手時才從存檔扣掉一個。
@@ -2140,10 +2182,14 @@ const Game = (function () {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
+        // v1.31.2：亞特蘭提斯第一次潛到神殿 → 海底城的入口打開
+        if (skirmish.kind === 'atlantis') expResult.note = '神殿最深處的大門打開了！回大地圖在亞特蘭提斯按 Enter，就能潛進海底城';
       }
-      // 亞特蘭提斯：每次潛到神殿都拿到一個海神夥伴（最多 Save.ALLY_MAX 個）
       // 安提基特拉沉船：沿路撈到的寶物＋終點的安提基特拉機械，收進存檔
+      // v1.31.2 玩家：亞特蘭提斯的夥伴移到沉船那關 → 每次撈起機械都拿到一個海神夥伴（最多 Save.ALLY_MAX 個）
       if (skirmish.kind === 'wreck') {
+        const before = Save.get().allies;
+        expResult.ally = { now: Save.addAlly(), full: before >= Save.ALLY_MAX };
         const got = (state.relicsGot || []).concat(['mechanism']);
         expResult.relics = got.map(function (id) {
           const rd = Encounter.RELICS.filter(function (q) { return q.id === id; })[0];
@@ -2156,10 +2202,6 @@ const Game = (function () {
         if (ex.note) expResult.note = ex.note;
         if (ex.costume) expResult.costume = ex.costume;
         if (ex.talk) pendingTalk = ex.talk;
-      }
-      if (skirmish.kind === 'atlantis') {
-        const before = Save.get().allies;
-        expResult.ally = { now: Save.addAlly(), full: before >= Save.ALLY_MAX };
       }
       // 稀有怪：掉一套還沒有的時裝（全部都有了就改給金幣）
       if (skirmish.def.rare) {
@@ -2832,7 +2874,7 @@ const Game = (function () {
       if (sx > W + 30 || sx < -30) return;
       Sprites.shot(ctx, { x: sx, y: s.y, w: s.w, h: s.h, wave: s.wave, fire: s.fire, debris: s.debris,
         spear: s.spear, bat: s.bat, vx: s.vx, vy: s.vy,
-        pillar: s.pillar, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember,
+        pillar: s.pillar, tentacle: s.tentacle, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember,
         slash: s.slash, lava: s.lava,
         serpent: s.serpent, seg: s.seg, ang: s.ang, dirX: s.dirX, arc: s.arc,          // v1.31 亞馬遜大蛇
         football: s.football,                                                           // v1.31 巴西守門員丟的球
@@ -3270,7 +3312,7 @@ const Game = (function () {
     ctx.fillRect(0, 0, W, 40);
     ctx.fillStyle = 'rgba(212, 162, 58, 0.7)';
     ctx.fillRect(0, 39, W, 1.5);
-    U.text(ctx, WorldMap.world() === 'am' ? '新大陸' : '世界地圖', 16, 20,
+    U.text(ctx, WorldMap.world() === 'am' ? '新大陸' : WorldMap.world() === 'sea' ? '海底城' : '世界地圖', 16, 20,
       { size: 18, color: '#ffd166', align: 'left' });
 
     /*
@@ -3278,7 +3320,18 @@ const Game = (function () {
      * 放在標題與右側統計之間，一直看得到進度，才有「再打一隻」的動機。
      * 進度是「上一篇門檻 → 下一篇門檻」這一段，不是從 0 算（不然解鎖東歐後條子一開始就快滿）。
      */
-    {
+    // v1.31.2 海底城：沒有海上怪物，EXP 條換成「四區破了幾區」
+    if (WorldMap.world() === 'sea') {
+      const bx = 160, by = 14, bw = 160, bh = 12;
+      const ab = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === 'abyss'; });
+      const got = ab.filter(function (o) { return Save.isCleared(o.i); }).length;
+      U.text(ctx, '探索', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
+      ctx.fillStyle = 'rgba(255, 230, 180, 0.15)'; U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
+      ctx.fillStyle = got >= ab.length ? '#8fe3a0' : '#4ac0d0';
+      if (got) { U.roundRect(ctx, bx, by, Math.max(bh, bw * got / ab.length), bh, 6); ctx.fill(); }
+      U.text(ctx, got >= ab.length ? '海底城全部破完' : '海底城 ' + got + ' / ' + ab.length + ' 區', bx + bw + 8, 20,
+        { size: 12, color: got >= ab.length ? '#8fe3a0' : '#f0dcb0', align: 'left' });
+    } else {
       const bx = 160, by = 14, bw = 160, bh = 12;   // v1.25.1 標題只剩「世界地圖」，EXP 條往左靠
       // v1.31 新大陸：EXP 條換成美洲 EXP（解鎖南美）
       const amW = WorldMap.world() === 'am';
@@ -3381,7 +3434,8 @@ const Game = (function () {
     const spot = Voyage.nearbySpecial();
     if (mon) {
       const blink = Math.floor(t / 20) % 2 === 0;
-      const bossTxt = mon.def.custom ? Expedition.prompt(mon) : mon.def.dive
+      const bossTxt = mon.kind === 'atlantis' && Quests.abyssOpen() ? '按 Enter 潛進亞特蘭提斯海底城'
+        : mon.def.custom ? Expedition.prompt(mon) : mon.def.dive
         ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : mon.def.boss
         ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
@@ -3715,7 +3769,7 @@ const Game = (function () {
       { label: '蹬牆跳', val: st.wallJump ? '開' : '關', on: st.wallJump },
       { label: '遠程', val: st.ranged === 'fire' ? '火球' : (st.ranged ? '板球' : '關'), on: !!st.ranged },
       { label: '金幣', val: 'x' + st.coinMul, on: st.coinMul > 1 },
-      // 海神夥伴（亞特蘭提斯拿到的消耗品）
+      // 海神夥伴（安提基特拉沉船拿到的消耗品）
       { label: '海神夥伴', val: String(sv.allies || 0), on: sv.allies > 0 }
     ];
 
@@ -3886,7 +3940,7 @@ const Game = (function () {
     const target = opened || (r.am ? XR[0] : Encounter.nextRegion(r.after)) || XR[XR.length - 1];
     const need = target.exp;
     const justOpened = !!opened;
-    const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0) + (r.note ? 46 : 0);
+    const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0) + (r.ally && r.relics ? 50 : 0) + (r.note ? 46 : 0);
     const top = (H - tall) / 2;
     panel(200, top, 560, tall);
     const md = def.monster.def;
@@ -3908,12 +3962,13 @@ const Game = (function () {
         W / 2 + 60, top + tall - 76, { size: 14, color: fresh ? '#ffe070' : '#dce5f5' });
     }
     if (r.ally) {
-      // 亞特蘭提斯：神殿裡的海神夥伴
+      // 沉船船艙裡的海神夥伴（v1.31.2 從亞特蘭提斯搬過來；沉船同時有寶物那一列 → 往上疊一列）
+      const ay = r.relics ? -50 : 0;
       ctx.fillStyle = 'rgba(120, 240, 230, 0.14)';
-      U.roundRect(ctx, 230, top + tall - 96, 500, 40, 8); ctx.fill();
-      Sprites.seaAlly(ctx, 262, top + tall - 70, t, 1, 0.7);
+      U.roundRect(ctx, 230, top + tall - 96 + ay, 500, 40, 8); ctx.fill();
+      Sprites.seaAlly(ctx, 262, top + tall - 70 + ay, t, 1, 0.7);
       U.text(ctx, r.ally.full ? '海神夥伴已經跟著你了（最多只能帶一位，魔王關會自動出戰）'
-                              : '獲得海神夥伴！下一場魔王關牠會自動出戰幫你打', W / 2 + 14, top + tall - 76,
+                              : '獲得海神夥伴！下一場魔王關牠會自動出戰幫你打', W / 2 + 14, top + tall - 76 + ay,
         { size: 15, color: '#a8f0e8' });
     }
     if (r.costume) {
@@ -4072,12 +4127,12 @@ const Game = (function () {
     const sv = Save.get();
     // 依剛打完的是哪一篇顯示（西歐篇 / 東歐篇 / 非洲篇 / 北歐篇）
     const region = (Levels.list[levelIndex] && Levels.list[levelIndex].region) || 'west';
-    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！', north: '北歐篇完成！', america: '美洲篇完成！' };
+    const WIN_TITLE = { west: '西歐全線踏遍！', east: '東歐篇完成！', africa: '非洲篇完成！', north: '北歐篇完成！', america: '美洲篇完成！', abyss: '亞特蘭提斯海底城完成！' };
     U.text(ctx, WIN_TITLE[region] || WIN_TITLE.west, W / 2, 124, { size: 42, color: '#ffd166' });
     // 路線由關卡資料組出來，加關卡不用改這裡。
     // 10 個城市一行會太長，拆兩行。
     const cities = Levels.list.filter(function (l) { return (l.region || 'west') === region; })
-      .map(function (l) { return l.city; });
+      .map(function (l) { return region === 'abyss' ? l.country : l.city; });   // 海底城四區的 city 都是「亞特蘭提斯」，改列區名
     const half = Math.ceil(cities.length / 2);
     U.text(ctx, cities.slice(0, half).join(' → ') + ' →',
       W / 2, 166, { size: 15, color: '#ffffff' });
@@ -4746,6 +4801,9 @@ const Game = (function () {
         return { cursor: mysteryCursor, reveal: mysteryReveal, pending: pendingReveal, newClue: newClue };
       },
       setCursor: function (c) { cursor = c; },
+      /** v1.31.2 海底城（測試用）：直接潛下去／游回海面 */
+      enterAbyss: function () { scene = 'map'; enterAbyss(); },
+      leaveAbyss: function () { scene = 'map'; leaveAbyss(); },
       enter: function (i) { startLevel(i || 0); },
       /** 立刻畫一帧（測試用：抓「畫的時候才會丟例外」的 bug） */
       render: function () { render(); },

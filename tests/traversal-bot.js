@@ -164,6 +164,19 @@ function makeBot(state) {
       held.left = false;
 
       /*
+       * v1.31.2 整關在水裡（海底城的珊瑚市集）：一直往右游，維持在「離地面 225 高」左右 ——
+       * 比發光水母的傘蓋高（水母最高到離地 212），又還在氣泡噴口的氣泡柱裡（230 以內），游過去順便補氣。
+       * 沉下去就划一下（跳躍 = 往上游）；斷崖上空沒有地面，照前一段的高度游。
+       */
+      if (state.def.underwater) {
+        const gy = LevelGen.groundAt(state.def.groundSegs || [], p.x + p.w / 2 + 40);
+        if (gy != null) this.swimGy = gy;
+        const target = (this.swimGy || Levels.GROUND_Y) - 225;
+        if (feetY > target && p.vy > -1.2) jumpEdge = true;
+        return;
+      }
+
+      /*
        * v1.30 挪威：終點在積木階梯頂上的高台（def.goalY）。
        * 真人的爬法：站在這一塊的右緣，等下一塊亮著（或腳下這塊快消失、下一塊馬上要出現）就往右上跳。
        */

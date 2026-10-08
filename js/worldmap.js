@@ -36,7 +36,15 @@ const WorldMap = (function () {
   const WORLDS = {
     eu: { id: 'eu', proj: EuropeWorld, geo: EuropeGeo, back: typeof EuropeBackdrop !== 'undefined' ? EuropeBackdrop : {} },
     am: typeof AmericaWorld !== 'undefined'
-      ? { id: 'am', proj: AmericaWorld, geo: AmericaGeo, back: AmericaBackdrop } : null
+      ? { id: 'am', proj: AmericaWorld, geo: AmericaGeo, back: AmericaBackdrop } : null,
+    /*
+     * v1.31.2 亞特蘭提斯海底城（abyss.js）：手畫的世界座標、自己的配色（不跟玩家選的大地圖配色）、
+     * 只用到上面 760 高；底下的光束、泡泡、魚群（decorBack），城區上的建築小圖（decorLand）。
+     */
+    sea: typeof AbyssWorld !== 'undefined'
+      ? { id: 'sea', proj: AbyssWorld, geo: AbyssGeo, back: AbyssBackdrop, h: AbyssWorld.VIEW_BOTTOM,
+          pal: Abyss.PALETTE, regions: Abyss.REGIONS, seas: Abyss.SEAS,
+          decorBack: Abyss.drawMapBack, decorLand: Abyss.drawMapDistricts } : null
   };
   /*
    * v1.31 玩家：南美地圖下方都空的 → 新大陸只用到南緯 27 度（再往南只剩阿根廷、智利的背景國，沒有關卡）。
@@ -138,6 +146,7 @@ const WorldMap = (function () {
   };
   // v1.29.8 玩家改選 A 古地圖（羊皮紙版）；sunny 是 v1.29.4～1.29.7 的配色、current 是 v1.29.3 以前的，留著對照
   let PAL = PALETTES.parchment;
+  let userPal = PAL;           // 玩家選的配色（換到有自己配色的地圖時先記著，回來再換回去）
 
   /*
    * 背景國（不可進入的鄰國）的填色。
@@ -379,6 +388,7 @@ const WorldMap = (function () {
 
   function buildSpecials() {
     specials.length = 0;
+    if (WD.id === 'sea') { buildSeaSpecials(); return; }
     if (WD.id !== 'eu') { buildAmericaSpecials(); return; }
     if (typeof EuropeBackdrop === 'undefined') return;
     SPECIAL_DEFS.forEach(function (d) {
@@ -488,6 +498,18 @@ const WorldMap = (function () {
     ctx.restore();
   }
 
+  /** v1.31.2 海底城的地點（abyss.js 的 SPOTS，已經是世界座標）：光之井（回海面）、人魚 */
+  function buildSeaSpecials() {
+    Abyss.SPOTS.forEach(function (q) {
+      const pin = [q.x, q.y];
+      specials.push({
+        id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 18],
+        def: q.surface ? { role: '出口', scene: 'surface', surface: true, prompt: q.prompt }
+                       : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+      });
+    });
+  }
+
   /** 神祕商人：紫色斗篷 + 兜帽 + 提燈（燈會微微晃，遠遠就看得到） */
   function drawMerchant(ctx, x, y, t, near) {
     ctx.save();
@@ -595,6 +617,7 @@ const WorldMap = (function () {
       if (s.def.dog) { Pet.drawWaiting(ctx, x, y, t, near); return; }
       if (s.def.npc) { Quests.drawMapIcon(ctx, s.def.npc, x, y, t, near); return; }
       if (s.def.stall) { drawStall(ctx, x, y, t, near, s.def.stall); return; }
+      if (s.def.surface) { Abyss.drawSurface(ctx, x, y, t, near); return; }
       if (s.def.merchant) {
         if (near) {
           ctx.strokeStyle = 'rgba(216, 184, 255, 0.95)'; ctx.lineWidth = 2.5;
@@ -645,7 +668,7 @@ const WorldMap = (function () {
     specials.forEach(function (s) {
       const near = s.id === nearId;
       if (s.def.gone && s.def.gone()) return;
-      const bare = s.def.merchant || s.def.port || s.def.dog || s.def.npc;     // 沒有國土的地點：只印名字
+      const bare = s.def.merchant || s.def.port || s.def.dog || s.def.npc || s.def.surface;     // 沒有國土的地點：只印名字
       U.text(ctx, bare ? s.name : s.name + '・' + s.def.role, s.label[0], s.label[1], {
         size: near ? LABEL_SIZE_SEL : (bare ? 11 : 12),
         color: near ? (PAL.labelSel || '#ffd166') : (s.def.merchant ? (PAL.merchantLabel || '#e6d8ff')
@@ -806,7 +829,7 @@ const WorldMap = (function () {
     placeLabels();
     // 特殊地點的標籤（「葡萄牙・商店」比國名長，最後擺：避開關卡國已經擺好的字）
     specials.forEach(function (s) {
-      if (s.def.merchant || s.def.port || s.def.dog || s.def.npc) return;          // 神祕商人、港口、黃金獵犬、劇情人物沒有國土，字就放在人底下（buildSpecials 已設好）
+      if (s.def.merchant || s.def.port || s.def.dog || s.def.npc || s.def.surface) return;          // 神祕商人、港口、黃金獵犬、劇情人物沒有國土，字就放在人底下（buildSpecials 已設好）
       const name = s.name + '・' + s.def.role;
       placeOne(s, name, s.pin);
       // 國土太小（愛爾蘭）放不下時，字會壓在自己的圖釘上 → 改放圖釘正下方
@@ -1152,7 +1175,7 @@ const WorldMap = (function () {
   ];
 
   function drawRegionNames(ctx) {
-    (WD.id === 'eu' ? REGIONS : REGIONS_AM).forEach(function (r) {
+    (WD.regions || (WD.id === 'eu' ? REGIONS : REGIONS_AM)).forEach(function (r) {
       const p = project(r.lon, r.lat);
       const rc = PAL.region || 'rgba(246, 232, 196, 0.32)';
       U.text(ctx, r.name, p[0], p[1], { size: r.size, weight: 800, color: rc, stroke: false });
@@ -1161,7 +1184,7 @@ const WorldMap = (function () {
   }
 
   function drawSeaNames(ctx) {
-    (WD.id === 'eu' ? SEAS : SEAS_AM).forEach(function (s) {
+    (WD.seas || (WD.id === 'eu' ? SEAS : SEAS_AM)).forEach(function (s) {
       const p = project(s.lon, s.lat);
       ctx.save();
       ctx.translate(p[0], p[1]);
@@ -1187,6 +1210,7 @@ const WorldMap = (function () {
     // W/H 參數保留相容舊呼叫；世界大小以 EuropeWorld 為準
     const t = opts.t;
     drawSea(ctx, WORLD_W, WORLD_H, t);
+    if (WD.decorBack) WD.decorBack(ctx, t, WORLD_W, WORLD_H);
     drawSeaNames(ctx);
     drawBackdrop(ctx);
     // 特殊地點（葡萄牙商店、愛爾蘭裝備）蓋在背景國上面；opts.specialNear = 靠近的那個（高亮）
@@ -1254,6 +1278,7 @@ const WorldMap = (function () {
         ctx.stroke();
       });
     });
+    if (WD.decorLand) WD.decorLand(ctx, t);
     // 羊皮紙：紙紋蓋在海和國土上、國名和圖釘之下（字要清楚）
     if (PAL.paper) { drawPaperGrain(ctx); drawCompass(ctx); }
     // v1.30：北歐的雷電結界（還沒解開時）、哥倫布出航後的美洲預告
@@ -1287,12 +1312,13 @@ const WorldMap = (function () {
     draw: draw,
     hitTest: hitTest,
     rebuild: build,
-    /** v1.31 目前是哪一張地圖：'eu' 歐洲、'am' 新大陸 */
+    /** v1.31 目前是哪一張地圖：'eu' 歐洲、'am' 新大陸、'sea' 亞特蘭提斯海底城（v1.31.2） */
     world: function () { return WD.id; },
     /** 換地圖（換完要 Voyage.rebuild()）；回傳有沒有換 */
     useWorld: function (id) {
       if (!WORLDS[id] || WD.id === id) return false;
       WD = WORLDS[id];
+      PAL = WD.pal || userPal;
       build();
       return true;
     },
@@ -1316,7 +1342,7 @@ const WorldMap = (function () {
       ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
       ctx.restore();
     },
-    setPalette: function (name) { if (PALETTES[name]) PAL = PALETTES[name]; return !!PALETTES[name]; },
+    setPalette: function (name) { if (PALETTES[name]) { userPal = PALETTES[name]; if (!WD.pal) PAL = userPal; } return !!PALETTES[name]; },
     nearSpecial: nearSpecial,
     pinBox: pinBox,
     LABEL_SIZE_SEL: LABEL_SIZE_SEL,

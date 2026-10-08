@@ -48,7 +48,12 @@ function runFlagCheck() {
     MX: { dir: 'mexico', points: [[0.15, 0.5, 'green'], [0.5, 0.15, 'white'], [0.85, 0.5, 'red']] },                         // 綠白紅直條＋國徽
     PA: { dir: 'panama', points: [[0.75, 0.25, 'red'], [0.25, 0.75, 'blue'], [0.05, 0.05, 'white'], [0.25, 0.25, 'blue'], [0.75, 0.75, 'red']] },
     CO: { dir: 'colombia', points: [[0.5, 0.2, 'gold'], [0.5, 0.62, 'blue'], [0.5, 0.88, 'red']] },                          // 黃（一半）藍紅
-    BR: { dir: 'brazil', points: [[0.04, 0.06, 'green'], [0.3, 0.5, 'gold'], [0.5, 0.4, 'blue']] }                           // 綠底黃菱形藍球
+    BR: { dir: 'brazil', points: [[0.04, 0.06, 'green'], [0.3, 0.5, 'gold'], [0.5, 0.4, 'blue']] },
+    // v1.31.2 亞特蘭提斯海底城：城區的旗（深藍底＋橫紋＋三叉戟，不是真的國旗）
+    A1: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
+    A2: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
+    A3: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
+    A4: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] }                           // 綠底黃菱形藍球
   };
 
   const cv = document.createElement('canvas');

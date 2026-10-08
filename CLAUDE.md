@@ -19,7 +19,7 @@
 
 - `index.html` 依序載入 `js/*.js`（每個檔案是一個 IIFE 全域模組：Levels、Features、Encounter、Expedition、Quests、Shaft、Sprites、Save、Equipment、WorldMap、Voyage、Game、America⋯⋯）。
 - 關卡在 `js/levels.js` 的 `Levels.list`，**存檔照關卡順序記，新關卡一定接在最後面**（插在中間會讓舊存檔錯位）。
-- 兩張大地圖：歐洲（`js/europe-geo.js`）和新大陸（`js/america-geo.js`），用 `WorldMap.useWorld('eu'|'am')` 切換。
+- 三張大地圖：歐洲（`js/europe-geo.js`）、新大陸（`js/america-geo.js`）、亞特蘭提斯海底城（`js/abyss.js`，手畫的世界座標），用 `WorldMap.useWorld('eu'|'am'|'sea')` 切換。
   地理資料由 `tools/build-europe-map.js`、`tools/build-america-map.js` 從 `ne110m.json` 產生，不要手改產生出來的檔案。
 - 劇情人物與委託在 `js/quests.js`、`js/expedition.js`；美洲篇的美術在 `js/america.js`。
 - 行尾：`levels.js`、`entities.js`、`sprites.js`、`levelgen.js`、`save.js`、`shaft.js`、`worldmap.js` 和部分測試是 **CRLF**，改檔時要保留原本的行尾。
@@ -51,4 +51,8 @@
 - 塞爾維亞（滑雪，`js/ski.js`，view `'ski'`）、保加利亞（羽球，`js/badminton.js`，view `'badminton'`）也是 layout `'race'`，由 race.js 轉發；測試是 race-check 的 `runRemakeCheck`。
   舊存檔破過這兩關的會在讀檔時變回還沒破（game.js `remakeReset`，旗標 `remake131`，每個存檔只做一次）。
 - v1.31.2（在 `nordic`，**還沒上線**）：比利時扒手偷 50 枚（quests.js `PICK_COINS`）；首頁「怎麼玩」（game.js `TITLE_GUIDE`）更新成 8 條。
+- v1.31.2 亞特蘭提斯海底城（region `abyss`，Levels.list 最後四關 A1～A4）：入口是歐洲地圖的亞特蘭提斯（`Quests.abyssOpen()` = 潛過神殿），出口是光之井（special `surface`）。
+  珊瑚市集 `underwater`＋Features `jellies`、水晶宮 Features `beams`、海馬競技場 race 主題 `seahorse`、海神神殿克拉肯（pattern `sphinx`，kind `kraken`，觸手 = pillar.tentacle）。
+  海底城地圖不生海上怪物；測試 `tests/abyss-check.js` 的 `runAbyssCheck`。海神夥伴改成安提基特拉沉船拿。
+  測試檔用 script 標籤載入有時會拿到舊的，改用 fetch（cache: reload）＋ eval 載入比較保險。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

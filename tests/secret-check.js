@@ -467,7 +467,7 @@ function runSecretCheck() {
     p.x = pt.x + pt.w / 2 - PW / 2; p.y = pt.y - 90; p.vx = 0; p.vy = 0; p.onGround = false;
     const inp = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
     let cave = false, fell = false;
-    for (let f = 0; f < 90 && !cave && !fell; f++) {
+    for (let f = 0; f < 300 && !cave && !fell; f++) {          // 水裡往下沉比較慢（珊瑚市集），給久一點
       const ev = updatePlayer(st, inp, f);
       ev.forEach(function (e) { if (String(e).indexOf('pitcave:') === 0) cave = true; if (e === 'fall') fell = true; });
     }
@@ -493,7 +493,10 @@ function runPitCaveCheck() {
       const hadEquip = st.equip && st.equip.taken;
       p.x = s.pit.x + s.pit.w / 2 - p.w / 2; p.y = s.pit.y - 90; p.vx = 0; p.vy = 0; p.onGround = false;
       let caveSeen = false, frames = 0;
+      const px0 = p.x;
       for (; frames < 600; frames++) {
+        // 水裡的關（珊瑚市集）會被暗流推走：往下沉的時候人一直對準洞口（真人會自己游過去）
+        if (!caveSeen && st.def.underwater) { p.x = px0; p.vx = 0; p.vy = Math.max(p.vy, 2); }
         Game.debug.step(1);
         if (st.pitCave) caveSeen = true;
         if (caveSeen && !st.pitCave) break;

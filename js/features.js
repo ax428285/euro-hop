@@ -24,6 +24,9 @@
  *   speakers  （v1.31 試做的雷鬼音響，目前沒有關卡用）
  *   locks     巴拿馬  運河船閘：閘室中間一道閘門牆跳不過去，兩側的小船交替升降，搭升起來的船翻過閘門
  *   ropes     哥倫比亞 海盜盪繩：寬水道上方掛著來回盪的繩子，跳起來抓住、盪到前面按跳躍放手飛過去
+ *   （v1.31.2 亞特蘭提斯海底城）
+ *   jellies   珊瑚市集 發光水母：在水裡上下漂，從上面踩傘蓋會被彈高（拿高處的金幣），碰到側邊、觸手會被電
+ *   beams     水晶宮   水晶光束：水晶先亮起來預告，接著射出一道貼地的光束掃過一段走道（跳起來閃）
  *
  * 規劃（plan）在關卡定義時用固定 seed 跑，結果可重現、可測試；
  * 執行期（update）每帧處理碰撞，事件格式跟玩家事件一樣帶 'p0:' 前綴。
@@ -396,6 +399,25 @@ const Features = (function () {
           });
           coins.push({ x: gx - 5, y: ly - GATE_H - 60 });
         });
+      } else if (c.type === 'jellies') {
+        // 珊瑚市集：發光水母。地面上方 JELLY_UP 上下漂，頭頂排一串金幣（踩著彈上去才拿得到）
+        const n = c.count || 7;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.12 + 0.76 * i / Math.max(1, n - 1)), 40, 300);
+          if (!sp || sp.x < 600) continue;
+          list.push({ type: 'jelly', x: sp.x + 20, gy: sp.y, phase: (i * 47) % 200, y: sp.y - JELLY_UP });
+          ctx.avoid.push({ x: sp.x - 70, y: 0, w: 180, h: 600 });
+          coinColumn(sp.x + 20, sp.y, 270, 350, 3).forEach(function (q) { coins.push(q); });
+        }
+      } else if (c.type === 'beams') {
+        // 水晶宮：水晶光束。每一顆水晶往右掃一段 BEAM_LEN 的平地（那一段不能有斷崖：光束要貼著地面走）
+        const n = c.count || 6;
+        for (let i = 0; i < n; i++) {
+          const sp = findSpot(ctx, W * (0.12 + 0.76 * i / Math.max(1, n - 1)), BEAM_LEN + 40, 60);
+          if (!sp || sp.x < 600) continue;
+          list.push({ type: 'beam', x: sp.x, y: sp.y, len: BEAM_LEN, phase: (i * 61) % BEAM_CYCLE });
+          ctx.avoid.push({ x: sp.x - 60, y: 0, w: BEAM_LEN + 160, h: 600 });
+        }
       } else if (c.type === 'aurora') {
         // 芬蘭：極夜。一段區間整片黑，極光週期性亮起
         list.push({ type: 'aurora', x0: Math.round(W * (c.from || 0.3)), x1: Math.round(W * (c.to || 0.8)) });
@@ -586,6 +608,9 @@ const Features = (function () {
   const GUST_CYCLE = 320;     // 一輪：安靜 → 預告 → 颳風
   const GUST_PUSH = 1.5;      // 逆風時每帧把地面上的玩家往回推幾 px（空中不推：跳躍距離不受影響）
   const THORN_CYCLE = 150;
+  // v1.31.2 海底城
+  const JELLY_UP = 150, JELLY_AMP = 46, JELLY_V = -10.5;
+  const BEAM_CYCLE = 190, BEAM_WARN = 56, BEAM_FIRE = 34, BEAM_LEN = 300, BEAM_H = 30;
   const SHELL_FUSE = 80;      // 砲彈從預告到落地的帧數
 
   /** 斯洛伐克山風：這一帧在不在颳 */
@@ -681,6 +706,62 @@ const Features = (function () {
     p.coyote = 0;
     p.launched = true;
     events.push('p' + pid + ':spring');
+  }
+
+  /** 發光水母：半透明的傘蓋、一圈發光的邊、底下飄動的觸手（被踩時壓扁） */
+  function drawJelly(ctx, x, y, f, t) {
+    const sq = f.squash > 0 ? 1 - f.squash / 30 : 1;
+    ctx.save();
+    ctx.translate(x, y);
+    const glow = 0.5 + Math.sin(t * 0.08 + f.phase) * 0.2;
+    ctx.fillStyle = 'rgba(200, 150, 255, ' + (0.18 * glow).toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(220, 180, 255, 0.85)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (let k = -2; k <= 2; k++) {
+      ctx.beginPath(); ctx.moveTo(k * 6, 4);
+      ctx.quadraticCurveTo(k * 7 + Math.sin(t * 0.12 + k) * 6, 18, k * 5 + Math.sin(t * 0.1 + k + 1) * 5, 34);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    ctx.scale(1 + (1 - sq) * 0.6, sq);
+    ctx.fillStyle = 'rgba(190, 130, 250, 0.8)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 22, 18, 0, Math.PI, 0); ctx.lineTo(22, 4); ctx.lineTo(-22, 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 230, 255, ' + (0.6 + glow * 0.3).toFixed(2) + ')';
+    for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.arc(k * 6, 3, 2, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.beginPath(); ctx.ellipse(-8, -9, 6, 3.5, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  /** 水晶光束：地上一顆藍白水晶；預告時越來越亮、地上出現虛線；發射時一道光貼著地面掃過去 */
+  function drawBeam(ctx, sx, f, t) {
+    const y = f.y;
+    const warn = f.state === 'warn', fire = f.state === 'fire';
+    const wk = warn ? (f.k - (BEAM_CYCLE - BEAM_WARN - BEAM_FIRE)) / BEAM_WARN : 0;
+    if (warn) {
+      ctx.strokeStyle = 'rgba(160, 240, 255, ' + (0.25 + wk * 0.5).toFixed(2) + ')'; ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]); ctx.lineDashOffset = -t;
+      ctx.beginPath(); ctx.moveTo(sx + 20, y - BEAM_H / 2); ctx.lineTo(sx + 20 + f.len, y - BEAM_H / 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (fire) {
+      const g = ctx.createLinearGradient(0, y - BEAM_H, 0, y - 6);
+      g.addColorStop(0, 'rgba(160, 240, 255, 0)'); g.addColorStop(0.5, 'rgba(230, 255, 255, 0.95)'); g.addColorStop(1, 'rgba(160, 240, 255, 0)');
+      ctx.fillStyle = g; ctx.fillRect(sx + 20, y - BEAM_H, f.len, BEAM_H - 6);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fillRect(sx + 20, y - BEAM_H / 2 - 1.5, f.len, 3);
+      ctx.fillStyle = 'rgba(200, 250, 255, 0.8)';
+      for (let k = 0; k < 6; k++) { const px = sx + 20 + ((t * 9 + k * 53) % f.len); ctx.fillRect(px, y - BEAM_H / 2 - 4 + (k % 3) * 3, 6, 2); }
+    }
+    // 水晶本體（底座＋尖尖的晶柱）
+    ctx.fillStyle = '#5a6a7a'; ctx.fillRect(sx - 2, y - 8, 28, 8);
+    const lit = fire ? 1 : warn ? 0.4 + wk * 0.6 : 0.25 + Math.sin(t * 0.05 + f.phase) * 0.08;
+    ctx.fillStyle = 'rgba(150, 230, 255, ' + (0.5 + lit * 0.5).toFixed(2) + ')';
+    ctx.beginPath(); ctx.moveTo(sx + 2, y - 8); ctx.lineTo(sx + 8, y - 44); ctx.lineTo(sx + 14, y - 52); ctx.lineTo(sx + 20, y - 40); ctx.lineTo(sx + 24, y - 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.4 + lit * 0.5).toFixed(2) + ')';
+    ctx.beginPath(); ctx.moveTo(sx + 8, y - 12); ctx.lineTo(sx + 12, y - 44); ctx.lineTo(sx + 14, y - 12); ctx.closePath(); ctx.fill();
+    if (warn || fire) {
+      ctx.fillStyle = 'rgba(180, 245, 255, ' + (0.15 + lit * 0.3).toFixed(2) + ')';
+      ctx.beginPath(); ctx.arc(sx + 13, y - 30, 26 + lit * 10, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   function update(state, t) {
@@ -958,6 +1039,29 @@ const Features = (function () {
         const ny = f.y - lift;
         f.box.dx = 0; f.box.dy = ny - f.box.y;
         f.box.y = ny; f.lift = lift;
+      } else if (f.type === 'jelly') {
+        f.y = f.gy - JELLY_UP + Math.sin((t + f.phase) * 0.03) * JELLY_AMP;
+        if (f.squash > 0) f.squash--;
+        const bell = { x: f.x - 22, y: f.y - 16, w: 44, h: 22 };
+        const tent = { x: f.x - 14, y: f.y + 6, w: 28, h: 30 };
+        players.forEach(function (p, i) {
+          // 從上面踩到傘蓋 → 彈上去；其他地方碰到 → 被電
+          if (U.overlap(p, bell) && p.vy > -0.5 && (p.y + p.h) - bell.y < 14) {
+            p.y = bell.y - p.h;
+            launch(p, JELLY_V, events, pidOf(p, i));
+            f.squash = 12;
+          } else if (U.overlap(p, bell) || U.overlap(p, tent)) {
+            hurt(p, f.x, events, pidOf(p, i));
+          }
+        });
+      } else if (f.type === 'beam') {
+        const k = (t + f.phase) % BEAM_CYCLE;
+        f.state = k < BEAM_CYCLE - BEAM_WARN - BEAM_FIRE ? 'idle' : k < BEAM_CYCLE - BEAM_FIRE ? 'warn' : 'fire';
+        f.k = k;
+        if (f.state === 'fire') {
+          const box = { x: f.x + 20, y: f.y - BEAM_H, w: f.len, h: BEAM_H - 6 };
+          players.forEach(function (p, i) { if (U.overlap(p, box)) hurt(p, f.x, events, pidOf(p, i)); });
+        }
       } else if (f.type === 'aurora') {
         f.glow = auroraGlow(t);
       } else if (f.type === 'thorn') {
@@ -1526,6 +1630,14 @@ const Features = (function () {
         const gx = f.x - camX;
         if (gx < -40 || gx > 1000) return;
         drawLockGate(ctx, gx, f, t);
+      } else if (f.type === 'jelly') {
+        const sx = f.x - camX;
+        if (sx < -60 || sx > 1020) return;
+        drawJelly(ctx, sx, f.y, f, t);
+      } else if (f.type === 'beam') {
+        const sx = f.x - camX;
+        if (sx < -f.len - 60 || sx > 1020) return;
+        drawBeam(ctx, sx, f, t);
       } else if (f.type === 'aurora') {
         drawAuroraSky(ctx, state, f, camX, t);
       } else if (f.type === 'dark') {

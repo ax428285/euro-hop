@@ -48,12 +48,14 @@ const Quests = (function () {
     { id: 'M_petshop', seller: 'petshop', name: '千里達寵物用品店', lon: -61.3, lat: 10.6, prompt: '按 Enter 逛千里達寵物用品店' }
   ];
 
-  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后' };
+  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa' };
 
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
   /** v1.31 美洲篇開放了嗎：完成哥倫布的委託（他出航之後） */
   function americaOpen() { return flag('columbus') >= 2; }
+  /** v1.31.2 亞特蘭提斯海底城開放了嗎：第一次潛到亞特蘭提斯的神殿之後 */
+  function abyssOpen() { return typeof Save !== 'undefined' && !!Save.seaBossDown('atlantis'); }
   /** 卡律布狄斯的漩渦眼掉下去要不要接冥界：v1.30 玩家：進漩渦關掉下去一次就進得去 → 一律會（救出洛基後再去也行） */
   function helReady() { return true; }
 
@@ -138,6 +140,21 @@ const Quests = (function () {
 
   function drawMapIcon(ctx, kind, x, y, t, near) {
     ctx.save();
+    if (kind === 'mermaid') {
+      // v1.31.2 海底城的人魚：坐在一塊石頭上，青綠色的頭髮、會甩的魚尾巴
+      ring(ctx, x, y, t, near, 'rgba(150, 240, 255, 0.95)');
+      ctx.fillStyle = '#5a6a7a';
+      ctx.beginPath(); ctx.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); ctx.fill();
+      const wag = Math.sin(t * 0.1) * 3;
+      ctx.fillStyle = '#2ab0a0';
+      ctx.beginPath(); ctx.moveTo(x - 3, y - 6); ctx.quadraticCurveTo(x + 4, y - 2, x + 9, y - 4 + wag); ctx.lineTo(x + 13, y - 8 + wag); ctx.lineTo(x + 12, y - 1 + wag); ctx.quadraticCurveTo(x + 2, y + 2, x - 4, y - 2); ctx.fill();
+      ctx.fillStyle = '#e8506a'; ctx.fillRect(x - 4, y - 13, 7, 5);
+      ctx.fillStyle = '#f0d0b8'; ctx.beginPath(); ctx.arc(x - 1, y - 16, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3ad0c0'; ctx.beginPath(); ctx.arc(x - 2, y - 17, 4.4, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+      ctx.fillRect(x - 6, y - 17, 3, 9);
+      ctx.restore();
+      return;
+    }
     if (kind === 'thor') {
       ring(ctx, x, y, t, near, 'rgba(255, 230, 140, 0.95)');
       // 站在一朵雷雲上
@@ -567,7 +584,29 @@ const Quests = (function () {
     ] };
   }
 
+  /** v1.31.2 海底城的人魚 Thalassa：講城裡的事、提示各區打法；全部破完講亞特蘭提斯為什麼沉下去 */
+  function talkMermaid() {
+    const lv = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === 'abyss'; });
+    const cleared = lv.filter(function (o) { return Save.isCleared(o.i); }).length;
+    if (cleared >= lv.length) {
+      return { who: 'mermaid', lines: [
+        L('mermaid', '你把克拉肯趕走了！整座城的人都在唱歌。'),
+        L('mermaid', '老人家說，很久很久以前我們的國王太驕傲，想征服海面上的國家，海神一生氣，整座島一夜之間就沉了下來。'),
+        L('mermaid', '從那天起，我們就一直住在海底 —— 其實也不壞，對吧？'),
+        L('mermaid', '想回海面的話，往上游到「光之井」就好。（海底城 ' + cleared + ' / ' + lv.length + ' 區）')
+      ] };
+    }
+    return { who: 'mermaid', lines: [
+      L('mermaid', '人類？你是第一個游到這裡來的人類！歡迎來到亞特蘭提斯。'),
+      L('mermaid', '這座城有四區：西北的珊瑚市集、東北的水晶宮、西南的海馬競技場，還有東南的海神神殿。'),
+      L('mermaid', '珊瑚市集要游泳，記得看頭上的氣泡；水晶宮的光束貼著地面掃，跳起來就閃得過。'),
+      L('mermaid', '海神神殿裡住著一隻巨大的章魚克拉肯，把我們的神殿佔走了⋯⋯拜託你，把牠趕出去！'),
+      L('mermaid', '想回海面的話，往上游到最上面的「光之井」。（海底城 ' + cleared + ' / ' + lv.length + ' 區）')
+    ] };
+  }
+
   function talk(id) {
+    if (id === 'mermaid') return talkMermaid();
     if (id === 'columbusAm') return talkColumbusAm();
     if (id === 'cleopatra') return talkCleopatra();
     if (id === 'thor') return talkThor();
@@ -628,6 +667,18 @@ const Quests = (function () {
       eyes(-2, 7);
       ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 1.5;                                                      // 單片眼鏡
       ctx.beginPath(); ctx.arc(7, -2, 6, 0, Math.PI * 2); ctx.stroke();
+    } else if (who === 'mermaid') {
+      // 人魚：青綠色長髮、珊瑚色的上衣、頭上一朵海星
+      ctx.fillStyle = '#2ab0a0';
+      ctx.beginPath(); ctx.moveTo(-30, 50); ctx.quadraticCurveTo(-34, 0, -18, -24); ctx.lineTo(18, -24); ctx.quadraticCurveTo(34, 0, 30, 50); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8506a'; ctx.fillRect(-22, 18, 44, 32);
+      ctx.fillStyle = '#f0d0b8'; ctx.beginPath(); ctx.arc(0, -4, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3ad0c0'; ctx.beginPath(); ctx.arc(0, -10, 22, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+      eyes(-4, 8, '#1a5a6a');
+      ctx.strokeStyle = '#c86a6a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 4, 6, 0.2, Math.PI - 0.2); ctx.stroke();
+      ctx.fillStyle = '#f2a040';
+      for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; ctx.beginPath(); ctx.moveTo(14, -24); ctx.lineTo(14 + Math.cos(a) * 9, -24 + Math.sin(a) * 9); ctx.lineTo(14 + Math.cos(a + 0.6) * 3, -24 + Math.sin(a + 0.6) * 3); ctx.fill(); }
     } else if (who === 'cleopatra') {
       ctx.fillStyle = '#f4efe2'; ctx.fillRect(-26, 14, 52, 36);                                           // 白袍
       ctx.fillStyle = '#2a7ab0'; ctx.fillRect(-24, 14, 48, 6);                                            // 寬領圈（青金石）
@@ -684,6 +735,7 @@ const Quests = (function () {
     ANIMALS: ANIMALS,
     northOpen: northOpen,
     americaOpen: americaOpen,
+    abyssOpen: abyssOpen,
     AM_SPOTS: AM_SPOTS,
     BANK_NEED: BANK_NEED,
     helReady: helReady,

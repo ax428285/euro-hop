@@ -290,6 +290,49 @@ const Music = (function () {
                7, null, 8, 7, 5, null, 3, 5, 0, 2, 3, 2, 0, null, null, null],
       drum:   [1, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 1, 0.5, 0.5, 1, 1, 0.5, 1, 1]
     },
+    // ── 亞特蘭提斯海底城（v1.31.2）──
+    // 珊瑚市集：輕快的市集舞曲，三角波像木琴
+    A1: {
+      bpm: 108, wave: 'triangle',
+      root: -2,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      bass: [0, 0, 3, 3, 4, 4, 0, 4],
+      melody: [4, null, 5, 7, null, 5, 4, 2, 0, null, 2, 4, 5, null, null, null,
+               7, null, 9, 7, 5, 4, null, 2, 4, null, 2, 0, 2, null, null, null],
+      drum:   [1, 0, 0.5, 0, 1, 0, 0.5, 0.5, 1, 0, 0.5, 0, 1, 0.5, 0.5, 0],
+      soft: true
+    },
+    // 水晶宮：叮叮咚咚的水晶鐘聲（正弦波），Lydian 的夢幻感
+    A2: {
+      bpm: 96, wave: 'sine',
+      root: 2,
+      scale: [0, 2, 4, 6, 7, 9, 11],
+      bass: [0, 0, 4, 4, 5, 5, 3, 4],
+      melody: [7, null, 4, null, 9, null, 7, 6, 4, null, 2, null, 4, null, null, null,
+               11, null, 9, null, 7, 6, 7, null, 9, null, 6, null, 7, null, null, null],
+      drum:   [0.6, 0, 0, 0.5, 0, 0, 0.6, 0, 0.6, 0, 0, 0.5, 0, 0.5, 0.6, 0],
+      soft: true
+    },
+    // 海馬競技場：快板的賽跑，方波號角
+    A3: {
+      bpm: 144, wave: 'square',
+      root: 0,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      bass: [0, 4, 0, 4, 3, 4, 5, 4],
+      melody: [0, 4, 7, null, 7, 9, 7, 4, 5, null, 4, 2, 4, null, null, null,
+               7, 9, 11, null, 9, 7, 5, 4, 2, 4, 5, 2, 0, null, null, null],
+      drum:   [1, 0.5, 1, 0.5, 1, 0.5, 1, 1, 1, 0.5, 1, 0.5, 1, 1, 0.5, 1]
+    },
+    // 海神神殿：低沉的小調，鋸齒波＋重鼓（深海的魔王）
+    A4: {
+      bpm: 126, wave: 'sawtooth',
+      root: -9,
+      scale: [0, 1, 3, 5, 7, 8, 10],
+      bass: [0, 0, 1, 1, 5, 5, 4, 4],
+      melody: [0, null, 1, 0, 3, null, 1, null, 5, 3, 1, null, 0, null, null, null,
+               7, null, 8, 7, 5, 3, 5, null, 1, null, 0, 1, 0, null, null, null],
+      drum:   [1, 0, 0.5, 1, 0, 0.5, 1, 0.5, 1, 0, 0.5, 1, 1, 0.5, 1, 1]
+    },
     // 亞特蘭提斯（潛水，v1.23.1）：慢、空靈的 Lydian（升四級），正弦波像水裡傳來的鐘聲
     ATL: {
       bpm: 88, wave: 'sine',

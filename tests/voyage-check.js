@@ -17,7 +17,9 @@ function runVoyageCheck() {
   const ports = Voyage.ports();
 
   // v1.31：兩張地圖 —— 這裡驗目前這張（歐洲），美洲篇的國家在新大陸地圖上（america-check 驗）
-  const here = Levels.list.filter(function (lv) { return (lv.region === 'america') === (WorldMap.world() === 'am'); }).length;
+  // v1.31.2：三張地圖（海底城的四區在 'sea'，abyss-check 驗）
+  const worldOf = function (lv) { return lv.region === 'america' ? 'am' : lv.region === 'abyss' ? 'sea' : 'eu'; };
+  const here = Levels.list.filter(function (lv) { return worldOf(lv) === WorldMap.world(); }).length;
   if (ports.length !== here) {
     issues.push('入口數 ' + ports.length + ' 與這張地圖上的關卡數 ' + here + ' 不一致');
   }

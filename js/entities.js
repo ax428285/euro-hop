@@ -1087,9 +1087,11 @@ function updateBoss(state, t) {
           else if (b.pillarsLeft > 0) {
             b.pillarsLeft--;
             b.shotCd = 42;
-            state.shots.push(makePillar(aim(pcx)));
+            // v1.31.2 海神神殿的克拉肯用同一套，沙柱換成從地底竄出來的觸手（abyss.js 畫）
+            const tent = b.kind === 'kraken';
+            const p1 = makePillar(aim(pcx)); p1.tentacle = tent; state.shots.push(p1);
             if (bossEnraged(b) && b.pillarsLeft % 2 === 0 && Math.abs(p.vx) > 1) {
-              state.shots.push(makePillar(aim(pcx + p.vx * 40)));
+              const p2 = makePillar(aim(pcx + p.vx * 40)); p2.tentacle = tent; state.shots.push(p2);
             }
             events.push('shoot');
           }

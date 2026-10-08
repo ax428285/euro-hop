@@ -309,6 +309,34 @@ const Npcs = (function () {
       { name: '足球少女 Ana',
         look: { skin: '#a8724a', hair: '#2a1e18', shirt: '#f2c230', pants: '#2a4aa8', hat: null, item: null },
         lines: ['踩他的頭沒用 —— 把球踢進他身後的球門，進 4 球就贏！', '他丟完球會累倒在地上，這時候他擋不到球 —— 趕快帶球衝過去射門！', '他站著的時候看到高球會跳起來擋，那就踢貼地球。'] }
+    ],
+    // ── 亞特蘭提斯海底城（v1.31.2）──
+    A1: [
+      { at: 0.1, name: '珊瑚攤老闆 Nerea',
+        look: { skin: '#e8c8b0', hair: '#3ab0a8', shirt: '#e86a8a', pants: '#2a4a6a', hat: 'wreath', hatColor: '#e86a8a', item: null },
+        lines: ['發光水母的傘蓋可以踩，會把你彈得好高 —— 可是千萬別碰到下面的觸手！', '頭上那串氣泡是你的空氣，用完會嗆水。看到冒泡的噴口就游進去補氣。', '我們的珊瑚項鍊可是全城最紅的！'] },
+      { at: 0.45, name: '海龜郵差 Kairos',
+        look: { skin: '#c8a888', hair: '#6a6a6a', shirt: '#3a8a5a', pants: '#5a4a3a', hat: 'cap', hatColor: '#2a6a4a', item: 'map' },
+        lines: ['水流往一邊衝的地方，貼著海底走比較不會被沖走。', '我在亞特蘭提斯送了三百年的信，從來沒遲到過。', '城中間廣場的人魚 Thalassa 什麼都知道，去問她吧。'] },
+      { at: 0.8, name: '潛水夫 Yorgos',
+        look: { skin: '#d8b090', hair: '#2a2420', shirt: '#c8873a', pants: '#3a3a44', hat: 'helmet', hatColor: '#c8873a', item: 'lamp' },
+        lines: ['我是從安提基特拉沉船那邊游過來的，沒想到海底下還有一整座城！', '兩千年前的希臘人就會潛水採海綿，一口氣能潛幾十公尺深。', '這裡的人說，城會沉下來是因為國王太驕傲⋯⋯'] }
+    ],
+    A2: [
+      { at: 0.1, name: '水晶工匠 Lykos',
+        look: { skin: '#e0c8b8', hair: '#d8e8f0', shirt: '#7ab8d8', pants: '#2a3a5a', hat: 'beret', hatColor: '#3a6a9a', item: null },
+        lines: ['水晶亮起來、地上出現虛線 = 光束要掃過來了，跳起來閃！', '光束是貼著地面走的，只要人在半空中就不會被打到。', '宮殿外面那個大泡泡，把整座宮殿的空氣罩住了。'] },
+      { at: 0.45, name: '宮廷樂師 Melina',
+        look: { skin: '#f0d0b8', hair: '#8a4a2a', shirt: '#e8c050', pants: '#6a3a8a', hat: 'wreath', hatColor: '#e8c050', item: null },
+        lines: ['柏拉圖說，亞特蘭提斯的神殿牆上包滿了會發光的山銅。', '一道白光穿過水晶稜鏡，就會變成彩虹 —— 我最喜歡看了。', '國王的宴會上，我們用海螺吹出最低的音。'] },
+      { at: 0.8, name: '宮殿侍衛 Talos',
+        look: { skin: '#c8a888', hair: '#2a2018', shirt: '#4a5a7a', pants: '#2a2a36', hat: 'helmet', hatColor: '#e8c050', item: null },
+        lines: ['水晶守衛很硬，踩頭就倒；打不到的話繞過去也行。', '再往東南就是海神神殿了，裡面住著一隻好大的章魚。', '聽說牠一累就整個趴在地上 —— 那就是你的機會。'] }
+    ],
+    A4: [
+      { name: '神殿祭司 Kallisto',
+        look: { skin: '#e0c0a8', hair: '#f0f0f0', shirt: '#f4f0e6', pants: '#c8a040', hat: 'wreath', hatColor: '#e8c050', item: null },
+        lines: ['克拉肯的觸手會從你腳底下竄出來 —— 地上冒出墨汁漩渦就趕快走開！', '一直換位置，別停在同一個地方。', '牠出完招會累得整個趴在地上，這時候跳上去踩牠的頭！'] }
     ]
   };
 

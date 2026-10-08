@@ -52,14 +52,16 @@ const Encounter = (function () {
      * 加勒比海、中美洲（古巴、牙買加、墨西哥、巴拿馬）一開放就能玩；南美（哥倫比亞、巴西）要累積 SOUTH_EXP 才開。
      * 關卡用 gate: 'samerica' 標記（region 還是 'america'：同一張地圖、同一個謎）。
      */
-    { id: 'samerica', name: '南美篇', exp: SOUTH_EXP, pool: 'am' }
+    { id: 'samerica', name: '南美篇', exp: SOUTH_EXP, pool: 'am' },
+    // v1.31.2 亞特蘭提斯海底城：第一次潛到亞特蘭提斯的神殿之後開放（地圖 'sea'，見 abyss.js）
+    { id: 'abyss', name: '海底城篇', quest: true }
   ];
   function regionOf(id) { return REGIONS.filter(function (r) { return r.id === id; })[0] || null; }
   /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放；quest 篇章看劇情） */
   function regionUnlocked(id, exp) {
     const r = regionOf(id);
     if (!r) return true;
-    if (r.quest) return typeof Quests !== 'undefined' && (id === 'america' ? Quests.americaOpen() : Quests.northOpen());
+    if (r.quest) return typeof Quests !== 'undefined' && (id === 'america' ? Quests.americaOpen() : id === 'abyss' ? Quests.abyssOpen() : Quests.northOpen());
     if (r.pool === 'am') return typeof Quests !== 'undefined' && Quests.americaOpen() && typeof Save !== 'undefined' && Save.expAm() >= r.exp;
     return exp >= r.exp;
   }
@@ -127,7 +129,7 @@ const Encounter = (function () {
    * 亞特蘭提斯（v1.23.1 玩家：找個海域插一個亞特蘭提斯，關卡方式是潛水）——
    * 柏拉圖說它在「海克力斯之柱（直布羅陀海峽）之外」，所以放在海峽西邊的大西洋。
    * 不是小遊戲，是一整段往下潛的豎井關（Levels.makeShaft 產生，見 diveDef）；不佔關卡編號、不影響存檔順序。
-   * 潛到底的神殿裡拿到「海神夥伴」（消耗品，魔王關自動出戰，見 game.js updateAlly）。
+   * 潛到底就是神殿（v1.31.2：海神夥伴改到安提基特拉沉船拿；第一次潛到神殿之後，這裡變成「亞特蘭提斯海底城」的入口，見 abyss.js）。
    */
   KINDS.atlantis = { name: '亞特蘭提斯', lv: '遺跡', exp: 120, bossExp: 200, bossCoins: 250, game: '潛水探險',
                      goal: '往下潛到最底層的神殿！跳躍 = 往上游・頭上的氣泡用完會嗆水，游進噴口的氣泡柱補氣', dive: true };
@@ -136,7 +138,7 @@ const Encounter = (function () {
    * 一整段 1～2 分鐘的橫向潛水：暗流、會夾人的巨蚌、鯊魚，三件寶物藏在沿路，終點船艙裡是安提基特拉機械。
    */
   KINDS.wreck = { name: '安提基特拉沉船', lv: '港口', exp: 90, bossExp: 160, bossCoins: 300, game: '沉船潛水',
-                  goal: '撈起沉船裡的寶物！跳躍 = 往上游・小心暗流、巨蚌和鯊魚，終點船艙有安提基特拉機械', dive: true };
+                  goal: '撈起沉船裡的寶物！跳躍 = 往上游・小心暗流、巨蚌和鯊魚，終點船艙有安提基特拉機械和海神夥伴', dive: true };
   /*
    * 雙人試煉（v1.28）：入口是 worldmap.js 的港口（PORT_DEFS，scene: 'duo'），關卡在 duo.js。
    * 要兩位玩家（同機按 C，或連線找朋友當 2P）才進得去；第一次過關的獎勵記在 Save.seaBosses。
@@ -257,7 +259,8 @@ const Encounter = (function () {
   function updateMap(ship, exp) {
     const events = [];
     ensureBosses();
-    if (--spawnTimer <= 0) {
+    // v1.31.2 玩家：海底城不用海上怪物（專心闖關）
+    if (--spawnTimer <= 0 && !(WorldMap.world && WorldMap.world() === 'sea')) {
       spawnTimer = SPAWN_EVERY;
       if (monsters.filter(function (m) { return !m.boss; }).length < MAX_ON_MAP && Math.random() < SPAWN_CHANCE) {
         const hasRare = monsters.some(function (m) { return m.def.rare; });
@@ -638,7 +641,7 @@ const Encounter = (function () {
 
   /**
    * 亞特蘭提斯的潛水關（第一次叫的時候才產生，之後重用同一份）。
-   * v1.24.2 玩家：改成垂直往下、類似倫敦那種，但要是潛水；終點是神殿，可以獲得海神夥伴。
+   * v1.24.2 玩家：改成垂直往下、類似倫敦那種，但要是潛水；終點是神殿（v1.31.2 海神夥伴改到沉船拿）。
    *   → 用豎井關的產生器（Levels.makeShaft，descend），標 underwater：
    *     entities.js 換潛水物理（划水、慢慢下沉），上面追下來的是崩落的珊瑚礁（尖刺天花板換皮），
    *     每隔幾層有氣泡噴口補空氣（features 'vent'），最底層是海神的神殿。

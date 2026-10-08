@@ -53,7 +53,7 @@ const Race = (function () {
 
   /**
    * cfg.course：一串 [段數, 彎度, 高低起伏]（彎度正 = 右彎；起伏是這一段結束時比開始高多少，單位世界座標）
-   * cfg.theme：'car'（古巴）/ 'chase'（墨西哥）
+   * cfg.theme：'car'（古巴）/ 'chase'（墨西哥）/ 'seahorse'（v1.31.2 亞特蘭提斯的海馬競技場）
    */
   function plan(cfg) {
     // v1.31 古巴改成上帝視角（view: 'top'，見 topdown.js）
@@ -85,7 +85,14 @@ const Race = (function () {
     const finish = total - 40;
 
     // 路邊的裝飾
-    const deco = cfg.theme === 'chase'
+    const deco = cfg.theme === 'seahorse'
+      ? function (i) {
+          // 海馬競技場：兩旁是倒塌的石柱、海帶、看台上的海龜觀眾；拱門一道道跨過賽道
+          if (i % 4 === 0) segs[i].sprites.push({ x: -1.35 - r() * 0.6, kind: r() < 0.5 ? 'kelp' : 'column' });
+          if (i % 4 === 2) segs[i].sprites.push({ x: 1.35 + r() * 0.6, kind: r() < 0.5 ? 'kelp' : 'column' });
+          if (i % 23 === 7) segs[i].sprites.push({ x: 0, kind: 'arch' });
+        }
+      : cfg.theme === 'chase'
       ? function (i) {
           if (i % 5 === 0) segs[i].sprites.push({ x: -1.4 - r() * 0.9, kind: 'cactus' });
           if (i % 5 === 2) segs[i].sprites.push({ x: 1.4 + r() * 0.9, kind: r() < 0.6 ? 'cactus' : 'mesa' });
@@ -100,7 +107,9 @@ const Race = (function () {
     for (let i = 0; i < total; i++) deco(i);
 
     // 障礙：每隔一段距離放一個；高的（要閃）、矮的（可以跳）
-    const obsKinds = cfg.theme === 'chase'
+    const obsKinds = cfg.theme === 'seahorse'
+      ? [{ kind: 'urchin', low: true, w: 0.36 }, { kind: 'coralPillar', low: false, w: 0.34 }, { kind: 'jellyRoad', low: false, w: 0.3 }]
+      : cfg.theme === 'chase'
       ? [{ kind: 'tumbleweed', low: true, w: 0.4 }, { kind: 'rock', low: false, w: 0.42 }, { kind: 'cactusRoad', low: false, w: 0.3 }]
       : [{ kind: 'pothole', low: true, w: 0.5 }, { kind: 'cone', low: false, w: 0.3 }, { kind: 'cart', low: false, w: 0.46 }];
     const gap = cfg.obsEvery || 34;
@@ -127,6 +136,13 @@ const Race = (function () {
       segs[i].obs.push({ x: 0, kind: 'crates', w: 2.6, low: true });
       for (let d = 6; d <= 24; d += 6) { segs[i - d].sprites.push({ x: -1.2, kind: 'warn' }); segs[i - d].sprites.push({ x: 1.2, kind: 'warn' }); }
     });
+    // 海馬競技場：一整排從沙裡冒出來的礁石牆（整條路，要跳）—— 前面兩側先冒一串泡泡預告
+    (cfg.reefs || []).forEach(function (k) {
+      const i = Math.round(START + (END - START) * k);
+      for (let d = -16; d < 4; d++) segs[i + d].obs = [];
+      segs[i].obs.push({ x: 0, kind: 'reefwall', w: 2.6, low: true });
+      for (let d = 6; d <= 24; d += 6) { segs[i - d].sprites.push({ x: -1.2, kind: 'bubbles' }); segs[i - d].sprites.push({ x: 1.2, kind: 'bubbles' }); }
+    });
     // 金幣：一排 5 枚，放在沒有障礙的車道
     const coins = [];
     for (let i = START + 10; i < END - 10; i += 52 + Math.floor(r() * 14)) {
@@ -141,7 +157,7 @@ const Race = (function () {
       }
     }
     // 終點線
-    segs[finish].sprites.push({ x: 0, kind: cfg.theme === 'chase' ? 'roadblock' : 'finish' });
+    segs[finish].sprites.push({ x: 0, kind: cfg.theme === 'chase' ? 'roadblock' : cfg.theme === 'seahorse' ? 'arch' : 'finish' });
     return {
       theme: cfg.theme || 'car',
       segs: segs,
@@ -231,7 +247,7 @@ const Race = (function () {
       for (let d = 30; d <= 34; d++) {
         const ahead = pl.segs[i + d];
         if (ahead) ahead.obs.forEach(function (o) {
-          if ((o.kind === 'wave' || o.kind === 'crates') && !rs.seen[o.kind]) { rs.seen[o.kind] = true; events.push('feature:race_' + o.kind); }
+          if ((o.kind === 'wave' || o.kind === 'crates' || o.kind === 'reefwall') && !rs.seen[o.kind]) { rs.seen[o.kind] = true; events.push('feature:race_' + o.kind); }
         });
       }
       s.obs.forEach(function (o) {
@@ -288,6 +304,11 @@ const Race = (function () {
     chase: {
       sky: ['#5aa8e0', '#f8dca0'], ground1: '#d8945a', ground2: '#cc8a52',
       road1: '#5a5a60', road2: '#55555b', rumble1: '#f2c230', rumble2: '#2a2a30', lane: '#f2c230'
+    },
+    // 海馬競技場：深藍的水、淡沙地、大理石賽道、金色的跑道邊
+    seahorse: {
+      sky: ['#0a3a62', '#3a9ac0'], ground1: '#c8b88a', ground2: '#bcac80',
+      road1: '#d8d4c8', road2: '#ccc8bc', rumble1: '#e8c050', rumble2: '#2a6a8a', lane: '#8ab8c8'
     }
   };
 
@@ -334,6 +355,25 @@ const Race = (function () {
       ctx.fillStyle = '#efe6d4';
       ctx.beginPath(); ctx.arc(cx, hz - 40, 16, Math.PI, 0); ctx.fill();
       ctx.fillRect(cx - 18, hz - 40, 36, 56);
+    } else if (pl.theme === 'seahorse') {
+      // 海底：從上面照下來的光束、遠方圓形競技場的剪影、往上飄的泡泡
+      ctx.fillStyle = 'rgba(200, 240, 255, 0.08)';
+      for (let k = 0; k < 6; k++) {
+        const x = ((k * 190 - off * 260) % (W + 200) + W + 200) % (W + 200) - 100;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 50, 0); ctx.lineTo(x + 140, hz); ctx.lineTo(x + 60, hz); ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = '#1e5a7a';
+      const ax = ((W * 0.5 - off * 300) % (W * 1.4) + W * 1.4) % (W * 1.4) - W * 0.2;
+      ctx.beginPath(); ctx.ellipse(ax, hz + 4, 260, 70, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#2a6e8e';
+      for (let k = -5; k <= 5; k++) ctx.fillRect(ax + k * 44 - 10, hz - 46 + Math.abs(k) * 4, 20, 40);
+      ctx.fillStyle = '#1a4e6c';
+      for (let k = 0; k < 14; k++) {
+        const x = ((k * 80 - off * 420) % (W + 100) + W + 100) % (W + 100) - 50;
+        ctx.beginPath(); ctx.moveTo(x, hz + 14); ctx.quadraticCurveTo(x + 6, hz - 30 - (k % 3) * 12, x + 2, hz - 50 - (k % 4) * 10); ctx.lineTo(x + 6, hz + 14); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(220, 245, 255, 0.5)';
+      for (let k = 0; k < 16; k++) { const x = (k * 61 + t * 0.3) % W, y = hz - ((t * 0.8 + k * 37) % hz); ctx.beginPath(); ctx.arc(x, y, 1.6 + (k % 3), 0, Math.PI * 2); ctx.fill(); }
     } else {
       // 銅峽谷：一層層的紅色峭壁（平頂的方山）
       [['#b8643a', 0.6, 110, 0.006], ['#a0502e', 1, 70, 0.013]].forEach(function (L) {
@@ -361,6 +401,84 @@ const Race = (function () {
     ctx.save();
     ctx.translate(sx, sy);
     switch (kind) {
+      // ── v1.31.2 海馬競技場 ──
+      case 'kelp': {
+        const h = u * (0.6 + (o.x * 7 % 1 + 1) % 1 * 0.4);
+        ctx.strokeStyle = '#2f7a4a'; ctx.lineWidth = Math.max(1.5, u * 0.05); ctx.lineCap = 'round';
+        for (let k = -1; k <= 1; k++) {
+          ctx.beginPath(); ctx.moveTo(k * u * 0.06, 0);
+          ctx.quadraticCurveTo(k * u * 0.06 + Math.sin(t * 0.05 + k) * u * 0.1, -h * 0.5, k * u * 0.04 + Math.sin(t * 0.05 + k + 1) * u * 0.08, -h);
+          ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+        break;
+      }
+      case 'column': {
+        const h = u * 0.7, w = u * 0.08;
+        ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-w, -h, w * 2, h);
+        ctx.fillStyle = '#b8b0a0'; ctx.fillRect(-w * 1.4, -h - w * 0.6, w * 2.8, w * 0.6); ctx.fillRect(-w * 1.3, -w * 0.5, w * 2.6, w * 0.5);
+        ctx.strokeStyle = 'rgba(120, 110, 90, 0.5)'; ctx.lineWidth = Math.max(0.6, u * 0.008);
+        for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(k * w * 0.6, -h); ctx.lineTo(k * w * 0.6, 0); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(60, 140, 90, 0.6)'; ctx.fillRect(-w, -h * 0.3, w * 2, h * 0.08);
+        break;
+      }
+      case 'arch': {
+        // 跨過賽道的大理石拱門（終點那一道掛著三叉戟的旗）
+        const w = u * 1.25, h = u * 1.1, th2 = u * 0.1;
+        ctx.fillStyle = '#e8e2d2';
+        ctx.fillRect(-w, -h, th2, h); ctx.fillRect(w - th2, -h, th2, h);
+        ctx.beginPath(); ctx.moveTo(-w, -h); ctx.quadraticCurveTo(0, -h - u * 0.45, w, -h); ctx.lineTo(w, -h + th2); ctx.quadraticCurveTo(0, -h - u * 0.3, -w, -h + th2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e8c050'; ctx.beginPath(); ctx.arc(0, -h - u * 0.2, u * 0.07, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'bubbles': {
+        ctx.strokeStyle = 'rgba(230, 250, 255, 0.85)'; ctx.lineWidth = Math.max(1, u * 0.012);
+        for (let k = 0; k < 5; k++) {
+          const yy = -((t * 2 + k * 23) % 90) / 90 * u * 0.9;
+          ctx.beginPath(); ctx.arc(Math.sin(t * 0.1 + k) * u * 0.05, yy, u * (0.025 + k * 0.006), 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+      case 'urchin': {
+        // 海膽：黑紫色的刺球（矮的，跳過去）
+        const r0 = u * 0.13;
+        ctx.strokeStyle = '#2a1a3a'; ctx.lineWidth = Math.max(1, u * 0.015);
+        for (let k = 0; k < 14; k++) { const a = Math.PI + k * Math.PI / 13; ctx.beginPath(); ctx.moveTo(0, -r0 * 0.6); ctx.lineTo(Math.cos(a) * r0 * 1.9, -r0 * 0.6 + Math.sin(a) * r0 * 1.9); ctx.stroke(); }
+        ctx.fillStyle = '#4a2a5a'; ctx.beginPath(); ctx.ellipse(0, -r0 * 0.6, r0 * 1.1, r0 * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'coralPillar': {
+        // 粉紅色的珊瑚柱（高的，要閃）
+        const h = u * 0.62, w = u * 0.15;
+        ctx.fillStyle = '#e86a8a';
+        ctx.beginPath(); ctx.moveTo(-w, 0); ctx.lineTo(-w * 0.7, -h); ctx.lineTo(w * 0.7, -h); ctx.lineTo(w, 0); ctx.fill();
+        ctx.fillStyle = '#f29ab0';
+        [[-0.9, -0.45], [0.9, -0.62], [-0.6, -0.8]].forEach(function (b) { ctx.beginPath(); ctx.ellipse(b[0] * w, b[1] * h, w * 0.45, w * 0.3, 0, 0, Math.PI * 2); ctx.fill(); });
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        for (let k = 0; k < 6; k++) ctx.fillRect(-w * 0.5 + (k % 3) * w * 0.4, -h * (0.2 + Math.floor(k / 3) * 0.4), w * 0.12, w * 0.12);
+        break;
+      }
+      case 'jellyRoad': {
+        // 路中間上下漂的大水母（高的，要閃）
+        const r0 = u * 0.16, bob = Math.sin(t * 0.08 + (o.x || 0) * 3) * u * 0.05;
+        ctx.strokeStyle = 'rgba(200, 160, 255, 0.8)'; ctx.lineWidth = Math.max(1, u * 0.01);
+        for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(k * r0 * 0.35, -u * 0.32 + bob); ctx.quadraticCurveTo(k * r0 * 0.45 + Math.sin(t * 0.1 + k) * r0 * 0.3, -u * 0.18 + bob, k * r0 * 0.3, -u * 0.02 + bob); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(190, 140, 250, 0.75)';
+        ctx.beginPath(); ctx.ellipse(0, -u * 0.34 + bob, r0, r0 * 0.75, 0, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; ctx.beginPath(); ctx.ellipse(-r0 * 0.35, -u * 0.4 + bob, r0 * 0.25, r0 * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'reefwall': {
+        // 一整排從沙裡冒出來的礁石（整條路，要跳）
+        const w = u * 1.3, h = u * 0.2;
+        ctx.fillStyle = '#7a5a6a';
+        ctx.beginPath(); ctx.moveTo(-w, 0);
+        for (let k = 0; k <= 12; k++) ctx.lineTo(-w + k * w / 6, -h * (0.6 + (k % 3) * 0.25));
+        ctx.lineTo(w, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e8a050';
+        for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.arc(-w + (k + 0.5) * w / 3.5, -h * 0.7, u * 0.03, 0, Math.PI * 2); ctx.fill(); }
+        break;
+      }
       case 'palm': {
         const h = u * 0.9;
         ctx.strokeStyle = '#7a5a3a'; ctx.lineWidth = Math.max(1, u * 0.05);
@@ -527,7 +645,25 @@ const Race = (function () {
     ctx.rotate(rs.tilt * 0.06);
     const bounce = rs.hop > 0 ? 0 : Math.sin(t * 0.5) * 0.8 * (rs.speed / pl.maxSpeed);
     ctx.translate(0, bounce);
-    if (pl.theme === 'car') {
+    if (pl.theme === 'seahorse') {
+      // 騎著海馬的背影：金黃色的海馬（捲尾巴、背鰭），上面坐著穿條紋衫的你
+      const fl = Math.sin(t * 0.4) * 4;
+      ctx.fillStyle = '#e8b040';
+      ctx.beginPath(); ctx.ellipse(0, -36, 30, 34, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#e8b040'; ctx.lineWidth = 12; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, -6); ctx.quadraticCurveTo(10, 14, -6, 18); ctx.quadraticCurveTo(-16, 16, -10, 8); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.fillStyle = '#c88a2a';
+      for (let k = 0; k < 5; k++) ctx.fillRect(-24 + k * 12, -62 + Math.abs(k - 2) * 3, 8, 4);
+      ctx.fillStyle = 'rgba(255, 220, 140, 0.8)';
+      ctx.beginPath(); ctx.moveTo(-30, -44); ctx.lineTo(-48 - fl, -54); ctx.lineTo(-44 - fl, -30); ctx.closePath(); ctx.fill();   // 兩側的鰭
+      ctx.beginPath(); ctx.moveTo(30, -44); ctx.lineTo(48 + fl, -54); ctx.lineTo(44 + fl, -30); ctx.closePath(); ctx.fill();
+      for (let k = 0; k < 3; k++) { ctx.fillStyle = k % 2 ? '#f4f4f0' : '#2a4a8a'; ctx.fillRect(-12, -82 + k * 7, 24, 7); }
+      ctx.fillStyle = '#6a4a30'; ctx.beginPath(); ctx.arc(0, -90, 10, 0, Math.PI * 2); ctx.fill();
+      // 後面冒出的泡泡
+      ctx.strokeStyle = 'rgba(230, 250, 255, 0.7)'; ctx.lineWidth = 1.5;
+      for (let k = 0; k < 4; k++) { const ph = (t * 0.6 + k * 7) % 24; ctx.beginPath(); ctx.arc((k - 1.5) * 18, 10 + ph, 3 + ph * 0.2, 0, Math.PI * 2); ctx.stroke(); }
+    } else if (pl.theme === 'car') {
       ctx.fillStyle = '#e87aa0';
       ctx.fillRect(-64, -40, 128, 30);
       ctx.beginPath(); ctx.moveTo(-64, -40); ctx.lineTo(-58, -58); ctx.lineTo(-50, -40); ctx.fill();     // 尾鰭
