@@ -37,6 +37,8 @@
 - v1.31.0 美洲篇（新大陸地圖：古巴、牙買加、墨西哥、巴拿馬、哥倫比亞、巴西魔王亞馬遜大蛇）已在 `nordic` 上做好，**還沒上線**，等使用者說「可以上線」。
   - 古巴、墨西哥是「往前衝的賽道關」（`js/race.js`，layout `'race'`）；墨西哥是緝毒追擊（從抓走私販的角度做，不出現毒品本身）。
   - 牙買加是手沖咖啡（Features `'pourover'`）。
+  - 新大陸的海上怪（encounter.js 的 pelicans / buccaneers / dolphins / goldturtle，玩法沿用歐洲的 gulls / pirates / serpent / golden，用 base + skin）
+    給「美洲 EXP」（Save.expAm，跟歐洲的 EXP 分開）；累積 Encounter.SOUTH_EXP 解鎖南美（關卡標 `gate: 'samerica'`：哥倫比亞、巴西）。
   - 巴西魔王是踢足球（entities.js 的 pattern `'soccer'`：進球才扣血，踩頭沒用）；測試用 `runSoccerBot`（tests/traversal-bot.js）。
     原本的亞馬遜大蛇 Boiúna（pattern `'boiuna'`）程式還留著，目前沒有關卡用。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

@@ -12,6 +12,8 @@
  *   E) 巴西足球：踩守門員的頭沒用；球滾進球門 = 扣一格；守門員站著時貼地球會被擋回來；
  *      他躺下（破綻期）時完全擋不到球（貼地球也進得去）；守門員不會撞傷人；踢球機器人贏得了
  *   F) 每一國都有地標、遠景、國旗；橫向關卡有自己的敵人外型
+ *   G) 新大陸的海上怪：新大陸只生新大陸的怪（鵜鶘、黑鬍子、海豚、黃金海龜），玩法沿用歐洲那四種；
+ *      打贏給「美洲 EXP」（跟歐洲的分開）；美洲 EXP 夠了才解鎖南美（哥倫比亞、巴西），中美洲一開始就能玩
  * 會暫時改存檔、換地圖，結束前還原。
  */
 function runAmericaCheck() {
@@ -216,6 +218,44 @@ function runAmericaCheck() {
     const r = runSoccerBot(def, o.i, false);
     if (!r.won) issues.push('巴西：踢球機器人踢不贏（進 ' + r.goals + ' 球、受傷 ' + r.timesHurt + ' 次）');
     else if (r.timesHurt >= 3) issues.push('巴西：踢球機器人贏了但受傷 ' + r.timesHurt + ' 次，可能太難');
+  })();
+
+  // ── G) 新大陸的海上怪、美洲 EXP ──
+  (function () {
+    const was = WorldMap.world();
+    WorldMap.useWorld('am'); Voyage.rebuild(); Encounter.clear();
+    const AMK = ['pelicans', 'buccaneers', 'dolphins', 'goldturtle'];
+    sv.expAm = 200;
+    const seen = {};
+    for (let k = 0; k < 400; k++) {
+      const m = Encounter.spawn(Voyage.shipPos(), 0);
+      if (m) { seen[m.kind] = true; Encounter.remove(m); }
+    }
+    Object.keys(seen).forEach(function (kd) { if (AMK.indexOf(kd) < 0) issues.push('新大陸生出了歐洲的怪：' + kd); });
+    ['pelicans', 'buccaneers', 'dolphins'].forEach(function (kd) { if (!seen[kd]) issues.push('新大陸一直沒生出 ' + kd); });
+    Encounter.clear();
+    WorldMap.useWorld(was); Voyage.rebuild();
+    const BASE = { pelicans: 'gulls', buccaneers: 'pirates', dolphins: 'serpent', goldturtle: 'golden' };
+    AMK.forEach(function (kd) {
+      const k = Encounter.KINDS[kd];
+      if (!k || !k.am) { issues.push(kd + '：不是新大陸的怪'); return; }
+      const d = Encounter.makeDef({ kind: kd, def: k, x: 0, y: 0 }, Equipment.resolve([]));
+      if (d.minigame !== BASE[kd]) issues.push(kd + '：玩法應該沿用 ' + BASE[kd] + '，現在是 ' + d.minigame);
+      if (!d.am || !d.skin) issues.push(kd + '：遭遇戰沒標記新大陸（美洲 EXP）或沒有換外觀');
+    });
+    // 美洲 EXP 分開算，南美要 SOUTH_EXP
+    const e0 = sv.exp;
+    sv.expAm = 0;
+    Save.addExpAm(90);
+    if (sv.exp !== e0 || Save.expAm() !== 90) issues.push('美洲 EXP 沒有跟歐洲的分開算');
+    const SE = Encounter.SOUTH_EXP;
+    sv.flags.columbus = 2;
+    sv.expAm = SE - 1;
+    if (Encounter.regionUnlocked('samerica', 99999)) issues.push('美洲 EXP 不夠，南美就開了（看到歐洲的 EXP）');
+    sv.expAm = SE;
+    if (!Encounter.regionUnlocked('samerica', 0)) issues.push('美洲 EXP 夠了，南美還鎖著');
+    const gated = Levels.list.filter(function (lv) { return lv.gate === 'samerica'; }).map(function (lv) { return lv.id; }).sort().join(',');
+    if (gated !== 'BR,CO') issues.push('南美要解鎖的應該是哥倫比亞、巴西，現在是：' + gated);
   })();
 
   // ── F) 美術 ──

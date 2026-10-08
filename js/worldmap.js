@@ -1168,7 +1168,8 @@ const WorldMap = (function () {
     }
     const info = nations.map(function (n) {
       const lv = Levels.list[n.idx];
-      const eastLock = regionLocked(lv.region);
+      // v1.31 南美（哥倫比亞、巴西）另外要美洲 EXP（gate: 'samerica'）
+      const eastLock = regionLocked(lv.region) || (lv.gate ? regionLocked(lv.gate) : false);
       const open = n.idx < opts.unlocked && !eastLock;
       const done = opts.clearedFn(n.idx);
       return {

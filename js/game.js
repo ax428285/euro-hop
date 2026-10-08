@@ -985,11 +985,14 @@ const Game = (function () {
 
     if (events.indexOf('dock') >= 0 && near >= 0 && near < unlocked) {
       // 東歐篇、非洲篇要 EXP 解鎖（門檻見 Encounter.REGIONS）
-      const rg = Levels.list[near].region;
+      // v1.31 南美（哥倫比亞、巴西）另外要美洲 EXP（Levels gate: 'samerica'）
+      const rg = Levels.list[near].gate && regionUnlocked(Levels.list[near].region) ? Levels.list[near].gate : Levels.list[near].region;
       if (!regionUnlocked(rg)) {
         Sfx.clang();
         const reg = Encounter.regionOf(rg);
-        toast = rg === 'america'
+        toast = rg === 'samerica'
+          ? { text: '南美篇還沒解鎖', sub: '在新大陸打海上怪物累積美洲 EXP：' + Save.expAm() + ' / ' + reg.exp, life: 170 }
+          : rg === 'america'
           ? { text: reg.name + '還沒開放', sub: '先完成塞維亞哥倫布的委託', life: 170 }
           : reg.quest
           ? { text: reg.name + '被雷神的結界罩住了', sub: '北海上的雷神索爾好像知道怎麼解開', life: 170 }
@@ -1963,8 +1966,9 @@ const Game = (function () {
     runCoins = 0;
     if (skirmish) {
       // 遭遇戰不記關卡進度，改給 EXP；怪物從地圖上消失
-      const r = Save.addExp(state.def.exp);
-      expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null };
+      // v1.31 新大陸的怪給「美洲 EXP」（跟歐洲的分開累積，解鎖南美用）
+      const r = state.def.am ? Save.addExpAm(state.def.exp) : Save.addExp(state.def.exp);
+      expResult = { gain: state.def.exp, before: r.before, after: r.after, costume: null, am: !!state.def.am };
       netProgress({ t: 'exp', n: state.def.exp, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
       if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed || skirmish.def.duo || skirmish.def.quest) && Save.markSeaBoss(skirmish.kind)) {
@@ -3109,19 +3113,23 @@ const Game = (function () {
      */
     {
       const bx = 160, by = 14, bw = 160, bh = 12;   // v1.25.1 標題只剩「世界地圖」，EXP 條往左靠
-      const nx = Encounter.nextRegion(sv.exp);
+      // v1.31 新大陸：EXP 條換成美洲 EXP（解鎖南美）
+      const amW = WorldMap.world() === 'am';
+      const sr = Encounter.regionOf('samerica'), ea = Save.expAm();
+      const nx = amW ? (ea < sr.exp ? sr : null) : Encounter.nextRegion(sv.exp);
       const done = !nx;
       // v1.30 北歐篇是劇情解鎖，不在 EXP 條上
       const XR = Encounter.EXP_REGIONS;
-      const idx = nx ? XR.indexOf(nx) : XR.length;
-      const from = idx > 0 ? XR[idx - 1].exp : 0;
-      const prog = done ? 1 : U.clamp((sv.exp - from) / (nx.exp - from), 0, 1);
-      U.text(ctx, 'EXP', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
+      const idx = nx && !amW ? XR.indexOf(nx) : XR.length;
+      const from = !amW && idx > 0 ? XR[idx - 1].exp : 0;
+      const cur = amW ? ea : sv.exp;
+      const prog = done ? 1 : U.clamp((cur - from) / (nx.exp - from), 0, 1);
+      U.text(ctx, amW ? '美洲 EXP' : 'EXP', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
       ctx.fillStyle = 'rgba(255, 230, 180, 0.15)';
       U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
       ctx.fillStyle = done ? '#8fe3a0' : '#d4a23a';
       if (prog > 0) { U.roundRect(ctx, bx, by, Math.max(bh, bw * prog), bh, 6); ctx.fill(); }
-      U.text(ctx, done ? (Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${sv.exp}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
+      U.text(ctx, done ? (amW ? '南美已解鎖' : Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${cur}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
         { size: 12, color: done ? '#8fe3a0' : '#f0dcb0', align: 'left' });
     }
     U.text(ctx, (coop ? '2P　' : '') +
@@ -3395,7 +3403,9 @@ const Game = (function () {
       ['貿易', '第 ' + (sv.day + 1) + ' 天　船艙 ' + Save.cargoCount() + ' 箱' + (sv.bounty ? '　懸賞：' + Trade.describe(sv.bounty) : '')],
       ['船', '帆 Lv' + sv.ship.sail + '　砲 Lv' + sv.ship.cannon + '　船身 Lv' + sv.ship.hull + '　沉船收藏 ' + sv.relics.length + ' / ' + Encounter.RELICS.length],
       ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp +
-        (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（EXP 篇章都解鎖了）')],
+        (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（EXP 篇章都解鎖了）') +
+        // v1.31 新大陸另外累積的美洲 EXP
+        (Quests.americaOpen() ? '　美洲 EXP ' + Save.expAm() + (Save.expAm() < Encounter.SOUTH_EXP ? ' / ' + Encounter.SOUTH_EXP + '（南美篇）' : '（南美已解鎖）') : '')],
       ['總分', String(sv.score)]
     ];
 
@@ -3697,12 +3707,12 @@ const Game = (function () {
   /** 遭遇戰勝利畫面：重點是 EXP 與下一篇的解鎖進度（東歐 → 非洲） */
   function drawSeaClear() {
     const def = state.def;
-    const r = expResult || { gain: def.exp, before: 0, after: Save.get().exp };
+    const r = expResult || { gain: def.exp, before: 0, after: def.am ? Save.expAm() : Save.get().exp, am: !!def.am };
     // 這一場剛好跨過門檻的篇章；沒有的話就看下一個還沒解鎖的
-    // v1.30：北歐篇改成劇情解鎖，只看要 EXP 的篇章
-    const XR = Encounter.EXP_REGIONS;
+    // v1.30：北歐篇改成劇情解鎖，只看要 EXP 的篇章；v1.31 新大陸只看南美篇（美洲 EXP）
+    const XR = r.am ? [Encounter.regionOf('samerica')] : Encounter.EXP_REGIONS;
     const opened = XR.filter(function (g) { return r.before < g.exp && r.after >= g.exp; })[0];
-    const target = opened || Encounter.nextRegion(r.after) || XR[XR.length - 1];
+    const target = opened || (r.am ? XR[0] : Encounter.nextRegion(r.after)) || XR[XR.length - 1];
     const need = target.exp;
     const justOpened = !!opened;
     const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0) + (r.note ? 46 : 0);
@@ -3741,7 +3751,7 @@ const Game = (function () {
       U.text(ctx, '獲得時裝：' + r.costume.name + '（已穿上，按 I 可以換）', W / 2, top + tall - 76,
         { size: 15, color: '#ffe070' });
     }
-    U.text(ctx, `經驗值 +${r.gain} EXP`, W / 2, top + 84, { size: 22, color: '#d8ccff' });
+    U.text(ctx, `經驗值 +${r.gain} ${r.am ? '美洲 EXP' : 'EXP'}`, W / 2, top + 84, { size: 22, color: '#d8ccff' });
 
     // EXP 條（從 before 長到 after 的動畫）
     const k = U.clamp((45 - sceneTimer) / 45, 0, 1);
@@ -3763,12 +3773,12 @@ const Game = (function () {
     if (justOpened) {
       U.text(ctx, target.name + '地圖解鎖！', W / 2, y + 4, { size: 20, color: '#ffd166' });
       // 列出這一篇的國家（從關卡表抓，不手寫）
-      const names = Levels.list.filter(function (l) { return l.region === target.id; })
+      const names = Levels.list.filter(function (l) { return l.region === target.id || l.gate === target.id; })
         .map(function (l) { return l.country; });
       U.text(ctx, names.slice(0, 4).join('、') + (names.length > 4 ? '⋯⋯' : '') + '，開船過去吧', W / 2, y + 30,
         { size: 13, color: '#dce5f5' });
     } else if (r.after < need) {
-      U.text(ctx, `再 ${need - r.after} EXP 解鎖${target.name}`, W / 2, y + 4, { size: 14, color: '#c6d2e8' });
+      U.text(ctx, `再 ${need - r.after} ${r.am ? '美洲 EXP' : 'EXP'} 解鎖${target.name}`, W / 2, y + 4, { size: 14, color: '#c6d2e8' });
     }
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
       U.text(ctx, '按 Enter 回到海上', W / 2, top + tall - 22, { size: 18, color: '#ffffff' });
@@ -3857,7 +3867,7 @@ const Game = (function () {
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
       W / 2, 252, { size: 13, color: '#ffd166' });
     U.text(ctx, skirmish
-        ? (deadNote || (skirmish.def.duo ? '試煉場還在，兩個人準備好再來' : skirmish.def.rare ? '黃金海馬溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
+        ? (deadNote || (skirmish.def.duo ? '試煉場還在，兩個人準備好再來' : skirmish.def.rare ? skirmish.def.name + '溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
         : '裝備不會消失，回地圖再挑戰一次',
       W / 2, 280, { size: 14, color: '#c6d2e8' });
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {

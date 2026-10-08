@@ -150,6 +150,8 @@ function runEncounterCheck() {
       if (!p.onGround && p.vy < 0) held.jump = true;
     }
   };
+  // v1.31 新大陸的怪沿用歐洲的玩法（同一個機器人打）
+  bots.pelicans = bots.gulls; bots.buccaneers = bots.pirates; bots.dolphins = bots.serpent; bots.goldturtle = bots.golden;
 
   const report = {};
   Object.keys(bots).forEach(function (kind) {

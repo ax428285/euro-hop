@@ -39,6 +39,7 @@ const Levels = (function () {
       landmark: cfg.landmark,
       fact: cfg.fact,
       region: cfg.region || 'west',   // 西歐篇 / 東歐篇（東歐要 EXP 解鎖）
+      gate: cfg.gate || null,         // v1.31 除了篇章，還要另外解鎖（南美：美洲 EXP）
       finale: !!cfg.finale,           // 篇章最終關：打完播結局
       sky: cfg.sky,
       cloud: cfg.cloud,   // 雲的顏色（夜景關卡要暗一點），沒給就用白雲
@@ -456,6 +457,7 @@ const Levels = (function () {
       deco: cfg.deco,
       vehicle: vehicle,
       autorun: !!cfg.autorun,       // v1.30 瑞典馴鹿雪橇：自動往前衝，只能跳
+      gate: cfg.gate || null,       // v1.31 除了篇章，還要另外解鎖（南美：美洲 EXP）
       ride: cfg.ride || null,       // v1.31 自動往前衝時坐的是什麼：預設馴鹿雪橇，'car' = 古巴老爺車
       channels: channels,           // v1.30 挪威冰海水道（要踩浮冰過，level-check 另外驗）
       goalY: goalPlat ? goalPlat.y : null,   // v1.30 挪威：終點在高台上（要站上去才過關）
@@ -1620,7 +1622,7 @@ const Levels = (function () {
   // ────────────────────────────────────────────────────────────
   list.push(makeLevel({
     seed: 1055,
-    id: 'CO', country: '哥倫比亞', city: '卡塔赫納', region: 'america',
+    id: 'CO', country: '哥倫比亞', city: '卡塔赫納', region: 'america', gate: 'samerica',
     flag: ['#FCD116', '#003893', '#CE1126'], flagDir: 'colombia',
     landmark: 'cartagena',
     fact: '卡塔赫納的老城被 11 公里長的城牆圍住，是西班牙人為了擋加勒比海的海盜一段一段蓋起來的。',
@@ -1652,7 +1654,7 @@ const Levels = (function () {
   //     （v1.31 玩家：巴西魔王關改成踢足球）
   // ────────────────────────────────────────────────────────────
   list.push(bossLevel({
-    id: 'BR', country: '巴西', city: '里約熱內盧', region: 'america',
+    id: 'BR', country: '巴西', city: '里約熱內盧', region: 'america', gate: 'samerica',
     finale: true,     // 美洲篇最後一關
     flag: ['#009C3B', '#FFDF00', '#002776'], flagDir: 'brazil',
     landmark: 'sugarloaf',

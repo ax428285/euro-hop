@@ -30,6 +30,7 @@ const Save = (function () {
       secrets: [],        // 已發現的密道 "關index:密道index"
       bosses: [],         // 已擊敗魔王的關卡 index
       exp: 0,             // 海上遭遇戰累積的經驗值（解鎖東歐篇用）
+      expAm: 0,           // v1.31 新大陸的海上遭遇戰另外累積的「美洲 EXP」（解鎖南美用）
       seaWins: 0,         // 打贏幾場遭遇戰
       seaBosses: [],      // 打倒過的海上魔王 kind（v1.23 地中海海妖斯庫拉）
       ship: { sail: 0, cannon: 0, hull: 0, powder: 0, paint: 'oak', paints: ['oak'] },   // 造船廠升級（v1.26，見 shipyard.js）
@@ -70,6 +71,7 @@ const Save = (function () {
     out.score = Math.max(0, parseInt(d.score, 10) || 0);
     out.wallet = Math.max(0, parseInt(d.wallet, 10) || 0);
     out.exp = Math.max(0, parseInt(d.exp, 10) || 0);
+    out.expAm = Math.max(0, parseInt(d.expAm, 10) || 0);
     out.seaWins = Math.max(0, parseInt(d.seaWins, 10) || 0);
     out.allies = U.clamp(parseInt(d.allies, 10) || 0, 0, ALLY_MAX);
     out.day = Math.max(0, parseInt(d.day, 10) || 0);
@@ -398,6 +400,16 @@ const Save = (function () {
 
     /** 懸賞之類的額外 EXP（不算一場遭遇戰勝利） */
     gainExp: function (n) { if (n > 0) { data.exp += n; persist(); } },
+
+    /** v1.31 新大陸的遭遇戰勝利：加「美洲 EXP」（跟歐洲的 EXP 分開算） */
+    expAm: function () { return data.expAm || 0; },
+    addExpAm: function (n) {
+      const before = data.expAm || 0;
+      if (n > 0) data.expAm = before + n;
+      data.seaWins++;
+      persist();
+      return { before: before, after: data.expAm || 0 };
+    },
 
     /** 遭遇戰勝利：加 EXP，回傳加之前/之後（過關畫面要判斷是不是剛好解鎖） */
     addExp: function (n) {

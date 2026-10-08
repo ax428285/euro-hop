@@ -36,6 +36,7 @@ const Encounter = (function () {
    * 要 EXP 解鎖的篇章（依門檻由低到高）。v1.21 加非洲篇。
    * 西歐篇不在這裡 = 一開始就開放。地圖鎖定、靠港、EXP 條、勝利畫面都讀這張表。
    */
+  const SOUTH_EXP = 300;         // v1.31 新大陸：累積這麼多美洲 EXP 解鎖南美（哥倫比亞、巴西）
   const REGIONS = [
     { id: 'east', name: '東歐篇', exp: EAST_EXP },
     { id: 'africa', name: '非洲篇', exp: 500 },     // v1.21.1 玩家：700 → 500
@@ -45,7 +46,13 @@ const Encounter = (function () {
      */
     { id: 'north', name: '北歐篇', quest: true },
     // v1.31 美洲篇：完成哥倫布的委託（打敗西歐五艘戰艦、回去找他）才開放；在另一張「新大陸」地圖上
-    { id: 'america', name: '美洲篇', quest: true }
+    { id: 'america', name: '美洲篇', quest: true },
+    /*
+     * v1.31 玩家：新大陸出新的地圖怪、EXP 重新累積 → 新大陸有自己的「美洲 EXP」（pool 'am'，Save.expAm），
+     * 加勒比海、中美洲（古巴、牙買加、墨西哥、巴拿馬）一開放就能玩；南美（哥倫比亞、巴西）要累積 SOUTH_EXP 才開。
+     * 關卡用 gate: 'samerica' 標記（region 還是 'america'：同一張地圖、同一個謎）。
+     */
+    { id: 'samerica', name: '南美篇', exp: SOUTH_EXP, pool: 'am' }
   ];
   function regionOf(id) { return REGIONS.filter(function (r) { return r.id === id; })[0] || null; }
   /** 這一篇解鎖了嗎（不在表上的篇章 = 一開始就開放；quest 篇章看劇情） */
@@ -53,10 +60,11 @@ const Encounter = (function () {
     const r = regionOf(id);
     if (!r) return true;
     if (r.quest) return typeof Quests !== 'undefined' && (id === 'america' ? Quests.americaOpen() : Quests.northOpen());
+    if (r.pool === 'am') return typeof Quests !== 'undefined' && Quests.americaOpen() && typeof Save !== 'undefined' && Save.expAm() >= r.exp;
     return exp >= r.exp;
   }
   /** 要 EXP 解鎖的篇章（EXP 條、海戰勝利畫面用；劇情解鎖的不算） */
-  const EXP_REGIONS = REGIONS.filter(function (r) { return r.exp != null; });
+  const EXP_REGIONS = REGIONS.filter(function (r) { return r.exp != null && !r.pool; });
   /** 下一個還沒解鎖的 EXP 篇章（全部都解鎖了回 null） */
   function nextRegion(exp) { return EXP_REGIONS.filter(function (r) { return exp < r.exp; })[0] || null; }
 
@@ -91,6 +99,19 @@ const Encounter = (function () {
     scylla:  { name: '海妖斯庫拉', lv: '魔王', exp: 150, bossExp: 250, bossCoins: 200, game: '墨西拿海峽',
                goal: '頭咬下來卡在甲板上時跳上去踩！每顆頭踩兩下，六顆都打倒就贏了', boss: true }
   };
+  /*
+   * v1.31 新大陸的海上怪（玩家：新大陸出新的地圖怪，EXP 重新累積）。
+   * 玩法沿用歐洲那四種（base），換成加勒比海的東西（skin）；打贏給的是「美洲 EXP」（Save.expAm），
+   * 累積到 SOUTH_EXP 解鎖南美（哥倫比亞、巴西）。
+   */
+  KINDS.pelicans   = { name: '鵜鶘群',     lv: 1, exp: 70,  game: '守護漁獲', goal: '鵜鶘頭上出現「!」在盤旋時，跳起來碰牠就嚇跑了', base: 'gulls', skin: 'pelican', am: true };
+  KINDS.buccaneers = { name: '黑鬍子海盜船', lv: 2, exp: 90, game: '艦砲對決', goal: '抓準砲口角度，命中黑鬍子的「安妮女王復仇號」5 次', base: 'pirates', skin: 'blackbeard', am: true };
+  KINDS.dolphins   = { name: '頑皮海豚',   lv: 3, exp: 130, game: '拍拍頭',   goal: '海豚從甲板的洞探出頭時，跳上去拍拍牠的頭 6 次', base: 'serpent', skin: 'dolphin', am: true };
+  KINDS.goldturtle = { name: '黃金海龜',   lv: '★', exp: 60, game: '捕捉',     goal: '碰到牠 3 次就抓到了！', rare: true, base: 'golden', skin: 'turtle', am: true };
+  /** 這一隻用的是哪一種玩法（新大陸的怪沿用歐洲的玩法） */
+  function baseOf(kind) { return (KINDS[kind] && KINDS[kind].base) || kind; }
+  function inAmerica() { return typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() === 'am'; }
+
   /*
    * 亞特蘭提斯（v1.23.1 玩家：找個海域插一個亞特蘭提斯，關卡方式是潛水）——
    * 柏拉圖說它在「海克力斯之柱（直布羅陀海峽）之外」，所以放在海峽西邊的大西洋。
@@ -145,6 +166,15 @@ const Encounter = (function () {
   function pickKind(exp) {
     // v1.27 貿易：船上每有一箱貨，海盜的權重 +2（貨越多越容易被盯上）
     const cargo = typeof Save !== 'undefined' && Save.cargoCount ? Save.cargoCount() : 0;
+    // v1.31 新大陸：換成加勒比海的怪，強度看美洲 EXP
+    if (inAmerica()) {
+      const ea = typeof Save !== 'undefined' && Save.expAm ? Save.expAm() : 0;
+      const wa = [['pelicans', 5], ['buccaneers', (ea >= 30 ? 3 : 1) + cargo * 2], ['dolphins', ea >= 90 ? 2 : 0]];
+      const ta = wa.reduce(function (s, x) { return s + x[1]; }, 0);
+      let ra = Math.random() * ta;
+      for (let i = 0; i < wa.length; i++) { ra -= wa[i][1]; if (ra < 0) return wa[i][0]; }
+      return 'pelicans';
+    }
     const w = [['gulls', 5], ['pirates', (exp >= 30 ? 3 : 1) + cargo * 2], ['serpent', exp >= 90 ? 2 : 0]];
     const total = w.reduce(function (s, x) { return s + x[1]; }, 0);
     let r = Math.random() * total;
@@ -221,7 +251,7 @@ const Encounter = (function () {
       if (monsters.filter(function (m) { return !m.boss; }).length < MAX_ON_MAP && Math.random() < SPAWN_CHANCE) {
         const hasRare = monsters.some(function (m) { return m.def.rare; });
         const rare = !hasRare && Math.random() < RARE_CHANCE;
-        const m = spawn(ship, exp || 0, rare ? 'golden' : null);
+        const m = spawn(ship, exp || 0, rare ? (inAmerica() ? 'goldturtle' : 'golden') : null);
         if (m && rare) events.push('rare');
       }
     }
@@ -254,16 +284,17 @@ const Encounter = (function () {
         if (d < TOUCH + 10 && d < best + 10) { best = d; nearM = m; }
         continue;
       }
-      if (m.kind === 'pirates' && d < 140 && d > 4) {
+      const mb = baseOf(m.kind);
+      if (mb === 'pirates' && d < 140 && d > 4) {
         // 海盜船看到你會靠過來
         m.heading += U.clamp(angleDiff(Math.atan2(ship.y - m.y, ship.x - m.x), m.heading), -0.05, 0.05);
-      } else if (m.kind === 'golden' && d < 110) {
+      } else if (mb === 'golden' && d < 110) {
         // 稀有怪：你靠近牠會想逃（但比船慢，追得到）
         m.heading += U.clamp(angleDiff(Math.atan2(m.y - ship.y, m.x - ship.x), m.heading), -0.08, 0.08);
       } else {
         m.heading += (Math.random() - 0.5) * 0.12;
       }
-      const sp = m.kind === 'golden' ? 1.3 : m.kind === 'pirates' ? 0.55 : 0.35;
+      const sp = mb === 'golden' ? 1.3 : mb === 'pirates' ? 0.55 : 0.35;
       const nx = m.x + Math.cos(m.heading) * sp, ny = m.y + Math.sin(m.heading) * sp;
       if (Voyage.isNavigable(nx, ny)) { m.x = nx; m.y = ny; }
       else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
@@ -292,13 +323,67 @@ const Encounter = (function () {
     }
   }
 
-  function drawPirate(ctx, t, heading) {
+  /** v1.31 新大陸：鵜鶘群（大嘴巴下面掛著一個喉囊） */
+  function drawPelicans(ctx, t) {
+    for (let i = 0; i < 3; i++) {
+      const a = t * 0.04 + i * 2.1;
+      const x = Math.cos(a) * 9, y = Math.sin(a) * 4 - 7;
+      const flap = Math.sin(t * 0.22 + i) * 2.5;
+      ctx.strokeStyle = '#e8e2d2'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - 7, y - flap); ctx.quadraticCurveTo(x - 3, y - 4, x, y); ctx.quadraticCurveTo(x + 3, y - 4, x + 7, y - flap); ctx.stroke();
+      ctx.fillStyle = '#f2b030'; ctx.fillRect(x + 1, y - 1, 5, 1.6);
+      ctx.fillStyle = '#e89a40'; ctx.beginPath(); ctx.ellipse(x + 3, y + 1.4, 2.2, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  /** v1.31 新大陸：從水裡跳出來的海豚 */
+  function drawDolphinMap(ctx, t) {
+    const ph = (t * 0.06) % (Math.PI * 2);
+    const up = Math.max(0, Math.sin(ph)) * 8;
+    ctx.save();
+    ctx.translate(0, -up);
+    ctx.rotate(Math.cos(ph) * -0.5);
+    ctx.fillStyle = '#6a8ab0';
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-2, -3); ctx.lineTo(1, -8); ctx.lineTo(3, -3); ctx.fill();           // 背鰭
+    ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-15, -4); ctx.lineTo(-15, 4); ctx.closePath(); ctx.fill();   // 尾巴
+    ctx.fillStyle = '#c8d8e8'; ctx.beginPath(); ctx.ellipse(2, 2, 7, 2, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#16161c'; ctx.fillRect(6, -1.5, 1.4, 1.4);
+    ctx.restore();
+    if (up < 1) {
+      ctx.strokeStyle = 'rgba(220, 240, 255, 0.7)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(0, 3, 10, 2.5, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  /** v1.31 新大陸的稀有怪：黃金海龜（金色的殼上有六角形花紋） */
+  function drawTurtle(ctx, t, s) {
+    ctx.save();
+    ctx.scale(s, s);
+    const paddle = Math.sin(t * 0.15) * 0.5;
+    ctx.fillStyle = '#c89a2a';
+    [[-8, -5, -1], [8, -5, 1], [-7, 6, -1], [7, 6, 1]].forEach(function (f) {
+      ctx.save(); ctx.translate(f[0], f[1]); ctx.rotate(f[2] * (0.6 + paddle)); ctx.beginPath(); ctx.ellipse(f[2] * 4, 0, 5, 2.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    });
+    ctx.beginPath(); ctx.ellipse(0, -10, 3.6, 4, 0, 0, Math.PI * 2); ctx.fill();                       // 頭
+    const g = ctx.createRadialGradient(-2, -2, 1, 0, 0, 10);
+    g.addColorStop(0, '#fff2a0'); g.addColorStop(1, '#e0a820');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(0, 0, 8.5, 9.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(140, 90, 10, 0.7)'; ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.lineTo(Math.cos(a) * 4, Math.sin(a) * 4); }
+    ctx.closePath(); ctx.stroke();
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 4, Math.sin(a) * 4); ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 9); ctx.stroke(); }
+    ctx.fillStyle = '#16161c'; ctx.fillRect(-1.6, -12, 1, 1); ctx.fillRect(0.8, -12, 1, 1);
+    ctx.restore();
+  }
+
+  function drawPirate(ctx, t, heading, blackbeard) {
     ctx.save();
     ctx.scale(Math.cos(heading) < 0 ? -1 : 1, 1);
     ctx.rotate(Math.sin(t * 0.08) * 0.08);
-    ctx.fillStyle = '#3a2418';
+    ctx.fillStyle = blackbeard ? '#1e1410' : '#3a2418';
     ctx.beginPath(); ctx.moveTo(-11, -1); ctx.lineTo(12, -1); ctx.lineTo(8, 5); ctx.lineTo(-8, 5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-0.8, -15, 1.6, 14);
+    ctx.fillStyle = blackbeard ? '#3a3a40' : '#d8d0bc'; ctx.fillRect(-0.8, -15, 1.6, 14);
     ctx.fillStyle = '#16161c';
     ctx.beginPath(); ctx.moveTo(1, -14); ctx.lineTo(10, -9); ctx.lineTo(1, -4); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#f4f0e6'; ctx.beginPath(); ctx.arc(4.5, -9, 1.4, 0, Math.PI * 2); ctx.fill();
@@ -404,7 +489,7 @@ const Encounter = (function () {
           const a = t * 0.06 + k * Math.PI / 2;
           sparkle(ctx, Math.cos(a) * 22, -4 + Math.sin(a) * 22, 4 + Math.sin(t * 0.3 + k) * 1.5, 0.9);
         }
-        drawSeahorse(ctx, t, 1);
+        if (m.def.skin === 'turtle') drawTurtle(ctx, t, 1); else drawSeahorse(ctx, t, 1);
         ctx.fillStyle = 'rgba(80, 50, 0, 0.9)';
         U.roundRect(ctx, -18, -40, 36, 13, 4); ctx.fill();
         U.text(ctx, '★稀有', 0, -33.5, { size: 9, color: '#ffe070', stroke: false });
@@ -486,7 +571,10 @@ const Encounter = (function () {
       ctx.beginPath(); ctx.arc(0, 0, pulse, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = 'rgba(220, 238, 255, 0.5)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.ellipse(0, 5, 12, 3, 0, 0, Math.PI * 2); ctx.stroke();
-      if (m.kind === 'gulls') drawGulls(ctx, t);
+      if (m.def.skin === 'pelican') drawPelicans(ctx, t);
+      else if (m.def.skin === 'blackbeard') drawPirate(ctx, t, m.heading, true);
+      else if (m.def.skin === 'dolphin') drawDolphinMap(ctx, t);
+      else if (m.kind === 'gulls') drawGulls(ctx, t);
       else if (m.kind === 'pirates') drawPirate(ctx, t, m.heading);
       else drawSerpent(ctx, t);
       ctx.fillStyle = 'rgba(40, 10, 18, 0.85)';
@@ -612,7 +700,7 @@ const Encounter = (function () {
     if (m.def.dive) return diveDef(m);
     const k = m.def;
     const GY = Levels.GROUND_Y;
-    const kind = m.kind;
+    const kind = baseOf(m.kind);        // v1.31 新大陸的怪沿用歐洲的玩法
     const deckW = kind === 'pirates' ? DECK_W : ARENA_W;
     const def = {
       id: 'SEA',
@@ -628,10 +716,18 @@ const Encounter = (function () {
             ? '傳說奧德修斯的船經過墨西拿海峽，被斯庫拉一口叼走六個水手。第一次打倒她可得 ' + k.bossExp + ' EXP 和 ' + k.bossCoins + ' 金幣！'
             : '再戰斯庫拉：打贏可得 ' + k.exp + ' EXP。';
         }
+        if (k.am) {
+          const ea = typeof Save !== 'undefined' && Save.expAm ? Save.expAm() : 0;
+          return '打贏可得 ' + k.exp + ' 美洲 EXP' + (ea < SOUTH_EXP ? '，累積 ' + SOUTH_EXP + ' 美洲 EXP 解鎖南美（哥倫比亞、巴西）。' : '。');
+        }
         const nx = nextRegion(typeof Save !== 'undefined' ? Save.get().exp : 0);
         return '打贏可得 ' + k.exp + ' EXP' + (nx ? '，累積 ' + nx.exp + ' EXP 解鎖' + nx.name + '。' : '。');
       })(),
-      sky: kind === 'golden' ? ['#6a8ad8', '#f8e0a8'] : kind === 'scylla' ? ['#3a4a78', '#c89a8a'] : ['#5fa8d8', '#f6dcae'],
+      // 新大陸：加勒比海的天空（比較藍、比較亮）
+      sky: k.am ? (kind === 'golden' ? ['#4ab0e0', '#fff0b0'] : ['#3ab0e8', '#c8f0f0'])
+        : kind === 'golden' ? ['#6a8ad8', '#f8e0a8'] : kind === 'scylla' ? ['#3a4a78', '#c89a8a'] : ['#5fa8d8', '#f6dcae'],
+      skin: k.skin || null,
+      am: !!k.am,
       hill: kind === 'scylla' ? '#24456a' : '#2f6f9a',
       // 船的甲板：木板色
       groundTop: '#b88a58', groundBody: '#6a4a30',
@@ -671,7 +767,7 @@ const Encounter = (function () {
 
   function initMini(state) {
     const kind = state.def.minigame;
-    const mini = { kind: kind, time: state.def.duration, elapsed: 0, score: 0, done: false };
+    const mini = { kind: kind, time: state.def.duration, elapsed: 0, score: 0, done: false, skin: state.def.skin || null };
     if (kind === 'gulls') { mini.bread = 5; mini.gulls = []; mini.next = 60; mini.seq = 0; }
     if (kind === 'pirates') {
       mini.hits = 0; mini.balls = []; mini.shells = []; mini.cd = 0; mini.enemyCd = 120; mini.seq = 0; mini.shipShake = 0;
@@ -1057,12 +1153,20 @@ const Encounter = (function () {
       ctx.strokeStyle = '#6a4a20'; ctx.lineWidth = 1.5;
       for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.moveTo(bx + i * 10, GY - BASKET.h); ctx.lineTo(bx + i * 10, GY); ctx.stroke(); }
       for (let i = 0; i < mini.bread; i++) {
-        ctx.fillStyle = '#e8b45a';
-        ctx.beginPath(); ctx.ellipse(bx + 12 + i * 13, GY - BASKET.h - 2, 8, 5, 0.3, 0, Math.PI * 2); ctx.fill();
+        if (mini.skin === 'pelican') {
+          // 新大陸：籃子裡是今天釣到的魚
+          ctx.fillStyle = '#9ab8c8';
+          ctx.beginPath(); ctx.ellipse(bx + 12 + i * 13, GY - BASKET.h - 2, 8, 3.5, 0.3, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(bx + 4 + i * 13, GY - BASKET.h - 4); ctx.lineTo(bx + 1 + i * 13, GY - BASKET.h - 8); ctx.lineTo(bx + 1 + i * 13, GY - BASKET.h); ctx.fill();
+        } else {
+          ctx.fillStyle = '#e8b45a';
+          ctx.beginPath(); ctx.ellipse(bx + 12 + i * 13, GY - BASKET.h - 2, 8, 5, 0.3, 0, Math.PI * 2); ctx.fill();
+        }
       }
       mini.gulls.forEach(function (g) {
         const shake = g.mode === 'hover' ? Math.sin(t * 1.2) * 1.5 : 0;
-        Sprites.enemy(ctx, { x: g.x + shake, y: g.y, w: g.w, h: g.h, dir: g.dir, squash: 0, type: 'flyer' }, t);
+        if (mini.skin === 'pelican') drawPelicanBig(ctx, g.x + shake, g.y, g.w, g.h, g.dir, t);
+        else Sprites.enemy(ctx, { x: g.x + shake, y: g.y, w: g.w, h: g.h, dir: g.dir, squash: 0, type: 'flyer' }, t);
         // 盤旋中：頭上驚嘆號，提示「現在跳起來碰牠」
         if (g.mode === 'hover') U.text(ctx, '!', g.x + g.w / 2, g.y - 10, { size: 18, color: '#ff6b5a', strokeWidth: 4 });
         if (g.loot) {
@@ -1078,12 +1182,19 @@ const Encounter = (function () {
       for (let i = 0; i < 6; i++) ctx.fillRect(DECK_W + ((i * 83 + t) % (ARENA_W - DECK_W)), GY + 6 + (i % 3) * 14, 26, 2);
       const sh = mini.shipShake > 0 ? Math.sin(t * 2) * 4 : 0;
       const sx = shipX(mini.elapsed) + sh, bob = Math.sin(t * 0.05) * 3;
-      ctx.fillStyle = '#3a2418';
+      const bb = mini.skin === 'blackbeard';      // v1.31 新大陸：黑鬍子的「安妮女王復仇號」（黑色船身、黑帆）
+      ctx.fillStyle = bb ? '#1e1410' : '#3a2418';
       ctx.beginPath();
       ctx.moveTo(sx - 10, GY - SHIP.h + bob); ctx.lineTo(sx + SHIP.w + 10, GY - SHIP.h + bob);
       ctx.lineTo(sx + SHIP.w - 20, GY + 6 + bob); ctx.lineTo(sx + 20, GY + 6 + bob); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#5a3a24'; ctx.fillRect(sx, GY - SHIP.h + 8 + bob, SHIP.w, 6);
-      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(sx + SHIP.w / 2 - 3, GY - 230 + bob, 6, 180);
+      ctx.fillStyle = bb ? '#c8a040' : '#5a3a24'; ctx.fillRect(sx, GY - SHIP.h + 8 + bob, SHIP.w, 6);
+      ctx.fillStyle = bb ? '#4a4a50' : '#d8d0bc'; ctx.fillRect(sx + SHIP.w / 2 - 3, GY - 230 + bob, 6, 180);
+      if (bb) {
+        // 兩張大黑帆
+        ctx.fillStyle = '#26262c';
+        ctx.fillRect(sx + SHIP.w / 2 - 70, GY - 210 + bob, 64, 70);
+        ctx.fillRect(sx + SHIP.w / 2 - 60, GY - 132 + bob, 52, 54);
+      }
       ctx.fillStyle = '#16161c';
       ctx.beginPath(); ctx.moveTo(sx + SHIP.w / 2 + 3, GY - 220 + bob); ctx.lineTo(sx + SHIP.w / 2 + 90, GY - 160 + bob); ctx.lineTo(sx + SHIP.w / 2 + 3, GY - 90 + bob); ctx.fill();
       ctx.fillStyle = '#f4f0e6'; ctx.beginPath(); ctx.arc(sx + SHIP.w / 2 + 34, GY - 158 + bob, 10, 0, Math.PI * 2); ctx.fill();
@@ -1131,6 +1242,7 @@ const Encounter = (function () {
         const b = h.box;
         ctx.save();
         ctx.beginPath(); ctx.rect(b.x - 10, 0, b.w + 20, GY + 2); ctx.clip();
+        if (mini.skin === 'dolphin') { drawDolphinHead(ctx, h, b, t, GY); ctx.restore(); return; }
         // 調皮海獺（v1.26.1 取代海蛇）：圓滾滾的咖啡色身體、白臉頰、小圓耳、兩隻小手扶著洞口
         ctx.fillStyle = '#8a5a3a';
         U.roundRect(ctx, b.x + 4, b.y + 12, b.w - 8, b.h + 10, 12); ctx.fill();
@@ -1184,9 +1296,57 @@ const Encounter = (function () {
         sparkle(ctx, Math.cos(a) * 30, Math.sin(a) * 30, 5, 0.85);
       }
       if (mini.cool > 0 && Math.floor(mini.cool / 4) % 2 === 0) ctx.globalAlpha = 0.4;
-      drawSeahorse(ctx, t, 2);
+      if (mini.skin === 'turtle') drawTurtle(ctx, t, 2.4); else drawSeahorse(ctx, t, 2);
       ctx.restore();
     }
+  }
+
+  /** v1.31 守護漁獲的鵜鶘（大隻的）：白身體、黑翅尖、黃色大嘴下面一個鼓鼓的喉囊 */
+  function drawPelicanBig(ctx, x, y, w, h, dir, t) {
+    const cx = x + w / 2, cy = y + h / 2;
+    const flap = Math.sin(t * 0.25) * 9;
+    ctx.save();
+    ctx.fillStyle = '#e8e4da';
+    ctx.beginPath(); ctx.moveTo(cx - 3, cy - 2); ctx.quadraticCurveTo(cx - 18, cy - 12 - flap, cx - 30, cy - flap); ctx.quadraticCurveTo(cx - 16, cy + 2, cx - 3, cy + 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx + 3, cy - 2); ctx.quadraticCurveTo(cx + 18, cy - 12 - flap, cx + 30, cy - flap); ctx.quadraticCurveTo(cx + 16, cy + 2, cx + 3, cy + 2); ctx.fill();
+    ctx.fillStyle = '#2a2a30';
+    ctx.beginPath(); ctx.arc(cx - 28, cy - flap, 3, 0, Math.PI * 2); ctx.arc(cx + 28, cy - flap, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4f0e8';
+    ctx.beginPath(); ctx.ellipse(cx, cy, w * 0.32, h * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + dir * 10, cy - 5, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2b030';
+    ctx.beginPath(); ctx.moveTo(cx + dir * 14, cy - 6); ctx.lineTo(cx + dir * 32, cy - 3); ctx.lineTo(cx + dir * 14, cy - 2); ctx.fill();
+    ctx.fillStyle = '#e89a40';
+    ctx.beginPath(); ctx.ellipse(cx + dir * 22, cy + 1, 8, 4, 0, 0, Math.PI); ctx.fill();          // 喉囊
+    ctx.fillStyle = '#16161c'; ctx.fillRect(cx + dir * 11, cy - 7, 2, 2);
+    ctx.restore();
+  }
+
+  /** v1.31 拍拍頭的海豚：灰藍色、長長的嘴、從洞裡探出頭來笑 */
+  function drawDolphinHead(ctx, h, b, t, GY) {
+    ctx.fillStyle = '#6a8ab0';
+    U.roundRect(ctx, b.x + 6, b.y + 12, b.w - 12, b.h + 10, 12); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(h.x, b.y + 12, 18, 15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(h.x, b.y + 24, 9, 6, 0, 0, Math.PI * 2); ctx.fill();               // 長嘴
+    ctx.fillStyle = '#c8d8e8';
+    ctx.beginPath(); ctx.ellipse(h.x, b.y + 22, 12, 7, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#1a1424';
+    ctx.beginPath(); ctx.arc(h.x - 8, b.y + 8, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(h.x + 8, b.y + 8, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(h.x - 8, b.y + 6.5, 1.2, 1.2); ctx.fillRect(h.x + 8, b.y + 6.5, 1.2, 1.2);
+    ctx.fillStyle = '#4a6a90';
+    ctx.beginPath(); ctx.arc(h.x, b.y + 1, 3, 0, Math.PI * 2); ctx.fill();                            // 頭頂的噴氣孔
+    if (h.t > 30 && h.t < 42) {
+      // 要噴水前噴氣孔冒水花（預告）
+      ctx.fillStyle = 'rgba(160, 220, 255, 0.9)';
+      for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(h.x + k * 5, b.y - 6 - Math.abs(k) * 2, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    } else {
+      ctx.strokeStyle = '#2a3a50'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(h.x, b.y + 20, 6, 0.2, Math.PI - 0.2); ctx.stroke();                   // 笑臉
+    }
+    ctx.fillStyle = '#5a7aa0';
+    ctx.beginPath(); ctx.ellipse(h.x - 16, GY - 4, 6, 3, -0.4, 0, Math.PI * 2); ctx.fill();          // 兩片胸鰭扶著洞口
+    ctx.beginPath(); ctx.ellipse(h.x + 16, GY - 4, 6, 3, 0.4, 0, Math.PI * 2); ctx.fill();
   }
 
   /** 斯庫拉一顆頭：狼頭似的長吻、黃眼、尖牙；stuck 時牙齒插在甲板裡、頭上冒星星 */
@@ -1353,7 +1513,7 @@ const Encounter = (function () {
     const k = state.def.monster.def;
     const sec = Math.max(0, Math.ceil(mini.time / 60));
     let goal;
-    if (mini.kind === 'gulls') goal = '麵包 ' + mini.bread + ' / 5　撐 ' + sec + ' 秒';
+    if (mini.kind === 'gulls') goal = (mini.skin === 'pelican' ? '漁獲 ' : '麵包 ') + mini.bread + ' / 5　撐 ' + sec + ' 秒';
     else if (mini.kind === 'pirates') goal = '命中 ' + mini.hits + ' / 5　剩 ' + sec + ' 秒　（站在砲旁按 K／丟 開砲，綠燈 = 會打中）';
     else if (mini.kind === 'serpent') goal = '拍到 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒';
     else if (mini.kind === 'charybdis') goal = '救生圈 ' + mini.got + ' / 5　剩 ' + sec + ' 秒　（別被拖進中間的漩渦眼）';
@@ -1369,6 +1529,7 @@ const Encounter = (function () {
     EAST_EXP: EAST_EXP,
     REGIONS: REGIONS,
     EXP_REGIONS: EXP_REGIONS,
+    SOUTH_EXP: SOUTH_EXP,
     regionOf: regionOf,
     regionUnlocked: regionUnlocked,
     nextRegion: nextRegion,
