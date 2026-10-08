@@ -7,7 +7,7 @@
  *              跟他講過話 → 知道洛基躲在卡律布狄斯的漩渦底下；
  *              在「漩渦逃生」裡故意死掉 → 掉進冥界赫爾海姆（expedition.js 的豎井關），最底下遇到洛基；
  *              回來再找索爾 → 一段逗趣的對話，結界解開 = 北歐篇開放（取代原本的 700 EXP）。
- *   哥倫布     西班牙帕洛斯港外：委託你打敗西歐七國的戰艦（expedition.js 的戰艦海戰），完成 → 美洲預告。
+ *   哥倫布     西班牙帕洛斯港外：委託你打敗西歐五國的戰艦（expedition.js 的戰艦海戰），完成 → 美洲預告。
  *   瑞士銀行   日內瓦：歐洲每一關的金幣都收滿過才能開戶；之後每分鐘生 1 枚金幣的利息（離開遊戲也算，最多一天份）。
  *   動物園     阿爾及爾：放撒哈拉動物大遷徙抓回來的動物，每過一天收一次門票。
  *   金字塔     吉薩：直接進「金字塔探險」（expedition.js）。
@@ -20,10 +20,12 @@ const Quests = (function () {
 
   const SPOTS = [
     { id: 'Q_thor', npc: 'thor', name: '雷神索爾', lon: 5.6, lat: 58.4, prompt: '按 Enter 跟雷神索爾說話' },
-    { id: 'Q_columbus', npc: 'columbus', name: '哥倫布', lon: -7.9, lat: 36.6, prompt: '按 Enter 跟哥倫布說話' },
+    // v1.30 玩家：原本在加的斯灣，亞特蘭提斯的名牌擋到 → 搬到塞維亞（哥倫布的墓就在塞維亞大教堂）
+    { id: 'Q_columbus', npc: 'columbus', name: '哥倫布', lon: -6.0, lat: 38.2, prompt: '按 Enter 跟哥倫布說話' },
     { id: 'Q_bank', npc: 'bank', name: '瑞士銀行', lon: 6.2, lat: 46.3, prompt: '按 Enter 進入瑞士銀行' },
     { id: 'Q_zoo', npc: 'zoo', name: '阿爾及爾動物園', lon: 3.1, lat: 36.3, prompt: '按 Enter 參觀阿爾及爾動物園' },
-    { id: 'Q_pyramid', npc: 'pyramid', name: '吉薩金字塔', lon: 29.6, lat: 29.7, prompt: '按 Enter 走進吉薩大金字塔' }
+    // v1.30 玩家：太靠近亞歷山卓港和埃及的圖釘 → 搬到南邊的沙漠深處，改叫「失落的金字塔」
+    { id: 'Q_pyramid', npc: 'pyramid', name: '失落的金字塔', lon: 32.5, lat: 24.5, prompt: '按 Enter 走進失落的金字塔' }
   ];
 
   const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長' };
@@ -138,18 +140,17 @@ const Quests = (function () {
       }
     } else if (kind === 'columbus') {
       ring(ctx, x, y, t, near, 'rgba(255, 220, 150, 0.95)');
-      // 聖瑪利亞號（小帆船）＋站在船頭的哥倫布
-      const bob = Math.sin(t * 0.06) * 1;
-      ctx.translate(0, bob);
-      ctx.fillStyle = '#6a4228';
-      ctx.beginPath(); ctx.moveTo(x - 14, y - 3); ctx.lineTo(x + 14, y - 3); ctx.lineTo(x + 10, y + 3); ctx.lineTo(x - 10, y + 3); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(x - 5, y - 24, 1.5, 21);
-      ctx.fillStyle = '#f4efe2';
-      ctx.beginPath(); ctx.moveTo(x - 4, y - 23); ctx.quadraticCurveTo(x + 4, y - 16, x - 4, y - 8); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#c0281e'; ctx.fillRect(x - 3, y - 18, 3, 3);            // 帆上的紅十字
-      tinyPerson(ctx, x + 8, y - 3, '#2a2a3a');
+      // 哥倫布：黑外套、黑帽子，捧著一顆地球儀（他相信往西一直開就能到印度）
+      tinyPerson(ctx, x, y, '#2a2a3a');
       ctx.fillStyle = '#1a1a20';
-      ctx.fillRect(x + 3, y - 24, 10, 2);                                        // 帽子
+      ctx.fillRect(x - 6, y - 23, 12, 2); ctx.fillRect(x - 3.5, y - 27, 7, 4);   // 帽子
+      ctx.fillStyle = '#c8c0b0'; ctx.fillRect(x - 5, y - 20, 2, 6); ctx.fillRect(x + 3, y - 20, 2, 6);   // 灰白頭髮
+      const gx = x + 9, gy = y - 10;
+      ctx.fillStyle = '#3a7ab8'; ctx.beginPath(); ctx.arc(gx, gy, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#7ab060';
+      ctx.beginPath(); ctx.ellipse(gx - 1 + Math.sin(t * 0.03) * 1.5, gy - 1, 2, 1.6, 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(gx, gy, 5.5, -1.2, 2.2); ctx.stroke();
     } else if (kind === 'bank') {
       ring(ctx, x, y, t, near, 'rgba(255, 209, 102, 0.95)');
       // 銀行：三角山牆＋四根柱子＋門口的金幣
@@ -177,6 +178,9 @@ const Quests = (function () {
       ctx.fillRect(x + 1.6, y - 26, 1.6, 1.6); ctx.fillRect(x + 2, y - 20, 1.6, 1.6);
     } else if (kind === 'pyramid') {
       ring(ctx, x, y, t, near, 'rgba(255, 220, 140, 0.95)');
+      // 半埋在沙丘裡
+      ctx.fillStyle = 'rgba(200, 160, 100, 0.5)';
+      ctx.beginPath(); ctx.ellipse(x, y + 1, 20, 4, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#d8b070';
       ctx.beginPath(); ctx.moveTo(x - 15, y); ctx.lineTo(x, y - 20); ctx.lineTo(x + 15, y); ctx.closePath(); ctx.fill();
       ctx.fillStyle = 'rgba(120, 80, 40, 0.35)';
@@ -280,23 +284,42 @@ const Quests = (function () {
         return { sfx: 'fanfare', shake: 14, toast: { text: '北歐的結界解開了！', sub: '丹麥、瑞典、挪威、芬蘭、冰島都可以去了', life: 260 } };
       } };
     }
+    // v1.30 玩家：提示要隱晦一點 —— 不直接講地名，用謎語
     return { who: 'thor', lines: [
       L('thor', '站住！我是雷神索爾。北歐已經被我的雷電結界封起來了。'),
       L('thor', '洛基那個搗蛋鬼偷了我的雷神之鎚！在抓到他之前，誰都別想進去。'),
       L('me', '洛基在哪裡？'),
-      L('thor', '有人看到他鑽進了地中海那個大漩渦 —— 卡律布狄斯。'),
-      L('thor', '聽說被漩渦吞到底的人，會一路掉進冥界赫爾海姆⋯⋯'),
-      L('thor', '⋯⋯喂，你那是什麼表情？你不會真的想在漩渦裡沉下去吧？')
+      L('thor', '烏鴉告訴我：他往南逃了，逃到一片溫暖的海，那裡有一張「吞下船的嘴」。'),
+      L('thor', '活人是進不去那裡的⋯⋯只有被吞到最深、連命都交出去的人，才會掉到他躲的地方。'),
+      L('thor', '⋯⋯喂，你那是什麼表情？我可沒叫你去送死喔。')
     ], end: function () {
       Save.setFlag('thorAsked', 1);
-      return { toast: { text: '線索：洛基躲在卡律布狄斯的漩渦底下', sub: '在「漩渦逃生」裡把命用完，就會沉進冥界', life: 260 } };
+      return { toast: { text: '索爾的謎語', sub: '南方溫暖的海，有一張「吞下船的嘴」⋯⋯被吞到最深的人才找得到洛基', life: 280 } };
     } };
   }
 
-  /** 冥界最底下的洛基（探險打完、回到地圖時由 game.js 打開） */
+  /*
+   * 冥界最底下的洛基（探險打完、回到地圖時由 game.js 打開）。
+   * v1.30 玩家：洛基被鎖在冥界的牢籠裡，要有「神祕的鑰匙」（失落的金字塔深處）才救得出來。
+   * 沒有鑰匙：只隔著欄杆講兩句（提示鎖是哪裡的東西），然後就被傳回大地圖。
+   */
+  function talkLokiLocked() {
+    return { who: 'loki', lines: [
+      L('loki', '喂！別光站在那裡看，快放我出去！'),
+      L('loki', '冥界的女主人把我關在這個籠子裡⋯⋯這把鎖可不是北歐的東西。'),
+      L('loki', '你看鎖頭上刻的：一隻畫著眼線的眼睛，還有一個頭上帶圈的十字。'),
+      L('loki', '那是曬著大太陽、滿地黃沙的國度才有的手藝。去找能打開它的鑰匙吧！')
+    ], end: function () {
+      Save.setFlag('lokiSeen', 1);
+      return { toast: { text: '洛基被鎖在冥界的牢籠裡', sub: '鎖上刻著眼睛和帶圈的十字⋯⋯得找到能打開它的鑰匙', life: 280 } };
+    } };
+  }
+
   function talkLoki() {
     return { who: 'loki', lines: [
-      L('loki', '哎呀，有客人！你是第一個「故意」掉下來的人類。'),
+      L('me', '我帶來了一把鑰匙 —— 在一座被沙子埋住的金字塔深處找到的。'),
+      L('loki', '⋯⋯喀擦！哈！自由了！'),
+      L('loki', '你是第一個「故意」掉下來、還帶著鑰匙的人類。'),
       L('loki', '讓我猜猜：那個肌肉比腦袋大的雷神派你來的？'),
       L('me', '索爾說你偷了他的雷神之鎚。'),
       L('loki', '偷？說得真難聽。我只是借來壓住他床底下那疊沒洗的襪子。'),
@@ -304,7 +327,7 @@ const Quests = (function () {
       L('loki', '還有，別說是我說的⋯⋯好啦，說了也沒關係，反正他追不到我。')
     ], end: function () {
       Save.setFlag('loki', 1);
-      return { toast: { text: '找到洛基了！', sub: '回北海找雷神索爾，把洛基的話告訴他', life: 240 } };
+      return { toast: { text: '救出洛基了！', sub: '回北海找雷神索爾，把洛基的話告訴他', life: 240 } };
     } };
   }
 
@@ -320,7 +343,7 @@ const Quests = (function () {
     }
     if (st === 1 && !left.length) {
       return { who: 'columbus', lines: [
-        L('columbus', '七國的戰艦都退開了！海面終於清空了。'),
+        L('columbus', '五國的戰艦都退開了！海面終於清空了。'),
         L('columbus', '1492 年 8 月 3 日，我的聖瑪利亞號、平塔號、尼尼亞號從帕洛斯港出發⋯⋯'),
         L('columbus', '一路往西，找一條通往印度的新航路！'),
         L('columbus', '等我回來，再告訴你海的另一邊有什麼。謝謝你，年輕的船長！')
@@ -341,11 +364,11 @@ const Quests = (function () {
       L('columbus', '年輕的船長！我是克里斯多福・哥倫布，熱那亞人。'),
       L('columbus', '我要往西橫越大西洋，找一條通往印度的新航路。'),
       L('columbus', '可是西歐各國的戰艦都在海上巡邏，誰也不讓我過去。'),
-      L('columbus', '幫我打敗西班牙、法國、英國、荷蘭、德國、義大利、希臘這七國的戰艦吧！'),
+      L('columbus', '幫我打敗' + ships.map(function (w) { return w.country; }).join('、') + '這' + ships.length + '國的戰艦吧！'),
       L('columbus', '戰艦很硬，船首砲越多門、火藥越強越好打 —— 瓦倫西亞造船廠可以升級。')
     ], end: function () {
       Save.setFlag('columbus', 1);
-      return { toast: { text: '接下哥倫布的委託', sub: '西歐七國的海上出現了戰艦（掛國旗的大船）', life: 240 } };
+      return { toast: { text: '接下哥倫布的委託', sub: '西歐五國的海上出現了戰艦（掛國旗的大船）', life: 240 } };
     } };
   }
 
@@ -414,6 +437,7 @@ const Quests = (function () {
   function talk(id) {
     if (id === 'thor') return talkThor();
     if (id === 'loki') return talkLoki();
+    if (id === 'lokiLocked') return talkLokiLocked();
     if (id === 'columbus') return talkColumbus();
     if (id === 'bank') return talkBank();
     if (id === 'zoo') return talkZoo();

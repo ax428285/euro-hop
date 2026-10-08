@@ -3,7 +3,7 @@
 /**
  * v1.30 新的海上／陸上冒險（掛在 Encounter 底下，跟其他遭遇戰共用整套關卡流程）。
  *
- *   戰艦海戰 war**   哥倫布的委託：西歐七國各一艘戰艦停在自己的海岸外（接下委託後才出現）。
+ *   戰艦海戰 war**   哥倫布的委託：西歐五國各一艘戰艦停在自己的海岸外（接下委託後才出現）。
  *                    你在自己的甲板上跑：站到砲旁按 K／Enter 開砲（砲彈自己飛過去打船身）；
  *                    敵艦一輪輪齊射，甲板上的紅圈是落點 —— 打到人會痛，打到砲會把砲打壞一陣子；
  *                    敵方水兵會盪過來佔住你的砲，踩扁他們。把敵艦船身打到 0 就贏。
@@ -19,15 +19,27 @@ const Expedition = (function () {
 
   // ── 戰艦 ───────────────────────────────────────────────
   const WARSHIPS = [
-    { id: 'ES', country: '西班牙', ship: '無敵艦隊「聖馬丁號」', lon: -4.6, lat: 36.0, hp: 30, fact: '1588 年，西班牙無敵艦隊的旗艦聖馬丁號率領一百多艘船北上英吉利海峽。' },
     { id: 'FR', country: '法國', ship: '「皇家路易號」', lon: -4.0, lat: 46.6, hp: 34, fact: '路易十四時代的皇家路易號有三層砲甲板，船尾雕滿了金色的太陽。' },
     { id: 'GB', country: '英國', ship: '皇家海軍「勝利號」', lon: -0.9, lat: 50.0, hp: 42, fact: '勝利號 1765 年下水，是納爾遜將軍在特拉法加海戰的旗艦，到今天還停在樸茨茅斯。' },
-    { id: 'NL', country: '荷蘭', ship: '「七省號」', lon: 3.6, lat: 53.5, hp: 36, fact: '七省號是 17 世紀荷蘭海軍名將德魯伊特的旗艦，名字來自荷蘭共和國的七個省。' },
-    { id: 'DE', country: '德國', ship: '漢薩同盟「呂貝克之鷹號」', lon: 7.4, lat: 54.5, hp: 32, fact: '1566 年呂貝克造的呂貝克之鷹號，是當年波羅的海最大的戰艦。' },
-    { id: 'IT', country: '義大利', ship: '威尼斯「布欽托羅號」', lon: 16.6, lat: 42.2, hp: 30, fact: '布欽托羅號是威尼斯總督的禮船，每年耶穌升天節載著總督出海，把金戒指丟進海裡「與海成婚」。' },
+    { id: 'NL', country: '荷蘭', ship: '東印度公司「巴達維亞號」', lon: 3.6, lat: 53.5, hp: 30, fact: '巴達維亞號是 1628 年荷蘭東印度公司的大帆船，處女航就在澳洲外海觸礁；今天荷蘭照原樣重造了一艘。' },
+    { id: 'DE', country: '德國', ship: '漢薩同盟「呂貝克之鷹號」', lon: 11.4, lat: 54.5, hp: 32, fact: '1566 年呂貝克造的呂貝克之鷹號，是當年波羅的海最大的戰艦。' },
     { id: 'GR', country: '希臘', ship: '三列槳戰船「奧林匹亞斯號」', lon: 25.6, lat: 39.4, hp: 26, fact: '三列槳戰船靠船頭的青銅撞角撞沉敵船；1987 年希臘照古書重造了一艘，取名奧林匹亞斯號。' }
   ];
+  /*
+   * v1.30 玩家：戰艦有分等級，外觀要不一樣。
+   * style = 船型（地圖圖示與海戰裡的大船都照它畫）；rank = 星等（船身越硬越高）。
+   *   trireme  三列槳戰船：低矮、一面方帆、兩排槳、船頭青銅撞角、畫著眼睛         ★
+   *   galley   槳帆船：兩面三角帆（拉丁帆）、一排槳、紅金船身                        ★
+   *   galleon  蓋倫帆船：三桅、一層砲門                                              ★
+   *   cog      柯克船：一根粗桅、一面大方帆、船頭船尾高高的木城樓、一層砲門            ★★
+   *   liner2   兩層砲甲板的戰列艦：三桅、兩排砲門、船身更高                          ★★
+   *   liner3   三層砲甲板的一級戰列艦（勝利號）：最高大，黑黃相間的「納爾遜棋盤」    ★★★
+   */
+  // v1.30 玩家：船艦五艘就好，放在地圖上比較空的國家（西班牙、義大利附近已經很擠，拿掉）
+  const STYLE = { GR: 'trireme', NL: 'galleon', DE: 'cog', FR: 'liner2', GB: 'liner3', IT: 'galley' };
   WARSHIPS.forEach(function (w, i) {
+    w.style = STYLE[w.id];
+    w.rank = w.hp <= 30 ? 1 : w.hp <= 36 ? 2 : 3;
     w.kind = 'war' + w.id;
     // 難度級數 0～5（船身越硬的越兇：齊射更密、水兵更常盪過來）
     w.tier = [26, 30, 32, 34, 36, 42].indexOf(w.hp);
@@ -39,8 +51,12 @@ const Expedition = (function () {
   K.herd = { name: '動物大遷徙', lv: '遷徙', exp: 60, game: '抓動物', custom: true,
              goal: '跳到動物背上就抓到了！被撞到會痛・40 秒內至少抓 3 隻（最多 12 隻）', clearTitle: '抓到動物了！' };
   K.hel = { name: '冥界赫爾海姆', lv: '冥界', exp: 50, bossExp: 120, bossCoins: 100, game: '墜入冥界', custom: true, quest: true,
-            goal: '一路往下掉到冥界最底層 —— 洛基就在那裡！上面的冰刺會追下來', clearTitle: '掉到冥界最底層了！' };
-  K.pyramid = { name: '吉薩大金字塔', lv: '遺跡', exp: 80, bossExp: 180, bossCoins: 300, game: '金字塔探險', custom: true, quest: true,
+            goal: '一路往下掉到冥界最底層！上面的冰刺會追下來', clearTitle: '掉到冥界最底層了！' };
+  /*
+   * v1.30 玩家：金字塔的金幣獎勵改成「神祕的鑰匙」—— 冥界的洛基被關在籠子裡，要這把鑰匙才救得出來
+   * （沒有鑰匙：冥界走到底只會隔著欄杆聊兩句、被傳回大地圖）。
+   */
+  K.pyramid = { name: '失落的金字塔', lv: '遺跡', exp: 80, bossExp: 180, bossCoins: 0, game: '金字塔探險', custom: true, quest: true,
                 goal: '往下走到法老的墓室！小心崩落的天花板和滑動的石台', clearTitle: '找到法老的墓室了！' };
 
   /** 這個小遊戲（state.def.minigame）歸這裡管嗎 */
@@ -136,30 +152,84 @@ const Expedition = (function () {
     }
     const down = Save.seaBossDown(m.kind);
     const lv = Levels.list.filter(function (l) { return l.id === w.id; })[0];
+    const sz = [0, 0.8, 1, 1.25][w.rank];          // 等級越高，地圖上的船越大
     if (near) {
       ctx.strokeStyle = 'rgba(255, 120, 110, 0.95)'; ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.arc(0, -8, 22 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -8, 20 * sz + 4 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.save();
     ctx.rotate(Math.sin(t * 0.05 + w.lon) * 0.05);
-    ctx.fillStyle = down ? '#5a5048' : '#4a2c1a';
-    ctx.beginPath(); ctx.moveTo(-16, -2); ctx.lineTo(16, -4); ctx.lineTo(11, 5); ctx.lineTo(-12, 5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#e8c060'; ctx.fillRect(-14, -1, 28, 1.4);
-    ctx.fillStyle = '#d8d0bc';
-    [-8, 0, 8].forEach(function (mx, i) { ctx.fillRect(mx - 0.7, -24 + i % 2 * 4, 1.4, 22 - i % 2 * 4); });
-    ctx.fillStyle = down ? '#bcb4a8' : '#f4efe2';
-    [-8, 0, 8].forEach(function (mx, i) { ctx.fillRect(mx - 4.5, -20 + i % 2 * 4, 9, 6); ctx.fillRect(mx - 3.5, -12 + i % 2 * 2, 7, 5); });
-    if (lv) Sprites.flagFace(ctx, 0.7, -32, 11, 7, lv.flag, lv.flagDir);
+    ctx.scale(sz, sz);
+    const top = drawMapShip(ctx, w.style, down, t);
+    if (lv) Sprites.flagFace(ctx, 0.7, top - 8, 11, 7, lv.flag, lv.flagDir);
     ctx.restore();
+    const tagY = -46 * sz - 4;
+    const label = '★★★'.slice(0, w.rank) + ' ' + w.country + '戰艦' + (down ? '（已擊沉）' : '');
     ctx.fillStyle = down ? 'rgba(50, 40, 40, 0.9)' : 'rgba(110, 20, 20, 0.92)';
-    U.roundRect(ctx, -32, -50, 64, 13, 4); ctx.fill();
-    U.text(ctx, w.country + '戰艦' + (down ? '（已擊沉）' : ''), 0, -43.5, { size: 9, color: down ? '#c8bcb0' : '#ffd0c8', stroke: false });
+    U.roundRect(ctx, -40, tagY, 80, 13, 4); ctx.fill();
+    U.text(ctx, label, 0, tagY + 6.5, { size: 9, color: down ? '#c8bcb0' : '#ffd0c8', stroke: false });
+  }
+
+  /** 地圖上的小戰艦（船型見 STYLE）；回傳主桅頂端的 y（國旗插在那裡） */
+  function drawMapShip(ctx, style, down, t) {
+    const sail = down ? '#bcb4a8' : '#f4efe2';
+    const hull = down ? '#5a5048' : style === 'galley' ? '#8a2a20' : style === 'liner3' ? '#1e1e22' : '#4a2c1a';
+    if (style === 'trireme' || style === 'galley') {
+      // 低矮的長船身＋一排排的槳
+      ctx.fillStyle = hull;
+      ctx.beginPath(); ctx.moveTo(-18, -1); ctx.lineTo(16, -2); ctx.lineTo(13, 3); ctx.lineTo(-15, 3); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(80, 50, 30, 0.9)'; ctx.lineWidth = 0.8;
+      const sw = Math.sin(t * 0.2) * 1.5;
+      for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.moveTo(-13 + k * 4, 2); ctx.lineTo(-15 + k * 4 + sw, 7); ctx.stroke(); }
+      ctx.fillStyle = '#e8c060'; ctx.fillRect(-16, -1, 30, 1);
+      if (style === 'trireme') {
+        ctx.fillStyle = '#c8903a';
+        ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(21, 2); ctx.lineTo(15, 3); ctx.closePath(); ctx.fill();   // 撞角
+        ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-0.7, -18, 1.4, 17);
+        ctx.fillStyle = sail; ctx.fillRect(-6, -16, 12, 9);
+        return -18;
+      }
+      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-6.7, -18, 1.4, 17); ctx.fillRect(4.3, -14, 1.4, 13);
+      ctx.fillStyle = sail;
+      ctx.beginPath(); ctx.moveTo(-6, -18); ctx.lineTo(1, -4); ctx.lineTo(-11, -4); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(5, -14); ctx.lineTo(10, -4); ctx.lineTo(1, -4); ctx.closePath(); ctx.fill();
+      return -18;
+    }
+    if (style === 'cog') {
+      ctx.fillStyle = hull;
+      ctx.beginPath(); ctx.moveTo(-14, -4); ctx.lineTo(14, -4); ctx.lineTo(10, 5); ctx.lineTo(-10, 5); ctx.closePath(); ctx.fill();
+      ctx.fillRect(-15, -9, 7, 6); ctx.fillRect(8, -8, 7, 5);                                  // 船頭船尾的木城樓
+      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-0.8, -26, 1.6, 22);
+      ctx.fillStyle = sail; ctx.fillRect(-8, -23, 16, 14);
+      ctx.fillStyle = '#c0281e'; ctx.fillRect(-1.5, -20, 3, 8);
+      return -26;
+    }
+    // 三桅帆船：蓋倫船、戰列艦（砲門排數不同）
+    const decks = style === 'liner3' ? 3 : style === 'liner2' ? 2 : 1;
+    const hh = 3 + decks * 3;
+    ctx.fillStyle = hull;
+    ctx.beginPath(); ctx.moveTo(-17, -hh); ctx.lineTo(17, -hh - 2); ctx.lineTo(12, 5); ctx.lineTo(-13, 5); ctx.closePath(); ctx.fill();
+    for (let d = 0; d < decks; d++) {
+      const y = -hh + 2 + d * 3;
+      ctx.fillStyle = style === 'liner3' ? '#e8c040' : '#e8c060';
+      if (style === 'liner3' || d === 0) ctx.fillRect(-15, y, 30, 1.2);
+      ctx.fillStyle = '#120c06';
+      for (let k = 0; k < 6; k++) ctx.fillRect(-13 + k * 5, y + 1.3, 1.6, 1.4);
+    }
+    const mh = 22 + decks * 2;
+    ctx.fillStyle = '#d8d0bc';
+    [-8, 0, 8].forEach(function (mx, i) { ctx.fillRect(mx - 0.7, -hh - mh + i % 2 * 4 + 2, 1.4, mh - i % 2 * 4); });
+    ctx.fillStyle = sail;
+    [-8, 0, 8].forEach(function (mx, i) {
+      for (let s = 0; s < decks + 1; s++) ctx.fillRect(mx - 4.5 + s * 0.5, -hh - mh + 6 + i % 2 * 4 + s * 7, 9 - s, 5.5);
+    });
+    return -hh - mh + 2;
   }
 
   function prompt(m) {
     if (m.kind === 'herd') return '按 Enter 去抓動物（' + K.herd.exp + ' EXP，抓到的送進阿爾及爾動物園）';
     const down = Save.seaBossDown(m.kind);
-    return '按 Enter 跟' + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ' EXP' : '首次 +' + m.def.bossExp + ' EXP、€' + m.def.bossCoins) + '）';
+    return '按 Enter 跟' + '★★★'.slice(0, m.def.warship.rank) + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ' EXP' : '首次 +' + m.def.bossExp + ' EXP、€' + m.def.bossCoins) + '）';
   }
 
   // ── 關卡定義 ─────────────────────────────────────────
@@ -197,23 +267,23 @@ const Expedition = (function () {
         sky: ['#0a161c', '#1a2c34'], hill: '#14202a', groundTop: '#8ab0b0', groundBody: '#2a3a3c',
         theme: 'hel', floors: 20, gapY: 110, platW: 112, shaftW: 580, scroll: [0.8, 1.25], extras: ['ice']
       } : {
-        seed: 1072, id: 'PYR', country: '吉薩大金字塔', city: '法老的墓室', region: 'sea',
+        seed: 1072, id: 'PYR', country: '失落的金字塔', city: '法老的墓室', region: 'sea',
         flag: ['#CE1126', '#FFFFFF', '#000000'], flagDir: 'eg', landmark: null,
-        fact: '大金字塔裡有一條陡峭的「大走廊」，一路往上通到國王墓室；墓室裡只剩一口空空的石棺。',
+        fact: '沙漠深處被黃沙埋了幾千年的金字塔。傳說最深的墓室裡，藏著一把不屬於人間的鑰匙。',
         sky: ['#3a2a1a', '#6a4a2a'], hill: '#4a3420', groundTop: '#d8b878', groundBody: '#7a5a34',
         theme: 'pyramid', floors: 26, gapY: 110, platW: 112, shaftW: 560, scroll: [0.75, 1.4], extras: ['slide'],
         chime: { every: 620, dur: 140, boost: 1.6, label: '轟隆——', sub: '機關啟動！天花板降得更快了', sound: 'rumble' }
       };
       shaftBase[kind] = Levels.makeShaft(cfg);
       shaftBase[kind].intro = kind === 'hel'
-        ? ['往下掉到冥界最底層！上面的冰刺會追下來', '藍色的冰面會滑，要提早放開方向鍵・洛基就在最底下']
+        ? ['往下掉到冥界最底層！上面的冰刺會追下來', '藍色的冰面會滑，要提早放開方向鍵']
         : ['往下走到法老的墓室！上面的天花板會壓下來', '石台會左右滑動・「轟隆」一聲之後天花板會降得更快'];
     }
     const first = firstTime(m);
     return Object.assign({}, shaftBase[kind], {
       quest: true,
       monster: m, exp: first ? m.def.bossExp : m.def.exp, bossCoins: first ? m.def.bossCoins : 0, firstBoss: first,
-      fact: shaftBase[kind].fact + (first ? '　第一次走到底：' + m.def.bossExp + ' EXP＋' + m.def.bossCoins + ' 金幣' : '　再來一次：' + m.def.exp + ' EXP')
+      fact: shaftBase[kind].fact + (first ? '　第一次走到底：' + m.def.bossExp + ' EXP' + (m.def.bossCoins ? '＋' + m.def.bossCoins + ' 金幣' : '') : '　再來一次：' + m.def.exp + ' EXP')
     });
   }
 
@@ -399,14 +469,24 @@ const Expedition = (function () {
       Object.keys(cnt).forEach(function (id) { Save.addAnimal(id, cnt[id]); });
       out.note = '抓到：' + Object.keys(cnt).map(function (id) { return Quests.ANIMALS[id].name + ' ' + cnt[id]; }).join('、') + ' —— 已送到阿爾及爾動物園';
     }
-    if (skirmish.kind === 'hel') out.talk = 'loki';
-    if (skirmish.kind === 'pyramid' && state.def.firstBoss && typeof Costumes !== 'undefined' && !Save.get().costumes.includes('pharaoh')) {
-      Save.addCostume('pharaoh');
-      out.costume = Costumes.get('pharaoh');
+    if (skirmish.kind === 'hel' && !Save.flag('loki')) {
+      // 有鑰匙 → 救出洛基；沒有 → 隔著籠子聊兩句（提示鎖是哪裡的手藝），傳回大地圖
+      if (Save.flag('key')) out.talk = 'loki';
+      else { out.talk = 'lokiLocked'; out.note = '最底層有一個上了鎖的籠子⋯⋯沒有鑰匙打不開，先回大地圖吧'; }
+    }
+    if (skirmish.kind === 'pyramid') {
+      if (!Save.flag('key')) {
+        Save.setFlag('key', 1);
+        out.note = '獲得「神祕的鑰匙」—— 冰冷的金屬上刻著一隻眼睛，和一個頭上帶圈的十字';
+      }
+      if (state.def.firstBoss && typeof Costumes !== 'undefined' && !Save.get().costumes.includes('pharaoh')) {
+        Save.addCostume('pharaoh');
+        out.costume = Costumes.get('pharaoh');
+      }
     }
     if (skirmish.def.warship) {
       const left = WARSHIPS.filter(function (w) { return !Save.seaBossDown(w.kind); }).length;
-      out.note = left ? '哥倫布的委託：還剩 ' + left + ' 艘戰艦' : '七國戰艦全部擊沉！回帕洛斯港找哥倫布吧';
+      out.note = left ? '哥倫布的委託：還剩 ' + left + ' 艘戰艦' : '五國戰艦全部擊沉！回塞維亞找哥倫布吧';
     }
     return out;
   }
@@ -489,6 +569,103 @@ const Expedition = (function () {
     ctx.restore();
   }
 
+  /** 海戰裡的敵艦（船型見 STYLE）：x0 = 船身左緣、G = 水線 */
+  function drawBigShip(ctx, mini, x0, G, t, lv) {
+    const style = mini.w.style;
+    const sailCol = mini.flash > 0 ? '#ffd8b0' : '#f2ebd8';
+    const flashSide = mini.volCd > Math.max(80, 132 - mini.w.tier * 9) - 8;
+    const decks = style === 'liner3' ? 3 : style === 'liner2' ? 2 : style === 'galleon' || style === 'cog' ? 1 : 0;
+    const low = style === 'trireme' || style === 'galley';
+    const hullTop = low ? G - 50 : G - 70 - decks * 26;            // 船身頂（越多層砲甲板越高）
+    const hullCol = style === 'galley' ? '#8a2a20' : style === 'liner3' ? '#1e1e22' : style === 'trireme' ? '#3a2a1a' : '#4a2c1a';
+    const trim = style === 'liner2' && mini.w.id === 'NL' ? '#e07a20' : style === 'liner2' ? '#2a4aa0' : '#e8c060';
+    function mast(mx, top, rows, w0) {
+      ctx.fillStyle = '#5a3a24'; ctx.fillRect(x0 + mx - 3, top, 6, hullTop + 4 - top);
+      ctx.fillStyle = sailCol;
+      for (let s = 0; s < rows; s++) {
+        const sy = top + 18 + s * 58, sw = w0 - s * 6;
+        ctx.beginPath(); ctx.moveTo(x0 + mx - sw / 2, sy); ctx.lineTo(x0 + mx + sw / 2, sy);
+        ctx.quadraticCurveTo(x0 + mx + sw / 2 + 6, sy + 24, x0 + mx + sw / 2 - 4, sy + 46); ctx.lineTo(x0 + mx - sw / 2 + 4, sy + 46);
+        ctx.quadraticCurveTo(x0 + mx - sw / 2 - 6, sy + 24, x0 + mx - sw / 2, sy); ctx.fill();
+      }
+    }
+    let flagAt = null;
+    if (style === 'trireme') {
+      mast(170, G - 230, 1, 120);
+      ctx.fillStyle = '#c0281e'; ctx.fillRect(x0 + 120, G - 190, 100, 8);        // 帆上的紅條
+      flagAt = [173, G - 236];
+    } else if (style === 'galley') {
+      // 兩面三角帆
+      [[110, G - 250, 120], [240, G - 210, 90]].forEach(function (m) {
+        ctx.fillStyle = '#5a3a24'; ctx.fillRect(x0 + m[0] - 3, m[1], 6, hullTop - m[1]);
+        ctx.fillStyle = sailCol;
+        ctx.beginPath(); ctx.moveTo(x0 + m[0], m[1]); ctx.lineTo(x0 + m[0] + m[2] * 0.4, hullTop - 14); ctx.lineTo(x0 + m[0] - m[2] * 0.6, hullTop - 14); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#c8a040'; ctx.fillRect(x0 + m[0] - m[2] * 0.3, hullTop - 50, m[2] * 0.5, 4);
+      });
+      flagAt = [113, G - 256];
+    } else if (style === 'cog') {
+      mast(180, G - 300, 2, 150);
+      ctx.fillStyle = '#c0281e'; ctx.fillRect(x0 + 168, G - 280, 24, 90);
+      flagAt = [183, G - 306];
+    } else {
+      const tall = style === 'liner3' ? 40 : style === 'liner2' ? 20 : 0;
+      [[90, 10], [190, -20], [280, 10]].forEach(function (m, i) {
+        mast(m[0], G - 290 - tall + m[1], 3 + (tall > 30 ? 1 : 0), 70 + tall * 0.4);
+        if (i === 1) flagAt = [m[0] + 3, G - 290 - tall + m[1] - 6];
+      });
+    }
+    // 船身
+    ctx.fillStyle = hullCol;
+    ctx.beginPath();
+    ctx.moveTo(x0 - 10, hullTop); ctx.lineTo(x0 + 350, hullTop - (low ? 6 : 16)); ctx.lineTo(x0 + 330, G + 10); ctx.lineTo(x0 + 20, G + 10); ctx.closePath(); ctx.fill();
+    if (style === 'cog') {
+      // 船頭船尾的木城樓
+      ctx.fillRect(x0 - 10, hullTop - 50, 80, 52); ctx.fillRect(x0 + 280, hullTop - 40, 70, 42);
+      ctx.fillStyle = '#6a4228';
+      for (let k = 0; k < 5; k++) { ctx.fillRect(x0 - 6 + k * 16, hullTop - 60, 10, 10); ctx.fillRect(x0 + 284 + k * 13, hullTop - 50, 8, 10); }
+    }
+    if (low) {
+      // 槳：一排排划動
+      ctx.strokeStyle = '#7a5a34'; ctx.lineWidth = 3;
+      const rows = style === 'trireme' ? 3 : 1;
+      for (let r = 0; r < rows; r++) {
+        for (let k = 0; k < 12; k++) {
+          const ox = x0 + 20 + k * 26 + r * 6, oy = G - 30 + r * 8, sw = Math.sin(t * 0.15 + r) * 10;
+          ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox - 10 + sw, G + 26); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = trim; ctx.fillRect(x0, hullTop + 4, 340, 4);
+      if (style === 'trireme') {
+        ctx.fillStyle = '#c8903a';
+        ctx.beginPath(); ctx.moveTo(x0 - 10, G - 10); ctx.lineTo(x0 - 44, G - 2); ctx.lineTo(x0 - 10, G + 6); ctx.closePath(); ctx.fill();   // 青銅撞角
+        ctx.fillStyle = '#f4efe2'; ctx.beginPath(); ctx.ellipse(x0 + 14, hullTop + 20, 9, 5, 0, 0, Math.PI * 2); ctx.fill();   // 船頭的眼睛
+        ctx.fillStyle = '#1a1424'; ctx.beginPath(); ctx.arc(x0 + 12, hullTop + 20, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    } else {
+      // 砲甲板：一層一排砲門（齊射時閃火光）；三層的勝利號是黑黃相間的條紋
+      for (let d = 0; d < decks; d++) {
+        const y = hullTop + 14 + d * 26;
+        if (style === 'liner3') { ctx.fillStyle = '#e8c040'; ctx.fillRect(x0 + 2, y - 2, 336, 16); }
+        else { ctx.fillStyle = trim; ctx.fillRect(x0 + 2, y - 6, 336, 3); }
+        for (let k = 0; k < 7; k++) {
+          const gx = x0 + 18 + k * 44;
+          ctx.fillStyle = '#1a1008'; ctx.fillRect(gx, y, 16, 12);
+          if (flashSide && (d + k) % 2 === 0) { ctx.fillStyle = 'rgba(255, 190, 90, 0.9)'; ctx.beginPath(); ctx.arc(gx, y + 6, 9, 0, Math.PI * 2); ctx.fill(); }
+        }
+      }
+      ctx.fillStyle = trim; ctx.fillRect(x0, hullTop + 2, 340, 4);
+    }
+    if (flagAt && lv) Sprites.flagFace(ctx, x0 + flagAt[0], flagAt[1], 48, 32, lv.flag, lv.flagDir);
+    // 被打中的破洞
+    const holes = Math.min(14, Math.floor((mini.hpMax - mini.hp) / 12));
+    ctx.fillStyle = '#120c06';
+    for (let i = 0; i < holes; i++) {
+      ctx.beginPath(); ctx.arc(x0 + 40 + (i * 53) % 280, G - 14 - (i % 3) * ((G - hullTop) / 4), 7, 0, Math.PI * 2); ctx.fill();
+    }
+    // 星等
+    U.text(ctx, '★★★'.slice(0, mini.w.rank), x0 + 170, G + 50, { size: 18, color: '#ffd166' });
+  }
+
   function drawWarship(ctx, state, mini, t) {
     const G = GY();
     const W = 960;
@@ -504,36 +681,7 @@ const Expedition = (function () {
     const lv = Levels.list.filter(function (l) { return l.id === mini.w.id; })[0];
     ctx.save();
     ctx.translate(0, bob);
-    // 桅杆＋帆
-    [90, 190, 280].forEach(function (mx, i) {
-      const top = G - 290 + (i === 1 ? -20 : 10);
-      ctx.fillStyle = '#5a3a24'; ctx.fillRect(x0 + mx - 3, top, 6, G - 60 - top);
-      ctx.fillStyle = mini.flash > 0 ? '#ffd8b0' : '#f2ebd8';
-      for (let s = 0; s < 3; s++) {
-        const sy = top + 20 + s * 62, sw = 70 - s * 6;
-        ctx.beginPath(); ctx.moveTo(x0 + mx - sw / 2, sy); ctx.lineTo(x0 + mx + sw / 2, sy);
-        ctx.quadraticCurveTo(x0 + mx + sw / 2 + 6, sy + 26, x0 + mx + sw / 2 - 4, sy + 50); ctx.lineTo(x0 + mx - sw / 2 + 4, sy + 50);
-        ctx.quadraticCurveTo(x0 + mx - sw / 2 - 6, sy + 26, x0 + mx - sw / 2, sy); ctx.fill();
-      }
-      if (i === 1 && lv) Sprites.flagFace(ctx, x0 + mx + 3, top - 4, 48, 32, lv.flag, lv.flagDir);
-    });
-    // 船身
-    ctx.fillStyle = '#4a2c1a';
-    ctx.beginPath();
-    ctx.moveTo(x0 - 10, G - 80); ctx.lineTo(x0 + 350, G - 96); ctx.lineTo(x0 + 330, G + 10); ctx.lineTo(x0 + 20, G + 10); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#e8c060'; ctx.fillRect(x0, G - 76, 340, 4);
-    ctx.fillStyle = '#6a4228'; ctx.fillRect(x0 + 4, G - 50, 330, 3);
-    // 砲門（一排小方窗，齊射時閃火光）
-    const flashSide = mini.volCd > Math.max(80, 132 - mini.w.tier * 9) - 8;
-    for (let k = 0; k < 7; k++) {
-      const gx = x0 + 18 + k * 44;
-      ctx.fillStyle = '#1a1008'; ctx.fillRect(gx, G - 44, 16, 12);
-      if (flashSide) { ctx.fillStyle = 'rgba(255, 190, 90, 0.9)'; ctx.beginPath(); ctx.arc(gx, G - 38, 9, 0, Math.PI * 2); ctx.fill(); }
-    }
-    // 被打中的破洞
-    const holes = Math.min(14, Math.floor((mini.hpMax - mini.hp) / 12));
-    ctx.fillStyle = '#120c06';
-    for (let i = 0; i < holes; i++) { ctx.beginPath(); ctx.arc(x0 + 40 + (i * 53) % 280, G - 20 - (i % 2) * 12, 7, 0, Math.PI * 2); ctx.fill(); }
+    drawBigShip(ctx, mini, x0, G, t, lv);
     ctx.restore();
     // 我方的砲
     mini.guns.forEach(function (g) {
@@ -692,7 +840,25 @@ const Expedition = (function () {
       if (f.goal) {
         ctx.fillStyle = '#2a4a44'; ctx.fillRect(x, y, w, h);
         ctx.fillStyle = '#8af0c8'; ctx.fillRect(x, y, w, 3);
-        lokiFigure(ctx, x + w - 70, y, t);
+        // 洛基被關在籠子裡；救出來之後只剩打開的空籠子
+        const free = typeof Save !== 'undefined' && Save.flag('loki');
+        const cx = x + w - 70;
+        if (!free) lokiFigure(ctx, cx, y, t);
+        ctx.strokeStyle = '#9aa8b0'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(cx, y - 104, 34, 8, 0, Math.PI, 0); ctx.stroke();
+        for (let k = 0; k < 6; k++) {
+          const bx = cx - 30 + k * 12;
+          if (free && k > 1 && k < 4) continue;                // 打開的門
+          ctx.beginPath(); ctx.moveTo(bx, y - 104); ctx.lineTo(bx, y); ctx.stroke();
+        }
+        ctx.beginPath(); ctx.moveTo(cx - 34, y - 2); ctx.lineTo(cx + 34, y - 2); ctx.stroke();
+        if (!free) {
+          // 鎖頭：刻著眼睛和帶圈的十字
+          ctx.fillStyle = '#c8a040'; U.roundRect(ctx, cx - 8, y - 56, 16, 14, 3); ctx.fill();
+          ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(cx, y - 56, 5, Math.PI, 0); ctx.stroke();
+          ctx.fillStyle = '#4a3010'; ctx.fillRect(cx - 1, y - 52, 2, 6);
+        }
         return true;
       }
       if (f.type && f.type !== 'normal') return false;

@@ -162,7 +162,8 @@ const Game = (function () {
     if (Pet.adopted()) return;
     if (!(Save.get().cargo.sausage > 0)) {
       Sfx.select();
-      toast = { text: '黃金獵犬聞了聞你，搖搖尾巴⋯⋯', sub: '牠好像很想吃臘腸 —— 熱那亞的貿易港有在賣', life: 220 };
+      // v1.30 玩家：食物要講得隱晦一點（臘腸、熱那亞都不直接說）
+      toast = { text: '黃金獵犬一直往你的背包裡嗅，搖搖尾巴⋯⋯', sub: '牠想要一條一條、香噴噴的肉 —— 哥倫布出生的那座港城，好像飄著這個味道', life: 240 };
       return;
     }
     Save.moveCargo('sausage', -1, 0);
@@ -767,7 +768,9 @@ const Game = (function () {
       blockedToastT = 150;
       Sfx.clang(); shake = 4;
       toast = Save.flag('loki')
-        ? { text: '雷神的結界擋住了去路', sub: '你已經找到洛基了 —— 回北海跟雷神索爾說話', life: 170 }
+        ? { text: '雷神的結界擋住了去路', sub: '你已經救出洛基了 —— 回北海跟雷神索爾說話', life: 170 }
+        : Save.flag('thorAsked')
+        ? { text: '雷神的結界擋住了去路', sub: '索爾說：南方溫暖的海，有一張「吞下船的嘴」⋯⋯', life: 170 }
         : { text: '雷神的結界擋住了去路', sub: '北海上的雷神索爾好像在等人 —— 去找他問問', life: 170 };
     }
     const shipNow = Voyage.shipPos();

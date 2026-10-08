@@ -3,7 +3,7 @@
  *
  *   A) 北歐篇：結界沒解開前鎖住、北歐國土走不進去；旗標 north 之後才開
  *   B) 卡律布狄斯：還沒找到洛基時「漩渦逃生」沒命 → 要接冥界；冥界、金字塔的豎井有終點
- *   C) 戰艦海戰：七艘都打得贏（升滿級的船、機器人會躲紅圈、踩水兵），沒升級也至少打得贏最弱的
+ *   C) 戰艦海戰：五艘都打得贏（升滿級的船、機器人會躲紅圈、踩水兵），沒升級也至少打得贏最弱的
  *   D) 動物大遷徙：機器人抓得到 3 隻以上
  *   E) 瑞士銀行：每分鐘 1 枚、離線最多一天份；動物園的門票照天數算
  * 會暫時改存檔，結束前還原。
@@ -33,6 +33,18 @@ function runQuestCheck() {
   // 索爾 → 洛基 → 索爾，旗標要依序推進
   let tk = Quests.talk('thor'); if (tk.end) tk.end();
   if (!Save.flag('thorAsked')) issues.push('跟索爾講完話沒有記下線索');
+  // 洛基被鎖在籠子裡：沒有鑰匙，冥界走到底只能隔著欄杆聊（傳回大地圖、不算救出）
+  const helSk = { kind: 'hel', def: Encounter.KINDS.hel };
+  let ex = Expedition.onClear(helSk, { def: {}, mini: {} });
+  if (ex.talk !== 'lokiLocked') issues.push('沒有鑰匙，冥界走到底卻救得出洛基（' + ex.talk + '）');
+  tk = Quests.talk('lokiLocked'); if (tk.end) tk.end();
+  if (Save.flag('loki')) issues.push('隔著籠子講完話，洛基就被算成救出來了');
+  // 失落的金字塔 → 神祕的鑰匙
+  Expedition.onClear({ kind: 'pyramid', def: Encounter.KINDS.pyramid }, { def: { firstBoss: false }, mini: {} });
+  if (!Save.flag('key')) issues.push('走完失落的金字塔沒有拿到神祕的鑰匙');
+  if (Encounter.KINDS.pyramid.bossCoins) issues.push('金字塔的獎勵應該是鑰匙，不是金幣');
+  ex = Expedition.onClear(helSk, { def: {}, mini: {} });
+  if (ex.talk !== 'loki') issues.push('帶著鑰匙走到冥界底，沒有救出洛基');
   tk = Quests.talk('loki'); if (tk.end) tk.end();
   if (!Save.flag('loki')) issues.push('跟洛基講完話沒有記下');
   if (Quests.helReady()) issues.push('找到洛基之後，漩渦裡沒命還是會掉進冥界');
