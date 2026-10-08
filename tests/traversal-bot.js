@@ -108,6 +108,7 @@ function runTraversalTest() {
 function makeBot(state) {
   const held = { left: false, right: true, jump: false };
   let jumpEdge = false;
+  let stairTarget = null;     // v1.30 挪威積木階梯：這一跳要落在哪一塊
 
   const input = {
     isDown: function (a) { return !!held[a]; },
@@ -148,12 +149,46 @@ function makeBot(state) {
 
   return {
     input: input,
-    think: function (state) {
+    think: function (state, t) {
       const p = state.player;
       const feetY = p.y + p.h;
       jumpEdge = false;
       held.right = true;
       held.left = false;
+
+      /*
+       * v1.30 挪威：終點在積木階梯頂上的高台（def.goalY）。
+       * 真人的爬法：站在這一塊的右緣，等下一塊亮著（或腳下這塊快消失、下一塊馬上要出現）就往右上跳。
+       */
+      const fin = state.features ? state.features.list.filter(function (f) { return f.type === 'brick' && f.finale; })
+        .sort(function (a, b) { return a.x - b.x; }) : [];
+      if (state.def.goalY != null && fin.length && p.x + p.w > fin[0].x - 160) {
+        const gp = state.def.platforms.filter(function (q) { return q.goalPlat; })[0];
+        const on = function (s) { return p.onGround && Math.abs(feetY - s.y) < 3 && p.x + p.w > s.x && p.x < s.x + s.w; };
+        if (gp && on(gp)) { held.jump = false; return; }           // 上了高台：一直往右走到旗子
+        if (!p.onGround) {
+          // 空中：對準起跳時選的那一塊的中心（不然全速往右會飛過頭）
+          held.jump = p.vy < 0;
+          if (stairTarget) {
+            const pc = p.x + p.w / 2, tc = stairTarget.x + Math.min(stairTarget.w, 64) / 2;
+            held.right = pc < tc - 6; held.left = pc > tc + 6;
+          }
+          return;
+        }
+        let idx = -1;
+        fin.forEach(function (b, i) { if (on(b)) idx = i; });
+        const next = idx + 1 < fin.length ? fin[idx + 1] : gp;
+        const standX = idx < 0 ? fin[0].x - 40 : fin[idx].x + fin[idx].w - p.w - 4;
+        if (idx < 0 && p.x > standX + 30) { held.right = false; held.left = true; held.jump = false; return; }  // 從底下走過頭了：退回去
+        if (p.x < standX - 3) { held.jump = false; return; }        // 先走到起跳點
+        held.right = false;
+        const ns = next.goalPlat ? { on: true } : Features.brickState(next, t);
+        const cs = idx < 0 ? { on: true, left: 999 } : Features.brickState(fin[idx], t);
+        const go = (ns.on && cs.left > 6) || (!ns.on && cs.on && cs.left <= 26);
+        if (go) { jumpEdge = true; held.jump = true; held.right = true; stairTarget = next; }
+        else held.jump = false;
+        return;
+      }
 
       if (!p.onGround) {
         held.jump = true;   // 空中按住以取得完整跳躍高度

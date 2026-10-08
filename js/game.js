@@ -294,6 +294,16 @@ const Game = (function () {
     }
   }
 
+  /** 丹麥積木塔（v1.30 蓄力跳）的蓄力條：頭上一條會變長的條，夠高（綠）、蓄滿閃白；sx = 玩家左緣的畫面 x */
+  function drawChargeBar(p, sx) {
+    if (!(p.charge > 0) || p.out) return;
+    const k = Math.min(1, p.charge / PHYS.CHARGE_MAX);
+    const bx = sx + p.w / 2 - 20, by = p.y - 16;
+    ctx.fillStyle = 'rgba(10, 14, 26, 0.75)'; U.roundRect(ctx, bx - 2, by - 2, 44, 9, 4); ctx.fill();
+    ctx.fillStyle = k >= 1 && Math.floor(t / 4) % 2 === 0 ? '#ffffff' : k > 0.7 ? '#8fe3a0' : '#ffd166';
+    U.roundRect(ctx, bx, by, Math.max(4, 40 * k), 5, 3); ctx.fill();
+  }
+
   /** 從地圖直接開始的探險（金字塔；冥界從卡律布狄斯接過去） */
   function startQuestLevel(kind, at) {
     startSkirmish(Expedition.questMonster(kind, at || Voyage.shipPos()));
@@ -2286,6 +2296,7 @@ const Game = (function () {
         invuln: p.invuln, equipped: p.equipped,
         pid: i, costume: Save.get().costume   // 時裝（只換外觀）
       }, t);
+      drawChargeBar(p, p.x);     // 丹麥積木塔的蓄力條
     });
 
     ctx.restore();   // 收掉 camY
@@ -2294,7 +2305,7 @@ const Game = (function () {
     if (pl.calm) {
       // 沒有追擊的危險區（瑞士：有冰面就不要雪崩）
     } else if (pl.mode === 'climb') {
-      Sprites.shaftFlood(ctx, H - Shaft.FLOOD_H, Shaft.FLOOD_H, W, t, def.floodTint);
+      Sprites.shaftFlood(ctx, H - Shaft.FLOOD_H, Shaft.FLOOD_H, W, t, def.floodTint, def.theme);
     } else {
       Sprites.shaftCeiling(ctx, Shaft.CEIL_TOP, Shaft.CEIL_H, W, t, def.theme);
     }
@@ -2325,7 +2336,7 @@ const Game = (function () {
       U.roundRect(ctx, W / 2 - 215, by, 430, 48, 8); ctx.fill();
       U.text(ctx, def.intro ? def.intro[0] : def.dive ? '往下潛到海神的神殿！上面的礁石會崩下來' : pl.calm ? '往上爬到山頂！' : climb ? '往上跳！下面的雪崩會追上來' : '往下跳！上面的尖刺會追上來',
         W / 2, by + 18, { size: 16, color: '#ffd166' });
-      U.text(ctx, climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・藍色冰面會滑，要提早放開方向鍵'
+      U.text(ctx, def.intro ? def.intro[1] : climb ? (def.theme === 'alps' ? '平台可以從下面穿過去・藍色冰面會滑，要提早放開方向鍵'
                                                 : '←→ 移動　空白 跳躍　平台可以從下面穿過去')
                         : def.intro ? def.intro[1]
                         : def.theme === 'bigben' ? '往下掉時小心鐘擺・鐘聲響起時會加速'
@@ -2490,7 +2501,8 @@ const Game = (function () {
     if (!state.def.isBoss) {
       const gx = def.goal - camX;
       if (gx > -120 && gx < W + 120) {
-        Sprites.goalFlag(ctx, gx, Levels.GROUND_Y, def.flag, t, def.flagDir);
+        // v1.30 挪威：終點在右上角的高台上
+        Sprites.goalFlag(ctx, gx, def.goalY != null ? def.goalY : Levels.GROUND_Y, def.flag, t, def.flagDir);
       }
     }
 
@@ -2552,6 +2564,7 @@ const Game = (function () {
       if (p.mount) Features.drawMount(ctx, p, p.x - camX, t);
       // 瑞典馴鹿雪橇（v1.30）：雪橇墊在腳下、馴鹿在前面拉
       if (state.def.autorun && !p.out) Features.drawSled(ctx, p, p.x - camX, t);
+      drawChargeBar(p, p.x - camX);
     });
     // 海神夥伴（魔王關）與牠丟出去的三叉戟
     if (state.ally) {

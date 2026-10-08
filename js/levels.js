@@ -90,7 +90,8 @@ const Levels = (function () {
       pendulums: cfg.pendulums,
       notes: cfg.notes,
       chime: cfg.chime,
-      calm: cfg.calm
+      calm: cfg.calm,
+      chargeJump: cfg.chargeJump
     });
 
     return {
@@ -111,6 +112,7 @@ const Levels = (function () {
       deco: cfg.deco,
       theme: cfg.theme || null,
       intro: cfg.intro || null,    // 開場提示（兩行），沒有就用預設
+      chargeJump: !!cfg.chargeJump, // v1.30 丹麥積木塔：按住跳躍蓄力、放開才跳
 
       layout: 'shaft',
       shaft: pl,                 // 整座井的資料（繪製與碰撞都讀它）
@@ -330,6 +332,18 @@ const Levels = (function () {
       segs: g.segs, gaps: g.gaps, platforms: platforms,
       width: width, goal: goalX, avoid: avoid
     });
+    /*
+     * v1.30 挪威：終點在積木階梯頂上的高台（Features 'bricks' toGoal）。
+     * 那一欄的浮空平台被拿掉了，原本擺在平台上的金幣會懸在半空 → 一起拿掉。
+     */
+    const goalPlat = feat.goalPlat || null;
+    if (goalPlat) {
+      platforms.push(goalPlat);
+      for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+        if (c.x + 24 > goalPlat.x - 300 && c.x < goalPlat.x + goalPlat.w && c.y < goalPlat.y + 200) coins.splice(i, 1);
+      }
+    }
     feat.coins.forEach(function (c) { coins.push(c); });
 
     // 危險區：斷崖底部放尖刺或水。
@@ -400,6 +414,7 @@ const Levels = (function () {
       vehicle: vehicle,
       autorun: !!cfg.autorun,       // v1.30 瑞典馴鹿雪橇：自動往前衝，只能跳
       channels: channels,           // v1.30 挪威冰海水道（要踩浮冰過，level-check 另外驗）
+      goalY: goalPlat ? goalPlat.y : null,   // v1.30 挪威：終點在高台上（要站上去才過關）
       width: width,
       height: worldH,
       layout: layout,
@@ -1272,15 +1287,18 @@ const Levels = (function () {
     mode: 'climb',
     // 美術主題：樂高積木塔（彩色積木牆、積木平台、雲端的終點，見 expedition.js 的 'lego'）
     theme: 'lego',
-    // 紅色積木：第 3 拍會消失（Shaft 'beat'），抓節奏往上跳；底下是新港的海水在漲
-    extras: ['beat-lite'],
-    floors: 30,
-    gapY: 84,
-    platW: 108,
-    shaftW: 540,
-    scroll: [0.6, 1.2],
-    floodTint: ['#5aa0e0', '#2a5a8a'],
-    intro: ['往上爬到雲端！新港的海水會漲上來', '紅色積木第 3 拍會消失・平台可以從下面穿過去'],
+    /*
+     * v1.30 玩家：要按著跳不放蓄力才跳得上去 → chargeJump：層距 150（一般跳 128 上不去），
+     * 蓄力約 28 帧以上才夠高；底下是湧上來的積木（Sprites.shaftThemes.lego.flood）。
+     */
+    chargeJump: true,
+    extras: ['charge'],          // 沒有彈簧、尖刺平台（見 Shaft pickType）
+    floors: 24,
+    gapY: 150,
+    platW: 120,
+    shaftW: 560,
+    scroll: [0.35, 0.8],
+    intro: ['往上爬到雲端！底下湧上來的積木會追上來', '按住跳躍蓄力、放開才跳 —— 按越久跳越高'],
     equipAt: 'goal'
   }));
 
@@ -1338,7 +1356,8 @@ const Levels = (function () {
     // 冰海水道：三道約 300 寬的水，只能踩浮冰過去
     channels: { at: [0.3, 0.52, 0.74], width: 300 },
     // 招牌：浮冰 —— 在水上漂來漂去，站上去會慢慢往下沉，不能久站
-    features: [{ type: 'floes' }],
+    // v1.30 玩家：加紅藍輪流消失的積木，終點在右上角高處（踩積木階梯上高台）
+    features: [{ type: 'floes' }, { type: 'bricks', count: 3 }, { type: 'bricks', toGoal: true }],
     secretHint: '峭壁上的維京人石洞，門口刻著盧恩文字',
     secretNear: 0.42,
     props: [

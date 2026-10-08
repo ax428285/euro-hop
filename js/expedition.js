@@ -19,11 +19,11 @@ const Expedition = (function () {
 
   // ── 戰艦 ───────────────────────────────────────────────
   const WARSHIPS = [
-    { id: 'FR', country: '法國', ship: '「皇家路易號」', lon: -4.0, lat: 46.6, hp: 34, fact: '路易十四時代的皇家路易號有三層砲甲板，船尾雕滿了金色的太陽。' },
-    { id: 'GB', country: '英國', ship: '皇家海軍「勝利號」', lon: -0.9, lat: 50.0, hp: 42, fact: '勝利號 1765 年下水，是納爾遜將軍在特拉法加海戰的旗艦，到今天還停在樸茨茅斯。' },
-    { id: 'NL', country: '荷蘭', ship: '東印度公司「巴達維亞號」', lon: 3.6, lat: 53.5, hp: 30, fact: '巴達維亞號是 1628 年荷蘭東印度公司的大帆船，處女航就在澳洲外海觸礁；今天荷蘭照原樣重造了一艘。' },
-    { id: 'DE', country: '德國', ship: '漢薩同盟「呂貝克之鷹號」', lon: 11.4, lat: 54.5, hp: 32, fact: '1566 年呂貝克造的呂貝克之鷹號，是當年波羅的海最大的戰艦。' },
-    { id: 'GR', country: '希臘', ship: '三列槳戰船「奧林匹亞斯號」', lon: 25.6, lat: 39.4, hp: 26, fact: '三列槳戰船靠船頭的青銅撞角撞沉敵船；1987 年希臘照古書重造了一艘，取名奧林匹亞斯號。' }
+    { id: 'FR', country: '法國', ship: '「皇家路易號」', lon: -4.0, lat: 46.6, hp: 180, rank: 2, tier: 3, fact: '路易十四時代的皇家路易號有三層砲甲板，船尾雕滿了金色的太陽。' },
+    { id: 'GB', country: '英國', ship: '皇家海軍「勝利號」', lon: -0.9, lat: 50.0, hp: 300, rank: 3, tier: 5, fact: '勝利號 1765 年下水，是納爾遜將軍在特拉法加海戰的旗艦，到今天還停在樸茨茅斯。' },
+    { id: 'NL', country: '荷蘭', ship: '東印度公司「巴達維亞號」', lon: 3.6, lat: 53.5, hp: 100, rank: 1, tier: 1, fact: '巴達維亞號是 1628 年荷蘭東印度公司的大帆船，處女航就在澳洲外海觸礁；今天荷蘭照原樣重造了一艘。' },
+    { id: 'DE', country: '德國', ship: '漢薩同盟「呂貝克之鷹號」', lon: 11.4, lat: 54.5, hp: 160, rank: 2, tier: 2, fact: '1566 年呂貝克造的呂貝克之鷹號，是當年波羅的海最大的戰艦。' },
+    { id: 'GR', country: '希臘', ship: '三列槳戰船「奧林匹亞斯號」', lon: 25.6, lat: 39.4, hp: 80, rank: 1, tier: 0, fact: '三列槳戰船靠船頭的青銅撞角撞沉敵船；1987 年希臘照古書重造了一艘，取名奧林匹亞斯號。' }
   ];
   /*
    * v1.30 玩家：戰艦有分等級，外觀要不一樣。
@@ -39,10 +39,7 @@ const Expedition = (function () {
   const STYLE = { GR: 'trireme', NL: 'galleon', DE: 'cog', FR: 'liner2', GB: 'liner3', IT: 'galley' };
   WARSHIPS.forEach(function (w, i) {
     w.style = STYLE[w.id];
-    w.rank = w.hp <= 30 ? 1 : w.hp <= 36 ? 2 : 3;
     w.kind = 'war' + w.id;
-    // 難度級數 0～5（船身越硬的越兇：齊射更密、水兵更常盪過來）
-    w.tier = [26, 30, 32, 34, 36, 42].indexOf(w.hp);
     K[w.kind] = { name: w.country + w.ship, lv: '戰艦', exp: 70, bossExp: 150, bossCoins: 150, game: '戰艦海戰',
                   goal: '站在砲旁按 K／Enter 開砲！紅圈是敵艦砲彈的落點・踩扁跳上船的水兵', custom: true, warship: w, fixed: true,
                   clearTitle: '擊沉了' + w.country + '的戰艦！' };
@@ -339,8 +336,11 @@ const Expedition = (function () {
       const n = Shipyard.deckGuns(ship);
       mini.w = w;
       mini.guns = GUN_SLOTS.slice(3 - n).map(function (x) { return { x: x, cd: 40, jam: 0 }; });
-      // 船身 = 表上的 hp × 4；沒升級的船（1 門砲、每發 6）要打一分多鐘，升滿級（3 門、每發 12）大約 15～30 秒
-      mini.hp = mini.hpMax = w.hp * 4;
+      /*
+       * v1.30 玩家：分級不明顯（一、二級血量差不多）→ 表上直接寫船身：★ 80～100、★★ 160～180、★★★ 300。
+       * tier 0～5 = 兇的程度（齊射更密、水兵更常盪過來）。
+       */
+      mini.hp = mini.hpMax = w.hp;
       mini.dmg = Shipyard.shellDmg(ship);
       mini.warn = Shipyard.warnTime(ship);
       mini.repair = Shipyard.repairTime(ship);
@@ -931,22 +931,55 @@ const Expedition = (function () {
     }
   }
   const legoTheme = {
+    /*
+     * v1.30 玩家：背景要優化成彩色積木 —— 整面用大塊彩色積木疊成的牆（視差捲動），
+     * 顏色壓暗一點、不畫凸點的陰影，前景的積木平台才看得清楚。
+     */
     backdrop: function (ctx, camY, t, W, H) {
       ctx.save();
-      // 越往上（camY 越小）雲越多
-      const par = camY * 0.3;
-      for (let row = Math.floor(par / 180) - 1; row < Math.floor(par / 180) + 4; row++) {
-        const y0 = row * 180 - par;
-        const x = ((row * 263) % 900 + 900) % 900;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.beginPath(); ctx.arc(x, y0 + 40, 30, 0, Math.PI * 2); ctx.arc(x + 34, y0 + 30, 24, 0, Math.PI * 2); ctx.arc(x - 30, y0 + 46, 20, 0, Math.PI * 2); ctx.fill();
+      const par = camY * 0.45;
+      const bw = 64, bh = 28;
+      const r0 = Math.floor((par - 10) / bh);
+      for (let r = r0; r < r0 + Math.ceil(H / bh) + 2; r++) {
+        const y = r * bh - par;
+        const st = ((r % 2) + 2) % 2 * (bw / 2);
+        for (let x = -bw + st; x < W + bw; x += bw) {
+          const ci = ((r * 5 + Math.floor((x + 1000) / bw) * 3) % LEGO_COLS.length + LEGO_COLS.length) % LEGO_COLS.length;
+          ctx.fillStyle = LEGO_COLS[ci];
+          ctx.fillRect(x + 1, y + 1, bw - 2, bh - 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.18)';
+          ctx.fillRect(x + 1, y + 1, bw - 2, 3);
+          ctx.fillStyle = 'rgba(0,0,0,0.12)';
+          for (let k = 12; k < bw; k += 20) { ctx.beginPath(); ctx.arc(x + k, y + bh / 2, 5, 0, Math.PI * 2); ctx.fill(); }
+        }
       }
-      // 遠處漂浮的大積木（慢慢轉）
-      for (let k = 0; k < 5; k++) {
-        const x = 110 + k * 190, y = ((k * 157 - camY * 0.15) % (H + 120) + H + 120) % (H + 120) - 60;
-        ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t * 0.01 + k) * 0.3);
-        ctx.globalAlpha = 0.28;
-        legoBrick(ctx, -24, -9, 48, 18, LEGO_COLS[k % LEGO_COLS.length]);
+      // 整片壓暗（平台浮在上面才明顯）
+      ctx.fillStyle = 'rgba(16, 20, 36, 0.6)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    },
+    /** 底下湧上來的積木：一大堆彩色積木翻滾著往上淹 */
+    flood: function (ctx, top, h, w, t) {
+      ctx.save();
+      ctx.fillStyle = '#2a3048';
+      ctx.fillRect(0, top + 14, w, h);
+      for (let row = 0; row < 4; row++) {
+        for (let k = 0; k < w / 34 + 2; k++) {
+          const x = k * 34 - 20 + (row % 2) * 17 + Math.sin(t * 0.05 + k + row) * 3;
+          const y = top + 6 + row * 18 + Math.sin(t * 0.09 + k * 1.7 + row) * 4;
+          ctx.save();
+          ctx.translate(x + 16, y + 7);
+          ctx.rotate(Math.sin(t * 0.03 + k * 2.3 + row) * 0.5);
+          legoBrick(ctx, -16, -7, 32, 14, LEGO_COLS[(k * 3 + row * 2) % LEGO_COLS.length]);
+          ctx.restore();
+        }
+      }
+      // 最上面幾塊被拋起來的積木
+      for (let k = 0; k < 6; k++) {
+        const ph = (t * 0.03 + k * 0.37) % 1;
+        const x = (k * 167 + 40) % w, y = top - Math.sin(ph * Math.PI) * 40;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ph * 6);
+        legoBrick(ctx, -10, -5, 20, 10, LEGO_COLS[k % LEGO_COLS.length]);
         ctx.restore();
       }
       ctx.restore();
@@ -986,6 +1019,10 @@ const Expedition = (function () {
       }
       if (f.type && f.type !== 'normal') return false;     // 會消失的紅積木等特殊樓層照預設畫法（看得出節拍）
       legoBrick(ctx, x, y, w, h, LEGO_COLS[Math.abs(Math.round(f.rect.y / 84)) % LEGO_COLS.length]);
+      // 深色外框＋底下的影子：背景也是積木，平台要一眼分得出來
+      ctx.strokeStyle = 'rgba(10, 12, 24, 0.9)'; ctx.lineWidth = 2;
+      ctx.strokeRect(x - 1, y - 5, w + 2, h + 6);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'; ctx.fillRect(x + 4, y + h + 1, w - 4, 5);
       return true;
     }
   };

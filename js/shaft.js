@@ -207,6 +207,12 @@ const Shaft = (function () {
     const rest = (roll - normalShare) / (1 - normalShare);
     if (rest < 0.30) return r() < 0.5 ? 'convL' : 'convR';
     if (rest < 0.58) return useCrumble ? 'crumble' : 'normal';
+    /*
+     * v1.30 丹麥積木塔（蓄力跳）'charge'：沒有彈簧、尖刺 ——
+     * 要站著蓄力才跳得上去，彈簧一落地就把人彈走、尖刺站不住，都會變成上不去。
+     */
+    const chargeOnly = !!(extras && extras.indexOf('charge') >= 0);
+    if (chargeOnly) return 'normal';
     if (rest < 0.82) return 'spike';
     // 上一層已經是彈簧 → 換掉，避免兩個彈簧把玩家互丟
     if (prevType === 'spring') return useCrumble ? 'crumble' : 'normal';
@@ -236,7 +242,8 @@ const Shaft = (function () {
     const floors = cfg.floors || 32;
     // climb 的層距要夾在可跳上去的範圍內
     let gapY = cfg.gapY || (mode === 'climb' ? 84 : 104);
-    if (mode === 'climb') gapY = Math.min(gapY, MAX_CLIMB_GAP);
+    // v1.30 丹麥積木塔（蓄力跳，最高約 216px）：上限放寬到 170
+    if (mode === 'climb') gapY = Math.min(gapY, cfg.chargeJump ? 170 : MAX_CLIMB_GAP);
     const platW = cfg.platW || 104;
     const shaftW = cfg.shaftW || 560;
     const shaftX = Math.round((VIEW_W - shaftW) / 2);

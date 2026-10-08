@@ -91,7 +91,12 @@ function runShaftCheck() {
      * 留 25% 餘裕（玩家要邊跳邊橫移，不會每次都跳在最高點）。
      */
     if (pl.mode === 'climb') {
-      const jumpH = (PHYS.JUMP_V * PHYS.JUMP_V) / (2 * GRAV);
+      // v1.30 丹麥積木塔（chargeJump）：蓄滿力的跳躍才是基準
+      const jv = PHYS.JUMP_V * (def.chargeJump ? PHYS.CHARGE_HI : 1);
+      const jumpH = (jv * jv) / (2 * GRAV);
+      if (def.chargeJump && pl.gapY <= (PHYS.JUMP_V * PHYS.JUMP_V) / (2 * GRAV)) {
+        issues.push(tag + '：蓄力跳關卡的層距 ' + pl.gapY + 'px，不蓄力也跳得上去，蓄力就沒意義了');
+      }
       if (pl.gapY > jumpH * 0.75) {
         issues.push(tag + '：層距 ' + pl.gapY + 'px 超過安全跳躍高度 ' +
           Math.round(jumpH * 0.75) + 'px（基礎跳躍 ' + Math.round(jumpH) +
@@ -305,7 +310,7 @@ function runShaftCheck() {
      * 層距 84px 當然爬不上去（實測爬 25 層受傷 31 次就是這個原因）。
      * 真人會按住跳躍鍵，所以這裡用一個倒數計時器模擬按住 14 帧。
      */
-    let jumpHold = 0;
+    let jumpHold = 0, chargeCool = 0;
     const input = {
       isDown: function (a) {
         if (a === 'jump') return jumpHold > 0;
@@ -339,7 +344,9 @@ function runShaftCheck() {
 
       held = {};
       wantJump = false;
-      if (jumpHold > 0) jumpHold--;
+      // 蓄力跳：放開的那一帧之後要等幾帧，不然同一帧又開始蓄力、永遠沒真的放開
+      if (chargeCool > 0) chargeCool--;
+      if (jumpHold > 0) { jumpHold--; if (jumpHold === 0 && def.chargeJump) chargeCool = 4; }
 
       if (target) {
         const t0 = target.rect.x, t1 = target.rect.x + target.rect.w;
@@ -409,7 +416,17 @@ function runShaftCheck() {
         if (dx > 6) held.right = true;
         else if (dx < -6) held.left = true;
         // 對準了而且站著 → 跳，並按住 14 帧讓跳躍不被截斷
-        if (p.onGround && Math.abs(dx) < 24) { wantJump = true; jumpHold = 14; }
+        // v1.30 蓄力跳：按住到「夠跳上目標」的蓄力帧數再放開（多留 25px 餘裕）
+        if (p.onGround && Math.abs(dx) < 24 && jumpHold === 0 && chargeCool === 0) {
+          if (def.chargeJump) {
+            const need = (p.y + p.h) - target.rect.y + 25;
+            const mul = Math.sqrt(2 * GRAV * need) / -PHYS.JUMP_V;
+            const k = U.clamp((mul - PHYS.CHARGE_LO) / (PHYS.CHARGE_HI - PHYS.CHARGE_LO), 0, 1);
+            jumpHold = Math.ceil(k * PHYS.CHARGE_MAX) + 2;
+            wantJump = true;
+          } else { wantJump = true; jumpHold = 14; }
+        }
+        if (def.chargeJump && p.onGround && jumpHold > 0) { held.left = held.right = false; }
       } else if (st.equip && !st.equip.taken) {
         // 已經到頂 → 去撿裝備（同 playShaft 的理由：不撿就不會過關）
         const dx = st.equip.x - (p.x + p.w / 2);

@@ -95,6 +95,7 @@ const Features = (function () {
    */
   function plan(cfgs, ctx) {
     const list = [], coins = [];
+    let goalPlat = null;
     (cfgs || []).forEach(function (c) {
       const W = ctx.width;
       if (c.type === 'stampede') {
@@ -254,6 +255,27 @@ const Features = (function () {
           list.push({ type: 'column', x: sp.x + COL_FALL + 20, y: sp.y });
           ctx.avoid.push({ x: sp.x - 80, y: 0, w: COL_FALL + 200, h: 600 });
         }
+      } else if (c.type === 'bricks' && c.toGoal) {
+        /*
+         * v1.30 挪威（玩家：加紅藍消失積木，關卡一樣橫向，終點在右上角高處）：
+         * 終點改放在一座高台上（離地 258），只能踩三塊紅藍輪流出現的積木上去。
+         * 高台底下那一欄的浮空平台拿掉（不然直接從平台跳上去就不用抓節奏了）。
+         */
+        const gy = LevelGen.groundAt(ctx.segs, ctx.goal) || ctx.segs[ctx.segs.length - 1].y;
+        const px = ctx.goal - 60;
+        for (let k = 0; k < 3; k++) {
+          list.push({ type: 'brick', x: px - (3 - k) * BRICK_STEP, y: gy - 66 - k * BRICK_RISE, w: BRICK_W, h: BRICK_H,
+                      color: k % 2, phase: 0, passThru: true, finale: true });
+        }
+        goalPlat = { x: px, y: gy - 66 - 3 * BRICK_RISE, w: 220, h: 18, goalPlat: true };
+        const zone = { x: px - 3 * BRICK_STEP - 40, y: 0, w: 3 * BRICK_STEP + 300, h: gy };
+        for (let i = ctx.platforms.length - 1; i >= 0; i--) {
+          const q = ctx.platforms[i];
+          if (q.x < zone.x + zone.w && q.x + q.w > zone.x && q.y < zone.y + zone.h) ctx.platforms.splice(i, 1);
+        }
+        ctx.avoid.push(zone);
+        // 每塊積木上方一枚金幣（終點後面不放東西，所以放在階梯上）
+        for (let k = 0; k < 3; k++) coins.push({ x: px - (3 - k) * BRICK_STEP + 20, y: gy - 66 - k * BRICK_RISE - 36 });
       } else if (c.type === 'bricks') {
         /*
          * 丹麥：樂高積木階梯。每座三塊積木往右上排（離地 66 / 130 / 194），紅藍交錯；
@@ -306,7 +328,7 @@ const Features = (function () {
         }
       }
     });
-    return { list: list, coins: coins };
+    return { list: list, coins: coins, goalPlat: goalPlat };
   }
 
   /*
@@ -384,7 +406,7 @@ const Features = (function () {
     const k = (t + f.phase) % BRICK_CYCLE, half = BRICK_CYCLE / 2;
     const on = f.color === 0 ? k < half : k >= half;
     const left = f.color === 0 ? half - k : BRICK_CYCLE - k;      // 亮著的話，再幾帧就要消失
-    return { on: on, warn: on && left <= BRICK_WARN };
+    return { on: on, warn: on && left <= BRICK_WARN, left: on ? left : 0 };
   }
   /*
    * 浮冰（挪威）：在水道裡左右漂（週期 FLOE_PERIOD）。有人站上去 FLOE_GRACE 帧後開始往下沉，

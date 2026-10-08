@@ -3454,7 +3454,9 @@ const Sprites = (function () {
    * 跟尖刺天花板一樣畫在螢幕座標：它是「追著玩家」的壓力來源，
    * 固定在畫面下方才讀得出「還剩多少空間」。
    */
-  function shaftFlood(ctx, screenTop, h, w, t, tint) {
+  function shaftFlood(ctx, screenTop, h, w, t, tint, theme) {
+    // v1.30：主題自己畫追擊物（丹麥積木塔：湧上來的積木）
+    if (theme && shaftThemes[theme] && shaftThemes[theme].flood) { shaftThemes[theme].flood(ctx, screenTop, h, w, t); return; }
     ctx.save();
     const c = tint || ['#e8f2fa', '#9fc4e0'];
     // 主體

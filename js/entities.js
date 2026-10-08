@@ -17,8 +17,20 @@ const PHYS = {
   GLIDE_FALL: 2.6,      // 滑翔時的最大下墜速度
   WALL_JUMP_X: 5.6,
   WALL_JUMP_Y: -11.4,
-  STOMP_BOUNCE_HIGH: -10.2   // 指揮棒：踩敵人彈得更高
+  STOMP_BOUNCE_HIGH: -10.2,  // 指揮棒：踩敵人彈得更高
+  /*
+   * v1.30 丹麥積木塔（def.chargeJump）：按住跳躍鍵蓄力、放開才跳。
+   * 蓄滿 CHARGE_MAX 帧 → 初速 ×CHARGE_HI（約 216px 高）；剛按就放 → ×CHARGE_LO（約 39px）。
+   */
+  CHARGE_MAX: 40,
+  CHARGE_LO: 0.55,
+  CHARGE_HI: 1.3
 };
+/** 蓄力 charge 帧放開時的起跳倍率 */
+function chargeMul(charge) {
+  const k = Math.min(1, charge / PHYS.CHARGE_MAX);
+  return PHYS.CHARGE_LO + (PHYS.CHARGE_HI - PHYS.CHARGE_LO) * k;
+}
 
 // 潛水時划一下的往上初速（重力只剩 28%，所以一下就能游很高）
 const SWIM_V = -4.4;
@@ -1363,8 +1375,29 @@ function updatePlayer(state, input, t, who) {
       events.push('swim');
       state.particles.push({ x: p.x + p.w / 2, y: p.y + p.h, vx: (Math.random() - 0.5), vy: 0.6, life: 20, color: '#d8f4ff' });
     }
+  } else if (state.def.chargeJump && (p.charge > 0 || (p.onGround && input.isDown('jump')))) {
+    /*
+     * 蓄力跳：站在地上按住跳躍 → 蓄力（腳步慢下來、人往下蹲）；放開 → 依蓄力多久起跳。
+     * 空中按跳躍照舊可以二段跳（下面的分支），所以這裡只管「在地上」的情況。
+     */
+    if (p.onGround && input.isDown('jump')) {
+      p.charge = Math.min(PHYS.CHARGE_MAX, (p.charge || 0) + 1);
+      p.vx *= 0.8;
+      p.jumpBuffer = 0;
+      if (p.charge === PHYS.CHARGE_MAX) p.chargeFull = (p.chargeFull || 0) + 1;
+    } else if (p.onGround) {
+      p.vy = PHYS.JUMP_V * jumpMul * chargeMul(p.charge);
+      p.onGround = false;
+      p.coyote = 0;
+      p.launched = true;          // 已經放開跳躍鍵了：不要被可變跳躍高度截斷
+      p.charge = 0; p.chargeFull = 0;
+      p.jumpBuffer = 0;
+      events.push('jump');
+    } else {
+      p.charge = 0; p.chargeFull = 0;   // 蓄力中被撞離地面：作廢
+    }
   } else if (p.jumpBuffer > 0) {
-    if (p.coyote > 0) {
+    if (p.coyote > 0 && !state.def.chargeJump) {
       // 地面跳
       p.vy = PHYS.JUMP_V * jumpMul;
       p.onGround = false;
@@ -1983,7 +2016,9 @@ function updatePlayer(state, input, t, who) {
         state.cleared = true;
         events.push('clear');
       }
-    } else if (p.x + p.w >= state.def.goal) {
+    } else if (p.x + p.w >= state.def.goal &&
+               // v1.30 挪威：終點在右上角的高台上 —— 要站上高台才算（從底下走過去不算）
+               (state.def.goalY == null || (p.onGround && p.y + p.h <= state.def.goalY + 2))) {
       state.cleared = true;
       events.push('clear');
     }
