@@ -404,18 +404,11 @@ const WorldMap = (function () {
       ctx.beginPath(); ctx.arc(0, -8, 17 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
     }
     const duo = kind === 'duoTwins' || kind === 'duoMaze';
-    if (duo) {
-      // 雙人試煉在內陸（v1.29.1 玩家：下面的咖啡色碼頭架很怪）→ 不畫碼頭，改成地上一圈影子
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.beginPath(); ctx.ellipse(0, 0, 8, 2.6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#c89af0';
-      ctx.fillRect(-1, -5, 2, 5);
-    } else {
-      // 碼頭
-      ctx.fillStyle = '#7a5a3a';
-      ctx.fillRect(-9, -2, 18, 3);
-      ctx.fillRect(-8, 1, 2, 4); ctx.fillRect(6, 1, 2, 4);
-    }
+    // 底座：地上一圈影子＋一小根桿子（v1.29.1 雙人試煉、v1.29.7 港口與造船廠：原本的咖啡色碼頭架很怪，拿掉）
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 8, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = duo ? '#c89af0' : '#e8f6ff';
+    ctx.fillRect(-1, -5, 2, 5);
     // 徽章
     const by = -14 + (near ? Math.sin(t * 0.08) * 2 : 0);
     ctx.fillStyle = kind === 'shipyard' ? '#3a7ab8' : kind === 'market' ? '#b8862a' : duo ? '#8a4ab8' : '#1f6a78';
