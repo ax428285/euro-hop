@@ -685,13 +685,34 @@ const WorldMap = (function () {
   }
 
   /*
-   * 背景國標出國名＋國旗（v1.29.1 玩家：土耳其的國名和國旗先出來，但靠近不會有反應）。
+   * 背景國標出國名＋國旗（v1.29.1 玩家：土耳其的國名和國旗先出來，但靠近不會有反應；v1.29.2 加北歐四國）。
    * 國旗「貼在土地上」：壓扁＋斜切，像畫在地面上，不是插旗桿的圖釘（那是關卡國的樣子）。
    * 只是裝飾：不進 specials、不算靠近、按 Enter 沒反應。
    */
+  // v1.29.2 玩家：國旗再小一點；北歐也先印上去（冰島在地圖外面）
   const PAINTED = [
-    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' }
+    { id: 'TR', name: '土耳其', lon: 30.6, lat: 39.3, flag: 'turkey' },
+    { id: 'NO', name: '挪威', lon: 10.0, lat: 60.8, flag: 'nordic', bg: '#ba0c2f', cross: '#ffffff', inner: '#00205b' },
+    { id: 'SE', name: '瑞典', lon: 15.8, lat: 62.8, flag: 'nordic', bg: '#006aa7', cross: '#fecc00' },
+    { id: 'FI', name: '芬蘭', lon: 26.0, lat: 62.8, flag: 'nordic', bg: '#ffffff', cross: '#002f6c' },
+    { id: 'DK', name: '丹麥', lon: 9.2, lat: 56.1, flag: 'nordic', bg: '#c8102e', cross: '#ffffff' }
   ];
+  const PF_W = 20, PF_H = 13;     // 平貼國旗的大小（關卡國的旗子約 22×15，這個要比較低調）
+  /** 北歐十字旗：直條偏旗桿那側（約 37%），inner = 挪威十字裡面那條藍 */
+  function drawNordicFlag(ctx, w, h, d) {
+    ctx.fillStyle = d.bg;
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    const cx = -w / 2 + w * 0.37, t = h * 0.26;
+    ctx.fillStyle = d.cross;
+    ctx.fillRect(cx - t / 2, -h / 2, t, h);
+    ctx.fillRect(-w / 2, -t / 2, w, t);
+    if (d.inner) {
+      const ti = t * 0.5;
+      ctx.fillStyle = d.inner;
+      ctx.fillRect(cx - ti / 2, -h / 2, ti, h);
+      ctx.fillRect(-w / 2, -ti / 2, w, ti);
+    }
+  }
   function drawTurkeyFlag(ctx, w, h) {
     ctx.fillStyle = '#e30a17';
     ctx.fillRect(-w / 2, -h / 2, w, h);
@@ -719,12 +740,13 @@ const WorldMap = (function () {
       // 平貼在地上：上下壓扁、往右斜，邊緣淡一點像漆在地面
       ctx.transform(1, 0, -0.35, 0.62, 0, 0);
       ctx.globalAlpha = 0.9;
-      if (d.flag === 'turkey') drawTurkeyFlag(ctx, 30, 20);
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
-      ctx.strokeRect(-15, -10, 30, 20);
+      if (d.flag === 'turkey') drawTurkeyFlag(ctx, PF_W, PF_H);
+      else drawNordicFlag(ctx, PF_W, PF_H, d);
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 0.8;
+      ctx.strokeRect(-PF_W / 2, -PF_H / 2, PF_W, PF_H);
       ctx.restore();
-      U.text(ctx, d.name, p[0], p[1] + 16, {
-        size: 12, color: '#e8e0d0', align: 'center', strokeWidth: 3, strokeColor: 'rgba(16, 24, 18, 0.75)'
+      U.text(ctx, d.name, p[0], p[1] + 12, {
+        size: 11, color: '#e8e0d0', align: 'center', strokeWidth: 3, strokeColor: 'rgba(16, 24, 18, 0.75)'
       });
     });
   }
