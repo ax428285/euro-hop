@@ -1179,7 +1179,7 @@ const Game = (function () {
         case 'npc': Sfx.talk(); break;
         case 'gift':
           Sfx.equip();
-          toast = { text: '拿到聖誕老人的禮物！', sub: '包得好好的一份聖誕禮物（先收著，以後會用到）', life: 240 };
+          toast = { text: '拿到聖誕老人的禮物！', sub: '包得好好的一份聖誕禮物（先收著，以後會用到）', life: 300 };
           break;
         case 'npcline': break;
         case 'crumble': Sfx.land(); break;

@@ -253,14 +253,15 @@ const Npcs = (function () {
       { at: 0.1, name: '三溫暖老爹 Matti',
         look: { skin: '#e8b090', hair: '#cfcfcf', shirt: '#ffffff', pants: '#ffffff', hat: 'kerchief', hatColor: '#ffffff', item: 'towel' },
         lines: ['芬蘭有三百多萬間三溫暖，差不多每兩個人就有一間。', '蒸完三溫暖，跳進結冰的湖裡最過癮！', '三溫暖 sauna 這個字，就是從芬蘭語來的。'] },
-      { at: 0.9, name: '聖誕郵局職員 Leena',
+      { at: 0.93, name: '聖誕郵局職員 Leena',
         look: { skin: '#f3d6bc', hair: '#c88a4a', shirt: '#c8202a', pants: '#2a2a36', hat: 'beanie', hatColor: '#c8202a', item: 'book' },
         lines: ['全世界的小朋友，每年寄幾十萬封信給聖誕老人。', '寄到這裡的信都會蓋上北極圈的郵戳。', '這裡冬天的極光，一年可以看到兩百多個晚上。'] },
       /*
        * v1.30 玩家：芬蘭關卡中有聖誕老人，靠近他可以拿到聖誕禮物（用途先不開發，但要記住玩家身上有）
+       * 離終點遠一點（約 500px）：太近的話一拿到禮物就碰到終點，提示被過關畫面蓋掉、玩家根本沒看到。
        * → gift：第一次搭話時給一份，記在 Save.flag('gift')；game.js 收到 'gift' 事件跳提示。
        */
-      { at: 0.96, name: '聖誕老人 Joulupukki', gift: 'gift',
+      { at: 0.86, name: '聖誕老人 Joulupukki', gift: 'gift',
         look: { skin: '#f3d0b8', hair: '#f4f4f0', shirt: '#c8202a', pants: '#c8202a', hat: 'santa', hatColor: '#c8202a', beard: true, item: 'gift' },
         lines: ['呵呵呵！你從那麼遠的地方來看我呀？', '這份聖誕禮物送給你 —— 先別拆，留到最需要的時候。', '在芬蘭，大家叫我 Joulupukki，意思是「聖誕山羊」。'] }
     ],
@@ -309,7 +310,8 @@ const Npcs = (function () {
       })) return true;
       return false;
     }
-    list.forEach(function (sp) {
+    // 送禮物的特別 NPC（聖誕老人）先挑位置，才不會被別人佔走、擠到終點旁邊
+    list.filter(function (sp) { return sp.gift; }).concat(list.filter(function (sp) { return !sp.gift; })).forEach(function (sp) {
       const want = Math.round(ctx.width * sp.at);
       for (let pass = 0; pass < 2; pass++) {
         for (let d = 0; d <= 2400; d += 20) {

@@ -225,6 +225,8 @@ function runQuestCheck() {
     const santa = (def.npcs || []).filter(function (n) { return n.gift; })[0];
     if (!santa) { issues.push('芬蘭關卡裡沒有聖誕老人'); return; }
     if (Math.abs(santa.x - def.goal) > 1200) issues.push('聖誕老人離終點太遠（應該在聖誕老人村）');
+    // 太近的話一拿到禮物就過關，提示被過關畫面蓋掉（玩家回報：沒看到「拿到聖誕老人的禮物」）
+    if (def.goal - santa.x < 400) issues.push('聖誕老人離終點太近（' + Math.round(def.goal - santa.x) + 'px），禮物提示會被過關畫面蓋掉');
     sv.flags.gift = 0;
     const st = { npcs: Npcs.makeState(def), players: [{ x: santa.x - 10, y: santa.y - 40, w: 22, h: 40 }] };
     const ev = Npcs.update(st);
