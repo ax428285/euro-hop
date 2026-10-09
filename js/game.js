@@ -2072,7 +2072,7 @@ const Game = (function () {
     // 你（站在洞窟底，抬頭看）
     const p = state.players[pc.pid] || state.player;
     Sprites.player(ctx, { x: W / 2 - 160, y: 322, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: p.pid || 0,
-                          equipped: p.equipped || {}, costume: p.costume }, t);
+                          equipped: p.equipped || {}, costume: p.costume || Save.get().costume }, t);
     if (pc.t > 40) U.text(ctx, '按跳躍爬上去', W / 2, H - 30, { size: 13, color: '#9a8a70' });
     ctx.restore();
   }

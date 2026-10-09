@@ -152,23 +152,22 @@ const Pet = (function () {
       ctx.fillStyle = '#f2609a';
       ctx.beginPath(); ctx.arc(-1.3, -9.4, 1.4, Math.PI, 0); ctx.arc(1.3, -9.4, 1.4, Math.PI, 0); ctx.fill();
     }
-    // 大頭
-    ctx.fillStyle = '#fde4d4'; ctx.beginPath(); ctx.arc(0.6, -15.4, 4.8, 0, Math.PI * 2); ctx.fill();
+    // 頭（v1.31.3 正妹造型：頭身比改成大人，瓜子臉、杏眼、紅唇）
+    ctx.fillStyle = '#fbe2d0'; ctx.fillRect(-0.6, -13.4, 2.2, 2);                     // 脖子
+    ctx.beginPath(); ctx.ellipse(0.8, -15.6, 3.3, 3.9, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#f06a9e';
-    ctx.beginPath(); ctx.moveTo(-4.4, -14.6); ctx.arc(0.6, -15.6, 5.3, Math.PI * 1.02, Math.PI * 1.98);
-    ctx.quadraticCurveTo(4, -17, 1.6, -17.4); ctx.quadraticCurveTo(-1.6, -16, -4.4, -14.6); ctx.fill();
-    // 眼睛（朝前方，大大的、亮晶晶）
-    ctx.fillStyle = '#2a1a3a';
-    ctx.fillRect(1.6, -15.2, 1.4, 2); ctx.fillRect(3.8, -15.2, 1.4, 2);
-    ctx.fillStyle = '#5ab4ec'; ctx.fillRect(1.6, -14, 1.4, 0.8); ctx.fillRect(3.8, -14, 1.4, 0.8);
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(1.6, -15.2, 0.6, 0.6); ctx.fillRect(3.8, -15.2, 0.6, 0.6);
-    ctx.fillStyle = 'rgba(255, 130, 165, 0.6)'; ctx.fillRect(0.8, -12.8, 1.2, 0.7); ctx.fillRect(4.8, -12.8, 1.2, 0.7);
+    ctx.beginPath(); ctx.moveTo(-2.8, -14.6); ctx.arc(0.8, -16, 3.9, Math.PI * 1.02, Math.PI * 1.96);
+    ctx.quadraticCurveTo(3.6, -18.4, 1.2, -18.4); ctx.quadraticCurveTo(-1.2, -17, -2.8, -14.6); ctx.fill();
+    ctx.fillStyle = '#1e121e';
+    ctx.fillRect(1.6, -16.2, 1.2, 0.9); ctx.fillRect(3.2, -16.2, 1, 0.9);
+    ctx.fillStyle = '#5ab4ec'; ctx.fillRect(1.8, -15.6, 0.8, 0.6); ctx.fillRect(3.3, -15.6, 0.7, 0.6);
+    ctx.fillStyle = '#d82a4a'; ctx.fillRect(2.6, -13.6, 1.3, 0.7);
     // 黃色海星
     ctx.fillStyle = '#f8c838';
     ctx.beginPath();
     for (let i = 0; i < 10; i++) {
       const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.9 : 2.2;
-      ctx.lineTo(3.6 + Math.cos(a) * r, -20 + Math.sin(a) * r);
+      ctx.lineTo(3 + Math.cos(a) * r, -19.6 + Math.sin(a) * r);
     }
     ctx.closePath(); ctx.fill();
   }

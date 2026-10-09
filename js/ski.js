@@ -354,7 +354,7 @@ const Ski = (function () {
     ctx.save();
     ctx.scale(1, ph);
     Sprites.player(ctx, { x: -11, y: -42, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: p.pid || 0,
-                          equipped: p.equipped || {}, costume: p.costume }, t);
+                          equipped: p.equipped || {}, costume: p.costume || Save.get().costume }, t);
     ctx.restore();
     // 雪杖
     ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 1.6;

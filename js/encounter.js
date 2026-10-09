@@ -245,6 +245,20 @@ const Encounter = (function () {
   }
 
   /** 海上魔王一直待在固定位置：不在清單上就補回來（打完、clear() 之後） */
+  /** 海上魔王待的位置：設定的經緯度附近最近的一塊能航行的海面 */
+  function bossSpot(b) {
+    const p = EuropeWorld.project(b.lon, b.lat);
+    for (let r = 0; r <= 60; r += 4) {
+      for (let k = 0; k < 16; k++) {
+        const a = k * Math.PI / 8;
+        const x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
+        if (Voyage.isNavigable(x, y)) return { x: x, y: y };
+        if (r === 0) break;
+      }
+    }
+    return null;
+  }
+
   function ensureBosses() {
     if (typeof EuropeWorld === 'undefined') return;
     // v1.31：海上魔王、哥倫布的戰艦、動物大遷徙都在歐洲地圖上（新大陸地圖目前只有一般的海上怪）
@@ -257,16 +271,7 @@ const Encounter = (function () {
     SEA_BOSSES.forEach(function (b) {
       if (b.kind === 'atlantis' && !atlUp) return;
       if (monsters.some(function (m) { return m.boss && m.kind === b.kind; })) return;
-      const p = EuropeWorld.project(b.lon, b.lat);
-      let at = null;
-      for (let r = 0; r <= 60 && !at; r += 4) {
-        for (let k = 0; k < 16 && !at; k++) {
-          const a = k * Math.PI / 8;
-          const x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
-          if (Voyage.isNavigable(x, y)) at = { x: x, y: y };
-          if (r === 0) break;
-        }
-      }
+      const at = bossSpot(b);
       if (!at) return;
       // 亞特蘭提斯浮上來時慢慢淡入（其他海上魔王一開始就在）
       monsters.push({ kind: b.kind, def: KINDS[b.kind], x: at.x, y: at.y, heading: 0, life: Infinity, appear: b.kind === 'atlantis' && atlClock > 1 ? 0 : 1, boss: true });
@@ -2024,7 +2029,12 @@ const Encounter = (function () {
     calmVortex: function (frames) { vortexCalm = frames || 360; },
     boss: function (kind) {
       ensureBosses();
-      return monsters.filter(function (m) { return m.boss && m.kind === kind; })[0] || null;
+      const m = monsters.filter(function (q) { return q.boss && q.kind === kind; })[0];
+      if (m || kind !== 'atlantis') return m || null;
+      // 亞特蘭提斯剛好沉下去（時有時無）：給一個不在地圖上的替身，要開這一關（測試、debug）還是開得起來
+      const b = SEA_BOSSES.filter(function (q) { return q.kind === kind; })[0];
+      const at = b && typeof EuropeWorld !== 'undefined' ? bossSpot(b) : null;
+      return at ? { kind: kind, def: KINDS[kind], x: at.x, y: at.y, heading: 0, life: Infinity, appear: 1, boss: true } : null;
     },
     makeDef: makeDef,
     RELICS: RELICS,

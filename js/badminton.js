@@ -261,7 +261,7 @@ const Badminton = (function () {
     const opp = who === 'ai';
     Sprites.player(ctx, { x: pp.x - 11, y: pp.y - 40, w: 22, h: 40, facing: opp ? -1 : 1, onGround: !pp.air,
                           vx: pp.walk ? 1 : 0, invuln: opp ? 0 : p.invuln, pid: opp ? 1 : (p.pid || 0),
-                          equipped: opp ? {} : (p.equipped || {}), costume: opp ? null : p.costume }, t);
+                          equipped: opp ? {} : (p.equipped || {}), costume: opp ? null : (p.costume || Save.get().costume) }, t);
     if (opp) {
       // 對手：頭上綁一圈玫瑰花冠（玫瑰谷的採玫瑰節）
       ctx.fillStyle = '#e84a6a';

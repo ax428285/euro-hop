@@ -298,24 +298,85 @@ const Voyage = (function () {
   }
 
   /** 步行中的旅人：背包 + 手杖，走路時雙腳交替 */
+  /*
+   * 大地圖上走路的小人。
+   * v1.31.3 玩家：人魚時裝跟沒穿一模一樣 —— 原本地圖上一律畫條紋衫，穿什麼時裝都看不出來 → 照身上的時裝畫
+   * （人魚：雙腳換成魚尾巴＋粉紅長髮；雅典娜：白袍＋金頭盔紅羽冠⋯⋯），脫掉就變回條紋衫。
+   */
+  const WALK_LOOK = {
+    captain: { body: '#a8242a', trim: '#e8c060', hat: 'tricorn' },
+    matador: { body: '#1a1a24', trim: '#e8c060', hat: 'matador' },
+    viking: { body: '#7a5a3a', trim: '#c8b090', hat: 'horns' },
+    harlequin: { body: '#c0242a', trim: '#2a8a4a', hat: 'jester' },
+    royal: { body: '#f4efe2', trim: '#5a2a8a', hat: 'crown', cape: '#5a2a8a' },
+    golden: { body: '#f2c14e', trim: '#fff4b0', hat: 'crown' },
+    pharaoh: { body: '#f4efe2', trim: '#2a50a0', hat: 'nemes' },
+    athena: { body: '#f8f4ea', trim: '#3a6ab8', hat: 'athena', robe: true },
+    mermaid: { body: '#fde4d4', trim: '#f2609a', hat: 'mermaid', tail: true }
+  };
   function drawWalker(ctx, t) {
     const x = ship.x, y = ship.y;
     const sw = Math.sin(ship.step) * 2.5;
+    const cos = typeof Save !== 'undefined' ? Save.get().costume : null;
+    const lk = cos ? WALK_LOOK[cos] : null;
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(ship.facing, 1);
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(0, 1, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#2a2230'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-2 + sw, 0); ctx.moveTo(0, -5); ctx.lineTo(2 - sw, 0); ctx.stroke();
-    ctx.fillStyle = '#2f54a0';                                // 條紋衫（跟關卡裡的主角同一件）
-    ctx.fillRect(-3, -12, 6, 7);
-    ctx.fillStyle = '#f4efe2'; ctx.fillRect(-3, -10, 6, 1.5);
-    ctx.fillStyle = '#8a5a30'; ctx.fillRect(-6, -12, 3, 6);  // 背包
+    // 背後：披風、粉紅長髮
+    if (lk && lk.cape) { ctx.fillStyle = lk.cape; ctx.beginPath(); ctx.moveTo(-3, -12); ctx.lineTo(3, -12); ctx.lineTo(-1, -2); ctx.lineTo(-7, -3); ctx.closePath(); ctx.fill(); }
+    if (lk && lk.hat === 'mermaid') { ctx.fillStyle = '#f06a9e'; ctx.beginPath(); ctx.moveTo(-3, -17); ctx.quadraticCurveTo(-8, -12, -6, -6); ctx.lineTo(-2, -8); ctx.lineTo(2, -16); ctx.closePath(); ctx.fill(); }
+    if (lk && lk.tail) {
+      // 魚尾巴（走路時尾鰭左右甩）
+      ctx.fillStyle = '#3cc4ac';
+      ctx.beginPath(); ctx.moveTo(-3, -6); ctx.lineTo(3, -6); ctx.quadraticCurveTo(2, -2, sw * 0.4, -1); ctx.quadraticCurveTo(-2, -2, -3, -6); ctx.fill();
+      ctx.fillStyle = '#2a96b0';
+      ctx.beginPath(); ctx.moveTo(sw * 0.4, -1.5); ctx.lineTo(-4 + sw, 1); ctx.lineTo(4 + sw, 1); ctx.closePath(); ctx.fill();
+    } else {
+      ctx.strokeStyle = '#2a2230'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-2 + sw, 0); ctx.moveTo(0, -5); ctx.lineTo(2 - sw, 0); ctx.stroke();
+    }
+    if (lk) {
+      ctx.fillStyle = lk.body;
+      if (lk.robe) { ctx.beginPath(); ctx.moveTo(-3, -12); ctx.lineTo(3, -12); ctx.lineTo(4, -2); ctx.lineTo(-4, -2); ctx.closePath(); ctx.fill(); }
+      else ctx.fillRect(-3, -12, 6, 7);
+      ctx.fillStyle = lk.trim;
+      if (lk.tail) { ctx.beginPath(); ctx.arc(-1.4, -10, 1.4, Math.PI, 0); ctx.arc(1.4, -10, 1.4, Math.PI, 0); ctx.fill(); }
+      else ctx.fillRect(-3, -9, 6, 1.5);
+    } else {
+      ctx.fillStyle = '#2f54a0';                                // 條紋衫（跟關卡裡的主角同一件）
+      ctx.fillRect(-3, -12, 6, 7);
+      ctx.fillStyle = '#f4efe2'; ctx.fillRect(-3, -10, 6, 1.5);
+    }
+    if (!lk || !lk.tail) { ctx.fillStyle = '#8a5a30'; ctx.fillRect(-6, -12, 3, 6); }  // 背包
     ctx.fillStyle = '#f0c8a0';
     ctx.beginPath(); ctx.arc(0, -15, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#a07040'; ctx.lineWidth = 1.2;        // 手杖
-    ctx.beginPath(); ctx.moveTo(4, -10); ctx.lineTo(6, 0); ctx.stroke();
+    // 帽子／頭飾
+    const hat = lk && lk.hat;
+    if (hat === 'mermaid') {
+      ctx.fillStyle = '#f06a9e'; ctx.beginPath(); ctx.arc(0, -15.6, 3.4, Math.PI * 1.02, Math.PI * 1.98); ctx.fill();
+      ctx.fillStyle = '#f8c838'; ctx.beginPath(); ctx.arc(2.4, -18.6, 1.4, 0, Math.PI * 2); ctx.fill();
+    } else if (hat === 'athena') {
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(0, -15.6, 3.4, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#c8202a'; ctx.beginPath(); ctx.moveTo(2, -18); ctx.quadraticCurveTo(-1, -23, -5, -18); ctx.lineTo(-2, -17.5); ctx.closePath(); ctx.fill();
+    } else if (hat === 'crown') {
+      ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.moveTo(-3, -17); ctx.lineTo(-3, -20); ctx.lineTo(-1.5, -18.4); ctx.lineTo(0, -20.5); ctx.lineTo(1.5, -18.4); ctx.lineTo(3, -20); ctx.lineTo(3, -17); ctx.closePath(); ctx.fill();
+    } else if (hat === 'tricorn' || hat === 'matador') {
+      ctx.fillStyle = '#1a1a20'; ctx.fillRect(-4.5, -18.4, 9, 2); ctx.fillRect(-2.5, -20, 5, 2);
+    } else if (hat === 'horns') {
+      ctx.fillStyle = '#a0a8b4'; ctx.beginPath(); ctx.arc(0, -16, 3.2, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f0e8d0'; ctx.fillRect(-5, -20, 1.4, 3); ctx.fillRect(3.6, -20, 1.4, 3);
+    } else if (hat === 'jester') {
+      ctx.fillStyle = '#c0242a'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(-5, -21); ctx.lineTo(-1, -16.5); ctx.fill();
+      ctx.fillStyle = '#2a8a4a'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(5, -21); ctx.lineTo(1, -16.5); ctx.fill();
+    } else if (hat === 'nemes') {
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(0, -15.4, 3.6, Math.PI, 0); ctx.fill(); ctx.fillRect(-3.6, -15.4, 1.6, 4); ctx.fillRect(2, -15.4, 1.6, 4);
+    }
+    if (!lk || !lk.tail) {
+      ctx.strokeStyle = '#a07040'; ctx.lineWidth = 1.2;        // 手杖
+      ctx.beginPath(); ctx.moveTo(4, -10); ctx.lineTo(6, 0); ctx.stroke();
+    }
     ctx.restore();
   }
 
