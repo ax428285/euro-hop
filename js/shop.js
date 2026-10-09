@@ -243,9 +243,36 @@ const Shop = (function () {
     get: function (id) { return byId[id]; },
     levelOf: levelOf,
     blockedOf: blockedOf,
-    /** 黃金獵犬戴著哪些配件（寵物用品店買的） */
+    /** 黃金獵犬戴著哪些配件（寵物用品店買的；v1.31.2 脫下來的不算 —— 旗標 dogOff_<配件>） */
     dogAccs: function () {
-      return items.filter(function (it) { return it.acc && Save.upgradeLevel(it.id) > 0; }).map(function (it) { return it.acc; });
+      return items.filter(function (it) { return it.acc && Save.upgradeLevel(it.id) > 0 && !Save.flag('dogOff_' + it.acc); }).map(function (it) { return it.acc; });
+    },
+    /** 有沒有穿著這件外觀商品（時裝 = 身上這套；狗狗配件 = 買了而且沒脫下來） */
+    wearing: function (id) {
+      const it = byId[id];
+      if (!it) return false;
+      if (it.costume) return Save.get().costume === it.costume;
+      if (it.acc) return Save.upgradeLevel(it.id) > 0 && !Save.flag('dogOff_' + it.acc);
+      return false;
+    },
+    /*
+     * v1.31.2 玩家：人魚和狗狗的時裝要可以脫下來 → 外觀商店裡已經擁有的東西，再按一次 Enter（手機點一下）= 穿上／脫下。
+     * 回傳 'on'（穿上了）、'off'（脫下了），沒擁有回傳 null。
+     */
+    toggleWear: function (id) {
+      const it = byId[id];
+      if (!it || levelOf(id) <= 0) return null;
+      if (it.costume) {
+        const on = Save.get().costume === it.costume;
+        Save.wearCostume(on ? null : it.costume);
+        return on ? 'off' : 'on';
+      }
+      if (it.acc) {
+        const off = !!Save.flag('dogOff_' + it.acc);
+        Save.setFlag('dogOff_' + it.acc, off ? 0 : 1);
+        return off ? 'on' : 'off';
+      }
+      return null;
     },
     priceOf: priceOf,
     canBuy: canBuy,

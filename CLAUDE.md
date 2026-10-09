@@ -68,4 +68,5 @@
   好感度滿＋打倒暗夜騎士＋人魚同行，走到法國圖釘 → talk `eiffel`（夜景），看完 `Save.flag('merHuman')`，pet.js 改畫 `drawThalassa`（人類）。
 - v1.31.2 稱號（game.js `titleText()`）：神之手（`godHand`，暗夜騎士）、比利時肥羊（quests.js 扒手被偷滿 `ROB_TITLE`=3 次，旗標 `robbedTimes`、`sheep`）。
   下一個版本的改動一樣先在 `nordic` 上做，等使用者說「可以上線」。
+- v1.31.3：外觀商店（shop.js `toggleWear`、`wearing`）已擁有的時裝／狗狗配件再按一次 = 穿上／脫下（狗配件脫下 = 旗標 `dogOff_<配件>`）；遠征圖鑑的勾勾改成金色徽章（game.js `journalMark`）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

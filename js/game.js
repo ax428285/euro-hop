@@ -1595,8 +1595,17 @@ const Game = (function () {
       const it = list[shopCursor];
       const price = Shop.priceOf(it.id);
       const why = Shop.blockedOf(it.id);
-      if (price == null) {
-        shopMsg = { text: it.kind === 'look' ? '已經有了' : '已經買到最高階了', color: '#9aa7c7', life: 110 };
+      if (price == null && it.kind === 'look') {
+        // v1.31.2 玩家：時裝、狗狗配件要可以脫下來 → 已經有的再按一次 = 穿上／脫下
+        const r = Shop.toggleWear(it.id);
+        shopMsg = it.costume
+          ? (r === 'off' ? { text: '脫下「' + it.name + '」，換回條紋衫', color: '#c6d2e8', life: 130 }
+                         : { text: '換上「' + it.name + '」！', color: '#8fe3a0', life: 130 })
+          : (r === 'off' ? { text: '幫狗狗拿下' + it.name, color: '#c6d2e8', life: 130 }
+                         : { text: '狗狗戴上了' + it.name + '！', color: '#8fe3a0', life: 130 });
+        Sfx.equip();
+      } else if (price == null) {
+        shopMsg = { text: '已經買到最高階了', color: '#9aa7c7', life: 110 };
         Sfx.clang();
       } else if (why) {
         shopMsg = { text: why, color: '#ff9aa8', life: 150 };
@@ -3745,6 +3754,33 @@ const Game = (function () {
     if (click) { journalPage = click.x < W / 2 ? 0 : 1; Sfx.select(); }
     if (Input.once('journal') || Input.once('back') || Input.once('tomap') || Input.once('confirm')) { Sfx.select(); scene = 'map'; }
   }
+  /*
+   * v1.31.2 玩家：遠征圖鑑的勾勾好醜，重新設計 → 完成 = 一枚金色圓徽章（亮面＋白色粗勾），
+   * 還沒完成 = 一個暗暗的空心圓（中間一個小點）。
+   */
+  function journalMark(cx, cy, done) {
+    ctx.save();
+    if (done) {
+      ctx.fillStyle = 'rgba(255, 200, 90, 0.18)';
+      ctx.beginPath(); ctx.arc(cx, cy, 9.5, 0, Math.PI * 2); ctx.fill();
+      const g = ctx.createLinearGradient(cx, cy - 7, cx, cy + 7);
+      g.addColorStop(0, '#ffe08a'); g.addColorStop(1, '#e09a2a');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#a8681a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.beginPath(); ctx.ellipse(cx - 2, cy - 3.6, 3.6, 1.8, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 3.4, cy + 0.2); ctx.lineTo(cx - 0.8, cy + 2.8); ctx.lineTo(cx + 3.6, cy - 2.6); ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(160, 172, 200, 0.45)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(160, 172, 200, 0.35)';
+      ctx.beginPath(); ctx.arc(cx, cy, 1.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function drawJournal() {
     const sv = Save.get();
     drawMapBackdrop(sv);
@@ -3761,7 +3797,14 @@ const Game = (function () {
       U.roundRect(ctx, x - 80, 50, 160, 26, 8); ctx.fill();
       U.text(ctx, p.title, x, 63, { size: 14, color: on ? '#ffd166' : '#9aa7c7' });
     });
-    U.text(ctx, '完成 ' + done + ' / ' + total, W - 30, 30, { size: 14, color: done >= total ? '#8fe3a0' : '#c6d2e8', align: 'right' });
+    {
+      const bw = 150, bx = W - 30 - bw, by = 36;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'; U.roundRect(ctx, bx, by, bw, 6, 3); ctx.fill();
+      const pg2 = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+      pg2.addColorStop(0, '#e09a2a'); pg2.addColorStop(1, '#ffe08a');
+      ctx.fillStyle = pg2; U.roundRect(ctx, bx, by, Math.max(6, bw * done / Math.max(1, total)), 6, 3); ctx.fill();
+      U.text(ctx, '完成 ' + done + ' / ' + total, W - 30, 24, { size: 13, color: done >= total ? '#ffe08a' : '#c6d2e8', align: 'right' });
+    }
     // 內容：依欄排（篇章標題不會落在一欄的最後一行）
     const top = 96, lh = 19, rows = Math.floor((H - top - 40) / lh), colW = (W - 96) / pg.cols;   // 左邊空出返回鍵的位置
     let col = 0, row = 0;
@@ -3772,14 +3815,13 @@ const Game = (function () {
       const x = 66 + col * colW, y = top + row * lh;
       if (q.head) {
         U.text(ctx, q.name || q.head, x, y, { size: 14, weight: 800, color: '#e8c27a', align: 'left' });
+        // 標題底下一條金色細線（往右淡出）
+        const ug = ctx.createLinearGradient(x, 0, x + colW - 30, 0);
+        ug.addColorStop(0, 'rgba(232, 194, 122, 0.7)'); ug.addColorStop(1, 'rgba(232, 194, 122, 0)');
+        ctx.fillStyle = ug; ctx.fillRect(x, y + 9, colW - 30, 1.2);
       } else {
-        ctx.strokeStyle = q.done ? '#8fe3a0' : 'rgba(200, 210, 230, 0.4)'; ctx.lineWidth = 1.4;
-        ctx.strokeRect(x + 6, y - 6, 12, 12);
-        if (q.done) {
-          ctx.strokeStyle = '#8fe3a0'; ctx.lineWidth = 2.4;
-          ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x + 11, y + 4); ctx.lineTo(x + 17, y - 5); ctx.stroke();
-        }
-        U.text(ctx, fitText(q.name, colW - 34, 13), x + 26, y, { size: 13, color: q.done ? '#eafcef' : '#9aa7c7', align: 'left' });
+        journalMark(x + 12, y, q.done);
+        U.text(ctx, fitText(q.name, colW - 34, 13), x + 26, y, { size: 13, color: q.done ? '#fff4d6' : '#7d88a6', align: 'left' });
       }
       row++;
     });
@@ -4077,8 +4119,14 @@ const Game = (function () {
       }
 
       // 價格 / 狀態
-      if (maxed) {
-        U.text(ctx, look ? '已擁有' : '已滿級', cx + 16, cy + 98,
+      if (maxed && look) {
+        const on = Shop.wearing(it.id);
+        U.text(ctx, on ? (it.acc ? '戴著' : '穿著') : '已擁有', cx + 16, cy + 98,
+          { size: 14, color: on ? '#8fe3a0' : '#c6d2e8', align: 'left' });
+        U.text(ctx, on ? (it.acc ? 'Enter 拿下來' : 'Enter 脫下') : (it.acc ? 'Enter 戴上' : 'Enter 穿上'), cx + cw - 16, cy + 98,
+          { size: 12, color: on ? '#ffb0b8' : '#8fe3a0', align: 'right' });
+      } else if (maxed) {
+        U.text(ctx, '已滿級', cx + 16, cy + 98,
           { size: 14, color: '#8fe3a0', align: 'left' });
       } else {
         U.text(ctx, '\u20AC ' + price, cx + 16, cy + 98,
