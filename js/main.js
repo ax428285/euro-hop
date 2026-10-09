@@ -304,6 +304,17 @@
   }
 
   np.netBtn.addEventListener('click', npOpen);
+  /*
+   * v1.31.8 玩家：電腦版選單沒有快捷鍵 → O = 打開／收起 ☰ 選單、U = 連線面板、F11 = 全螢幕（瀏覽器自己的）。
+   * 在輸入框（連線的邀請碼）裡打字時不算。選單打開時按 Esc 先收起選單。
+   */
+  window.addEventListener('keydown', function (e) {
+    const tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code === 'KeyO') { e.preventDefault(); setMenu(!pad.classList.contains('menu')); }
+    else if (e.code === 'KeyU') { e.preventDefault(); setMenu(false); npOpen(); }
+    else if (e.code === 'Escape' && pad.classList.contains('menu')) setMenu(false);
+  });
   document.getElementById('np-close').addEventListener('click', npClose);
   document.getElementById('np-host').addEventListener('click', function () {
     if (npBusy()) return;
@@ -364,7 +375,8 @@
 
   function syncNetBtn() {
     np.netBtn.classList.toggle('live', Net.connected());
-    np.netBtn.textContent = Net.connected() ? '連線中' : '連線';
+    const label = (Net.connected() ? '連線中' : '連線') + '<small>U</small>';
+    if (np.netBtn.innerHTML !== label) np.netBtn.innerHTML = label;
   }
 
   function syncUi() { syncLocks(); syncScene(); syncMenuIcon(); syncNetBtn(); syncMainKey(); }

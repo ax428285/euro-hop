@@ -312,19 +312,60 @@ const TopRace = (function () {
       const y = sy(o.y);
       if (y < -60 || y > H + 60) return;
       const x = centerAt(pl, o.y) + o.lx;
+      /*
+       * v1.31.8 玩家：古巴的障礙物各種看不懂 → 每一樣都畫得一看就知道是什麼，而且底下一圈紅色的警示影子（= 會撞到）：
+       *   坑洞：馬路裂開的大洞（一圈碎裂的柏油、四周往外的裂痕、底下積水）
+       *   三角錐：三個一組、從斜上方看得到尖頂和白色反光條
+       *   水果攤車：木頭推車＋兩個輪子＋紅白條紋的遮陽棚，棚子底下露出一籃籃水果
+       */
+      ctx.fillStyle = 'rgba(230, 40, 40, ' + (0.18 + Math.abs(Math.sin(t * 0.08 + o.y)) * 0.12).toFixed(2) + ')';
+      ctx.beginPath(); ctx.ellipse(x, y + 4, o.w / 2 + 12, o.h / 2 + 10, 0, 0, Math.PI * 2); ctx.fill();
       if (o.kind === 'pothole') {
-        ctx.fillStyle = '#2a2a30'; ctx.beginPath(); ctx.ellipse(x, y, o.w / 2, o.h / 2, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(120, 180, 220, 0.6)'; ctx.beginPath(); ctx.ellipse(x, y, o.w / 3, o.h / 3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1a1a20'; ctx.lineWidth = 2;
+        for (let k = 0; k < 8; k++) {
+          const a2 = k * Math.PI / 4 + 0.3, r1 = o.w / 2 - 2, r2 = o.w / 2 + 10 + (k % 3) * 4;
+          ctx.beginPath(); ctx.moveTo(x + Math.cos(a2) * r1, y + Math.sin(a2) * r1 * 0.75);
+          ctx.lineTo(x + Math.cos(a2 + 0.15) * (r1 + r2) / 2, y + Math.sin(a2 + 0.15) * (r1 + r2) / 2 * 0.75);
+          ctx.lineTo(x + Math.cos(a2) * r2, y + Math.sin(a2) * r2 * 0.75); ctx.stroke();
+        }
+        ctx.fillStyle = '#6a6a72';
+        ctx.beginPath();
+        for (let k = 0; k < 12; k++) { const a2 = k * Math.PI / 6, r = (o.w / 2 + 3) * (k % 2 ? 0.92 : 1.05); ctx.lineTo(x + Math.cos(a2) * r, y + Math.sin(a2) * r * 0.75); }
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#121216'; ctx.beginPath(); ctx.ellipse(x, y + 2, o.w / 2 - 4, o.h / 2 - 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(110, 170, 210, 0.65)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 5, o.w / 3, o.h / 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; ctx.fillRect(x - 6, y + 3, 8, 1.6);
       } else if (o.kind === 'cone') {
-        ctx.fillStyle = '#f07a20'; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#f4f4f0'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#f07a20'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
-      } else {
-        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x - o.w / 2 + 4, y - o.h / 2 + 4, o.w, o.h);
-        ctx.fillStyle = '#8a5a2a'; ctx.fillRect(x - o.w / 2, y - o.h / 2, o.w, o.h);
-        [['#f2c230', -10, -14], ['#e04a3a', 8, -10], ['#3f8a3a', -6, 8], ['#f2c230', 10, 12]].forEach(function (f) {
-          ctx.fillStyle = f[0]; ctx.beginPath(); ctx.arc(x + f[1], y + f[2], 8, 0, Math.PI * 2); ctx.fill();
+        [[-11, 6], [11, 6], [0, -8]].forEach(function (q) {
+          const cx = x + q[0], cy = y + q[1];
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; ctx.beginPath(); ctx.ellipse(cx + 3, cy + 7, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#1a1a1a'; ctx.fillRect(cx - 9, cy + 4, 18, 5);
+          ctx.fillStyle = '#f06a10'; ctx.beginPath(); ctx.moveTo(cx - 7, cy + 5); ctx.lineTo(cx, cy - 14); ctx.lineTo(cx + 7, cy + 5); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(cx - 4.4, cy - 2); ctx.lineTo(cx + 4.4, cy - 2); ctx.lineTo(cx + 3.2, cy - 6); ctx.lineTo(cx - 3.2, cy - 6); ctx.closePath(); ctx.fill();
         });
+      } else {
+        const L = x - o.w / 2, T = y - o.h / 2;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'; ctx.fillRect(L + 5, T + 6, o.w, o.h);
+        // 兩個輪子
+        ctx.fillStyle = '#1a1a1a'; ctx.fillRect(L - 5, T + o.h * 0.55, 6, 16); ctx.fillRect(L + o.w - 1, T + o.h * 0.55, 6, 16);
+        // 木頭車身＋一籃籃水果
+        ctx.fillStyle = '#9a6a34'; ctx.fillRect(L, T + 8, o.w, o.h - 8);
+        ctx.strokeStyle = '#5a3a18'; ctx.lineWidth = 1.5;
+        for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(L, T + 8 + k * (o.h - 8) / 4); ctx.lineTo(L + o.w, T + 8 + k * (o.h - 8) / 4); ctx.stroke(); }
+        [['#f2c230', 0.25, 0.75], ['#e04a3a', 0.75, 0.75], ['#5aa040', 0.5, 0.9]].forEach(function (f) {
+          ctx.fillStyle = f[0];
+          for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(L + o.w * f[1] + (k - 1) * 5, T + o.h * f[2] - (k % 2) * 4, 4.5, 0, Math.PI * 2); ctx.fill(); }
+        });
+        // 推車的把手
+        ctx.strokeStyle = '#5a3a18'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(L + 6, T + o.h); ctx.lineTo(L + 6, T + o.h + 10); ctx.lineTo(L + o.w - 6, T + o.h + 10); ctx.lineTo(L + o.w - 6, T + o.h); ctx.stroke();
+        // 紅白條紋的遮陽棚（蓋住前半）
+        for (let k = 0; k < 5; k++) {
+          ctx.fillStyle = k % 2 ? '#f4f4f0' : '#d8302a';
+          ctx.fillRect(L - 4 + k * (o.w + 8) / 5, T - 4, (o.w + 8) / 5 + 0.5, o.h * 0.5);
+        }
+        ctx.fillStyle = '#d8302a';
+        for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(L - 4 + (k + 0.5) * (o.w + 8) / 5, T - 4 + o.h * 0.5, (o.w + 8) / 10, 0, Math.PI); ctx.fill(); }
       }
     });
     // 金幣

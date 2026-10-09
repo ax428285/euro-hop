@@ -110,7 +110,7 @@ const Race = (function () {
     const obsKinds = cfg.theme === 'seahorse'
       ? [{ kind: 'urchin', low: true, w: 0.36 }, { kind: 'coralPillar', low: false, w: 0.34 }, { kind: 'jellyRoad', low: false, w: 0.3 }]
       : cfg.theme === 'chase'
-      ? [{ kind: 'tumbleweed', low: true, w: 0.4 }, { kind: 'rock', low: false, w: 0.42 }, { kind: 'cactusRoad', low: false, w: 0.3 }]
+      ? [{ kind: 'tumbleweed', low: true, w: 0.4 }, { kind: 'barrel', low: false, w: 0.42 }, { kind: 'cactusRoad', low: false, w: 0.3 }]
       : [{ kind: 'pothole', low: true, w: 0.5 }, { kind: 'cone', low: false, w: 0.3 }, { kind: 'cart', low: false, w: 0.46 }];
     const gap = cfg.obsEvery || 34;
     for (let i = START; i < END; i += gap + Math.floor(r() * 12)) {
@@ -519,8 +519,11 @@ const Race = (function () {
         ctx.fillStyle = '#f4f4f0'; ctx.fillRect(-u * 0.11, -u * 0.42, u * 0.22, u * 0.02); ctx.fillRect(-u * 0.11, -u * 0.38, u * 0.14, u * 0.02);
         break;
       case 'tumbleweed': {
-        const rr = u * 0.1, sp = t * 0.15;
-        ctx.strokeStyle = '#a0784a'; ctx.lineWidth = Math.max(1, u * 0.012);
+        // v1.31.8：原本只有細細的咖啡色線條、在土色的路上看不出來 → 加影子、淡黃的底、深色粗線
+        const rr = u * 0.12, sp = t * 0.15;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'; ctx.beginPath(); ctx.ellipse(0, 0, rr * 1.1, rr * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(240, 210, 140, 0.55)'; ctx.beginPath(); ctx.arc(0, -rr, rr, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#5a3a18'; ctx.lineWidth = Math.max(1.5, u * 0.02);
         ctx.beginPath(); ctx.arc(0, -rr, rr, 0, Math.PI * 2); ctx.stroke();
         for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(0, -rr, rr * (0.3 + k * 0.17), sp + k, sp + k + 2.4); ctx.stroke(); }
         break;
@@ -604,6 +607,26 @@ const Race = (function () {
         ctx.fillRect(-w, -u * 0.14, w * 2, u * 0.14);
         ctx.fillStyle = 'rgba(245, 252, 255, 0.95)';
         for (let k = 0; k < 12; k++) { ctx.beginPath(); ctx.arc(-w + (k + 0.5) * (2 * w / 12), -u * 0.14 + Math.sin(t * 0.3 + k) * u * 0.01, w / 12, Math.PI, 0); ctx.fill(); }
+        break;
+      }
+      case 'barrel': {
+        /*
+         * v1.31.8 玩家：墨西哥那個咖啡色的障礙物（原本是石頭）根本看不出來是障礙物 →
+         * 換成走私卡車掉下來的紅色油桶：兩桶疊在一起、黃黑警告條紋、底下一圈影子，在土色的路上一眼就看得到。
+         */
+        const bw = u * 0.13, bh = u * 0.22;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath(); ctx.ellipse(0, 0, u * 0.24, u * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+        [-1, 1].forEach(function (s2) {
+          const cx = s2 * bw * 1.05;
+          ctx.fillStyle = '#d8302a'; ctx.fillRect(cx - bw, -bh, bw * 2, bh);
+          ctx.fillStyle = '#a81e1a'; ctx.fillRect(cx - bw, -bh, bw * 0.45, bh);
+          ctx.fillStyle = '#ffd030'; ctx.fillRect(cx - bw, -bh * 0.62, bw * 2, bh * 0.2);
+          ctx.fillStyle = '#1a1a1a';
+          for (let k = 0; k < 3; k++) ctx.fillRect(cx - bw + k * bw * 0.7 + bw * 0.1, -bh * 0.62, bw * 0.3, bh * 0.2);
+          ctx.fillStyle = '#5a1410'; ctx.fillRect(cx - bw, -bh * 0.95, bw * 2, bh * 0.05); ctx.fillRect(cx - bw, -bh * 0.25, bw * 2, bh * 0.05);
+          ctx.fillStyle = '#f04a40'; ctx.beginPath(); ctx.ellipse(cx, -bh, bw, bw * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+        });
         break;
       }
       case 'rock':
