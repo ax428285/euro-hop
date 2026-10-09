@@ -123,7 +123,8 @@ const LevelGen = (function () {
     // 起點一定給一段平地，讓玩家站穩
     let x = 0;
     let y = baseY;
-    const startW = 280;
+    // v1.31.5 玩家：瑞典雪橇關一進場就有洞、立馬掉下去 → 自動往前衝的關卡（opts.startW）起點平地拉長，雪橇有時間加速、看清楚
+    const startW = opts.startW || 280;
     segs.push({ x: 0, y: y, w: startW });
     x = startW;
 

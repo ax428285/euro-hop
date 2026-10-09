@@ -203,7 +203,8 @@ const Levels = (function () {
       width: width,
       profile: vehicle || (layout === 'boss' ? 'flat' : layout),
       baseY: baseY,
-      climb: climb
+      climb: climb,
+      startW: cfg.autorun ? 760 : 0
     });
     /*
      * v1.30 挪威峽灣（cfg.channels）：把中段幾道斷崖拓寬成「冰海水道」（約 300 寬，跳不過去），
@@ -1407,8 +1408,10 @@ const Levels = (function () {
      * 招牌：結冰的湖面 —— 雪橇在冰上越滑越快（跳得更遠），斷崖前要算準起跳點
      */
     autorun: true,
+    // v1.31.5 玩家：雪橇不能停，怎麼撞隱形密道磚？→ 改成「洞裡的密道」：挑一個沒有尖刺的斷崖，衝下去就掉進洞窟
+    secretKind: 'pit',
     features: [{ type: 'ice', zones: [[0.16, 0.32], [0.42, 0.58], [0.68, 0.84]] }],
-    secretHint: '冰旅館後面的雪堆，裡面挖空了',
+    secretHint: '冰湖中間有一道斷崖底下沒有冰柱，雪橇衝下去好像也不會摔壞',
     secretNear: 0.5,
     props: [
       { type: 'dalaHorse', x: 900 },
