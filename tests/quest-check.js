@@ -100,6 +100,25 @@ function runQuestCheck() {
   });
   if (simWar('warES', 0) !== 'win') issues.push('西班牙戰艦（最弱）：沒升級的船打不贏');
 
+  // C2) v1.31.7 戰艦在地圖上亂繞：會動、一直在海上、不跑出歐洲的範圍
+  (function () {
+    const sv = Save.get(), c0 = sv.flags.columbus;
+    sv.flags.columbus = 1;
+    WorldMap.useWorld('eu'); Voyage.rebuild(); Encounter.clear(); Encounter.updateMap({ x: -999, y: -999 }, 0);
+    const ws = function () { return Encounter.monsters().filter(function (m) { return m.def.warship; }); };
+    const st0 = ws().map(function (m) { return { k: m.kind, x: m.x, y: m.y }; });
+    const a = EuropeWorld.project(-11, 61), b = EuropeWorld.project(30, 35);
+    let bad = 0;
+    for (let f = 0; f < 3000; f++) {
+      Encounter.updateMap({ x: -999, y: -999 }, 0);
+      if (f % 30 === 0) ws().forEach(function (m) { if (!Voyage.isNavigable(m.x, m.y) || m.x < a[0] || m.x > b[0] || m.y < a[1] || m.y > b[1]) bad++; });
+    }
+    if (bad) issues.push('戰艦開上陸地或跑出歐洲的範圍（' + bad + ' 次）');
+    const still = ws().filter(function (m) { const s = st0.filter(function (q) { return q.k === m.kind; })[0]; return s && Math.hypot(m.x - s.x, m.y - s.y) < 3; });
+    if (still.length > 1) issues.push('戰艦沒有在地圖上亂繞（' + still.length + ' 艘一直停在原地）');
+    sv.flags.columbus = c0; Encounter.clear();
+  })();
+
   // D) 動物大遷徙
   (function () {
     const m = { kind: 'herd', def: Encounter.KINDS.herd, x: 0, y: 0 };

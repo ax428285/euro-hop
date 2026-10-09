@@ -195,7 +195,38 @@ const Expedition = (function () {
       else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
       return d < 26 && Voyage.mode() === 'land';
     }
+    if (m.def.warship) wander(m);
     return d < 34;
+  }
+
+  /*
+   * v1.31.7 玩家：戰艦改成會在地圖上亂繞，閒晃的範圍限縮在歐洲國家附近。
+   * 每帧往目前的方向開一點點、方向慢慢偏；下一步不是海、跑出歐洲的範圍（WANDER_BOX）、
+   * 離陸地太遠（開到大西洋中間）或撞進北歐結界，就掉頭換個方向。
+   */
+  const WANDER_SPEED = 0.22, WANDER_COAST = 90;
+  let wanderBox = null;
+  function nearCoast(x, y) {
+    for (let k = 0; k < 12; k++) {
+      const a = k * Math.PI / 6;
+      for (let r = 20; r <= WANDER_COAST; r += 35) if (Voyage.isLand(x + Math.cos(a) * r, y + Math.sin(a) * r)) return true;
+    }
+    return false;
+  }
+  function wander(m) {
+    if (!wanderBox) {
+      const a = EuropeWorld.project(-11, 61), b = EuropeWorld.project(30, 35);
+      wanderBox = { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
+    }
+    if (!m.wandered) { m.wandered = true; m.heading = Math.random() * Math.PI * 2; }   // 每艘一開始往不同方向
+    m.heading += (Math.random() - 0.5) * 0.06;
+    const nx = m.x + Math.cos(m.heading) * WANDER_SPEED, ny = m.y + Math.sin(m.heading) * WANDER_SPEED;
+    const b = wanderBox;
+    const ok = nx > b.x0 && nx < b.x1 && ny > b.y0 && ny < b.y1 && Voyage.isNavigable(nx, ny) &&
+      !(typeof Quests !== 'undefined' && Quests.blocked && Quests.blocked(nx, ny)) &&
+      (Math.floor(nx / 6) === Math.floor(m.x / 6) && Math.floor(ny / 6) === Math.floor(m.y / 6) ? true : nearCoast(nx, ny));
+    if (ok) { m.x = nx; m.y = ny; }
+    else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
   }
 
   /** 地圖上的戰艦：三桅帆船＋該國國旗＋名牌（打沉過的牌子變灰） */
