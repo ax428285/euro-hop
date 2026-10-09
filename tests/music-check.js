@@ -8,7 +8,7 @@
  */
 function runMusicCheck() {
   const issues = [];
-  const keys = Levels.list.map(function (lv) { return lv.id; }).concat(['MAP', 'BATTLE']);
+  const keys = Levels.list.map(function (lv) { return lv.id; }).concat(['MAP', 'AMMAP', 'SEAMAP', 'BATTLE']);
   const report = {};
   keys.forEach(function (k) {
     if (!Music.tracks[k]) { issues.push(k + '：沒有曲子'); return; }

@@ -148,6 +148,24 @@ const Shop = (function () {
   });
 
   /*
+   * v1.31.3 玩家：人魚時裝再幫我多弄幾套 → Thalassa 自己的衣服（珊瑚貝殼屋買，買了她就換上；再按一次 = 換回貝殼上衣）。
+   * 0 號是原本的白貝殼上衣（不用買）。旗標 merOutfit = 現在穿第幾套。變成人類之後，洋裝也換成同一套的顏色。畫法在 pet.js、quests.js。
+   */
+  const MER_OUTFITS = [
+    { id: 'shell',  name: '白貝殼上衣',   main: '#eef2f6', accent: '#c8d0dc', dress: '#f6f8fc', trim: '#9ab8d8' },
+    { id: 'pearl',  name: '珍珠小可愛',   main: '#fbf8f2', accent: '#ffffff', dress: '#fbf8f2', trim: '#e8dcc0', cost: 900 },
+    { id: 'coral',  name: '珊瑚紅露肩上衣', main: '#ff6f61', accent: '#ffb0a0', dress: '#ff8a7a', trim: '#ffe0d0', cost: 1000 },
+    { id: 'star',   name: '星空藍上衣',   main: '#2a3a7a', accent: '#fff6c0', dress: '#34488e', trim: '#fff6c0', cost: 1200 },
+    { id: 'sailor', name: '水手服',       main: '#fbfcfe', accent: '#1e2e6a', dress: '#fbfcfe', trim: '#1e2e6a', cost: 1200 },
+    { id: 'aurora', name: '極光漸層上衣', main: '#d88ae8', accent: '#7ae0e0', dress: '#c89ae8', trim: '#7ae0e0', cost: 1500 }
+  ];
+  MER_OUTFITS.forEach(function (o, k) {
+    if (!k) return;
+    items.push({ id: 'mer_' + o.id, mer: k, name: 'Thalassa：' + o.name, icon: 'mer_' + o.id, desc: '給人魚 Thalassa 的衣服（她會換上）',
+                 kind: 'look', maxLevel: 1, cost: [o.cost], shop: 'shellHouse' });
+  });
+
+  /*
    * 賣家（v1.22 玩家要求：地圖放神祕商人，某些東西要去那邊買）。
    * 葡萄牙商店（地圖上的葡萄牙、按 B）只剩愛心；其他四樣分給三位藏在地圖角落的神祕商人，
    * 要開船／走路去找。位置在 worldmap.js 的 MERCHANTS（經緯度）。
@@ -204,6 +222,7 @@ const Shop = (function () {
     Save.spendCoins(p);
     if (byId[id].costume) Save.addCostume(byId[id].costume);     // 時裝：買了就穿上
     else Save.addUpgrade(id);
+    if (byId[id].mer) Save.setFlag('merOutfit', byId[id].mer);   // Thalassa 的衣服：買了她就換上
     return true;
   }
 
@@ -243,6 +262,7 @@ const Shop = (function () {
     levelOf: levelOf,
     blockedOf: blockedOf,
     /** 黃金獵犬戴著哪些配件（寵物用品店買的；v1.31.2 脫下來的不算 —— 旗標 dogOff_<配件>） */
+    MER_OUTFITS: MER_OUTFITS,
     dogAccs: function () {
       return items.filter(function (it) { return it.acc && Save.upgradeLevel(it.id) > 0 && !Save.flag('dogOff_' + it.acc); }).map(function (it) { return it.acc; });
     },
@@ -251,6 +271,7 @@ const Shop = (function () {
       const it = byId[id];
       if (!it) return false;
       if (it.costume) return Save.get().costume === it.costume;
+      if (it.mer) return (Save.flag('merOutfit') || 0) === it.mer;
       if (it.acc) return Save.upgradeLevel(it.id) > 0 && !Save.flag('dogOff_' + it.acc);
       return false;
     },
@@ -264,6 +285,11 @@ const Shop = (function () {
       if (it.costume) {
         const on = Save.get().costume === it.costume;
         Save.wearCostume(on ? null : it.costume);
+        return on ? 'off' : 'on';
+      }
+      if (it.mer) {
+        const on = (Save.flag('merOutfit') || 0) === it.mer;
+        Save.setFlag('merOutfit', on ? 0 : it.mer);
         return on ? 'off' : 'on';
       }
       if (it.acc) {

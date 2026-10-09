@@ -902,7 +902,47 @@ const Quests = (function () {
       ctx.fillStyle = '#ffe2a0'; ctx.fillRect(lx - 3.4, ly + 1, 6.8, 9);
       ctx.strokeStyle = '#4a3a24'; ctx.lineWidth = 0.8; ctx.strokeRect(lx - 3.4, ly + 1, 6.8, 9);
       ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(lx, ly + 6, 1.2, 2, 0, 0, Math.PI * 2); ctx.fill();
-      if (!human) {
+      const of = typeof Pet !== 'undefined' && Pet.merOutfit ? Pet.merOutfit() : { id: 'shell', dress: '#f6f8fc', trim: '#9ab8d8' };
+      if (!human && of.id !== 'shell') {
+        // v1.31.3 Thalassa 自己的衣服（珊瑚貝殼屋買的）
+        const top = of.id === 'sailor' ? 22 : of.id === 'coral' ? 30 : 34;
+        if (of.id === 'aurora') {
+          const ag = ctx.createLinearGradient(-22, 0, 22, 0);
+          ag.addColorStop(0, '#f28ac0'); ag.addColorStop(0.5, '#b88ae8'); ag.addColorStop(1, '#7ae0e0');
+          ctx.fillStyle = ag;
+        } else ctx.fillStyle = of.main;
+        ctx.beginPath(); ctx.moveTo(-23, top + 2); ctx.quadraticCurveTo(0, top - 3, 23, top + 2); ctx.lineTo(22, 56); ctx.lineTo(-22, 56); ctx.closePath(); ctx.fill();
+        if (of.id === 'pearl') {
+          // 一串串垂下來的珍珠
+          ctx.fillStyle = '#ffffff';
+          for (let r = 0; r < 3; r++) for (let k = 0; k < 9; k++) {
+            const x = -18 + k * 4.5, y = top + 4 + r * 6 + Math.sin(k * 0.7) * 1.5;
+            ctx.beginPath(); ctx.arc(x, y, 1.3, 0, Math.PI * 2); ctx.fill();
+          }
+        } else if (of.id === 'coral') {
+          // 露肩的荷葉邊
+          ctx.fillStyle = of.accent;
+          for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(-21 + k * 6, top + 2, 3.4, Math.PI, 0); ctx.fill(); }
+        } else if (of.id === 'star') {
+          ctx.fillStyle = of.accent;
+          [[-14, 42], [-4, 48], [8, 40], [16, 50], [-10, 53], [2, 44]].forEach(function (q, k) {
+            const s2 = 0.8 + Math.abs(Math.sin(t * 0.12 + k)) * 1.6;
+            ctx.fillRect(q[0] - s2, q[1] - 0.4, s2 * 2, 0.8); ctx.fillRect(q[0] - 0.4, q[1] - s2, 0.8, s2 * 2);
+          });
+        } else if (of.id === 'sailor') {
+          // 深藍色的方領＋紅領巾
+          ctx.fillStyle = of.accent;
+          ctx.beginPath(); ctx.moveTo(-22, 24); ctx.lineTo(-6, 22); ctx.lineTo(0, 34); ctx.lineTo(6, 22); ctx.lineTo(22, 24); ctx.lineTo(18, 34); ctx.lineTo(0, 42); ctx.lineTo(-18, 34); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(-19, 27); ctx.lineTo(0, 39); ctx.lineTo(19, 27); ctx.stroke();
+          ctx.fillStyle = '#d83040';
+          ctx.beginPath(); ctx.moveTo(-4, 38); ctx.lineTo(4, 38); ctx.lineTo(0, 44); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(-1, 42); ctx.lineTo(-5, 52); ctx.lineTo(-2, 52); ctx.lineTo(0, 44); ctx.lineTo(2, 52); ctx.lineTo(5, 52); ctx.lineTo(1, 42); ctx.closePath(); ctx.fill();
+        } else if (of.id === 'aurora') {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          for (let k = 0; k < 5; k++) { const p = ((t * 0.4 + k * 9) % 44); ctx.fillRect(-20 + p, top + 8 + (k % 3) * 5, 3, 0.8); }
+        }
+      } else if (!human) {
         // 白色貝殼上衣（細細的珍珠肩帶）
         ctx.strokeStyle = '#f4f4f4'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(-10, 38); ctx.lineTo(-4, 18); ctx.moveTo(10, 38); ctx.lineTo(4, 18); ctx.stroke();
@@ -915,9 +955,9 @@ const Quests = (function () {
           for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(s * 10, 47); ctx.lineTo(s * 10 + k * 3.2, 39.6); ctx.stroke(); }
         });
       } else {
-        ctx.fillStyle = '#f6f8fc';
+        ctx.fillStyle = of.dress;
         ctx.beginPath(); ctx.moveTo(-23, 32); ctx.quadraticCurveTo(0, 38, 23, 32); ctx.lineTo(22, 56); ctx.lineTo(-22, 56); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#9ab8d8'; ctx.fillRect(-21, 48, 42, 2.4);
+        ctx.fillStyle = of.trim; ctx.fillRect(-21, 48, 42, 2.4);
       }
       // 臉（溫柔的瓜子臉）
       ctx.fillStyle = '#f8e2d2';

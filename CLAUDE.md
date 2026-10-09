@@ -62,6 +62,8 @@
 - v1.31.2 撒哈拉沙漠（quests.js SPOTS `Q_sahara`，expedition.js `K.sahara`、minigame `desert`）：沒有終點，待滿 `DESERT_T`（5 分鐘）綠洲才出現在前面、走進去過關。測試 `tests/sahara-check.js` 的 `runSaharaCheck`。
 - 珊瑚貝殼屋只賣雅典娜時裝（`athena`；人魚時裝 v1.31.3 拿掉了）。人魚 Thalassa 照使用者給的範例圖畫：灰棕長髮、珍珠頭飾、魚鰭耳朵、白貝殼上衣、藍銀魚尾、提燈籠（pet.js `chibiMer`、quests.js 頭像）。
 - 海底城大地圖（abyss.js `PALETTE`）是半透明的水晶感，不要用綠色。
+- 大地圖的曲子：game.js `mapTrack()`（歐洲 MAP、新大陸 AMMAP、海底城 SEAMAP，music.js）。
+- Thalassa 的衣服：shop.js `MER_OUTFITS`（商品 `mer_<id>`，珊瑚貝殼屋），旗標 `merOutfit` = 穿第幾套（0 = 白貝殼上衣）；畫在 pet.js `chibiMer` 與 quests.js 頭像。
 - v1.31.2 暗夜騎士（expedition.js `darkKnight`，`fixed`＋`knight`）：在法國國土裡走動，走路才碰得到；決鬥場是巴黎鐵塔的夜晚（`Sprites.skylines.KNT`）、沒有平台，
   魔王 pattern `'joust'`（entities.js：近 = 騎馬衝鋒、遠 = 劍氣 `makeSlash`＋`dark`；血 9）；機器人：22 件裝備打不贏、28 件全套打得贏。打贏 `Save.flag('godHand')` = 稱號「神之手」。
   測試 `tests/knight-check.js` 的 `runKnightCheck`（要先載入 traversal-bot.js）。

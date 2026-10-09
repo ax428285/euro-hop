@@ -232,7 +232,7 @@ const Game = (function () {
     if (bountyNote) { toast = bountyNote; bountyNote = null; }
     if (!toast) toast = abyssNotice();
     // 地圖有自己的曲子（從關卡回來就換曲；從商店回來則一路接著播）
-    Music.playTrack('MAP');
+    Music.playTrack(mapTrack());
     // 剛湊齊一整個洲的線索：先揭曉謎底（看完按返回就是地圖，船已經擺好了）
     if (pendingReveal) openMystery(pendingReveal, true);
     // v1.30：冥界最底下的洛基
@@ -247,11 +247,14 @@ const Game = (function () {
     const r = Levels.list[i] && Levels.list[i].region;
     return r === 'america' ? 'am' : r === 'abyss' ? 'sea' : 'eu';      // v1.31.2 海底城的四區在 'sea' 地圖
   }
+  /** 大地圖的曲子（v1.31.3）：歐洲 = 航海的 MAP、新大陸 = 卡利普索 AMMAP、海底城 = SEAMAP */
+  function mapTrack() { const w = WorldMap.world(); return w === 'sea' ? 'SEAMAP' : w === 'am' ? 'AMMAP' : 'MAP'; }
   function switchWorld(id) {
     if (WorldMap.world() !== id) lastCursor[WorldMap.world()] = cursor;
     if (!WorldMap.useWorld(id)) return false;
     Voyage.rebuild();
     Encounter.clear();          // 海上的怪是在另一張地圖上生的
+    if (mapLike(scene)) Music.playTrack(mapTrack());   // 潛進海底城／浮回海面：換曲
     return true;
   }
   /** 地圖切到第 i 關所在的那一張 */
@@ -551,7 +554,7 @@ const Game = (function () {
       if (!nowMuted && scene === 'play') {
         if (skirmish) Music.playTrack(skirmishTrack(skirmish.def)); else Music.playForLevel(levelIndex);
       }
-      if (!nowMuted && mapLike(scene)) Music.playTrack('MAP');
+      if (!nowMuted && mapLike(scene)) Music.playTrack(mapTrack());
     }
 
     /*
@@ -1598,7 +1601,10 @@ const Game = (function () {
       if (price == null && it.kind === 'look') {
         // v1.31.2 玩家：時裝、狗狗配件要可以脫下來 → 已經有的再按一次 = 穿上／脫下
         const r = Shop.toggleWear(it.id);
-        shopMsg = it.costume
+        shopMsg = it.mer
+          ? (r === 'off' ? { text: 'Thalassa 換回白貝殼上衣', color: '#c6d2e8', life: 130 }
+                         : { text: 'Thalassa 換上了' + it.name.replace('Thalassa：', '「') + '」！', color: '#8fe3a0', life: 130 })
+          : it.costume
           ? (r === 'off' ? { text: '脫下「' + it.name + '」，換回條紋衫', color: '#c6d2e8', life: 130 }
                          : { text: '換上「' + it.name + '」！', color: '#8fe3a0', life: 130 })
           : (r === 'off' ? { text: '幫狗狗拿下' + it.name, color: '#c6d2e8', life: 130 }
@@ -1622,7 +1628,8 @@ const Game = (function () {
         shopBonus = Shop.resolve();
         stats = Equipment.resolve(Save.wornIds());
         maxLives = stats.maxLives;
-        shopMsg = { text: it.costume ? '買下「' + it.name + '」，已經穿上了！（按 I 可以換）'
+        shopMsg = { text: it.mer ? 'Thalassa 換上了' + it.name.replace('Thalassa：', '「') + '」！（再按一次可以換回貝殼上衣）'
+                        : it.costume ? '買下「' + it.name + '」，已經穿上了！（按 I 可以換）'
                         : it.acc ? '狗狗戴上了' + it.name + '！'
                         : it.name + ' 升級了！', color: '#8fe3a0', life: 150 };
         Sfx.equip();
@@ -3734,6 +3741,8 @@ const Game = (function () {
     [['裝備 ' + cn(sv.equipment.length, Equipment.count), sv.equipment.length >= Equipment.count],
      ['紀念品 ' + cn(sv.souvenirs.length, Souvenirs.count), sv.souvenirs.length >= Souvenirs.count],
      ['時裝 ' + cn(sv.costumes.length, Costumes.count), sv.costumes.length >= Costumes.count],
+     ['人魚的衣服 ' + cn(Pet.MER_OUTFITS.filter(function (o, k) { return k && Save.upgradeLevel('mer_' + o.id) > 0; }).length, Pet.MER_OUTFITS.length - 1),
+      Pet.MER_OUTFITS.every(function (o, k) { return !k || Save.upgradeLevel('mer_' + o.id) > 0; })],
      ['沉船寶物 ' + cn(sv.relics.length, Encounter.RELICS.length), sv.relics.length >= Encounter.RELICS.length],
      ['密道 ' + cn(sv.secrets.length, Levels.list.reduce(function (n, l) { return n + (l.secrets || []).length; }, 0)),
       sv.secrets.length >= Levels.list.reduce(function (n, l) { return n + (l.secrets || []).length; }, 0)]
@@ -4790,7 +4799,7 @@ const Game = (function () {
       case 'welcome':
         scene = 'netwait';
         state = null;
-        Music.playTrack('MAP');
+        Music.playTrack(mapTrack());
         break;
       case 'start': netApply(msg, true); break;
       case 's': if (state) netApply(msg, false); break;
@@ -4800,7 +4809,7 @@ const Game = (function () {
           // 房主離開關卡了：朋友回到等待畫面（剛湊齊線索的話先揭曉謎底）
           state = null;
           net.guestData = null;
-          Music.playTrack('MAP');
+          Music.playTrack(mapTrack());
           if (pendingReveal) openMystery(pendingReveal, true); else scene = 'netwait';
         }
         break;

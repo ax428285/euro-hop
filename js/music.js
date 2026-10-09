@@ -344,6 +344,39 @@ const Music = (function () {
       drum:   [0.5, 0, 0, 0, 0, 0, 0.5, 0, 0.5, 0, 0, 0, 0, 0, 0, 0],
       soft: true
     },
+    /*
+     * v1.31.3 海底城的大地圖（玩家：海底大地圖要換音樂）：慢慢的 3 拍子搖籃曲，C 大調加上七級音，
+     * 正弦波像玻璃風鈴、像水晶互相輕輕碰到；旋律大多是往上、往下的分解和弦，像氣泡一顆一顆往上冒。
+     * 鼓幾乎沒有（只有每小節開頭輕輕一下），跟歐洲地圖的水手歌、潛水關的鐘聲都分得出來。
+     */
+    /*
+     * v1.31.3 新大陸的大地圖（玩家：新大陸大地圖沒有音樂）：加勒比海的卡利普索，G 大調、切分的鼓點，
+     * 三角波像鋼鼓；跟歐洲地圖的水手歌分得出來 —— 一開過大西洋就換曲。
+     */
+    AMMAP: {
+      bpm: 112, wave: 'triangle',
+      root: -5,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      bass: [0, 0, 3, 3, 4, 4, 0, 0, 5, 5, 3, 3, 4, 4, 0, 0],
+      melody: [4, null, 4, 5, null, 7, null, 5, 4, null, 2, null, 0, null, null, null,
+               3, null, 3, 4, null, 5, null, 4, 3, null, 1, null, 4, null, null, null,
+               7, null, 7, 9, null, 7, 5, null, 4, 5, null, 4, 2, null, 0, null,
+               2, null, 4, 5, null, 4, 2, null, 1, null, 2, 1, 0, null, null, null],
+      drum:   [1, 0, 0, 0.5, 0, 0.5, 1, 0, 1, 0, 0, 0.5, 0, 0.5, 1, 0],
+      soft: true
+    },
+    SEAMAP: {
+      bpm: 72, wave: 'sine',
+      root: 0,
+      scale: [0, 2, 4, 5, 7, 9, 11],
+      bass: [0, 0, 5, 5, 3, 3, 4, 4, 0, 0, 5, 5, 1, 1, 4, 4],
+      melody: [7, null, 9, 11, null, 9, 7, null, 4, null, 2, 4, null, null, null, null,
+               5, null, 7, 9, null, 7, 5, null, 2, null, 4, 5, 4, null, null, null,
+               9, null, 11, 12, null, 11, 9, null, 7, 9, null, 7, 6, null, 4, null,
+               5, null, 4, 2, null, 1, 2, null, 4, null, 2, 1, 0, null, null, null],
+      drum:   [0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      soft: true
+    },
     // 匈牙利：查爾達什（吉普賽小調，增二度），先慢後快的感覺用跳音表現
     HU: {
       bpm: 140, wave: 'sawtooth',
@@ -749,6 +782,8 @@ const Music = (function () {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // v1.31.3：還沒有聲音（第一次按鍵之前）就叫過 playTrack 的那首，現在補播（不然一讀檔就停在地圖上會一直沒音樂）
+    if (currentKey && !timer && !muted) { const k = currentKey; currentKey = null; playTrack(k); }
   }
 
   /** 排一個音符。send = 也送進迴聲 */

@@ -233,8 +233,21 @@ function runAbyssCheck() {
     const items = Shop.itemsOf('shellHouse');
     if (!items.some(function (it) { return it.costume === 'athena'; })) issues.push('珊瑚貝殼屋沒有賣雅典娜時裝');
     if (Costumes.get('mermaid')) issues.push('人魚時裝應該拿掉了（v1.31.3）');
+    // v1.31.3 Thalassa 的衣服：買了她就換上，再按一次換回貝殼上衣
+    const mers = items.filter(function (it) { return it.mer; });
+    if (mers.length < 4) issues.push('珊瑚貝殼屋的人魚衣服太少（' + mers.length + ' 套）');
+    {
+      const w1 = sv.wallet, f1 = sv.flags.merOutfit || 0, up = JSON.stringify(sv.upgrades);
+      sv.wallet = 99999;
+      const it = mers[0];
+      if (!Shop.buy(it.id) || Pet.merOutfit().id === 'shell') issues.push('買了人魚的衣服她沒有換上');
+      if (Shop.toggleWear(it.id) !== 'off' || Pet.merOutfit().id !== 'shell') issues.push('人魚的衣服脫不下來（換不回貝殼上衣）');
+      try { const c = document.createElement('canvas').getContext('2d'); mers.forEach(function (m) { sv.flags.merOutfit = m.mer; Quests.portrait(c, 'mermaid', 50, 50, 0); Quests.portrait(c, 'thalassa', 50, 50, 0); Pet.drawMermaid(c, 50, 50, 0, 1, true); Sprites.icon(c, m.icon, 50, 50, 1); }); }
+      catch (e) { issues.push('人魚的衣服畫不出來：' + e.message); }
+      sv.wallet = w1; sv.flags.merOutfit = f1; sv.upgrades = JSON.parse(up);
+    }
     items.forEach(function (it) {
-      if (!Costumes.get(it.costume)) issues.push('珊瑚貝殼屋賣的 ' + it.name + ' 不是時裝');
+      if (!it.mer && !Costumes.get(it.costume)) issues.push('珊瑚貝殼屋賣的 ' + it.name + ' 不是時裝');
       if (!Sprites.icons[it.icon]) issues.push('珊瑚貝殼屋的 ' + it.name + ' 沒有圖示');
     });
     const w0 = sv.wallet, cos0 = sv.costumes.slice(), c0 = sv.costume;

@@ -120,7 +120,18 @@ const Pet = (function () {
    * 大頭、粉紅色波浪長髮（髮尾帶紫）、藍色大眼睛、黃色海星髮飾、粉紅貝殼上衣、青綠色魚尾巴。
    * human = 變成人類的 Thalassa（尾巴換成粉紅白色小洋裝和兩隻腳，step = 走路的步伐）。
    */
-  function chibiMer(ctx, t, human, step) {
+  /*
+   * v1.31.3 玩家：人魚時裝再幫我多弄幾套 → Thalassa 自己的衣服（珊瑚貝殼屋買，買了她就換上；再按一次 = 換回貝殼上衣）。
+   * 0 號是原本的白貝殼上衣（不用買）。旗標 merOutfit = 現在穿第幾套。變成人類之後，洋裝也換成同一套的顏色。
+   */
+  const MER_OUTFITS = Shop.MER_OUTFITS;     // 清單放在 shop.js（shop.js 比 pet.js 先載入，商品要用）
+  function merOutfit() {
+    const k = typeof Save !== 'undefined' ? (Save.flag('merOutfit') || 0) : 0;
+    return MER_OUTFITS[k] || MER_OUTFITS[0];
+  }
+
+  function chibiMer(ctx, t, human, step, outfitOverride) {
+    const of = outfitOverride || merOutfit();
     /*
      * v1.31.3 玩家給的範例圖：一頭及腰的灰棕色長髮、珍珠頭飾、耳朵是白色的小魚鰭、白色貝殼上衣、
      * 藍銀色的魚尾巴配半透明的大尾鰭，手上提著一盞發橘光的燈籠（變成人類之後也還提著）。
@@ -150,15 +161,24 @@ const Pet = (function () {
       ctx.strokeStyle = '#f6dccb'; ctx.lineWidth = 1.4;
       ctx.beginPath(); ctx.moveTo(-1.2, -5); ctx.lineTo(-1.2 + sw, -0.6); ctx.moveTo(1.4, -5); ctx.lineTo(1.4 - sw, -0.6); ctx.stroke();
       ctx.fillStyle = '#c8d8e8'; ctx.fillRect(-2.2 + sw, -1, 2.2, 1.1); ctx.fillRect(0.4 - sw, -1, 2.2, 1.1);
-      ctx.fillStyle = '#f4f6fa';
+      ctx.fillStyle = of.dress;
       ctx.beginPath(); ctx.moveTo(-2.8, -11); ctx.lineTo(2.8, -11); ctx.lineTo(4.6, -4.4); ctx.lineTo(-4.6, -4.4); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#9ab8d8'; ctx.fillRect(-4.6, -5, 9.2, 0.8); ctx.fillRect(-2.8, -9.4, 5.6, 0.8);
+      ctx.fillStyle = of.trim; ctx.fillRect(-4.6, -5, 9.2, 0.8); ctx.fillRect(-2.8, -9.4, 5.6, 0.8);
     }
     // 身體＋白色貝殼上衣
     ctx.fillStyle = '#f6dccb'; ctx.fillRect(-2.4, -11.5, 4.8, human ? 1.8 : 4);
     if (!human) {
-      ctx.fillStyle = '#eef2f6';
-      ctx.beginPath(); ctx.arc(-1.2, -9.4, 1.3, Math.PI, 0); ctx.arc(1.2, -9.4, 1.3, Math.PI, 0); ctx.fill();
+      if (of.id === 'shell') {
+        ctx.fillStyle = of.main;
+        ctx.beginPath(); ctx.arc(-1.2, -9.4, 1.3, Math.PI, 0); ctx.arc(1.2, -9.4, 1.3, Math.PI, 0); ctx.fill();
+      } else {
+        // 其他衣服：一件包住上半身的小上衣（水手服多一條領子、星空多一點星光）
+        ctx.fillStyle = of.main; ctx.fillRect(-2.7, -11.4, 5.4, of.id === 'sailor' ? 4 : 3);
+        ctx.fillStyle = of.accent;
+        if (of.id === 'sailor') { ctx.beginPath(); ctx.moveTo(-2.7, -11.4); ctx.lineTo(2.7, -11.4); ctx.lineTo(0, -9.6); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#d83040'; ctx.fillRect(-0.5, -9.8, 1, 1); }
+        else if (of.id === 'star') { if (Math.sin(t * 0.2) > 0) ctx.fillRect(-1.6, -10.6, 0.6, 0.6); ctx.fillRect(1, -9.6, 0.6, 0.6); }
+        else ctx.fillRect(-2.7, -8.8, 5.4, 0.6);
+      }
     }
     // 伸出去的手提著一盞燈籠（橘光）
     const lx = 6.2, ly = -9.4 + Math.sin(t * 0.07) * 0.4;
@@ -313,6 +333,13 @@ const Pet = (function () {
     ctx.restore();
   }
 
+  // v1.31.3 Thalassa 衣服的商品圖示（shop.js 的 mer_*）
+  if (typeof Sprites !== 'undefined') {
+    MER_OUTFITS.forEach(function (o, k) {
+      if (k) Sprites.icons['mer_' + o.id] = function (ctx, s) { ctx.save(); ctx.scale(s * 2.4, s * 2.4); ctx.translate(1, 10); chibiMer(ctx, 0, false, 0, o); ctx.restore(); };
+    });
+  }
+
   // 寵物用品店的商品圖示：坐著的狗只戴那一樣（Sprites.icon 的格式：原點在中心、s = 縮放）
   if (typeof Sprites !== 'undefined') {
     ['bandana', 'shades', 'sombrero', 'cape'].forEach(function (k) {
@@ -354,6 +381,14 @@ const Pet = (function () {
     mermaidOn: mermaidOn,
     mermaid: mer,
     drawMermaid: drawMermaid,
+    MER_OUTFITS: MER_OUTFITS,
+    merOutfit: merOutfit,
+    /** 衣服的商品圖示：小人魚穿那一套（Sprites.icon 的格式：原點在中心、s = 縮放） */
+    drawOutfitIcon: function (ctx, s, k) {
+      ctx.save(); ctx.scale(s * 2.4, s * 2.4); ctx.translate(1, 10);
+      chibiMer(ctx, 0, false, 0, MER_OUTFITS[k]);
+      ctx.restore();
+    },
     drawThalassa: drawThalassa,
     spotPin: spotPin,
     update: update,
