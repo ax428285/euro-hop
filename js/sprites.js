@@ -1581,15 +1581,27 @@ const Sprites = (function () {
       ctx.fillStyle = '#2a50a0'; ctx.fillRect(cx - 10, y + 15, 20, 2);
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
     } else if (c === 'mermaid') {
-      // 人魚：粉紫色的貝殼上衣，下半身是青綠色、有鱗片的魚尾裙，裙襬像尾鰭一樣張開
-      ctx.fillStyle = '#2a9a90'; ctx.fillRect(cx - 10, y + 22, 20, 14);
-      ctx.beginPath(); ctx.moveTo(cx - 10, y + 34); ctx.lineTo(cx - 15, y + 41); ctx.lineTo(cx, y + 37); ctx.lineTo(cx + 15, y + 41); ctx.lineTo(cx + 10, y + 34); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(160, 240, 230, 0.75)';
-      for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(cx - 7 + k * 5 + (r % 2) * 2, y + 25 + r * 4, 1.6, 0, Math.PI); ctx.fill(); }
-      ctx.fillStyle = '#f0d0b8'; ctx.fillRect(cx - 9, y + 12, 18, 10);
-      ctx.fillStyle = '#e88ac8';
-      ctx.beginPath(); ctx.arc(cx - 4, y + 16, 4, Math.PI, 0); ctx.arc(cx + 4, y + 16, 4, Math.PI, 0); ctx.fill();
-      ctx.fillRect(cx - 9, y + 16, 18, 2);
+      /*
+       * 人魚（v1.31.2 玩家：時裝也要超辣）：露肩露腰，兩片粉紅扇貝＋珍珠串的上衣，
+       * 低腰、貼身的魚尾裙（青綠漸層、一片片閃亮的鱗片、側邊開衩的尾鰭），腰上一圈珍珠，整條裙子一直在閃。
+       */
+      ctx.fillStyle = '#f2d2bc'; ctx.fillRect(cx - 9, y + 12, 18, 13);                 // 露肩露腰
+      const tg = ctx.createLinearGradient(cx, y + 24, cx, y + 40);
+      tg.addColorStop(0, '#36d0c0'); tg.addColorStop(1, '#1a6a9a');
+      ctx.fillStyle = tg;
+      ctx.beginPath(); ctx.moveTo(cx - 9, y + 24); ctx.lineTo(cx + 9, y + 24); ctx.lineTo(cx + 6, y + 36); ctx.lineTo(cx - 6, y + 36); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx - 6, y + 35); ctx.lineTo(cx - 16, y + 42); ctx.lineTo(cx - 2, y + 39); ctx.lineTo(cx, y + 36);
+      ctx.lineTo(cx + 2, y + 39); ctx.lineTo(cx + 16, y + 42); ctx.lineTo(cx + 6, y + 35); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(200, 255, 245, 0.8)';
+      for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(cx - 5 + k * 5 + (r % 2) * 2, y + 27 + r * 3, 1.4, 0, Math.PI); ctx.fill(); }
+      const gl = (t % 70) / 70;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx.fillRect(cx - 8 + gl * 14, y + 25, 1.4, 10);
+      ctx.fillStyle = '#fff8f0';
+      for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.arc(cx - 7.5 + k * 3, y + 24, 1.1, 0, Math.PI * 2); ctx.fill(); }       // 腰上的珍珠
+      ctx.fillStyle = '#e86aa8';
+      [-1, 1].forEach(function (s) { ctx.beginPath(); ctx.moveTo(cx + s * 1, y + 19); ctx.lineTo(cx + s * 8, y + 15); ctx.quadraticCurveTo(cx + s * 5, y + 13, cx + s * 1, y + 15.5); ctx.closePath(); ctx.fill(); });
+      ctx.fillStyle = '#fff8f0';
+      for (let k = 0; k < 5; k++) ctx.fillRect(cx - 4 + k * 2, y + 13 + Math.abs(k - 2) * -0.4, 1, 1);
     } else if (c === 'poseidon') {
       // 海神：白色長袍斜披一條金邊
       ctx.fillStyle = '#f4f0e6'; ctx.fillRect(cx - 10, y + 12, 20, 26);
@@ -1642,9 +1654,12 @@ const Sprites = (function () {
       ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
       ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
     } else if (c === 'mermaid') {
-      // 人魚：青綠色的瀏海＋頭上一顆橘色海星髮夾
-      ctx.fillStyle = '#2ab0a0';
+      // 人魚：青綠色的斜瀏海＋頭上一顆橘色海星髮夾、一朵粉紅花，紅唇
+      ctx.fillStyle = '#26c4b4';
       ctx.beginPath(); ctx.arc(cx, y + 4, 9.5, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx - 9, y + 3); ctx.quadraticCurveTo(cx - dir * 2, y + 6, cx + dir * 6, y - 3); ctx.lineTo(cx, y - 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ff7ab0'; ctx.beginPath(); ctx.arc(cx - dir * 7, y - 3, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d8203a'; ctx.fillRect(cx + dir * 4 - 1, y + 9, 2.4, 1.2);
       ctx.fillStyle = '#f2a040';
       for (let i = 0; i < 5; i++) {
         const a = -Math.PI / 2 + i * Math.PI * 2 / 5, sx = cx + dir * 5, sy = y - 4;

@@ -113,13 +113,19 @@ const Pet = (function () {
     // 尾巴（往後甩）
     ctx.fillStyle = '#2ab0a0';
     ctx.beginPath(); ctx.moveTo(2, -6); ctx.quadraticCurveTo(-4, -2, -9, -3 + wag); ctx.lineTo(-13, -7 + wag); ctx.lineTo(-12, 0 + wag); ctx.quadraticCurveTo(-4, 2, 2, -2); ctx.fill();
-    // 上半身、頭、頭髮
-    ctx.fillStyle = '#e88ac8'; ctx.fillRect(0, -10, 5, 4);
-    ctx.fillStyle = '#f0d0b8'; ctx.beginPath(); ctx.arc(3, -13, 3.4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#3ad0c0';
+    // 上半身（露肩＋貝殼上衣）、頭、往後飄的一大把長髮、紅唇（v1.31.2 辣一點）
+    ctx.fillStyle = '#26c4b4';
+    ctx.beginPath(); ctx.moveTo(1, -16); ctx.quadraticCurveTo(-8, -14 + wag * 0.6, -10, -6 + wag); ctx.lineTo(-5, -7); ctx.quadraticCurveTo(-2, -10, 1, -10); ctx.fill();
+    ctx.fillStyle = '#f2d2bc'; ctx.fillRect(0, -10, 5, 5);
+    ctx.fillStyle = '#e86aa8'; ctx.beginPath(); ctx.arc(1.6, -7.6, 1.6, 0, Math.PI * 2); ctx.arc(4.2, -7.6, 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2d2bc'; ctx.beginPath(); ctx.arc(3, -13, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#26c4b4';
     ctx.beginPath(); ctx.arc(2.5, -14, 3.8, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
-    ctx.fillRect(-1.5, -14, 2.4, 8);
     ctx.fillStyle = '#16161c'; ctx.fillRect(4.6, -13.6, 1, 1);
+    ctx.fillStyle = '#d8203a'; ctx.fillRect(5, -11.4, 1.6, 0.9);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    const sp = 0.8 + Math.abs(Math.sin(t * 0.15)) * 1.6;
+    ctx.fillRect(8 - sp, -18, sp * 2, 0.8); ctx.fillRect(7.6, -18.4 - sp, 0.8, sp * 2);
     ctx.restore();
   }
 

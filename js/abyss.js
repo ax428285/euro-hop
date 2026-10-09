@@ -573,6 +573,7 @@ const Abyss = (function () {
    * 解開過一次之後，再潛下來大門就是開著的（踩到底照舊直接過關）。
    */
   const SYMS = ['shell', 'star', 'trident'];
+  const SYM_NAME = { shell: '貝殼', star: '海星', trident: '三叉戟' };
   const NUMS = ['I', 'II', 'III'];
   function makeRiddle(def) {
     const gf = (def.shaftFloors || []).filter(function (f) { return f.goal; })[0];
@@ -599,6 +600,12 @@ const Abyss = (function () {
   function updateRiddle(state, p, onGoal, events) {
     const r = state.riddle;
     if (r.wrongT > 0) r.wrongT--;
+    // v1.31.2 玩家：三個踩的機關不是很明顯 → 往下潛時每經過一幅壁畫就提示一次（記下來，到底下要用）
+    if (!r.solved) {
+      r.murals.forEach(function (m) {
+        if (!m.seen && p.y + p.h > m.y && p.y < m.y + 140) { m.seen = true; events.push('riddle:mural:' + m.n); }
+      });
+    }
     if (r.solved && !r.done) return onGoal;
     if (r.cool > 0 && --r.cool === 0) { r.pressed = []; r.plates.forEach(function (q) { q.down = false; }); }
     if (onGoal && !r.arrived) { r.arrived = true; events.push('riddle:start'); }
@@ -696,6 +703,22 @@ const Abyss = (function () {
       return;
     }
     if (!vis(r.door.y)) return;
+    // 還沒解開：每塊石板上方一個上下跳的金色箭頭＋「踩」字（踩下去的就不畫了）
+    if (!r.solved) {
+      r.plates.forEach(function (q, k) {
+        if (q.down) return;
+        const bob = Math.abs(Math.sin(t * 0.12 + k)) * 8;
+        const ax = q.x + q.w / 2, ay = q.y - 74 - bob;
+        ctx.fillStyle = 'rgba(255, 209, 102, ' + (0.75 + Math.sin(t * 0.2 + k) * 0.25).toFixed(2) + ')';
+        ctx.beginPath(); ctx.moveTo(ax - 12, ay); ctx.lineTo(ax + 12, ay); ctx.lineTo(ax, ay + 16); ctx.closePath(); ctx.fill();
+        ctx.fillRect(ax - 4, ay - 14, 8, 14);
+        U.text(ctx, '踩', ax, ay - 24, { size: 14, weight: 800, color: '#ffd166', strokeWidth: 3 });
+        // 石板外圈一直閃
+        ctx.strokeStyle = 'rgba(255, 220, 120, ' + (0.45 + Math.sin(t * 0.15 + k) * 0.35).toFixed(2) + ')'; ctx.lineWidth = 2.5;
+        U.roundRect(ctx, q.x - 4, q.y - 11, q.w + 8, 15, 5); ctx.stroke();
+      });
+      U.text(ctx, '照壁畫的順序踩石板　I → II → III', r.door.x, r.door.y - 230, { size: 15, weight: 800, color: '#ffe9a8', strokeWidth: 4 });
+    }
     // 石板
     r.plates.forEach(function (q) {
       const down = q.down || r.solved;
@@ -716,7 +739,7 @@ const Abyss = (function () {
   }
 
   return {
-    makeRiddle: makeRiddle, updateRiddle: updateRiddle, drawRiddle: drawRiddle, symbol: symbol,
+    makeRiddle: makeRiddle, updateRiddle: updateRiddle, drawRiddle: drawRiddle, symbol: symbol, SYM_NAME: SYM_NAME, RIDDLE_NUMS: NUMS,
     SPOTS: SPOTS, REGIONS: REGIONS, SEAS: SEAS, PALETTE: PALETTE,
     drawMapBack: drawMapBack, drawMapDistricts: drawMapDistricts, drawSurface: drawSurface, drawBell: drawBell
   };

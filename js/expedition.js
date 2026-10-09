@@ -12,6 +12,10 @@
  *                    動物從右邊一隻隻跑過來：跳到背上就抓到，被撞到會痛。40 秒內至少抓 3 隻，送進阿爾及爾動物園。
  *   冥界 hel         卡律布狄斯「漩渦逃生」把命用完（還沒找到洛基時）就沉到這裡：往下掉的豎井關，最底下是洛基。
  *   金字塔 pyramid   吉薩：往下走的豎井關（崩落的石磚、滑動的石台），最底下是法老的墓室：第一次拿到「法老」時裝。
+ *   暗夜騎士 darkKnight（v1.31.2 玩家：法國放一隻會走動的暗夜騎士，難度很高，沒全裝備難打贏，打贏給稱號「神之手」）
+ *                    法國境內走來走去的黑騎士（走路碰到按 Enter）。決鬥場是夜晚的古堡廣場：
+ *                    魔王行為用 slam（連跳落地＋兩側劍氣震波），但血 9 格、會追人、狂暴後連跳三下還會掉黑色的魔彈，
+ *                    破綻期很短 —— 要有遠程攻擊、大蒜（破綻拉長）、多幾顆愛心才打得贏。第一次打倒拿到稱號「神之手」（flag godHand）。
  */
 const Expedition = (function () {
   const K = Encounter.KINDS;
@@ -69,6 +73,10 @@ const Expedition = (function () {
   K.pyramid = { name: '失落的金字塔', lv: '遺跡', exp: 80, bossExp: 180, bossCoins: 0, game: '金字塔探險', custom: true, quest: true,
                 goal: '往下走到法老的墓室！小心崩落的天花板和滑動的石台', clearTitle: '找到法老的墓室了！' };
 
+  K.darkKnight = { name: '暗夜騎士', lv: '★★★★', exp: 150, bossExp: 400, bossCoins: 500, game: '暗夜決鬥', custom: true, fixed: true, knight: true,
+                   goal: '他會高高跳起、落地時劍氣往兩邊掃 —— 跳過劍氣，趁他落地喘氣時踩頭或丟東西打他（裝備越齊越好打）',
+                   clearTitle: '打倒了暗夜騎士！' };
+
   /** 這個小遊戲（state.def.minigame）歸這裡管嗎 */
   function has(kind) { return kind === 'warship' || kind === 'herd'; }
 
@@ -102,9 +110,41 @@ const Expedition = (function () {
     return typeof Save !== 'undefined' && Encounter.regionUnlocked('africa', Save.get().exp);
   }
 
+  // 暗夜騎士只在法國的國土裡走
+  function inPoly(x, y, pts) {
+    let ins = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+      if (((yi > y) !== (yj > y)) && x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi) ins = !ins;
+    }
+    return ins;
+  }
+  function franceShapes() {
+    const n = WorldMap.nations.filter(function (q) { return q.id === 'FR'; })[0];
+    return n ? n.shapes : [];
+  }
+  function inFrance(x, y) {
+    return franceShapes().some(function (sh) { return inPoly(x, y, sh); }) && Voyage.isLand(x, y);
+  }
+  function frPin() { const n = WorldMap.nations.filter(function (q) { return q.id === 'FR'; })[0]; return n ? n.pin : [0, 0]; }
+
   /** Encounter.updateMap 每帧呼叫：該有的戰艦、動物群不在清單上就補 */
   function ensure(monsters) {
     if (typeof Save === 'undefined' || typeof Voyage === 'undefined') return;
+    if (!monsters.some(function (m) { return m.kind === 'darkKnight'; })) {
+      const sh = franceShapes()[0];
+      if (sh) {
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        sh.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+        const pin = frPin();
+        for (let k = 0; k < 80; k++) {
+          const x = x0 + Math.random() * (x1 - x0), y = y0 + Math.random() * (y1 - y0);
+          if (!inFrance(x, y) || Math.hypot(x - pin[0], y - pin[1]) < 40) continue;
+          monsters.push({ kind: 'darkKnight', def: K.darkKnight, x: x, y: y, heading: Math.random() * Math.PI * 2, life: Infinity, appear: 1, custom: true });
+          break;
+        }
+      }
+    }
     if (Save.flag('columbus') >= 1) {
       WARSHIPS.forEach(function (w) {
         if (monsters.some(function (m) { return m.kind === w.kind; })) return;
@@ -127,6 +167,15 @@ const Expedition = (function () {
 
   /** 每帧：動物群在撒哈拉北緣慢慢走；回傳船（人）是不是夠近、可以按 Enter */
   function mapNear(m, ship, d) {
+    if (m.kind === 'darkKnight') {
+      // 在法國境內慢慢巡邏；離法國的入口圖釘遠一點（不然跟進城的 Enter 搶）
+      m.heading += (Math.random() - 0.5) * 0.08;
+      const nx = m.x + Math.cos(m.heading) * 0.18, ny = m.y + Math.sin(m.heading) * 0.18;
+      const pin = frPin();
+      if (inFrance(nx, ny) && Math.hypot(nx - pin[0], ny - pin[1]) > 34) { m.x = nx; m.y = ny; m.step = (m.step || 0) + 0.18; }
+      else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
+      return d < 24 && Voyage.mode() === 'land';
+    }
     if (m.kind === 'herd') {
       m.heading += (Math.random() - 0.5) * 0.1;
       const b = box();
@@ -141,6 +190,37 @@ const Expedition = (function () {
   /** 地圖上的戰艦：三桅帆船＋該國國旗＋名牌（打沉過的牌子變灰） */
   function drawMapMonster(ctx, m, t, near) {
     const w = m.def.warship;
+    if (m.kind === 'darkKnight') {
+      const down = Save.seaBossDown('darkKnight');
+      if (near) {
+        ctx.strokeStyle = 'rgba(255, 80, 90, 0.95)'; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.arc(0, -8, 20 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+      }
+      // 黑霧
+      ctx.fillStyle = 'rgba(40, 10, 50, ' + (0.35 + Math.sin(t * 0.08) * 0.1).toFixed(2) + ')';
+      ctx.beginPath(); ctx.ellipse(0, 1, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+      const f = Math.cos(m.heading) < 0 ? -1 : 1, st = Math.sin((m.step || 0) * 1.5) * 1.5;
+      ctx.save(); ctx.scale(f, 1);
+      // 黑馬
+      ctx.fillStyle = '#16141c';
+      ctx.fillRect(-8, -9, 14, 6);
+      ctx.fillRect(-7 + st, -3, 2, 4); ctx.fillRect(3 - st, -3, 2, 4);
+      ctx.beginPath(); ctx.moveTo(5, -9); ctx.lineTo(10, -15); ctx.lineTo(11, -11); ctx.lineTo(7, -6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8262c'; ctx.fillRect(9, -13, 1.4, 1.4);
+      // 騎士：黑盔甲、紅色羽飾、舉著劍
+      ctx.fillStyle = '#2a2a36'; ctx.fillRect(-3, -18, 6, 9);
+      ctx.beginPath(); ctx.arc(0, -20, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c8202a'; ctx.beginPath(); ctx.moveTo(-1, -23); ctx.quadraticCurveTo(-6, -27, -8, -22); ctx.lineTo(-2, -21); ctx.fill();
+      ctx.fillStyle = '#ff4a4a'; ctx.fillRect(0.5, -21, 2.4, 1);
+      ctx.strokeStyle = '#c8ccd8'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(3, -16); ctx.lineTo(8, -27); ctx.stroke();
+      ctx.restore();
+      const label = '★★★★ 暗夜騎士' + (down ? '（已擊敗）' : '');
+      ctx.fillStyle = down ? 'rgba(50, 40, 50, 0.9)' : 'rgba(60, 0, 20, 0.92)';
+      U.roundRect(ctx, -38, -44, 76, 13, 4); ctx.fill();
+      U.text(ctx, label, 0, -37.5, { size: 9, color: down ? '#c8bcb0' : '#ff9aa8', stroke: false });
+      return;
+    }
     if (m.kind === 'herd') {
       if (near) {
         ctx.strokeStyle = 'rgba(255, 220, 140, 0.95)'; ctx.lineWidth = 2.4;
@@ -240,6 +320,10 @@ const Expedition = (function () {
   }
 
   function prompt(m) {
+    if (m.kind === 'darkKnight') {
+      return Save.seaBossDown('darkKnight') ? '按 Enter 再跟暗夜騎士決鬥（+' + K.darkKnight.exp + ' EXP）'
+        : '按 Enter 挑戰暗夜騎士（★★★★ 超強！沒有全套裝備很難贏・打贏拿稱號「神之手」）';
+    }
     if (m.kind === 'herd') {
       const nm = Quests.ANIMALS[m.species || 'zebra'].name;
       return '按 Enter 去抓' + nm + '（' + K.herd.exp + ' EXP' + (Save.zoo()[m.species] ? '・動物園已經有了' : '，抓到的送進阿爾及爾動物園') + '）';
@@ -306,6 +390,32 @@ const Expedition = (function () {
   function makeDef(m) {
     if (m.def.quest) return shaftDef(m);
     const G = GY();
+    if (m.kind === 'darkKnight') {
+      const first = firstTime(m);
+      return arena(m, {
+        // 不是小遊戲（Encounter.updateSkirmish 不管）：就是一場魔王戰，打倒他就過關
+        skirmish: false, city: '月光下的古堡', id: 'KNT',
+        sky: ['#06061a', '#2a1a3a'], hill: '#14142a', cloud: 'rgba(160, 150, 200, 0.18)',
+        groundTop: '#5a5a6a', groundBody: '#2a2a36',
+        exp: first ? m.def.bossExp : m.def.exp, bossCoins: first ? m.def.bossCoins : 0, firstBoss: first,
+        fact: '中世紀的騎士要練十幾年才能穿著三十公斤的盔甲騎馬作戰；傳說月圓的晚上，一位黑騎士還在古堡前等著挑戰者。' +
+              (first ? '　第一次打倒：' + m.def.bossExp + ' EXP＋' + m.def.bossCoins + ' 金幣＋稱號「神之手」' : '　再戰：' + m.def.exp + ' EXP'),
+        intro: ['暗夜騎士來了！他非常強', '他跳起來落地時劍氣會往兩邊掃 —— 跳過去；趁他落地喘氣的時候踩頭或丟東西打他'],
+        boss: {
+          name: '暗夜騎士', kind: 'darkKnight',
+          pattern: 'slam',
+          x: 700, y: G - 104, w: 72, h: 104,
+          hp: 9, rageAt: 5,
+          jumps: 2, rageJumps: 3,
+          homing: 2.4, waveSpeed: 3.9,
+          recoverTime: 75, idleTime: 44,      // 機器人實測：沒裝備 4 場全輸、全套裝備 4 場贏 1 場（真人有遠程攻擊會好打一點）
+          debris: 3,
+          left: 80, right: 900, speed: 2.1
+        },
+        platforms: [{ x: 50, y: 290, w: 150, h: 20 }, { x: 760, y: 290, w: 150, h: 20 }],
+        coins: [{ x: 90, y: 250 }, { x: 124, y: 250 }, { x: 158, y: 250 }, { x: 800, y: 250 }, { x: 834, y: 250 }, { x: 868, y: 250 }]
+      });
+    }
     if (m.kind === 'herd') {
       return arena(m, {
         minigame: 'herd', duration: 35 * 60, spawnX: 200, species: m.species || 'zebra',
@@ -490,6 +600,10 @@ const Expedition = (function () {
   /** 打贏之後：動物送進動物園；冥界 → 回地圖要跟洛基說話；金字塔第一次 → 法老時裝 */
   function onClear(skirmish, state) {
     const out = {};
+    if (skirmish.kind === 'darkKnight') {
+      if (!Save.flag('godHand')) { Save.setFlag('godHand', 1); out.note = '獲得稱號「神之手」！—— 打倒了傳說中的暗夜騎士'; }
+      else out.note = '暗夜騎士又被你打倒了';
+    }
     if (skirmish.kind === 'herd') {
       herdCd = 900;
       const id = (state.mini.caught || [])[0];
@@ -1152,6 +1266,53 @@ const Expedition = (function () {
   function questMonster(kind, at) {
     return { kind: kind, def: K[kind], x: at.x, y: at.y, quest: true };
   }
+
+  /*
+   * 暗夜騎士（決鬥場的魔王）：黑色全身盔甲、紅色羽飾、發紅光的面罩縫、深紅披風、一把大劍。
+   * 預告（telegraph）劍舉高發紅光；落地喘氣（recover）單膝跪地、頭上轉星星；狂暴時盔甲縫裡透出紫光。
+   */
+  Sprites.bossKinds.darkKnight = function (ctx, b, t) {
+    const cx = b.x + b.w / 2, gy = b.y + b.h;
+    const tired = b.phase === 'recover', tele = b.phase === 'telegraph', rage = bossEnraged(b);
+    const f = b.dir || -1;
+    ctx.save();
+    if (b.hurtFlash > 0 && Math.floor(b.hurtFlash / 3) % 2 === 0) ctx.globalAlpha = 0.55;
+    const kneel = tired ? 22 : 0;
+    ctx.translate(cx, gy);
+    ctx.scale(f, 1);
+    // 披風
+    ctx.fillStyle = '#5a0a1a';
+    ctx.beginPath(); ctx.moveTo(-14, -86 + kneel); ctx.lineTo(14, -86 + kneel);
+    ctx.lineTo(-10 + Math.sin(t * 0.1) * 4, -6); ctx.lineTo(-34 + Math.sin(t * 0.1) * 6, -10); ctx.closePath(); ctx.fill();
+    // 腳
+    ctx.fillStyle = '#1e1e28';
+    if (tired) { ctx.fillRect(-16, -18, 14, 18); ctx.fillRect(4, -10, 22, 10); }
+    else { ctx.fillRect(-14, -34, 11, 34); ctx.fillRect(4, -34, 11, 34); }
+    // 身體
+    ctx.fillStyle = '#2a2a36'; U.roundRect(ctx, -20, -84 + kneel, 40, 52, 8); ctx.fill();
+    ctx.fillStyle = '#3a3a4a'; ctx.fillRect(-20, -70 + kneel, 40, 4); ctx.fillRect(-20, -54 + kneel, 40, 4);
+    if (rage) { ctx.fillStyle = 'rgba(180, 80, 255, ' + (0.5 + Math.sin(t * 0.3) * 0.3).toFixed(2) + ')'; ctx.fillRect(-20, -66 + kneel, 40, 2); ctx.fillRect(-20, -50 + kneel, 40, 2); }
+    // 頭盔＋面罩縫＋羽飾
+    ctx.fillStyle = '#24242e'; U.roundRect(ctx, -14, -108 + kneel, 28, 26, 7); ctx.fill();
+    ctx.fillStyle = tele || rage ? '#ff3a3a' : '#c8202a';
+    ctx.fillRect(-2, -98 + kneel, 14, 3);
+    ctx.fillStyle = '#c8202a';
+    ctx.beginPath(); ctx.moveTo(-2, -108 + kneel); ctx.quadraticCurveTo(-20, -126 + kneel, -30, -110 + kneel); ctx.quadraticCurveTo(-16, -112 + kneel, -6, -104 + kneel); ctx.fill();
+    // 劍：預告時舉高發光，平常斜握在前面
+    ctx.save();
+    ctx.translate(16, -66 + kneel);
+    ctx.rotate(tele ? -2.3 : tired ? 0.9 : -0.5);
+    ctx.fillStyle = '#5a4a2a'; ctx.fillRect(-2, -4, 4, 12);
+    ctx.fillStyle = '#8a7a4a'; ctx.fillRect(-8, -6, 16, 3);
+    ctx.fillStyle = tele ? '#ffd0d0' : '#c8ccd8'; ctx.fillRect(-2.5, -50, 5, 44);
+    if (tele) { ctx.fillStyle = 'rgba(255, 60, 60, 0.3)'; ctx.fillRect(-7, -54, 14, 52); }
+    ctx.restore();
+    ctx.restore();
+    if (tired) {
+      ctx.fillStyle = '#ffd166';
+      for (let k = 0; k < 3; k++) { const a = t * 0.1 + k * 2.1; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 22, b.y + 14 + Math.sin(a) * 5, 3, 0, Math.PI * 2); ctx.fill(); }
+    }
+  };
 
   return {
     WARSHIPS: WARSHIPS,

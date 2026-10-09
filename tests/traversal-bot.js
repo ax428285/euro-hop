@@ -372,15 +372,19 @@ function runSoccerBot(def, li, cheat) {
            livesLeft: lives, frames: frame, equipTaken: equipTaken, cleared: cleared, soccer: true };
 }
 
-function runBossFightTest() {
+/**
+ * only（v1.31.2 暗夜騎士用）：指定要打的魔王 [{ def, li, owned }]；owned = 身上的裝備 id（不給就用「前面關卡拿得到的」）。
+ */
+function runBossFightTest(only) {
   const out = [];
 
-  Levels.list.forEach(function (def, li) {
-    if (!def.isBoss) return;
+  (only || Levels.list.map(function (def, li) { return { def: def, li: li }; })).forEach(function (tg) {
+    const def = tg.def, li = tg.li;
+    if (!def.isBoss && !only) return;
     if (def.boss.pattern === 'soccer') { out.push(runSoccerBot(def, li, false)); return; }
 
     // 進關時應該有的裝備（前面關卡拿得到的）
-    const owned = Equipment.defs
+    const owned = tg.owned || Equipment.defs
       .filter(function (d) { return d.level < li; })
       .map(function (d) { return d.id; });
     const stats = Equipment.resolve(owned);

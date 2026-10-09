@@ -29,6 +29,7 @@ const Input = (function () {
     KeyI: 'inventory', Tab: 'inventory',
     KeyB: 'shop',
     KeyN: 'mystery',     // 世界之謎（地圖上）
+    KeyL: 'journal',     // v1.31.2 冒險紀錄（所有關卡、支線，破完的打勾）
     // 隨時回歐洲大地圖（遊戲中、暫停中、過關畫面都能用）
     KeyQ: 'tomap', Backquote: 'tomap',
     // 存檔資訊 / 清除存檔

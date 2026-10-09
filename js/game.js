@@ -534,7 +534,7 @@ const Game = (function () {
 
   /** 在地圖系列畫面（地圖、商店、裝備、存檔）都播地圖曲 */
   function mapLike(s) {
-    return s === 'map' || s === 'shop' || s === 'inventory' || s === 'saveinfo' || s === 'mystery' || s === 'shipyard' || s === 'market';
+    return s === 'map' || s === 'shop' || s === 'inventory' || s === 'saveinfo' || s === 'mystery' || s === 'shipyard' || s === 'market' || s === 'journal';
   }
 
   // ── 更新 ──────────────────────────────────────────────
@@ -609,6 +609,8 @@ const Game = (function () {
 
       case 'mystery': updateMystery(); break;
       case 'talk': updateTalk(); break;
+
+      case 'journal': updateJournal(); break;
 
       case 'saveinfo':
         if (Input.once('wipe')) {
@@ -907,6 +909,7 @@ const Game = (function () {
 
     if (Input.once('inventory')) { Sfx.select(); scene = 'inventory'; return; }
     if (Input.once('saveinfo')) { Sfx.select(); confirmWipe = false; scene = 'saveinfo'; return; }
+    if (Input.once('journal')) { Sfx.select(); journalPage = 0; scene = 'journal'; return; }
     if (Input.once('shop')) { Sfx.select(); shopCursor = 0; shopSeller = 'portugal'; scene = 'shop'; return; }
     if (Input.once('mystery')) { Sfx.select(); openMystery(mysteryCont, false); return; }
 
@@ -1289,7 +1292,16 @@ const Game = (function () {
       // v1.31.2 海神的封印（亞特蘭提斯潛水關的最底層）
       if (ev === 'riddle:start') {
         Sfx.secret();
-        toast = { text: '神殿的大門上刻著三個圖案', sub: '照潛下來時牆上壁畫的順序（I → II → III）踩石板・不想解就游進右邊的氣泡柱浮上去', life: 330 };
+        toast = { text: '踩石板解開海神的封印！', sub: '照牆上壁畫的順序（I → II → III），走到金色箭頭下面的石板上・不想解就游進右邊的氣泡柱浮上去', life: 420 };
+        return;
+      }
+      // 路過一幅壁畫："riddle:mural:0"
+      if (ev.indexOf && ev.indexOf('riddle:mural:') === 0) {
+        const m = state.riddle && state.riddle.murals[parseInt(ev.slice(13), 10)];
+        if (m) {
+          Sfx.secret();
+          toast = { text: '牆上的壁畫：' + Abyss.RIDDLE_NUMS[m.n] + '・' + Abyss.SYM_NAME[m.sym], sub: '記下來！潛到神殿底下，要照 I、II、III 的順序踩石板', life: 200 };
+        }
         return;
       }
       if (ev === 'riddle:press') { Sfx.select(); return; }
@@ -3252,7 +3264,7 @@ const Game = (function () {
       return n + (lv.secrets || []).length;
     }, 0);
     U.text(ctx,
-      `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　密道 ${sv.secrets.length}/${secretsAll}　總分 ${sv.score}`,
+      `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　密道 ${sv.secrets.length}/${secretsAll}　總分 ${sv.score}` + (Save.flag('godHand') ? '　稱號「神之手」' : ''),
       W / 2, 392, { size: 15, color: '#4a2e14', strokeColor: 'rgba(250, 238, 205, 0.8)' });
 
     // 已取得的裝備排一列
@@ -3651,6 +3663,103 @@ const Game = (function () {
     U.text(ctx, '按 Enter 或 Esc 返回', W / 2, H - 46, { size: 13, color: '#9aa7c7' });
   }
 
+  /*
+   * v1.31.2 玩家：設定列表加一個「所有關卡和支線關卡」，把開發過的東西都列進去，破完的打勾。
+   * 冒險紀錄（☰ →「冒險紀錄」或 L）：兩頁 —— 主線（各篇章的每一關）、支線（海上冒險、劇情、收集）。
+   * ←→ 換頁（手機點畫面左右半邊），Esc / Q / L 回大地圖。支線的海上冒險從 Encounter.KINDS 自動列（以後加的也會出現）。
+   */
+  let journalPage = 0;
+  const JOURNAL_REGIONS = [['west', '西歐篇'], ['east', '東歐篇'], ['africa', '非洲篇'], ['north', '北歐篇'], ['america', '美洲篇'], ['abyss', '亞特蘭提斯海底城']];
+  function journalPages() {
+    const sv = Save.get();
+    const main = [];
+    JOURNAL_REGIONS.forEach(function (r) {
+      const lvs = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return (o.l.region || 'west') === r[0]; });
+      if (!lvs.length) return;
+      main.push({ head: r[1] + '（' + lvs.filter(function (o) { return Save.isCleared(o.i); }).length + ' / ' + lvs.length + '）' });
+      lvs.forEach(function (o) {
+        main.push({ name: o.l.country + (o.l.isBoss ? '　⚔' : ''), done: Save.isCleared(o.i) });
+      });
+    });
+    const side = [];
+    side.push({ head: '海上冒險' });
+    Object.keys(Encounter.KINDS).forEach(function (k) {
+      const d = Encounter.KINDS[k];
+      if (k === 'herd' || d.am) return;
+      if (!(d.boss || d.dive || d.duo || d.fixed || d.quest || d.knight)) return;
+      side.push({ name: d.name, done: Save.seaBossDown(k) });
+    });
+    side.push({ name: '動物大遷徙（動物園 ' + Object.keys(Save.zoo()).length + ' / ' + Object.keys(Quests.ANIMALS).length + '）', done: Object.keys(Save.zoo()).length >= Object.keys(Quests.ANIMALS).length });
+    side.push({ head: '劇情' });
+    [['雷神索爾的結界', !!Save.flag('north')], ['冥界救出洛基', !!Save.flag('loki')], ['哥倫布的委託', Save.flag('columbus') >= 2],
+     ['海神的封印', Quests.abyssOpen()], ['人魚 Thalassa 同行', Quests.mermaidJoined()], ['瑞士銀行開戶', !!Save.bank().open],
+     ['收養黃金獵犬', Save.pet() === 'dog'], ['埃及豔后的聖蛇', !!Save.flag('asp')], ['聖誕老人的禮物', !!Save.flag('gift')]
+    ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
+    side.push({ head: '收集' });
+    const cn = function (a, b) { return a + ' / ' + b; };
+    [['裝備 ' + cn(sv.equipment.length, Equipment.count), sv.equipment.length >= Equipment.count],
+     ['紀念品 ' + cn(sv.souvenirs.length, Souvenirs.count), sv.souvenirs.length >= Souvenirs.count],
+     ['時裝 ' + cn(sv.costumes.length, Costumes.count), sv.costumes.length >= Costumes.count],
+     ['沉船寶物 ' + cn(sv.relics.length, Encounter.RELICS.length), sv.relics.length >= Encounter.RELICS.length],
+     ['密道 ' + cn(sv.secrets.length, Levels.list.reduce(function (n, l) { return n + (l.secrets || []).length; }, 0)),
+      sv.secrets.length >= Levels.list.reduce(function (n, l) { return n + (l.secrets || []).length; }, 0)]
+    ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
+    Mystery.continents.filter(function (c) { return c.open; }).forEach(function (c) {
+      const pr = Mystery.progress(c.id);
+      side.push({ name: c.name + ' ' + cn(pr.got, pr.total), done: !!pr.complete });
+    });
+    side.push({ name: '稱號「神之手」（打倒暗夜騎士）', done: !!Save.flag('godHand') });
+    return [{ title: '主線關卡', items: main, cols: 3 }, { title: '支線與收集', items: side, cols: 3 }];
+  }
+  function updateJournal() {
+    const n = 2;
+    if (Input.once('left') || Input.once('up')) { journalPage = (journalPage + n - 1) % n; Sfx.select(); }
+    if (Input.once('right') || Input.once('down')) { journalPage = (journalPage + 1) % n; Sfx.select(); }
+    const click = Input.takeClick();
+    if (click) { journalPage = click.x < W / 2 ? 0 : 1; Sfx.select(); }
+    if (Input.once('journal') || Input.once('back') || Input.once('tomap') || Input.once('confirm')) { Sfx.select(); scene = 'map'; }
+  }
+  function drawJournal() {
+    const sv = Save.get();
+    drawMapBackdrop(sv);
+    ctx.fillStyle = 'rgba(8, 12, 24, 0.9)';
+    ctx.fillRect(0, 0, W, H);
+    const pages = journalPages(), pg = pages[journalPage];
+    const done = pg.items.filter(function (q) { return !q.head && q.done; }).length;
+    const total = pg.items.filter(function (q) { return !q.head; }).length;
+    U.text(ctx, '冒險紀錄', W / 2, 30, { size: 26, color: '#ffd166' });
+    // 分頁籤
+    pages.forEach(function (p, k) {
+      const x = W / 2 + (k ? 90 : -90), on = k === journalPage;
+      ctx.fillStyle = on ? 'rgba(255, 209, 102, 0.22)' : 'rgba(255, 255, 255, 0.06)';
+      U.roundRect(ctx, x - 80, 50, 160, 26, 8); ctx.fill();
+      U.text(ctx, p.title, x, 63, { size: 14, color: on ? '#ffd166' : '#9aa7c7' });
+    });
+    U.text(ctx, '完成 ' + done + ' / ' + total, W - 30, 30, { size: 14, color: done >= total ? '#8fe3a0' : '#c6d2e8', align: 'right' });
+    // 內容：依欄排（篇章標題不會落在一欄的最後一行）
+    const top = 96, lh = 19, rows = Math.floor((H - top - 40) / lh), colW = (W - 96) / pg.cols;   // 左邊空出返回鍵的位置
+    let col = 0, row = 0;
+    pg.items.forEach(function (q) {
+      if (q.head && row >= rows - 1) { col++; row = 0; }
+      if (row >= rows) { col++; row = 0; }
+      if (q.head && row > 0) row += 0.4;
+      const x = 66 + col * colW, y = top + row * lh;
+      if (q.head) {
+        U.text(ctx, q.name || q.head, x, y, { size: 14, weight: 800, color: '#e8c27a', align: 'left' });
+      } else {
+        ctx.strokeStyle = q.done ? '#8fe3a0' : 'rgba(200, 210, 230, 0.4)'; ctx.lineWidth = 1.4;
+        ctx.strokeRect(x + 6, y - 6, 12, 12);
+        if (q.done) {
+          ctx.strokeStyle = '#8fe3a0'; ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x + 11, y + 4); ctx.lineTo(x + 17, y - 5); ctx.stroke();
+        }
+        U.text(ctx, fitText(q.name, colW - 34, 13), x + 26, y, { size: 13, color: q.done ? '#eafcef' : '#9aa7c7', align: 'left' });
+      }
+      row++;
+    });
+    U.text(ctx, '←→ 換頁（手機點左右半邊）　Esc、Q、L 回大地圖', W / 2, H - 16, { size: 12, color: '#7d88a6' });
+  }
+
   function drawSaveInfo() {
     const sv = Save.get();
     drawMapBackdrop(sv);
@@ -3677,7 +3786,7 @@ const Game = (function () {
         (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（EXP 篇章都解鎖了）') +
         // v1.31 新大陸另外累積的美洲 EXP
         (Quests.americaOpen() ? '　美洲 EXP ' + Save.expAm() + (Save.expAm() < Encounter.SOUTH_EXP ? ' / ' + Encounter.SOUTH_EXP + '（南美篇）' : '（南美已解鎖）') : '')],
-      ['總分', String(sv.score)]
+      ['總分', String(sv.score) + (Save.flag('godHand') ? '　稱號：神之手' : '')]
     ];
 
     rows.forEach(function (r, i) {
@@ -4267,6 +4376,7 @@ const Game = (function () {
       case 'shipyard': drawShipyard(); break;
       case 'market': drawMarket(); break;
       case 'saveinfo': drawSaveInfo(); break;
+      case 'journal': drawJournal(); break;
       case 'mystery': drawMystery(); break;
       case 'talk': drawTalk(); break;
       case 'play': drawPlay(); break;
