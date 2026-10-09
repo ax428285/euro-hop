@@ -183,6 +183,12 @@ const Game = (function () {
   /** 雙人試煉：場上有兩位玩家才進得去（同機 C 鍵，或連線時朋友當 2P） */
   function tryStartDuo(spNear) {
     const k = Encounter.KINDS[spNear.def.port];
+    // v1.31.4 玩家反映：雙人關卡不需要任何前置條件就能挑戰 → 跟土耳其旁邊的東歐篇一起解鎖（海上冒險 EXP 夠了才開）
+    if (!regionUnlocked('east')) {
+      Sfx.clang();
+      toast = { text: k.name + '還沒開放', sub: '要先解鎖東歐篇（打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf('east').exp + '）', life: 220 };
+      return;
+    }
     if (!coop) {
       Sfx.clang();
       // 手機沒有鍵盤（按不了 C）：只提示連線
@@ -4932,20 +4938,34 @@ const Game = (function () {
     }
   }
 
+  /*
+   * v1.31.4 玩家反映：手機版進裝備之後返回鍵失效（自己沒遇到）。
+   * 返回鍵本身沒問題 —— 會「整個按不動」只有一種可能：某一帧丟了例外，原本 requestAnimationFrame 排在最後，
+   * 一丟例外就不會再排下一帧，遊戲整個凍住，按什麼都沒反應（跟存檔內容有關，所以有人遇到、有人沒有）。
+   * 現在先排下一帧再跑，出錯時記在 console；在子畫面（裝備、商店⋯⋯）裡出錯就直接送回大地圖，不會卡死。
+   */
+  let frameErrors = 0;
   function frame(now) {
-    if (!last) last = now;
-    acc += now - last;
-    last = now;
-    let steps = 0;
-    while (acc >= STEP && steps < 5) {
-      tick();
-      acc -= STEP;
-      steps++;
-    }
-    if (acc > STEP * 5) acc = 0;
-    render();
     requestAnimationFrame(frame);
+    try {
+      if (!last) last = now;
+      acc += now - last;
+      last = now;
+      let steps = 0;
+      while (acc >= STEP && steps < 5) {
+        tick();
+        acc -= STEP;
+        steps++;
+      }
+      if (acc > STEP * 5) acc = 0;
+      render();
+    } catch (e) {
+      acc = 0;
+      if (frameErrors++ < 20 && typeof console !== 'undefined') console.error('[frame]', scene, e);
+      if (SUB_SCREENS_ESCAPE[scene]) { scene = 'map'; invMsg = null; shopMsg = null; }
+    }
   }
+  const SUB_SCREENS_ESCAPE = { inventory: true, shop: true, shipyard: true, market: true, saveinfo: true, journal: true, mystery: true };
 
   /*
    * v1.31 玩家：塞爾維亞換成滑雪、保加利亞換成羽球 →「已破關的玩家變回還沒破的關卡，這樣他才能體驗到」。

@@ -74,9 +74,9 @@ const Equipment = (function () {
     {
       id: 'puppet', level: 5, country: '捷克', icon: 'puppet',
       name: '波希米亞提線木偶',
-      desc: '金幣分數 x1.5',
+      desc: '金幣分數 +50%（跟其他金幣加成疊加）',
       note: '捷克的提線木偶劇 2016 年被列入世界非物質文化遺產。',
-      apply: function (s) { s.coinMul = Math.max(s.coinMul, 1.5); }
+      apply: function (s) { s.coinMul += 0.5; }     // v1.31.4 玩家：兩件同時裝備只取最高、沒有疊加 → 改成相加
     },
     {
       id: 'baton', level: 6, country: '奧地利', icon: 'baton',
@@ -102,9 +102,9 @@ const Equipment = (function () {
     {
       id: 'laurel', level: 9, country: '希臘', icon: 'laurel',
       name: '奧林匹亞橄欖桂冠',
-      desc: '金幣分數 x2',
+      desc: '金幣分數 +100%（跟其他金幣加成疊加）',
       note: '古代奧運的優勝獎品就是一頂橄欖枝編的桂冠。',
-      apply: function (s) { s.coinMul = 2; }
+      apply: function (s) { s.coinMul += 1; }
     },
     // ── 東歐篇 ──
     {
@@ -140,7 +140,7 @@ const Equipment = (function () {
       name: '克羅埃西亞領巾',
       desc: '吸引附近的金幣',
       note: '17 世紀克羅埃西亞傭兵的領巾傳到法國，演變成今天的領帶（cravate）。',
-      apply: function (s) { s.magnet = Math.max(s.magnet, 70); }
+      apply: function (s) { s.magnet += 70; }
     },
     {
       id: 'opanci', level: 15, country: '塞爾維亞', icon: 'opanci',
@@ -227,7 +227,7 @@ const Equipment = (function () {
       name: '馴鹿雪橇鈴',
       desc: '吸引附近的金幣（範圍比領巾大）',
       note: '芬蘭拉普蘭的馴鹿比人還多；冬天馴鹿雪橇掛著鈴鐺，在雪地裡老遠就聽得到。',
-      apply: function (s) { s.magnet = Math.max(s.magnet, 110); }
+      apply: function (s) { s.magnet += 110; }
     },
     {
       id: 'lopapeysa', level: 27, country: '冰島', icon: 'lopapeysa',
@@ -332,16 +332,19 @@ const Equipment = (function () {
        * ⚠️ 要「疊加」不能「覆蓋」：原本寫成 s.magnet = b.magnet，
        * 裝備給的加成（東歐篇的領巾、斧杖、皮鞋）會被商店的 0 蓋掉，等於沒效果。
        */
-      s.magnet = Math.max(s.magnet, b.magnet);
+      s.magnet += b.magnet;
       s.jumpBoost += b.jumpBoost;
       s.coinMul += b.coinBonus;
       s.pitSave = s.pitSave || b.pitSave;
     }
     // v1.30 玩家：整個遊戲的愛心上限太高 → 不管裝備、商店怎麼加，最多 5 顆
     s.maxLives = Math.min(MAX_LIVES, s.maxLives);
+    // v1.31.4 磁鐵改成疊加之後設個上限：太大會隔著牆、從上下層平台把金幣整排吸過來
+    s.magnet = Math.min(MAGNET_MAX, s.magnet);
     return s;
   }
   const MAX_LIVES = 5;
+  const MAGNET_MAX = 220;
 
   return {
     defs: defs,

@@ -67,7 +67,10 @@ const TopRace = (function () {
     // 金幣：一排 5 枚，放在前後都沒有障礙的車道
     const coins = [];
     for (let y = START + 200; y < END - 200; y += 620 + Math.floor(r() * 200)) {
-      const lx = LANES[Math.floor(r() * 3)];
+      let lx = LANES[Math.floor(r() * 3)];
+      // v1.31.4 玩家：古巴的金幣很難全收 —— 有一排剛好放在大浪會打到的地方（靠海那邊、中線）。
+      // 浪打過來的那一段，金幣一律放在最右邊（靠房子那側）的車道，浪打不到
+      if (nearWave(y) || nearWave(y + 280)) lx = LANES[2];
       if (obs.some(function (o) { return Math.abs(o.lx - lx) < 60 && o.y > y - 120 && o.y < y + 420; })) continue;
       for (let k = 0; k < 5; k++) coins.push({ y: y + k * 70, lx: lx });
     }

@@ -73,4 +73,6 @@
   下一個版本的改動一樣先在 `nordic` 上做，等使用者說「可以上線」。
 - v1.31.3：外觀商店（shop.js `toggleWear`、`wearing`）已擁有的時裝／狗狗配件再按一次 = 穿上／脫下（狗配件脫下 = 旗標 `dogOff_<配件>`）；遠征圖鑑的勾勾改成金色徽章（game.js `journalMark`）。
 - v1.31.4（2026-10-09 已上線）：海底城的光之井游進去就回海面，不用按 Enter（game.js updateMap 的 `surfArmed`）。
+- v1.31.5（在 `nordic`，**還沒上線**）：不同部位的裝備同一種加成疊加（equipment.js：coinMul、magnet 相加，磁鐵上限 `MAGNET_MAX`）；古巴金幣避開大浪（topdown.js）；
+  雙人試煉要先解鎖東歐篇（game.js `tryStartDuo`）；game.js `frame()` 先排下一帧、例外不會讓遊戲凍住（子畫面出錯直接回大地圖）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。
