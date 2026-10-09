@@ -192,8 +192,8 @@ const Quests = (function () {
       return;
     }
     if (kind === 'mermaid') {
-      // v1.31.2 海底城的人魚：坐在一塊石頭上（跟在你後面的那隻同一套畫法：粉紅長髮、青綠魚尾）
-      ring(ctx, x, y, t, near, 'rgba(255, 160, 210, 0.95)');
+      // v1.31.2 海底城的人魚：坐在一塊石頭上、提著燈籠（跟在你後面的那隻同一套畫法：灰棕長髮、藍銀魚尾）
+      ring(ctx, x, y, t, near, 'rgba(255, 210, 140, 0.95)');
       ctx.fillStyle = '#5a6a7a';
       ctx.beginPath(); ctx.ellipse(x, y, 11, 5, 0, 0, Math.PI * 2); ctx.fill();
       if (typeof Pet !== 'undefined') Pet.drawMermaid(ctx, x, y - 1, t, 1, true, true);
@@ -848,118 +848,135 @@ const Quests = (function () {
       ctx.beginPath(); ctx.arc(7, -2, 6, 0, Math.PI * 2); ctx.stroke();
     } else if (who === 'mermaid' || who === 'thalassa') {
       /*
-       * 人魚 Thalassa（v1.31.3 玩家：幫我畫成正妹的造型）：
-       * 成熟的瓜子臉、杏眼＋長睫毛、藍色眼珠、細眉、紅唇；一大把粉紅色的波浪長髮從肩膀披下來（髮尾帶紫），
-       * 頭上一顆黃色海星髮夾、珍珠耳環；粉紅貝殼上衣＋珍珠項鍊。變成人類（thalassa）：白色露肩洋裝。
+       * 人魚 Thalassa（v1.31.3 照玩家給的範例圖重畫）：
+       * 一頭及腰的灰棕色長髮、頭上一圈珍珠、耳朵是白色半透明的小魚鰭、藍灰色的眼睛（溫柔、半垂著）、
+       * 白色貝殼上衣、手腕上一串藍色小珠子，伸手提著一盞發橘光的燈籠；身邊飄著螢光一樣的小光點。
+       * 變成人類（thalassa）：白色露肩洋裝（燈籠還提著）。
        */
       const human = who === 'thalassa';
-      const sway = Math.sin(t * 0.05) * 2;
-      // 泡泡
-      ctx.strokeStyle = 'rgba(190, 235, 255, 0.8)'; ctx.lineWidth = 1.1;
-      [[-44, -24, 3], [42, -36, 2.4], [46, 4, 3.2]].forEach(function (b, k) {
-        const yy = b[1] - ((t * 0.3 + k * 17) % 26);
-        ctx.beginPath(); ctx.arc(b[0], yy, b[2], 0, Math.PI * 2); ctx.stroke();
+      const sway = Math.sin(t * 0.05) * 1.6;
+      // 飄著的小光點
+      [[-40, -30, '#ffb060'], [44, -38, '#ffd090'], [-46, 18, '#8ae0ff'], [40, 30, '#ffb060']].forEach(function (q, k) {
+        const a = 0.4 + Math.abs(Math.sin(t * 0.05 + k * 1.7)) * 0.6, yy = q[1] - ((t * 0.15 + k * 13) % 14);
+        const g = ctx.createRadialGradient(q[0], yy, 0, q[0], yy, 5);
+        g.addColorStop(0, q[2]); g.addColorStop(1, 'rgba(255, 200, 120, 0)');
+        ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q[0], yy, 5, 0, Math.PI * 2); ctx.fill();
       });
-      // 後面的長髮
+      ctx.globalAlpha = 1;
+      // 及腰的灰棕色長髮（後面）
       const hg = ctx.createLinearGradient(0, -36, 0, 56);
-      hg.addColorStop(0, '#ee5f96'); hg.addColorStop(0.65, '#ea70ae'); hg.addColorStop(1, '#a87ed8');
+      hg.addColorStop(0, '#7a6a5e'); hg.addColorStop(1, '#5e5048');
       ctx.fillStyle = hg;
       ctx.beginPath(); ctx.moveTo(-14, -30);
-      ctx.bezierCurveTo(-40, -22 + sway, -26, 6, -38, 24 + sway); ctx.quadraticCurveTo(-42, 44, -30, 56);
-      ctx.lineTo(-18, 56); ctx.quadraticCurveTo(-24, 34, -16, 14); ctx.lineTo(16, 14);
-      ctx.quadraticCurveTo(24, 34, 18, 56); ctx.lineTo(30, 56); ctx.quadraticCurveTo(42, 44, 38, 24 - sway);
-      ctx.bezierCurveTo(26, 6, 40, -22 - sway, 14, -30); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 196, 220, 0.75)'; ctx.lineWidth = 1.6;
+      ctx.bezierCurveTo(-36, -22 + sway, -26, 10, -32, 30 + sway); ctx.quadraticCurveTo(-34, 48, -26, 56);
+      ctx.lineTo(-16, 56); ctx.quadraticCurveTo(-20, 34, -15, 14); ctx.lineTo(15, 14);
+      ctx.quadraticCurveTo(20, 34, 16, 56); ctx.lineTo(26, 56); ctx.quadraticCurveTo(34, 48, 32, 30 - sway);
+      ctx.bezierCurveTo(26, 10, 36, -22 - sway, 14, -30); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(200, 186, 166, 0.6)'; ctx.lineWidth = 1.2;
       [-1, 1].forEach(function (s) {
-        ctx.beginPath(); ctx.moveTo(s * 22, -14); ctx.quadraticCurveTo(s * 34, 4, s * 28, 20); ctx.quadraticCurveTo(s * 34, 36, s * 28, 50); ctx.stroke();
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath(); ctx.moveTo(s * (16 + k * 4), -16 + k * 4);
+          ctx.quadraticCurveTo(s * (28 + k * 2), 10, s * (22 + k * 3), 52); ctx.stroke();
+        }
       });
-      // 脖子、肩膀（修長）
-      ctx.fillStyle = '#f8dcc8';
+      // 脖子、肩膀
+      ctx.fillStyle = '#f6dccb';
       ctx.fillRect(-5, 6, 10, 14);
-      ctx.beginPath(); ctx.moveTo(-6, 16); ctx.quadraticCurveTo(-24, 18, -27, 30); ctx.lineTo(-22, 56); ctx.lineTo(22, 56); ctx.lineTo(27, 30); ctx.quadraticCurveTo(24, 18, 6, 16); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(210, 150, 130, 0.5)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(-10, 22); ctx.quadraticCurveTo(-5, 24, -1, 22); ctx.moveTo(10, 22); ctx.quadraticCurveTo(5, 24, 1, 22); ctx.stroke();   // 鎖骨
+      ctx.beginPath(); ctx.moveTo(-6, 16); ctx.quadraticCurveTo(-22, 18, -25, 30); ctx.lineTo(-20, 56); ctx.lineTo(20, 56); ctx.lineTo(25, 30); ctx.quadraticCurveTo(22, 18, 6, 16); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(200, 150, 130, 0.45)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-10, 22); ctx.quadraticCurveTo(-5, 24, -1, 22); ctx.moveTo(10, 22); ctx.quadraticCurveTo(5, 24, 1, 22); ctx.stroke();
+      // 伸出去的右手＋藍色珠串＋燈籠
+      ctx.fillStyle = '#f6dccb';
+      ctx.beginPath(); ctx.moveTo(20, 24); ctx.quadraticCurveTo(34, 16, 44, 12); ctx.lineTo(45, 17); ctx.quadraticCurveTo(34, 22, 23, 31); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#4a7ab8';
+      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(40 + k * 0.6, 12.6 + k * 1.4, 1.2, 0, Math.PI * 2); ctx.fill(); }
+      const lx = 46, ly = 22 + Math.sin(t * 0.07) * 0.8;
+      const lg = ctx.createRadialGradient(lx, ly + 6, 1, lx, ly + 6, 22);
+      lg.addColorStop(0, 'rgba(255, 220, 140, 0.9)'); lg.addColorStop(0.4, 'rgba(255, 180, 80, 0.35)'); lg.addColorStop(1, 'rgba(255, 160, 60, 0)');
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(lx, ly + 6, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4a3a24'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(lx, 14); ctx.lineTo(lx, ly); ctx.stroke();
+      ctx.fillStyle = '#4a3a24';
+      ctx.beginPath(); ctx.moveTo(lx - 4, ly + 1); ctx.lineTo(lx + 4, ly + 1); ctx.lineTo(lx + 2.4, ly - 1.4); ctx.lineTo(lx - 2.4, ly - 1.4); ctx.closePath(); ctx.fill();
+      ctx.fillRect(lx - 4.4, ly + 10, 8.8, 2);
+      ctx.fillStyle = '#ffe2a0'; ctx.fillRect(lx - 3.4, ly + 1, 6.8, 9);
+      ctx.strokeStyle = '#4a3a24'; ctx.lineWidth = 0.8; ctx.strokeRect(lx - 3.4, ly + 1, 6.8, 9);
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(lx, ly + 6, 1.2, 2, 0, 0, Math.PI * 2); ctx.fill();
       if (!human) {
-        // 珍珠項鍊＋粉紅貝殼上衣
-        ctx.fillStyle = '#fff8f0';
-        for (let k = 0; k < 9; k++) { const a = Math.PI * 0.18 + k * Math.PI * 0.08; ctx.beginPath(); ctx.arc(Math.cos(a) * 9, 12 + Math.sin(a) * 9, 1.4, 0, Math.PI * 2); ctx.fill(); }
-        ctx.strokeStyle = '#e8b0c8'; ctx.lineWidth = 1.2;
+        // 白色貝殼上衣（細細的珍珠肩帶）
+        ctx.strokeStyle = '#f4f4f4'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(-10, 38); ctx.lineTo(-4, 18); ctx.moveTo(10, 38); ctx.lineTo(4, 18); ctx.stroke();
         [-1, 1].forEach(function (s) {
-          const sg = ctx.createLinearGradient(0, 34, 0, 48);
-          sg.addColorStop(0, '#ff8ab8'); sg.addColorStop(1, '#e0508e');
+          const sg = ctx.createLinearGradient(0, 36, 0, 47);
+          sg.addColorStop(0, '#fbfcfe'); sg.addColorStop(1, '#c8d0dc');
           ctx.fillStyle = sg;
-          ctx.beginPath(); ctx.moveTo(s * 10, 46); ctx.arc(s * 10, 46, 9.5, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill();
-          ctx.strokeStyle = '#ffc0d8'; ctx.lineWidth = 1;
-          for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(s * 10, 46); ctx.lineTo(s * 10 + k * 3.4, 38); ctx.stroke(); }
+          ctx.beginPath(); ctx.moveTo(s * 10, 47); ctx.arc(s * 10, 47, 9, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = 'rgba(150, 160, 180, 0.8)'; ctx.lineWidth = 0.8;
+          for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(s * 10, 47); ctx.lineTo(s * 10 + k * 3.2, 39.6); ctx.stroke(); }
         });
       } else {
-        // 白色露肩洋裝＋粉紅緞帶
-        ctx.fillStyle = '#fff4f8';
-        ctx.beginPath(); ctx.moveTo(-25, 32); ctx.quadraticCurveTo(0, 38, 25, 32); ctx.lineTo(24, 56); ctx.lineTo(-24, 56); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#ff9ac0'; ctx.fillRect(-23, 48, 46, 3);
-        ctx.beginPath(); ctx.arc(12, 49, 3.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f6f8fc';
+        ctx.beginPath(); ctx.moveTo(-23, 32); ctx.quadraticCurveTo(0, 38, 23, 32); ctx.lineTo(22, 56); ctx.lineTo(-22, 56); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#9ab8d8'; ctx.fillRect(-21, 48, 42, 2.4);
       }
-      // 瓜子臉
-      ctx.fillStyle = '#fbe2d0';
-      ctx.beginPath(); ctx.moveTo(-15, -12);
-      ctx.bezierCurveTo(-16, 2, -9, 12, 0, 14); ctx.bezierCurveTo(9, 12, 16, 2, 15, -12);
-      ctx.bezierCurveTo(14, -30, -14, -30, -15, -12); ctx.closePath(); ctx.fill();
-      // 斜瀏海
-      ctx.fillStyle = '#ee5f96';
-      ctx.beginPath(); ctx.moveTo(-17, -6);
-      ctx.bezierCurveTo(-20, -34, 20, -38, 17, -8);
-      ctx.quadraticCurveTo(14, -20, 2, -22); ctx.quadraticCurveTo(-8, -18, -12, -10); ctx.quadraticCurveTo(-15, -9, -17, -6); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 205, 225, 0.85)'; ctx.lineWidth = 1.8;
-      ctx.beginPath(); ctx.arc(-2, -20, 12, Math.PI * 1.15, Math.PI * 1.5); ctx.stroke();
-      // 細眉
-      ctx.strokeStyle = '#a84a6a'; ctx.lineWidth = 1.3;
-      ctx.beginPath(); ctx.moveTo(-11, -12); ctx.quadraticCurveTo(-7, -14.5, -3, -12.5); ctx.moveTo(11, -12); ctx.quadraticCurveTo(7, -14.5, 3, -12.5); ctx.stroke();
-      // 杏眼＋長睫毛（眨眼的時候變成一條彎線）
+      // 臉（溫柔的瓜子臉）
+      ctx.fillStyle = '#f8e2d2';
+      ctx.beginPath(); ctx.moveTo(-14, -12);
+      ctx.bezierCurveTo(-15, 2, -8, 12, 0, 14); ctx.bezierCurveTo(8, 12, 15, 2, 14, -12);
+      ctx.bezierCurveTo(13, -30, -13, -30, -14, -12); ctx.closePath(); ctx.fill();
+      // 中分的瀏海，往兩邊垂下來
+      ctx.fillStyle = '#7a6a5e';
+      ctx.beginPath(); ctx.moveTo(-16, 2);
+      ctx.bezierCurveTo(-19, -32, 19, -32, 16, 2);
+      ctx.quadraticCurveTo(13, -14, 3, -20); ctx.quadraticCurveTo(0, -16, -3, -20); ctx.quadraticCurveTo(-13, -14, -16, 2); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(205, 190, 170, 0.7)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(-3, -20); ctx.quadraticCurveTo(-12, -14, -14, -2); ctx.moveTo(3, -20); ctx.quadraticCurveTo(12, -14, 14, -2); ctx.stroke();
+      // 白色的魚鰭耳朵（半透明，一條條鰭骨）
       [-1, 1].forEach(function (s) {
-        const ex = s * 7, ey = -6;
+        ctx.fillStyle = 'rgba(232, 244, 255, 0.85)';
+        ctx.beginPath(); ctx.moveTo(s * 14, -6); ctx.lineTo(s * 26, -18); ctx.quadraticCurveTo(s * 24, -9, s * 26, -2); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(160, 190, 220, 0.8)'; ctx.lineWidth = 0.7;
+        for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(s * 14.5, -5); ctx.lineTo(s * 25, -16 + k * 6); ctx.stroke(); }
+      });
+      // 一圈珍珠頭飾
+      ctx.fillStyle = '#ffffff';
+      for (let k = 0; k < 9; k++) {
+        const a = Math.PI * 1.12 + k * Math.PI * 0.095;
+        ctx.beginPath(); ctx.arc(Math.cos(a) * 16, -10 + Math.sin(a) * 16, 1.5, 0, Math.PI * 2); ctx.fill();
+      }
+      // 細眉、溫柔半垂的藍灰色眼睛
+      ctx.strokeStyle = '#7a5e50'; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(-10, -12); ctx.quadraticCurveTo(-6.5, -13.6, -3, -12.4); ctx.moveTo(10, -12); ctx.quadraticCurveTo(6.5, -13.6, 3, -12.4); ctx.stroke();
+      [-1, 1].forEach(function (s) {
+        const ex = s * 6.6, ey = -5.6;
         if (blink) {
-          ctx.strokeStyle = '#2a1a2a'; ctx.lineWidth = 1.6;
-          ctx.beginPath(); ctx.moveTo(ex - 4.5, ey); ctx.quadraticCurveTo(ex, ey + 2.6, ex + 4.5, ey); ctx.stroke();
+          ctx.strokeStyle = '#2a2026'; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(ex - 4.2, ey); ctx.quadraticCurveTo(ex, ey + 2.2, ex + 4.2, ey); ctx.stroke();
           return;
         }
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.moveTo(ex - 5, ey); ctx.quadraticCurveTo(ex, ey - 4.6, ex + 5, ey - 0.6); ctx.quadraticCurveTo(ex, ey + 3.2, ex - 5, ey); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(ex - 4.6, ey); ctx.quadraticCurveTo(ex, ey - 3.4, ex + 4.6, ey - 0.4); ctx.quadraticCurveTo(ex, ey + 3, ex - 4.6, ey); ctx.fill();
         const ig = ctx.createLinearGradient(0, ey - 3, 0, ey + 3);
-        ig.addColorStop(0, '#2f6cc0'); ig.addColorStop(1, '#7ad0f2');
-        ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ex + s * 0.3, ey - 0.4, 2.7, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#16102a'; ctx.beginPath(); ctx.arc(ex + s * 0.3, ey - 0.4, 1.2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex - 0.8, ey - 1.6, 0.9, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#1e121e'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(ex - 5.2, ey + 0.2); ctx.quadraticCurveTo(ex, ey - 5, ex + 5.4, ey - 0.8); ctx.stroke();
-        ctx.lineWidth = 1.1;
-        ctx.beginPath(); ctx.moveTo(ex + s * 5.2, ey - 0.8); ctx.lineTo(ex + s * 7.2, ey - 3.2); ctx.moveTo(ex + s * 3.6, ey - 2.6); ctx.lineTo(ex + s * 5, ey - 5); ctx.stroke();
+        ig.addColorStop(0, '#4a6a90'); ig.addColorStop(1, '#9ac4e0');
+        ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ex + s * 0.3, ey, 2.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1622'; ctx.beginPath(); ctx.arc(ex + s * 0.3, ey, 1.1, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex - 0.7, ey - 1, 0.8, 0, Math.PI * 2); ctx.fill();
+        // 半垂的上眼皮＋睫毛
+        ctx.fillStyle = '#f0d4c2';
+        ctx.beginPath(); ctx.moveTo(ex - 4.8, ey - 0.6); ctx.quadraticCurveTo(ex, ey - 4, ex + 4.8, ey - 1); ctx.quadraticCurveTo(ex, ey - 1.6, ex - 4.8, ey - 0.6); ctx.fill();
+        ctx.strokeStyle = '#2a2026'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ex - 4.8, ey - 0.4); ctx.quadraticCurveTo(ex, ey - 2.6, ex + 5, ey - 0.8); ctx.stroke();
+        ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(ex + s * 4.8, ey - 0.8); ctx.lineTo(ex + s * 6.6, ey - 2.6); ctx.stroke();
         ctx.lineCap = 'butt';
       });
-      // 鼻子、腮紅、紅唇
-      ctx.strokeStyle = 'rgba(200, 130, 120, 0.7)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0.5, -1); ctx.quadraticCurveTo(1.6, 2.4, -0.6, 3); ctx.stroke();
-      ctx.fillStyle = 'rgba(255, 130, 160, 0.3)';
-      ctx.beginPath(); ctx.ellipse(-10, 1, 3.6, 2, 0, 0, Math.PI * 2); ctx.ellipse(10, 1, 3.6, 2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#d82a4a';
-      ctx.beginPath(); ctx.moveTo(-4.4, 7); ctx.quadraticCurveTo(-2, 5, 0, 6); ctx.quadraticCurveTo(2, 5, 4.4, 7); ctx.quadraticCurveTo(0, 10.6, -4.4, 7); ctx.fill();
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; ctx.fillRect(-1.6, 7.4, 2.4, 0.9);
-      // 珍珠耳環、海星髮夾
-      ctx.fillStyle = '#fff8f0';
-      ctx.beginPath(); ctx.arc(-15, 0, 1.8, 0, Math.PI * 2); ctx.arc(15, 0, 1.8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f8c838';
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.8 : 7;
-        ctx.lineTo(13 + Math.cos(a) * r, -24 + Math.sin(a) * r);
-      }
-      ctx.closePath(); ctx.fill();
-      // 一閃一閃
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      [[30, -34], [-34, 6]].forEach(function (q, k) {
-        const s2 = 1.6 + Math.abs(Math.sin(t * 0.12 + k * 2)) * 2.6;
-        ctx.fillRect(q[0] - s2, q[1] - 0.6, s2 * 2, 1.2); ctx.fillRect(q[0] - 0.6, q[1] - s2, 1.2, s2 * 2);
-      });
+      // 鼻子、淡淡的腮紅、小小的嘴
+      ctx.strokeStyle = 'rgba(200, 140, 125, 0.6)'; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(0.5, -0.6); ctx.quadraticCurveTo(1.4, 2.4, -0.4, 2.8); ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 150, 160, 0.22)';
+      ctx.beginPath(); ctx.ellipse(-9.5, 1.4, 3.4, 1.8, 0, 0, Math.PI * 2); ctx.ellipse(9.5, 1.4, 3.4, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d07a80';
+      ctx.beginPath(); ctx.moveTo(-3, 7); ctx.quadraticCurveTo(0, 6, 3, 7); ctx.quadraticCurveTo(0, 9, -3, 7); ctx.fill();
     } else if (who === 'cleopatra') {
       ctx.fillStyle = '#f4efe2'; ctx.fillRect(-26, 14, 52, 36);                                           // 白袍
       ctx.fillStyle = '#2a7ab0'; ctx.fillRect(-24, 14, 48, 6);                                            // 寬領圈（青金石）

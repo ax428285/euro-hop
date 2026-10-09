@@ -231,20 +231,21 @@ function runAbyssCheck() {
     if (!shop) issues.push('海底城地圖上沒有珊瑚貝殼屋');
     else if (!Voyage.isLand(shop.pin[0], shop.pin[1])) issues.push('珊瑚貝殼屋沒有蓋在陸地上');
     const items = Shop.itemsOf('shellHouse');
-    if (!items.some(function (it) { return it.costume === 'mermaid'; })) issues.push('珊瑚貝殼屋沒有賣人魚時裝');
+    if (!items.some(function (it) { return it.costume === 'athena'; })) issues.push('珊瑚貝殼屋沒有賣雅典娜時裝');
+    if (Costumes.get('mermaid')) issues.push('人魚時裝應該拿掉了（v1.31.3）');
     items.forEach(function (it) {
       if (!Costumes.get(it.costume)) issues.push('珊瑚貝殼屋賣的 ' + it.name + ' 不是時裝');
       if (!Sprites.icons[it.icon]) issues.push('珊瑚貝殼屋的 ' + it.name + ' 沒有圖示');
     });
     const w0 = sv.wallet, cos0 = sv.costumes.slice(), c0 = sv.costume;
-    sv.wallet = 99999; sv.costumes = sv.costumes.filter(function (k) { return k !== 'mermaid'; });
-    if (!Shop.buy('cos_mermaid') || sv.costume !== 'mermaid') issues.push('買了人魚時裝沒有穿上');
+    sv.wallet = 99999; sv.costumes = sv.costumes.filter(function (k) { return k !== 'athena'; });
+    if (!Shop.buy('cos_athena') || sv.costume !== 'athena') issues.push('買了雅典娜時裝沒有穿上');
     try {
       const c = document.createElement('canvas').getContext('2d');
-      ['mermaid', 'athena'].forEach(function (id) {
+      ['athena'].forEach(function (id) {
         Sprites.player(c, { x: 100, y: 100, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: 0, equipped: {}, costume: id }, 0);
       });
-    } catch (e) { issues.push('人魚／雅典娜時裝畫不出來：' + e.message); }
+    } catch (e) { issues.push('雅典娜時裝畫不出來：' + e.message); }
     sv.wallet = w0; sv.costumes = cos0; sv.costume = c0;
     // 人魚
     const mer = WorldMap.specials.filter(function (q) { return q.def.npc === 'mermaid'; })[0];

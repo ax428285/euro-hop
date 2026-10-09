@@ -18,8 +18,7 @@ const Costumes = (function () {
     // v1.30：只有吉薩金字塔探險第一次走到墓室才拿得到（special = 黃金海馬不會掉）
     { id: 'pharaoh', name: '法老', desc: '金藍條紋頭巾 + 白色亞麻裙', special: true },
     // v1.31.2 亞特蘭提斯海底城的珊瑚貝殼屋賣的（special = 黃金海馬不會掉）
-    { id: 'mermaid', name: '人魚', desc: '粉紅長髮 + 貝殼上衣 + 一整條青綠色魚尾巴 + 海星髮飾', special: true },
-    // v1.31.2 玩家：波賽頓是男生不適合當時裝 → 改成雅典娜女神
+    // v1.31.2 玩家：波賽頓是男生不適合當時裝 → 改成雅典娜女神（v1.31.3 人魚時裝拿掉，珊瑚貝殼屋只賣這一件）
     { id: 'athena', name: '雅典娜女神', desc: '白色長袍 + 金色頭盔（紅羽冠）+ 盾牌和長矛', special: true }
   ];
   const byId = {};

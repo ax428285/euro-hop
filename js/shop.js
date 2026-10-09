@@ -132,7 +132,6 @@ const Shop = (function () {
   });
   // v1.31.2 亞特蘭提斯海底城的珊瑚貝殼屋：海底才有的時裝
   [
-    ['mermaid', '人魚', '粉紅長髮＋貝殼上衣＋整條魚尾巴', 1500],
     ['athena', '雅典娜女神', '白袍＋金頭盔＋盾牌和長矛', 2000]
   ].forEach(function (c) {
     items.push({ id: 'cos_' + c[0], costume: c[0], name: c[1], icon: 'cos_' + c[0], desc: '時裝：' + c[2],

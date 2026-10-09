@@ -1402,19 +1402,13 @@ const Sprites = (function () {
       ctx.fillRect(cx - dir * 11, y + 14, 9, 14);
     }
 
-    // v1.31.2 人魚時裝：沒有腿（整條魚尾巴，在 costumeBody 裡畫）
-    const tail = costume === 'mermaid';
     // 腿
     ctx.fillStyle = '#3a4a7a';
-    if (!tail) {
-      ctx.fillRect(cx - 8, y + h - 14, 6, 14 - Math.max(0, swing));
-      ctx.fillRect(cx + 2, y + h - 14, 6, 14 + Math.min(0, swing));
-    }
+    ctx.fillRect(cx - 8, y + h - 14, 6, 14 - Math.max(0, swing));
+    ctx.fillRect(cx + 2, y + h - 14, 6, 14 + Math.min(0, swing));
 
     // 鞋：木鞋 / 涼鞋 / 普通
-    if (tail) {
-      // 沒有鞋
-    } else if (eq.clogs) {
+    if (eq.clogs) {
       ctx.fillStyle = '#e8b45a';
       ctx.fillRect(cx - 10, y + h - 5, 9, 5);
       ctx.fillRect(cx + 1, y + h - 5, 9, 5);
@@ -1440,9 +1434,8 @@ const Sprites = (function () {
     if (costume) costumeBody(ctx, costume, cx, y, dir, t, h, walking);
 
     // 手
-    ctx.fillStyle = costume === 'mermaid' ? '#fde4d4' : '#f0c49a';
+    ctx.fillStyle = '#f0c49a';
     ctx.fillRect(cx + dir * 9 - 2, y + 16 + (walking ? -swing : 0), 5, 11);
-    if (costume === 'mermaid') { ctx.fillStyle = '#f2c040'; ctx.fillRect(cx + dir * 9 - 2, y + 24 + (walking ? -swing : 0), 5, 1.6); }
 
     // 啤酒杯（持在手上）
     if (eq.stein) {
@@ -1522,17 +1515,8 @@ const Sprites = (function () {
   // ── 時裝（稀有怪掉落，見 costumes.js）────────────────────────
 
   function costumeBack(ctx, c, cx, y, dir, t) {
-    if (c === 'mermaid') {
-      // 人魚（v1.31.2 照 Thalassa 的範例圖）：一大把粉紅色波浪長髮披到腰（髮尾帶紫），兩邊都看得到
-      const sw = Math.sin(t * 0.08) * 2;
-      const g = ctx.createLinearGradient(cx, y, cx, y + 32);
-      g.addColorStop(0, '#f2689c'); g.addColorStop(0.7, '#ea70ae'); g.addColorStop(1, '#a87ed8');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.moveTo(cx - 10, y + 2);
-      ctx.quadraticCurveTo(cx - 17, y + 14, cx - 14 - dir * 3 + sw, y + 32); ctx.quadraticCurveTo(cx - 8, y + 30, cx - 7, y + 20);
-      ctx.lineTo(cx + 7, y + 20); ctx.quadraticCurveTo(cx + 8, y + 30, cx + 14 - dir * 3 + sw, y + 32); ctx.quadraticCurveTo(cx + 17, y + 14, cx + 10, y + 2);
-      ctx.closePath(); ctx.fill();
-    } else if (c === 'athena') {
+    if (c === 'athena') {
+      // （v1.31.3 玩家：人魚時裝拿掉 → 只留雅典娜）    } else if (c === 'athena') {
       // 雅典娜（v1.31.2 玩家：波賽頓是男生不適合當時裝 → 雅典娜女神）：背上一面金色圓盾、一支長矛；栗色長髮披在背後
       ctx.fillStyle = '#7a4a2a';
       ctx.beginPath(); ctx.moveTo(cx - 9, y + 4); ctx.quadraticCurveTo(cx - dir * 14, y + 18, cx - dir * 8, y + 28); ctx.lineTo(cx + dir * 4, y + 22); ctx.lineTo(cx + 9, y + 4); ctx.closePath(); ctx.fill();
@@ -1600,41 +1584,6 @@ const Sprites = (function () {
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 10, y + 12, 20, 4);
       ctx.fillStyle = '#2a50a0'; ctx.fillRect(cx - 10, y + 15, 20, 2);
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
-    } else if (c === 'mermaid') {
-      /*
-       * 人魚（v1.31.2 玩家：1500 元的人魚時裝穿上去很不明顯 → 照 Thalassa 的範例圖）：
-       * 雙腳換成一整條青綠色的魚鱗尾巴（走路時尾鰭左右甩），露腰、粉紅貝殼上衣、手上金手環。
-       */
-      ctx.fillStyle = '#fde4d4'; ctx.fillRect(cx - 9.5, y + 11.5, 19, 11);              // 露肩露腰（把條紋衫整個蓋掉）
-      const wag = (walking ? Math.sin(t * 0.35) * 4 : Math.sin(t * 0.08) * 1.5);
-      const tg = ctx.createLinearGradient(cx, y + 21, cx, y + h);
-      tg.addColorStop(0, '#4fd6bc'); tg.addColorStop(1, '#2a8cae');
-      ctx.fillStyle = tg;
-      ctx.beginPath(); ctx.moveTo(cx - 9.5, y + 21); ctx.lineTo(cx + 9.5, y + 21); ctx.lineTo(cx + 9.5, y + 32);
-      ctx.quadraticCurveTo(cx + 8, y + h - 8, cx + 3 + wag * 0.3, y + h - 6); ctx.lineTo(cx - 3 + wag * 0.3, y + h - 6);
-      ctx.quadraticCurveTo(cx - 8, y + h - 8, cx - 9.5, y + 32); ctx.closePath(); ctx.fill();
-      // 尾鰭
-      ctx.fillStyle = '#2a96b0';
-      ctx.beginPath(); ctx.moveTo(cx + wag * 0.3, y + h - 8);
-      ctx.quadraticCurveTo(cx - 10 + wag, y + h - 6, cx - 14 + wag, y + h + 1); ctx.quadraticCurveTo(cx - 5 + wag, y + h - 2, cx + wag * 0.3, y + h - 1);
-      ctx.quadraticCurveTo(cx + 5 + wag, y + h - 2, cx + 14 + wag, y + h + 1); ctx.quadraticCurveTo(cx + 10 + wag, y + h - 6, cx + wag * 0.3, y + h - 8);
-      ctx.closePath(); ctx.fill();
-      // 鱗片＋一道閃光
-      ctx.strokeStyle = 'rgba(210, 255, 245, 0.8)'; ctx.lineWidth = 1;
-      for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) {
-        if (r === 3 && k !== 1) continue;
-        ctx.beginPath(); ctx.arc(cx - 5 + k * 5 + (r % 2) * 2 - (r % 2), y + 24 + r * 3.4, 1.8, 0, Math.PI); ctx.stroke();
-      }
-      const gl = (t % 80) / 80;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'; ctx.fillRect(cx - 8 + gl * 15, y + 22, 1.4, 10);
-      // 腰上一圈金色、粉紅貝殼上衣
-      ctx.fillStyle = '#f2c040'; ctx.fillRect(cx - 9, y + 20.5, 18, 1.6);
-      [-1, 1].forEach(function (s) {
-        ctx.fillStyle = '#f2609a';
-        ctx.beginPath(); ctx.moveTo(cx + s * 0.8, y + 18); ctx.arc(cx + s * 4.2, y + 16.4, 3.6, Math.PI * 0.95, Math.PI * 2.05); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#ffb0cc'; ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(cx + s * 4.2, y + 17.6); ctx.lineTo(cx + s * 4.2, y + 13.4); ctx.stroke();
-      });
     } else if (c === 'athena') {
       // 雅典娜：白色長袍（裙擺到腳踝）、斜披一條藍色披肩、金色腰帶，裙擺一圈希臘回紋
       ctx.fillStyle = '#f8f4ea';
@@ -1689,23 +1638,6 @@ const Sprites = (function () {
       ctx.fillStyle = '#2a50a0';
       ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
       ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
-    } else if (c === 'mermaid') {
-      // 人魚：粉紅色的瀏海（一綹一綹）、頭上一顆大大的黃色海星、藍色小貝殼髮夾、腮紅
-      ctx.fillStyle = '#f2689c';
-      ctx.beginPath(); ctx.moveTo(cx - 10, y + 8); ctx.arc(cx, y + 5, 10, Math.PI * 1.02, Math.PI * 1.98);
-      ctx.lineTo(cx + 10, y + 8); ctx.quadraticCurveTo(cx + 6, y + 1, cx + 2, y + 3); ctx.quadraticCurveTo(cx - 2, y - 1, cx - 5, y + 3); ctx.quadraticCurveTo(cx - 8, y + 2, cx - 10, y + 8);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(255, 130, 165, 0.55)';
-      ctx.fillRect(cx + dir * 1 - 1.5, y + 11, 3, 1.5); ctx.fillRect(cx + dir * 8 - 1.5, y + 11, 3, 1.5);
-      ctx.fillStyle = '#f8c838';
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.2 : 5.6, sx = cx + dir * 5, sy = y - 3;
-        ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
-      }
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#6ac8e8';
-      ctx.beginPath(); ctx.moveTo(cx - dir * 7, y + 1); ctx.arc(cx - dir * 7, y - 1, 2.8, Math.PI * 0.8, Math.PI * 2.2); ctx.closePath(); ctx.fill();
     } else if (c === 'athena') {
       // 雅典娜：金色的科林斯頭盔（推到額頭上，露出臉）＋一道紅色馬鬃羽冠；兩邊垂下栗色長髮
       ctx.fillStyle = '#7a4a2a';

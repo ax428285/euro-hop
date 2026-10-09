@@ -74,10 +74,12 @@ const Abyss = (function () {
   /** 海底城的配色（不管玩家選哪一套大地圖配色，這裡一律用自己的） */
   const PALETTE = {
     sea: '#0f4064', seaDeep: '#04182c', wave: 'rgba(140, 230, 255, 0.07)',
-    open: '#2c7a84', done: '#3a9a7a', locked: '#2a4458', eastLocked: '#2a4458', eastOpen: '#3a6a8a',
-    lockedEdge: 'rgba(140, 220, 255, 0.4)', doneEdge: 'rgba(255, 220, 120, 0.85)',
-    edge: 'rgba(150, 240, 255, 0.75)', euFill: '#1f4a5e', euEdge: 'rgba(150, 230, 255, 0.4)',
-    bgFill: '#1f4a5e', bgEdge: 'rgba(150, 230, 255, 0.4)', seaName: 'rgba(170, 230, 255, 0.45)',
+    // v1.31.3 玩家：海底城的大地圖用綠色好醜 → 改成透明的玻璃／水晶感（半透明的淡藍，透出後面的光束和泡泡；邊緣發光）
+    open: 'rgba(150, 225, 255, 0.20)', done: 'rgba(200, 240, 255, 0.30)', locked: 'rgba(90, 150, 200, 0.12)',
+    eastLocked: 'rgba(90, 150, 200, 0.12)', eastOpen: 'rgba(150, 225, 255, 0.20)',
+    lockedEdge: 'rgba(160, 220, 255, 0.35)', doneEdge: 'rgba(255, 236, 170, 0.9)',
+    edge: 'rgba(200, 245, 255, 0.9)', euFill: 'rgba(130, 200, 240, 0.12)', euEdge: 'rgba(180, 235, 255, 0.45)',
+    bgFill: 'rgba(130, 200, 240, 0.12)', bgEdge: 'rgba(180, 235, 255, 0.45)', seaName: 'rgba(190, 240, 255, 0.5)',
     label: '#eafcff', labelSel: '#ffd166', labelLocked: '#8ab0c0', labelStroke: 'rgba(4, 20, 36, 0.85)',
     spLabel: '#eafcff', region: 'rgba(170, 230, 255, 0.16)'
   };
@@ -92,6 +94,17 @@ const Abyss = (function () {
       g.addColorStop(0, 'rgba(200, 245, 255, 0.10)'); g.addColorStop(1, 'rgba(200, 245, 255, 0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.moveTo(x - 30, 0); ctx.lineTo(x + 30, 0); ctx.lineTo(x + 110, 560); ctx.lineTo(x - 10, 560); ctx.closePath(); ctx.fill();
+    }
+    // 水面透下來的光紋（一條條會晃的亮線，透明的街區底下也看得到）
+    ctx.strokeStyle = 'rgba(200, 245, 255, 0.07)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 22; k++) {
+      const y0 = 40 + k * 34;
+      ctx.beginPath();
+      for (let x = 0; x <= 1200; x += 40) {
+        const yy = y0 + Math.sin(x * 0.012 + t * 0.01 + k) * 8 + Math.sin(x * 0.031 - t * 0.014 + k * 2) * 4;
+        if (x) ctx.lineTo(x, yy); else ctx.moveTo(x, yy);
+      }
+      ctx.stroke();
     }
     // 光之井：正上方一圈亮光
     const gw = ctx.createRadialGradient(598, 20, 10, 598, 20, 170);
