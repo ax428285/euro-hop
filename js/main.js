@@ -308,6 +308,18 @@
    * v1.31.8 玩家：電腦版選單沒有快捷鍵 → O = 打開／收起 ☰ 選單、U = 連線面板、F11 = 全螢幕（瀏覽器自己的）。
    * 在輸入框（連線的邀請碼）裡打字時不算。選單打開時按 Esc 先收起選單。
    */
+  // v1.31.10 說明列（#hint）的橘色字都是按鈕：點了就跟按那個鍵一樣
+  document.querySelectorAll('#hint .hk').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const act = b.getAttribute('data-act');
+      if (act === 'menu') setMenu(!pad.classList.contains('menu'));
+      else if (act === 'net') { setMenu(false); npOpen(); }
+      else if (act === 'fullscreen') { if (fsBtn && fsBtn.style.display !== 'none') fsBtn.click(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }
+      else Input.press(act === 'jump' ? (Game.scene() === 'play' ? 'jump' : 'confirm') : act);
+      b.blur();      // 點完放掉焦點，不然之後按空白／Enter 會又「按」到這顆
+    });
+  });
+
   window.addEventListener('keydown', function (e) {
     const tag = e.target && e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || e.ctrlKey || e.metaKey || e.altKey) return;
