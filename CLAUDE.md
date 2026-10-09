@@ -75,4 +75,5 @@
 - v1.31.4（2026-10-09 已上線）：海底城的光之井游進去就回海面，不用按 Enter（game.js updateMap 的 `surfArmed`）。
 - v1.31.5（2026-10-10 已上線，`nordic:live`）：不同部位的裝備同一種加成疊加（equipment.js：coinMul、magnet 相加，磁鐵上限 `MAGNET_MAX`）；古巴金幣避開大浪（topdown.js）；
   自動往前衝的關卡（autorun）出生點左邊的金幣不放（entities.js buildLevelState，level-check 會檢查）、磁鐵吸力加上玩家速度；瑞典雪橇起點平地 760（levelgen `startW`）、密道是 `secretKind: 'pit'`；雙人試煉不需要解鎖東歐篇；game.js `frame()` 先排下一帧、例外不會讓遊戲凍住（子畫面出錯直接回大地圖）。
+- v1.31.6（2026-10-10 已上線）：首頁「怎麼玩」（game.js `TITLE_GUIDE`）的找裝備只說「有密道」，不要寫出隱形磚、洞這些找法。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。
