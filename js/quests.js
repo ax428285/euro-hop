@@ -48,7 +48,7 @@ const Quests = (function () {
     { id: 'M_petshop', seller: 'petshop', name: '千里達寵物用品店', lon: -61.3, lat: 10.6, prompt: '按 Enter 逛千里達寵物用品店' }
   ];
 
-  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa' };
+  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa', thalassa: 'Thalassa' };
 
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
@@ -58,6 +58,18 @@ const Quests = (function () {
   function abyssOpen() { return !!flag('abyssGate'); }
   /** v1.31.2 海底城全破之後，跟人魚說話她就跟你走（pet.js 畫在後面） */
   function mermaidJoined() { return !!flag('mermaid'); }
+  /*
+   * v1.31.2 人魚的好感度：把撿到的紀念品（souvenirs.js）送給 Thalassa，每送一樣 +1，全部送完 = 滿。
+   * 送出去的紀念品還是算你收集到的（Save.souvenirs 不動），只多記一個旗標 merGift_<id>；她家的架子上會擺出來。
+   * 好感度全滿＋打倒暗夜騎士＋她跟著你 → 走到巴黎（法國的圖釘）會看巴黎鐵塔的夜景，看完她變成人類（flag merHuman）。
+   */
+  function merGifted(id) { return !!flag('merGift_' + id); }
+  function merLove() { return typeof Souvenirs === 'undefined' ? 0 : Souvenirs.defs.filter(function (d) { return merGifted(d.id); }).length; }
+  function merLoveMax() { return typeof Souvenirs === 'undefined' ? 1 : Souvenirs.count; }
+  function merHuman() { return !!flag('merHuman'); }
+  function eiffelReady() {
+    return mermaidJoined() && !merHuman() && merLove() >= merLoveMax() && Save.seaBossDown('darkKnight');
+  }
   /** 卡律布狄斯的漩渦眼掉下去要不要接冥界：v1.30 玩家：進漩渦關掉下去一次就進得去 → 一律會（救出洛基後再去也行） */
   function helReady() { return true; }
 
@@ -142,6 +154,25 @@ const Quests = (function () {
 
   function drawMapIcon(ctx, kind, x, y, t, near) {
     ctx.save();
+    if (kind === 'merHome') {
+      // v1.31.2 人魚的家：一顆粉紅色的大螺貝殼屋，圓窗亮著燈；好感度有幾格就冒幾顆愛心（送滿了一直冒）
+      ring(ctx, x, y, t, near, 'rgba(255, 150, 200, 0.95)');
+      ctx.fillStyle = '#f2a0c0';
+      ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.quadraticCurveTo(x - 14, y - 16, x, y - 24); ctx.quadraticCurveTo(x + 14, y - 16, x + 12, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#c86a98'; ctx.lineWidth = 1.2;
+      for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(x - 12 + k * 2, y - k * 6); ctx.quadraticCurveTo(x, y - k * 6 - 4, x + 12 - k * 2, y - k * 6); ctx.stroke(); }
+      ctx.fillStyle = '#7a3a5a'; U.roundRect(ctx, x - 3, y - 8, 6, 8, 3); ctx.fill();
+      ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(x + 6, y - 13, 2.2, 0, Math.PI * 2); ctx.fill();
+      if (merLove() > 0) {
+        const hb = ((t * 0.6) % 40) / 40;
+        ctx.fillStyle = 'rgba(255, 110, 150, ' + (1 - hb).toFixed(2) + ')';
+        const hx = x + 4, hy = y - 28 - hb * 14;
+        ctx.beginPath(); ctx.arc(hx - 1.8, hy, 2, 0, Math.PI * 2); ctx.arc(hx + 1.8, hy, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx - 3.8, hy + 0.6); ctx.lineTo(hx, hy + 4.5); ctx.lineTo(hx + 3.8, hy + 0.6); ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
     if (kind === 'mermaid') {
       // v1.31.2 海底城的人魚：坐在一塊石頭上，青綠色的頭髮、會甩的魚尾巴
       ring(ctx, x, y, t, near, 'rgba(150, 240, 255, 0.95)');
@@ -618,7 +649,85 @@ const Quests = (function () {
     ] };
   }
 
+  /** 送紀念品時她的反應 */
+  const MER_THANKS = {
+    maracas: '沙沙沙～好好玩！我要在家裡開一場舞會，你一定要來喔。',
+    bmcoffee: '好香⋯⋯海底煮不了咖啡，那我每天打開來聞一聞就好。',
+    pinata: '裡面裝著糖果？我捨不得打破它，掛在窗邊好了！',
+    mola: '好漂亮的布，有魚、有鳥⋯⋯我要拿來當窗簾！',
+    emerald: '綠得跟陽光照進海草裡一樣⋯⋯謝謝你，我會好好收著。',
+    cupball: '這個圓圓的我知道！海馬們最喜歡拿它頂來頂去。',
+    coralneck: '紅珊瑚項鍊！你、你幫我戴上好不好？⋯⋯嘻嘻，好看嗎？',
+    prism: '一道光變成彩虹了！我的房間現在亮晶晶的。',
+    saddle: '這是我小時候騎的那隻海馬的小鞍！你在哪裡找到的？',
+    trident: '海神爺爺的三叉戟⋯⋯擺在架子最中間，保佑我們。'
+  };
+  function merHint(who) {
+    if (merHuman()) return L(who, '用雙腳跟你一起走路去看世界，比我想像的還要好玩一百倍！');
+    if (!mermaidJoined()) return L(who, '等海底城平靜下來，我好想去海面上看看⋯⋯');
+    if (!Save.seaBossDown('darkKnight')) return L(who, '我好想看看海面上的城市晚上的樣子⋯⋯聽說巴黎有一座會發光的鐵塔，可是有一個很兇的黑騎士守著它。');
+    return L(who, '我好想看看海面上的城市晚上的樣子⋯⋯聽說巴黎有一座會發光的鐵塔。你帶我去好不好？');
+  }
+  /** v1.31.2 人魚的家：把還沒送的紀念品全部送給她（一樣一樣說），架子上擺出來（panel 'merHome'） */
+  function talkMerHome() {
+    const who = merHuman() ? 'thalassa' : 'mermaid';
+    const max = merLoveMax(), love0 = merLove();
+    const give = Souvenirs.defs.filter(function (d) { return Save.hasSouvenir(d.id) && !merGifted(d.id); });
+    const lines = [], reveal = [];
+    if (give.length) {
+      lines.push(L(who, love0 ? '你又來看我了！⋯⋯咦，你手上拿的是什麼？' : '歡迎來我家！這是我從小住的貝殼屋 —— 咦，你手上拿的是什麼？'));
+      give.forEach(function (d) {
+        lines.push(L('me', '這個送給你：「' + d.name + '」，從' + d.country + '帶回來的。'));
+        reveal.push({ id: d.id, at: lines.length });
+        lines.push(L(who, MER_THANKS[d.id] || '謝謝你！我會把它擺在架子上。'));
+      });
+      const love = love0 + give.length;
+      lines.push(L(who, love >= max ? '架子⋯⋯全部擺滿了。每一樣都是你送的，我好喜歡你。（好感度 ♥ 全滿）'
+                                     : '我把它們擺在架子上了！（好感度 ♥ ' + love + ' / ' + max + '）'));
+      if (love >= max) lines.push(merHint(who));
+    } else if (love0 >= max) {
+      lines.push(L(who, '架子上的每一樣東西，我每天都會一樣一樣看過一遍。'));
+      lines.push(merHint(who));
+    } else {
+      lines.push(L(who, love0 ? '架子上還有好多空位喔⋯⋯（好感度 ♥ ' + love0 + ' / ' + max + '）' : '歡迎來我家！這是我從小住的貝殼屋。'));
+      lines.push(L(who, '聽說海面上的國家有好多漂亮的紀念品⋯⋯新大陸那邊、還有我們海底城的每一區都找得到。帶回來給我看好不好？'));
+    }
+    return { who: who, panel: 'merHome', reveal: reveal, lines: lines, end: function () {
+      if (!give.length) return null;
+      give.forEach(function (d) { Save.setFlag('merGift_' + d.id, 1); });
+      const love = merLove();
+      return love >= max
+        ? { sfx: 'fanfare', toast: { text: 'Thalassa 的好感度全滿了！ ♥ ' + love + ' / ' + max, sub: Save.seaBossDown('darkKnight') ? '帶著她去巴黎，看巴黎鐵塔的夜景吧' : '她想去看巴黎鐵塔的夜景⋯⋯可是鐵塔被法國的暗夜騎士守著', life: 300 } }
+        : { sfx: 'equip', toast: { text: '送給 Thalassa ' + give.length + ' 樣紀念品', sub: '好感度 ♥ ' + love + ' / ' + max + '　（撿到新的紀念品再拿來送她）', life: 240 } };
+    } };
+  }
+  /*
+   * v1.31.2 巴黎鐵塔的夜景（panel 'eiffel'）：好感度全滿、打倒暗夜騎士、帶著人魚走到巴黎就會自動開始。
+   * 鐵塔整點閃燈的時候她的尾巴發光，看完變成人類（之後 pet.js 畫成用雙腳走路的女生）。
+   */
+  function talkEiffel() {
+    const lines = [
+      L('mermaid', '哇⋯⋯這就是巴黎鐵塔？晚上竟然整座都會發光！'),
+      L('me', '那個黑騎士說，他每天晚上都在這裡守著它。'),
+      L('mermaid', '在海底，我只看過水母和珊瑚會發光⋯⋯原來人類的城市也這麼漂亮。'),
+      L('mermaid', '你送我的那些東西，我都擺在家裡的架子上，每天都會看一遍。'),
+      L('me', '⋯⋯'),
+      L('mermaid', '海神爺爺說過一個傳說：人魚只要在陸地上最美的夜景前面，被一個人真心地喜歡著⋯⋯'),
+      L('mermaid', '她就能得到一雙腳，跟那個人一起走下去。'),
+      L('mermaid', '啊！鐵塔在閃了⋯⋯我的尾巴⋯⋯好燙、在發光！'),
+      L('thalassa', '⋯⋯我、我站起來了！我有腳了！'),
+      L('thalassa', '從今天起，我不用再坐在水泡裡了。我們一起用走的，去看全世界吧！')
+    ];
+    return { who: 'mermaid', panel: 'eiffel', glowAt: 7, humanAt: 8, lines: lines, end: function (complete) {
+      if (!complete || merHuman()) return null;
+      Save.setFlag('merHuman', 1);
+      return { sfx: 'fanfare', shake: 8, toast: { text: '人魚 Thalassa 變成人類了！', sub: '她會用雙腳跟在你後面走（下水時就游泳）', life: 300 } };
+    } };
+  }
+
   function talk(id) {
+    if (id === 'merHome') return talkMerHome();
+    if (id === 'eiffel') return talkEiffel();
     if (id === 'mermaid') return talkMermaid();
     if (id === 'columbusAm') return talkColumbusAm();
     if (id === 'cleopatra') return talkCleopatra();
@@ -680,7 +789,7 @@ const Quests = (function () {
       eyes(-2, 7);
       ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 1.5;                                                      // 單片眼鏡
       ctx.beginPath(); ctx.arc(7, -2, 6, 0, Math.PI * 2); ctx.stroke();
-    } else if (who === 'mermaid') {
+    } else if (who === 'mermaid' || who === 'thalassa') {
       /*
        * 人魚 Thalassa（v1.31.2 玩家：人魚開發的辣一點）：
        * 一大把波浪長髮從兩邊披到腰、露肩、珍珠串的貝殼上衣、紅唇、長睫毛，對你眨一隻眼；身邊一閃一閃。
@@ -704,6 +813,13 @@ const Quests = (function () {
       [-1, 1].forEach(function (s) { for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(s * 3, 42); ctx.lineTo(s * (8 + k * 4), 28 + k); ctx.stroke(); } });
       ctx.fillStyle = '#fff8f0';
       for (let k = 0; k < 9; k++) { const a = Math.PI * 0.15 + k * Math.PI * 0.0875; ctx.beginPath(); ctx.arc(Math.cos(a) * 14, 12 + Math.sin(a) * 10, 1.8, 0, Math.PI * 2); ctx.fill(); }
+      if (who === 'thalassa') {
+        // 變成人類：白色露肩小洋裝＋粉紅緞帶（v1.31.2 巴黎鐵塔的夜景之後）
+        ctx.fillStyle = '#fbf4f6';
+        ctx.beginPath(); ctx.moveTo(-24, 50); ctx.quadraticCurveTo(-20, 30, -18, 26); ctx.quadraticCurveTo(0, 32, 18, 26); ctx.quadraticCurveTo(20, 30, 24, 50); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ff8ab8'; ctx.fillRect(-19, 38, 38, 4);
+        ctx.beginPath(); ctx.arc(10, 40, 3.4, 0, Math.PI * 2); ctx.fill();
+      }
       // 臉
       ctx.fillStyle = '#f2d2bc'; ctx.beginPath(); ctx.ellipse(0, -4, 17, 20, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#26c4b4'; ctx.beginPath(); ctx.ellipse(0, -16, 21, 13, 0, Math.PI, 0); ctx.fill();
@@ -763,7 +879,122 @@ const Quests = (function () {
   }
 
   /** 動物園的對話框上面畫一排動物（有幾種畫幾種） */
-  function drawPanel(ctx, kind, W, t) {
+  function heart(ctx, x, y, r, on) {
+    ctx.fillStyle = on ? '#ff6a9a' : 'rgba(255, 255, 255, 0.18)';
+    ctx.beginPath(); ctx.arc(x - r * 0.5, y, r * 0.55, 0, Math.PI * 2); ctx.arc(x + r * 0.5, y, r * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - r * 1.04, y + r * 0.15); ctx.lineTo(x, y + r * 1.1); ctx.lineTo(x + r * 1.04, y + r * 0.15); ctx.fill();
+  }
+  /** 人魚的家：粉紅色的貝殼屋裡，兩層架子擺著送她的紀念品；右邊圓窗外是海、她坐在大蚌殼上 */
+  function drawMerHome(ctx, W, t, tk) {
+    const shown = function (id) {
+      return merGifted(id) || (tk && (tk.reveal || []).some(function (q) { return q.id === id && tk.i >= q.at; }));
+    };
+    const g = ctx.createLinearGradient(0, 24, 0, 300);
+    g.addColorStop(0, '#f6b8cc'); g.addColorStop(1, '#b8608e');
+    ctx.fillStyle = g; U.roundRect(ctx, 60, 22, W - 120, 280, 18); ctx.fill();
+    ctx.strokeStyle = '#ffe0ec'; ctx.lineWidth = 3; U.roundRect(ctx, 60, 22, W - 120, 280, 18); ctx.stroke();
+    // 貝殼的紋路
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.moveTo(60 + k * 130, 302); ctx.quadraticCurveTo(W / 2, 40, W - 60 - k * 130, 302); ctx.stroke(); }
+    U.text(ctx, '人魚的家', W / 2, 42, { size: 18, weight: 800, color: '#fff4f8', strokeWidth: 3 });
+    // 好感度
+    const max = merLoveMax();
+    let n = 0;
+    Souvenirs.defs.forEach(function (d) { if (shown(d.id)) n++; });
+    U.text(ctx, '好感度', W / 2 - 150, 68, { size: 13, color: '#fff4f8', align: 'right' });
+    for (let k = 0; k < max; k++) heart(ctx, W / 2 - 132 + k * 28, 66, 9, k < n);
+    // 架子（兩層，一層 5 格）
+    const x0 = 110, gap = 92;
+    Souvenirs.defs.forEach(function (d, i) {
+      const row = Math.floor(i / 5), col = i % 5;
+      const x = x0 + col * gap + 40, y = 132 + row * 96;
+      if (col === 0) {
+        ctx.fillStyle = '#7a3a2a'; ctx.fillRect(x0, y + 30, gap * 5, 8);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; ctx.fillRect(x0, y + 38, gap * 5, 4);
+      }
+      if (shown(d.id)) {
+        const pop = tk && (tk.reveal || []).some(function (q) { return q.id === d.id && tk.i === q.at; });
+        if (pop) { ctx.fillStyle = 'rgba(255, 255, 220, ' + (0.35 + Math.sin(t * 0.2) * 0.2).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(x, y, 36, 0, Math.PI * 2); ctx.fill(); }
+        Sprites.icon(ctx, d.icon, x, y, 0.8);
+        U.text(ctx, d.name, x, y + 50, { size: 11, color: '#fff4f8' });
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+        ctx.strokeRect(x - 24, y - 22, 48, 48); ctx.setLineDash([]);
+        U.text(ctx, '?', x, y + 2, { size: 18, color: 'rgba(255, 255, 255, 0.4)' });
+      }
+    });
+    // 圓窗（外面是海、氣泡往上飄）
+    const wx = W - 170, wy = 120;
+    ctx.fillStyle = '#1a5a8a'; ctx.beginPath(); ctx.arc(wx, wy, 52, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(200, 240, 255, 0.6)';
+    for (let k = 0; k < 6; k++) { const p = ((t * 0.5 + k * 17) % 100) / 100; ctx.beginPath(); ctx.arc(wx - 30 + k * 12, wy + 44 - p * 88, 3, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = '#ffe0ec'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(wx, wy, 52, 0, Math.PI * 2); ctx.stroke();
+    // 她坐在大蚌殼上
+    const mx = W - 170, my = 286;
+    ctx.fillStyle = '#f8e0ea';
+    ctx.beginPath(); ctx.ellipse(mx, my, 70, 16, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(mx, my - 6); ctx.scale(3.6, 3.6);
+    if (typeof Pet !== 'undefined') { if (merHuman()) Pet.drawThalassa(ctx, 0, 0, t, -1, false, true); else Pet.drawMermaid(ctx, 0, 0, t, -1, true); }
+    ctx.restore();
+  }
+  /** 巴黎鐵塔的夜景：借暗夜騎士決鬥場的背景（Sprites.skylines.KNT），前面一條塞納河，她和你站在河岸 */
+  function drawEiffel(ctx, W, t, tk) {
+    const gy = 300;
+    const g = ctx.createLinearGradient(0, 0, 0, gy);
+    g.addColorStop(0, '#040818'); g.addColorStop(1, '#1c1838');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, 480);
+    if (Sprites.skylines.KNT) {
+      const k = 0.82;
+      ctx.save(); ctx.translate(0, gy * (1 - k)); ctx.scale(k, k);
+      Sprites.skylines.KNT(ctx, 0, gy, W / k, null, t + (tk && tk.i >= tk.glowAt ? 0 : 0));
+      ctx.restore();
+    }
+    // 塞納河（金色的倒影）
+    ctx.fillStyle = '#0a1028'; ctx.fillRect(0, gy, W, 480 - gy);
+    for (let k = 0; k < 18; k++) {
+      const yy = gy + 6 + k * 7, a = 0.5 - k * 0.025;
+      ctx.fillStyle = 'rgba(255, 190, 90, ' + Math.max(0.05, a).toFixed(2) + ')';
+      const w = 30 + Math.sin(t * 0.08 + k) * 10;
+      ctx.fillRect(W / 2 - w / 2 + Math.sin(t * 0.05 + k * 1.3) * 8, yy, w, 2);
+    }
+    // 河岸的欄杆
+    ctx.fillStyle = '#060814'; ctx.fillRect(0, gy - 4, W, 6);
+    for (let x = 10; x < W; x += 26) ctx.fillRect(x, gy - 22, 3, 20);
+    ctx.fillRect(0, gy - 24, W, 3);
+    // 你（背影的剪影）和她
+    const px = W / 2 - 200, py = gy - 4;
+    // 鐵塔的金光照在背上：先描一圈金邊再填黑
+    ctx.fillStyle = 'rgba(255, 190, 90, 0.55)';
+    ctx.beginPath(); ctx.arc(px + 1.5, py - 44, 10.5, 0, Math.PI * 2); ctx.fill();
+    U.roundRect(ctx, px - 10, py - 35.5, 23, 28, 7); ctx.fill();
+    ctx.fillStyle = '#1a1a2c';
+    ctx.beginPath(); ctx.arc(px, py - 44, 9, 0, Math.PI * 2); ctx.fill();
+    U.roundRect(ctx, px - 10, py - 34, 20, 26, 6); ctx.fill();
+    ctx.fillRect(px - 8, py - 10, 6, 10); ctx.fillRect(px + 2, py - 10, 6, 10);
+    const glow = tk && tk.i >= tk.glowAt, human = tk && tk.i >= tk.humanAt;
+    const mx = W / 2 - 150, my = gy - 2;
+    if (glow && !human) {
+      // 尾巴發光、身邊轉著光點
+      const r = ctx.createRadialGradient(mx, my - 30, 4, mx, my - 30, 60);
+      r.addColorStop(0, 'rgba(255, 240, 200, 0.75)'); r.addColorStop(1, 'rgba(255, 240, 200, 0)');
+      ctx.fillStyle = r; ctx.beginPath(); ctx.arc(mx, my - 30, 60, 0, Math.PI * 2); ctx.fill();
+    }
+    if (glow) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      for (let k = 0; k < 8; k++) {
+        const a = t * 0.08 + k * Math.PI / 4, rr = 34 + Math.sin(t * 0.1 + k) * 6;
+        const s2 = 2 + Math.abs(Math.sin(t * 0.2 + k)) * 2.5, x = mx + Math.cos(a) * rr, y = my - 30 + Math.sin(a) * rr * 0.8;
+        ctx.fillRect(x - s2, y - 0.6, s2 * 2, 1.2); ctx.fillRect(x - 0.6, y - s2, 1.2, s2 * 2);
+      }
+    }
+    ctx.save(); ctx.translate(mx, my); ctx.scale(2.6, 2.6);
+    if (typeof Pet !== 'undefined') { if (human) Pet.drawThalassa(ctx, 0, 0, t, -1, false, true); else Pet.drawMermaid(ctx, 0, 0, t, -1, false); }
+    ctx.restore();
+  }
+
+  function drawPanel(ctx, kind, W, t, tk) {
+    if (kind === 'merHome') { drawMerHome(ctx, W, t, tk); return; }
+    if (kind === 'eiffel') { drawEiffel(ctx, W, t, tk); return; }
     if (kind !== 'zoo' || typeof Expedition === 'undefined') return;
     const z = Save.zoo();
     const ids = Object.keys(ANIMALS).filter(function (k) { return z[k]; });
@@ -792,6 +1023,11 @@ const Quests = (function () {
     americaOpen: americaOpen,
     abyssOpen: abyssOpen,
     mermaidJoined: mermaidJoined,
+    merLove: merLove,
+    merLoveMax: merLoveMax,
+    merGifted: merGifted,
+    merHuman: merHuman,
+    eiffelReady: eiffelReady,
     AM_SPOTS: AM_SPOTS,
     BANK_NEED: BANK_NEED,
     helReady: helReady,

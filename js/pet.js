@@ -129,6 +129,52 @@ const Pet = (function () {
     ctx.restore();
   }
 
+  /*
+   * v1.31.2 變成人類的 Thalassa（巴黎鐵塔的夜景之後，flag merHuman）：白色露肩小洋裝、粉紅緞帶、
+   * 一大把青綠色長髮往後飄、頭上一朵粉紅花；陸地上用雙腳走（walk = 腳在動），下水就只露出頭游泳。
+   * 原點在腳底，大小跟人魚一樣（約 20px 高）。
+   */
+  function drawThalassa(ctx, x, y, t, facing, inWater, stand) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(facing || 1, 1);
+    const hairC = '#26c4b4', skin = '#f2d2bc';
+    if (inWater) {
+      ctx.strokeStyle = 'rgba(226, 240, 255, 0.7)'; ctx.lineWidth = 1;
+      const r = 5 + Math.sin(t * 0.15) * 0.8;
+      ctx.beginPath(); ctx.ellipse(0, 0, r + 3, r * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = hairC;
+      ctx.beginPath(); ctx.moveTo(1, -6); ctx.quadraticCurveTo(-6, -4, -9, 0); ctx.lineTo(-3, 0); ctx.fill();
+      ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(1.5, -3, 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = hairC; ctx.beginPath(); ctx.arc(1, -4, 3.6, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
+      ctx.fillStyle = '#ff7ab0'; ctx.beginPath(); ctx.arc(-1.5, -6.5, 1.3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      return;
+    }
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.beginPath(); ctx.ellipse(0, 0.5, 5, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    const sw = stand ? 0 : Math.sin((mer.step || 0) * 0.9) * 1.8;
+    // 雙腳＋粉紅鞋
+    ctx.strokeStyle = skin; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-1, -6); ctx.lineTo(-1 + sw, -0.6); ctx.moveTo(1.6, -6); ctx.lineTo(1.6 - sw, -0.6); ctx.stroke();
+    ctx.fillStyle = '#ff7ab0'; ctx.fillRect(-2 + sw, -1, 2.4, 1.2); ctx.fillRect(0.6 - sw, -1, 2.4, 1.2);
+    // 往後飄的長髮
+    ctx.fillStyle = hairC;
+    ctx.beginPath(); ctx.moveTo(1, -19); ctx.quadraticCurveTo(-7, -17 + Math.sin(t * 0.1), -8, -9); ctx.lineTo(-3.5, -10); ctx.quadraticCurveTo(-1.5, -13, 1, -13); ctx.fill();
+    // 白色露肩小洋裝＋粉紅緞帶
+    ctx.fillStyle = skin; ctx.fillRect(-1.6, -14, 4.6, 2.4);
+    ctx.fillStyle = '#fbf4f6';
+    ctx.beginPath(); ctx.moveTo(-2, -12.4); ctx.lineTo(3.4, -12.4); ctx.lineTo(5, -5.6); ctx.lineTo(-3.8, -5.6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff8ab8'; ctx.fillRect(-2.6, -10, 6.2, 1);
+    // 頭、瀏海、粉紅花、紅唇
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(1.2, -16.4, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = hairC; ctx.beginPath(); ctx.arc(0.8, -17.4, 3.6, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
+    ctx.fillStyle = '#ff7ab0'; ctx.beginPath(); ctx.arc(-1.6, -19.6, 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#16161c'; ctx.fillRect(2.8, -17, 0.9, 0.9);
+    ctx.fillStyle = '#d8203a'; ctx.fillRect(3.2, -15, 1.3, 0.8);
+    ctx.restore();
+  }
+
   // ── 繪製（大地圖座標，WorldMap 的 view 裡）──
 
   // ── v1.31 千里達寵物用品店的配件（Shop.dogAccs()；全部一起戴）。座標是狗自己的座標（頭在 (4, hy)）──
@@ -254,7 +300,10 @@ const Pet = (function () {
 
   /** 收養之後：跟在主角後面（WorldMap 畫完、主角畫之前呼叫，狗在主角下面一層） */
   function drawFollower(ctx, t) {
-    if (mermaidOn() && mer.ready) drawMermaid(ctx, mer.x, mer.y, t, mer.facing, mer.inWater);
+    if (mermaidOn() && mer.ready) {
+      if (Quests.merHuman && Quests.merHuman()) drawThalassa(ctx, mer.x, mer.y, t, mer.facing, mer.inWater);
+      else drawMermaid(ctx, mer.x, mer.y, t, mer.facing, mer.inWater);
+    }
     if (!adopted() || !dog.ready) return;
     drawDog(ctx, dog.x, dog.y, t, { facing: dog.facing, swim: dog.inWater, accs: typeof Shop !== 'undefined' ? Shop.dogAccs() : [] });
   }
@@ -265,6 +314,7 @@ const Pet = (function () {
     mermaidOn: mermaidOn,
     mermaid: mer,
     drawMermaid: drawMermaid,
+    drawThalassa: drawThalassa,
     spotPin: spotPin,
     update: update,
     snap: snap,

@@ -150,7 +150,7 @@ const Game = (function () {
     if (state.shaft) state.shaft.camY = camY;
     scene = 'play';
     sceneTimer = 0;
-    toast = { text: m.def.name + '・' + m.def.game, sub: m.def.goal, life: 170 };
+    toast = { text: m.def.say || m.def.name + '・' + m.def.game, sub: m.def.goal, life: m.def.say ? 300 : 170 };
     Music.playTrack(skirmishTrack(m.def));
     netLevelStarted();
   }
@@ -376,7 +376,7 @@ const Game = (function () {
     ctx.fillStyle = 'rgba(8,12,24,0.55)';
     ctx.fillRect(0, 0, W, H);
     if (!talk) return;
-    if (talk.panel) Quests.drawPanel(ctx, talk.panel, W, t);
+    if (talk.panel) Quests.drawPanel(ctx, talk.panel, W, t, talk);
     const line = talk.lines[Math.min(talk.i, talk.lines.length - 1)];
     const top = H - 168;
     panel(40, top, W - 80, 140);
@@ -904,6 +904,7 @@ const Game = (function () {
    * 玩家在海上開船、在陸地上步行（自動切換），走到某國城市圖釘旁按 Enter 進關卡。
    * cursor 仍然保留，代表「目前靠近的國家」，底部資訊卡與其他畫面都還是讀它。
    */
+  let eiffelArmed = true;
   function updateMap() {
     const unlocked = Save.get().unlocked;
 
@@ -929,6 +930,17 @@ const Game = (function () {
     const events = Voyage.update(Input);
     // 寵物（v1.29）：收養的黃金獵犬沿著足跡跟在後面
     Pet.update(Voyage.shipPos());
+    /*
+     * v1.31.2 玩家：打倒暗夜騎士之後，帶著人魚、好感度全滿來到巴黎鐵塔 → 看夜景的對話，看完她變成人類。
+     * 走到法國的圖釘（巴黎）旁邊就自動開始；中途按 Esc 離開，要先走遠一點再回來才會再開始。
+     */
+    if (WorldMap.world() === 'eu' && Quests.eiffelReady()) {
+      const fr = WorldMap.nations.filter(function (n) { return n.id === 'FR'; })[0];
+      const sp = Voyage.shipPos();
+      const d = fr ? Math.hypot(sp.x - fr.pin[0], sp.y - fr.pin[1]) : 999;
+      if (d > 60) eiffelArmed = true;
+      else if (d < 30 && eiffelArmed && Voyage.mode() === 'land') { eiffelArmed = false; openTalk('eiffel'); return; }
+    }
     // v1.30 瑞士銀行的利息（用真實時間算）
     Quests.tick();
     if (blockedToastT > 0) blockedToastT--;
@@ -2937,7 +2949,7 @@ const Game = (function () {
       Sprites.shot(ctx, { x: sx, y: s.y, w: s.w, h: s.h, wave: s.wave, fire: s.fire, debris: s.debris,
         spear: s.spear, bat: s.bat, vx: s.vx, vy: s.vy,
         pillar: s.pillar, tentacle: s.tentacle, warn: s.warn, life: s.life, patch: s.patch, ember: s.ember,
-        slash: s.slash, lava: s.lava,
+        slash: s.slash, lava: s.lava, dark: s.dark,
         serpent: s.serpent, seg: s.seg, ang: s.ang, dirX: s.dirX, arc: s.arc,          // v1.31 亞馬遜大蛇
         football: s.football,                                                           // v1.31 巴西守門員丟的球
         arcMark: s.arcMark ? { x0: s.arcMark.x0 - camX, x1: s.arcMark.x1 - camX, h: s.arcMark.h, from: s.arcMark.from } : null }, t);
@@ -3692,7 +3704,9 @@ const Game = (function () {
     side.push({ name: '動物大遷徙（動物園 ' + Object.keys(Save.zoo()).length + ' / ' + Object.keys(Quests.ANIMALS).length + '）', done: Object.keys(Save.zoo()).length >= Object.keys(Quests.ANIMALS).length });
     side.push({ head: '劇情' });
     [['雷神索爾的結界', !!Save.flag('north')], ['冥界救出洛基', !!Save.flag('loki')], ['哥倫布的委託', Save.flag('columbus') >= 2],
-     ['海神的封印', Quests.abyssOpen()], ['人魚 Thalassa 同行', Quests.mermaidJoined()], ['瑞士銀行開戶', !!Save.bank().open],
+     ['海神的封印', Quests.abyssOpen()], ['人魚 Thalassa 同行', Quests.mermaidJoined()],
+     ['人魚的好感度 ♥ ' + Quests.merLove() + ' / ' + Quests.merLoveMax(), Quests.merLove() >= Quests.merLoveMax()],
+     ['巴黎鐵塔的夜景（人魚變成人類）', Quests.merHuman()], ['瑞士銀行開戶', !!Save.bank().open],
      ['收養黃金獵犬', Save.pet() === 'dog'], ['埃及豔后的聖蛇', !!Save.flag('asp')], ['聖誕老人的禮物', !!Save.flag('gift')]
     ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
     side.push({ head: '收集' });
@@ -4965,6 +4979,8 @@ const Game = (function () {
       enterAbyss: function () { scene = 'map'; enterAbyss(); },
       leaveAbyss: function () { scene = 'map'; leaveAbyss(); },
       abyssNotice: function () { return abyssNotice(); },
+      /** v1.31.2 直接打開一段對話（測試用：merHome、eiffel⋯⋯） */
+      talk: function (who) { scene = 'map'; openTalk(who); return talk; },
       enter: function (i) { startLevel(i || 0); },
       /** 立刻畫一帧（測試用：抓「畫的時候才會丟例外」的 bug） */
       render: function () { render(); },

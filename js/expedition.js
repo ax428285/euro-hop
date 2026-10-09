@@ -74,7 +74,8 @@ const Expedition = (function () {
                 goal: '往下走到法老的墓室！小心崩落的天花板和滑動的石台', clearTitle: '找到法老的墓室了！' };
 
   K.darkKnight = { name: '暗夜騎士', lv: '★★★★', exp: 150, bossExp: 400, bossCoins: 500, game: '暗夜決鬥', custom: true, fixed: true, knight: true,
-                   goal: '他會高高跳起、落地時劍氣往兩邊掃 —— 跳過劍氣，趁他落地喘氣時踩頭或丟東西打他（裝備越齊越好打）',
+                   say: '暗夜騎士：「巴黎鐵塔是我守護的！」',
+                   goal: '離得遠他放劍氣（低的跳、高的別跳）・靠近他騎馬衝過來 —— 跳過去，等馬喘氣時踩頭',
                    clearTitle: '打倒了暗夜騎士！' };
 
   /** 這個小遊戲（state.def.minigame）歸這裡管嗎 */
@@ -394,26 +395,27 @@ const Expedition = (function () {
       const first = firstTime(m);
       return arena(m, {
         // 不是小遊戲（Encounter.updateSkirmish 不管）：就是一場魔王戰，打倒他就過關
-        skirmish: false, city: '月光下的古堡', id: 'KNT',
-        sky: ['#06061a', '#2a1a3a'], hill: '#14142a', cloud: 'rgba(160, 150, 200, 0.18)',
-        groundTop: '#5a5a6a', groundBody: '#2a2a36',
+        skirmish: false, city: '巴黎鐵塔下的決鬥', id: 'KNT',
+        sky: ['#040818', '#1c1838'], hill: '#10142a', cloud: 'rgba(150, 150, 200, 0.12)',
+        groundTop: '#4a4a58', groundBody: '#24242e',
         exp: first ? m.def.bossExp : m.def.exp, bossCoins: first ? m.def.bossCoins : 0, firstBoss: first,
-        fact: '中世紀的騎士要練十幾年才能穿著三十公斤的盔甲騎馬作戰；傳說月圓的晚上，一位黑騎士還在古堡前等著挑戰者。' +
+        fact: '巴黎鐵塔 1889 年蓋好，晚上每到整點會像滿天星星一樣閃五分鐘；傳說有一位黑騎士，每天晚上都在塔下守著它。' +
               (first ? '　第一次打倒：' + m.def.bossExp + ' EXP＋' + m.def.bossCoins + ' 金幣＋稱號「神之手」' : '　再戰：' + m.def.exp + ' EXP'),
-        intro: ['暗夜騎士來了！他非常強', '他跳起來落地時劍氣會往兩邊掃 —— 跳過去；趁他落地喘氣的時候踩頭或丟東西打他'],
+        /*
+         * v1.31.2 玩家：不要有平台給玩家站；他騎馬衝過來（取代震地），遠距離發劍氣；背景是巴黎鐵塔的夜晚。
+         * 招式見 entities.js 的 pattern 'joust'。機器人實測見 tests/knight-check.js。
+         */
         boss: {
           name: '暗夜騎士', kind: 'darkKnight',
-          pattern: 'slam',
-          x: 700, y: G - 104, w: 72, h: 104,
+          pattern: 'joust',
+          x: 700, y: G - 92, w: 100, h: 92,
           hp: 9, rageAt: 5,
-          jumps: 2, rageJumps: 3,
-          homing: 2.4, waveSpeed: 3.9,
-          recoverTime: 75, idleTime: 44,      // 機器人實測：沒裝備 4 場全輸、全套裝備 4 場贏 1 場（真人有遠程攻擊會好打一點）
-          debris: 3,
-          left: 80, right: 900, speed: 2.1
+          chargeSpeed: 7.2, waveSpeed: 1.15,
+          recoverTime: 65, idleTime: 40,     // 機器人實測：沒裝備、22 件裝備都打不贏；28 件全套 5 條命打到剩 1 條才贏
+          left: 30, right: 930, speed: 1.6
         },
-        platforms: [{ x: 50, y: 290, w: 150, h: 20 }, { x: 760, y: 290, w: 150, h: 20 }],
-        coins: [{ x: 90, y: 250 }, { x: 124, y: 250 }, { x: 158, y: 250 }, { x: 800, y: 250 }, { x: 834, y: 250 }, { x: 868, y: 250 }]
+        platforms: [],
+        coins: [{ x: 260, y: 250 }, { x: 300, y: 250 }, { x: 340, y: 250 }, { x: 600, y: 250 }, { x: 640, y: 250 }, { x: 680, y: 250 }]
       });
     }
     if (m.kind === 'herd') {
@@ -601,7 +603,7 @@ const Expedition = (function () {
   function onClear(skirmish, state) {
     const out = {};
     if (skirmish.kind === 'darkKnight') {
-      if (!Save.flag('godHand')) { Save.setFlag('godHand', 1); out.note = '獲得稱號「神之手」！—— 打倒了傳說中的暗夜騎士'; }
+      if (!Save.flag('godHand')) { Save.setFlag('godHand', 1); out.note = '獲得稱號「神之手」！騎士：「⋯⋯鐵塔交給你了。帶你重要的人，來看看它的夜景吧。」'; }
       else out.note = '暗夜騎士又被你打倒了';
     }
     if (skirmish.kind === 'herd') {
@@ -1268,50 +1270,212 @@ const Expedition = (function () {
   }
 
   /*
-   * 暗夜騎士（決鬥場的魔王）：黑色全身盔甲、紅色羽飾、發紅光的面罩縫、深紅披風、一把大劍。
-   * 預告（telegraph）劍舉高發紅光；落地喘氣（recover）單膝跪地、頭上轉星星；狂暴時盔甲縫裡透出紫光。
+   * 暗夜騎士（決鬥場的魔王，v1.31.2 改成騎黑馬）：黑馬披著紫色馬衣、眼睛發紅；騎士黑盔甲、紅羽飾、深紅披風、一把大劍。
+   *   預告：要衝 → 馬抬起前腳；要放劍氣 → 劍舉高、發紫光
+   *   衝鋒：馬四腳狂奔、劍往前平舉；喘氣（recover）：馬低頭喘、騎士趴在馬背上、頭上轉星星
+   *   開場頭上冒一句「巴黎鐵塔是我守護的！」
    */
   Sprites.bossKinds.darkKnight = function (ctx, b, t) {
     const cx = b.x + b.w / 2, gy = b.y + b.h;
     const tired = b.phase === 'recover', tele = b.phase === 'telegraph', rage = bossEnraged(b);
+    const rush = !!b.charging && !(b.turnPause > 0);
+    const rear = tele && b.joust === 'charge';
     const f = b.dir || -1;
     ctx.save();
     if (b.hurtFlash > 0 && Math.floor(b.hurtFlash / 3) % 2 === 0) ctx.globalAlpha = 0.55;
-    const kneel = tired ? 22 : 0;
+    // 月光下的紫色黑霧（不然黑馬融進夜色裡看不到）
+    const aura = ctx.createRadialGradient(cx, gy - 50, 10, cx, gy - 50, 90);
+    aura.addColorStop(0, 'rgba(150, 90, 230, 0.35)'); aura.addColorStop(1, 'rgba(150, 90, 230, 0)');
+    ctx.fillStyle = aura; ctx.fillRect(cx - 90, gy - 140, 180, 140);
     ctx.translate(cx, gy);
     ctx.scale(f, 1);
-    // 披風
+    if (rear) { ctx.translate(-34, 0); ctx.rotate(-0.28); ctx.translate(34, 0); }
+    const run = rush ? t * 0.55 : (b.phase === 'idle' ? t * 0.2 : 0);
+    // 馬腳（狂奔時前後甩）
+    ctx.fillStyle = '#121218';
+    [[-30, 0], [-20, 1.6], [22, 3.2], [32, 4.8]].forEach(function (q) {
+      const sw = run ? Math.sin(run + q[1]) * (rush ? 10 : 4) : 0;
+      ctx.save(); ctx.translate(q[0], -34); ctx.rotate(sw * 0.05);
+      ctx.fillRect(-3.5, 0, 7, 32);
+      ctx.fillStyle = '#3a3a44'; ctx.fillRect(-4, 28, 8, 5); ctx.fillStyle = '#121218';
+      ctx.restore();
+    });
+    // 尾巴
+    ctx.fillStyle = '#0a0a10';
+    ctx.beginPath(); ctx.moveTo(-42, -50);
+    ctx.quadraticCurveTo(-60, -40 + Math.sin(t * 0.2) * 4, -56 - (rush ? 10 : 0), -18); ctx.lineTo(-48, -22); ctx.quadraticCurveTo(-50, -38, -40, -44); ctx.fill();
+    // 馬身＋紫色馬衣（金邊）
+    ctx.fillStyle = '#16161e';
+    ctx.beginPath(); ctx.ellipse(0, -44, 44, 16, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(200, 180, 255, 0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#3a1a5a';
+    ctx.beginPath(); ctx.moveTo(-34, -54); ctx.lineTo(22, -54); ctx.lineTo(28, -30); ctx.lineTo(-38, -30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c8a040'; ctx.fillRect(-38, -32, 66, 2.5);
+    // 脖子、頭、鬃毛、發紅的眼睛
+    const nod = tired ? 14 : 0;
+    ctx.fillStyle = '#16161e';
+    ctx.beginPath(); ctx.moveTo(26, -56); ctx.lineTo(44, -80 + nod); ctx.lineTo(54, -74 + nod); ctx.lineTo(40, -44); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(42, -84 + nod); ctx.lineTo(64, -72 + nod); ctx.lineTo(62, -64 + nod); ctx.lineTo(44, -68 + nod); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#5a0a1a';
-    ctx.beginPath(); ctx.moveTo(-14, -86 + kneel); ctx.lineTo(14, -86 + kneel);
-    ctx.lineTo(-10 + Math.sin(t * 0.1) * 4, -6); ctx.lineTo(-34 + Math.sin(t * 0.1) * 6, -10); ctx.closePath(); ctx.fill();
-    // 腳
-    ctx.fillStyle = '#1e1e28';
-    if (tired) { ctx.fillRect(-16, -18, 14, 18); ctx.fillRect(4, -10, 22, 10); }
-    else { ctx.fillRect(-14, -34, 11, 34); ctx.fillRect(4, -34, 11, 34); }
-    // 身體
-    ctx.fillStyle = '#2a2a36'; U.roundRect(ctx, -20, -84 + kneel, 40, 52, 8); ctx.fill();
-    ctx.fillStyle = '#3a3a4a'; ctx.fillRect(-20, -70 + kneel, 40, 4); ctx.fillRect(-20, -54 + kneel, 40, 4);
-    if (rage) { ctx.fillStyle = 'rgba(180, 80, 255, ' + (0.5 + Math.sin(t * 0.3) * 0.3).toFixed(2) + ')'; ctx.fillRect(-20, -66 + kneel, 40, 2); ctx.fillRect(-20, -50 + kneel, 40, 2); }
-    // 頭盔＋面罩縫＋羽飾
-    ctx.fillStyle = '#24242e'; U.roundRect(ctx, -14, -108 + kneel, 28, 26, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(26, -58); ctx.lineTo(40, -86 + nod); ctx.lineTo(34, -60); ctx.closePath(); ctx.fill();
     ctx.fillStyle = tele || rage ? '#ff3a3a' : '#c8202a';
-    ctx.fillRect(-2, -98 + kneel, 14, 3);
-    ctx.fillStyle = '#c8202a';
-    ctx.beginPath(); ctx.moveTo(-2, -108 + kneel); ctx.quadraticCurveTo(-20, -126 + kneel, -30, -110 + kneel); ctx.quadraticCurveTo(-16, -112 + kneel, -6, -104 + kneel); ctx.fill();
-    // 劍：預告時舉高發光，平常斜握在前面
+    ctx.fillRect(50, -78 + nod, 4, 2.5);
+    if (tired) {  // 喘氣：鼻子冒白煙
+      ctx.fillStyle = 'rgba(220, 220, 240, 0.5)';
+      const p = (t % 30) / 30;
+      ctx.beginPath(); ctx.arc(68 + p * 10, -64 + nod - p * 6, 3 + p * 4, 0, Math.PI * 2); ctx.fill();
+    }
+    // 騎士：披風、身體、頭盔
+    const lean = tired ? 10 : rush ? 4 : 0;
     ctx.save();
-    ctx.translate(16, -66 + kneel);
-    ctx.rotate(tele ? -2.3 : tired ? 0.9 : -0.5);
-    ctx.fillStyle = '#5a4a2a'; ctx.fillRect(-2, -4, 4, 12);
-    ctx.fillStyle = '#8a7a4a'; ctx.fillRect(-8, -6, 16, 3);
-    ctx.fillStyle = tele ? '#ffd0d0' : '#c8ccd8'; ctx.fillRect(-2.5, -50, 5, 44);
-    if (tele) { ctx.fillStyle = 'rgba(255, 60, 60, 0.3)'; ctx.fillRect(-7, -54, 14, 52); }
+    ctx.translate(-4, -54);
+    ctx.rotate(tired ? 0.5 : rush ? 0.18 : 0);
+    ctx.fillStyle = '#5a0a1a';
+    ctx.beginPath(); ctx.moveTo(-8, -30); ctx.lineTo(6, -30);
+    ctx.lineTo(-18 - (rush ? 14 : 0), 4 + Math.sin(t * 0.15) * 3); ctx.lineTo(-30 - (rush ? 18 : 0), -2 + Math.sin(t * 0.15) * 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2a2a36'; U.roundRect(ctx, -11, -32, 22, 32, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(200, 180, 255, 0.6)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = '#3a3a4a'; ctx.fillRect(-11, -22, 22, 3); ctx.fillRect(-11, -12, 22, 3);
+    if (rage) { ctx.fillStyle = 'rgba(180, 80, 255, ' + (0.5 + Math.sin(t * 0.3) * 0.3).toFixed(2) + ')'; ctx.fillRect(-11, -18, 22, 2); }
+    ctx.fillStyle = '#1e1e28'; ctx.fillRect(-4, -4, 9, 14);       // 腿跨在馬上
+    ctx.fillStyle = '#24242e'; U.roundRect(ctx, -9, -50, 18, 19, 5); ctx.fill();
+    ctx.fillStyle = tele || rage ? '#ff3a3a' : '#c8202a';
+    ctx.fillRect(0, -43, 9, 2.5);
+    ctx.fillStyle = '#c8202a';
+    ctx.beginPath(); ctx.moveTo(-1, -50); ctx.quadraticCurveTo(-14, -64, -24 - (rush ? 8 : 0), -52); ctx.quadraticCurveTo(-12, -54, -4, -46); ctx.fill();
+    // 劍
+    ctx.save();
+    ctx.translate(8, -22);
+    let ang = -0.6;
+    if (rush) ang = 1.45;                                            // 往前平舉
+    else if (tired) ang = 1.1;
+    else if (tele && b.joust === 'wave') ang = -2.3;                 // 舉高蓄力
+    else if (b.swing) ang = b.swing === 'high' ? -2.3 + b.swingK * 2.6 : -2.3 + b.swingK * 3.6;
+    ctx.rotate(ang);
+    ctx.fillStyle = '#5a4a2a'; ctx.fillRect(-2, -4, 4, 10);
+    ctx.fillStyle = '#8a7a4a'; ctx.fillRect(-7, -6, 14, 3);
+    const glow = (tele && b.joust === 'wave') || b.swing;
+    ctx.fillStyle = glow ? '#e8d8ff' : '#c8ccd8'; ctx.fillRect(-2.5, -50, 5, 44);
+    if (glow) { ctx.fillStyle = 'rgba(160, 80, 255, 0.35)'; ctx.fillRect(-8, -56, 16, 54); }
     ctx.restore();
     ctx.restore();
+    ctx.restore();
+    // 衝鋒時馬蹄揚起的塵土
+    if (rush) {
+      ctx.fillStyle = 'rgba(160, 160, 180, 0.35)';
+      for (let k = 0; k < 4; k++) {
+        const p = ((t * 2 + k * 8) % 32) / 32;
+        ctx.beginPath(); ctx.arc(cx - f * (40 + p * 40), gy - 4 - p * 10, 4 + p * 6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     if (tired) {
       ctx.fillStyle = '#ffd166';
-      for (let k = 0; k < 3; k++) { const a = t * 0.1 + k * 2.1; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 22, b.y + 14 + Math.sin(a) * 5, 3, 0, Math.PI * 2); ctx.fill(); }
+      for (let k = 0; k < 3; k++) { const a = t * 0.1 + k * 2.1; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 22, b.y - 6 + Math.sin(a) * 5, 3, 0, Math.PI * 2); ctx.fill(); }
     }
+    // 開場的台詞
+    b.sayT = (b.sayT || 0) + 1;
+    if (b.sayT < 220 && !b.defeated) {
+      const a = Math.min(1, (220 - b.sayT) / 30);
+      ctx.save();
+      ctx.globalAlpha = a;
+      const tx = cx, ty = b.y - 58;
+      ctx.fillStyle = 'rgba(16, 12, 28, 0.88)';
+      U.roundRect(ctx, tx - 112, ty - 16, 224, 32, 10); ctx.fill();
+      ctx.strokeStyle = 'rgba(200, 40, 50, 0.9)'; ctx.lineWidth = 2;
+      U.roundRect(ctx, tx - 112, ty - 16, 224, 32, 10); ctx.stroke();
+      ctx.fillStyle = 'rgba(16, 12, 28, 0.88)';
+      ctx.beginPath(); ctx.moveTo(tx - 8, ty + 16); ctx.lineTo(tx, ty + 28); ctx.lineTo(tx + 8, ty + 16); ctx.fill();
+      U.text(ctx, '巴黎鐵塔是我守護的！', tx, ty, { size: 16, weight: 800, color: '#ffd0d0' });
+      ctx.restore();
+    }
+  };
+
+  /*
+   * 決鬥場的背景：巴黎的夜晚。星星、月亮、遠遠一排亮著窗的屋頂，正中間一座點滿金色燈光的巴黎鐵塔
+   * （塔身一閃一閃 = 整點的閃燈，塔頂的探照燈一直轉）。
+   */
+  Sprites.skylines.KNT = function (ctx, camX, gy, W, def, t) {
+    const rnd = U.rng(889);
+    // 星星
+    for (let i = 0; i < 70; i++) {
+      const x = rnd() * W, y = rnd() * (gy - 160), tw = 0.35 + Math.abs(Math.sin(t * 0.04 + i)) * 0.6;
+      ctx.fillStyle = 'rgba(255, 255, 240, ' + tw.toFixed(2) + ')';
+      ctx.fillRect(x, y, 1.6, 1.6);
+    }
+    // 月亮
+    ctx.fillStyle = 'rgba(255, 250, 220, 0.18)';
+    ctx.beginPath(); ctx.arc(W * 0.82, 70, 46, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4ecd0';
+    ctx.beginPath(); ctx.arc(W * 0.82, 70, 26, 0, Math.PI * 2); ctx.fill();
+    // 探照燈（從塔頂掃過夜空）
+    const tx = W / 2 - camX * 0.1, top = gy - 270;
+    const sweep = Math.sin(t * 0.012) * 1.1;
+    ctx.save();
+    ctx.translate(tx, top);
+    ctx.rotate(sweep);
+    const bg = ctx.createLinearGradient(0, 0, 0, -420);
+    bg.addColorStop(0, 'rgba(255, 230, 160, 0.28)'); bg.addColorStop(1, 'rgba(255, 230, 160, 0)');
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(-60, -420); ctx.lineTo(60, -420); ctx.lineTo(3, 0); ctx.fill();
+    ctx.restore();
+    // 塔後面的光暈
+    const halo = ctx.createRadialGradient(tx, gy - 150, 10, tx, gy - 150, 260);
+    halo.addColorStop(0, 'rgba(255, 190, 90, 0.22)'); halo.addColorStop(1, 'rgba(255, 190, 90, 0)');
+    ctx.fillStyle = halo; ctx.fillRect(tx - 260, gy - 410, 520, 410);
+    // 遠遠的屋頂（亮著的窗）
+    const rx = -camX * 0.2;
+    ctx.fillStyle = '#0c0e1e';
+    ctx.beginPath(); ctx.moveTo(0, gy);
+    for (let i = 0; i <= 24; i++) {
+      const x = rx + i * 44, h = 40 + (i * 37 % 5) * 9;
+      ctx.lineTo(x, gy - h); ctx.lineTo(x + 22, gy - h - 12); ctx.lineTo(x + 44, gy - h);
+    }
+    ctx.lineTo(W, gy); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 24; i++) {
+      const x = rx + i * 44 + 8, h = 40 + (i * 37 % 5) * 9;
+      for (let k = 0; k < 3; k++) {
+        if ((i * 7 + k * 3) % 4 === 0) continue;
+        ctx.fillStyle = 'rgba(255, 210, 120, 0.7)';
+        ctx.fillRect(x + k * 10, gy - h + 10 + (k % 2) * 12, 5, 7);
+      }
+    }
+    // 巴黎鐵塔（點滿金色燈光）
+    ctx.save();
+    ctx.translate(tx, gy);
+    const H = 270, B = 100;
+    ctx.strokeStyle = '#e8a040'; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-B, 0); ctx.quadraticCurveTo(-B * 0.28, -H * 0.42, -10, -H * 0.82); ctx.lineTo(-4, -H);
+    ctx.moveTo(B, 0); ctx.quadraticCurveTo(B * 0.28, -H * 0.42, 10, -H * 0.82); ctx.lineTo(4, -H);
+    ctx.stroke();
+    // 底下的拱門
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-B * 0.66, -34); ctx.quadraticCurveTo(0, -96, B * 0.66, -34); ctx.stroke();
+    // 交叉的鋼架
+    ctx.strokeStyle = 'rgba(240, 170, 70, 0.6)'; ctx.lineWidth = 1.4;
+    for (let k = 0; k < 14; k++) {
+      const y0 = -k * H * 0.06, y1 = -(k + 1) * H * 0.06;
+      const w0 = B * Math.pow(1 - k / 16, 2.2), w1 = B * Math.pow(1 - (k + 1) / 16, 2.2);
+      ctx.beginPath(); ctx.moveTo(-w0, y0); ctx.lineTo(w1, y1); ctx.moveTo(w0, y0); ctx.lineTo(-w1, y1); ctx.stroke();
+    }
+    // 三層平台
+    ctx.fillStyle = '#f2b050';
+    [[0.18, 0.62], [0.46, 0.34], [0.8, 0.12]].forEach(function (q) { const hw = B * q[1] + 6; ctx.fillRect(-hw, -H * q[0], hw * 2, 5); });
+    ctx.fillRect(-2, -H - 26, 4, 26);
+    // 閃燈：整座塔像滿天星星
+    const flick = U.rng(31);
+    for (let i = 0; i < 80; i++) {
+      const yy = -flick() * H, side = flick() < 0.5 ? -1 : 1;
+      const k = -yy / H, half = B * Math.pow(1 - k * 0.94, 2.2) + 2;
+      const xx = side * half * flick();
+      const on = Math.sin(t * 0.35 + i * 1.7) > 0.55;
+      if (!on) continue;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(xx - 1.2, yy - 1.2, 2.4, 2.4);
+    }
+    ctx.fillStyle = '#fff6d0';
+    ctx.beginPath(); ctx.arc(0, -H - 4, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   };
 
   return {

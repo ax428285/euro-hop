@@ -59,7 +59,9 @@ const Abyss = (function () {
     { id: 'S_surface', name: '光之井・回海面', x: 598, y: 70, surface: true, prompt: '按 Enter 往上游，回到海面（歐洲）' },
     { id: 'Q_mermaid', name: '人魚 Thalassa', x: 598, y: 400, npc: 'mermaid', prompt: '按 Enter 跟人魚說話' },
     // v1.31.2 玩家：海底城新增商店賣人魚時裝 → 中央廣場的服裝店（shop.js 的 shellHouse）
-    { id: 'M_shellHouse', name: '珊瑚貝殼屋', x: 660, y: 444, seller: 'shellHouse', prompt: '按 Enter 逛珊瑚貝殼屋（海底的服裝店）' }
+    { id: 'M_shellHouse', name: '珊瑚貝殼屋', x: 660, y: 444, seller: 'shellHouse', prompt: '按 Enter 逛珊瑚貝殼屋（海底的服裝店）' },
+    // v1.31.2 玩家：海底層新增人魚的家 —— 把紀念品送給她（好感度），送的東西擺在她家的架子上
+    { id: 'Q_merHome', name: '人魚的家', x: 536, y: 444, npc: 'merHome', prompt: '按 Enter 進人魚的家（可以把紀念品送給她）' }
   ];
   const REGIONS = [
     { name: '亞　特　蘭　提　斯', lon: 598, lat: 520, size: 26 },
@@ -717,7 +719,6 @@ const Abyss = (function () {
         ctx.strokeStyle = 'rgba(255, 220, 120, ' + (0.45 + Math.sin(t * 0.15 + k) * 0.35).toFixed(2) + ')'; ctx.lineWidth = 2.5;
         U.roundRect(ctx, q.x - 4, q.y - 11, q.w + 8, 15, 5); ctx.stroke();
       });
-      U.text(ctx, '照壁畫的順序踩石板　I → II → III', r.door.x, r.door.y - 230, { size: 15, weight: 800, color: '#ffe9a8', strokeWidth: 4 });
     }
     // 石板
     r.plates.forEach(function (q) {

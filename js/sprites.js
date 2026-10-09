@@ -7014,6 +7014,7 @@ const Sprites = (function () {
 
   /** 火焰劍光：月牙形的火焰，朝飛行方向；高掃是一大片、低掃貼著地面 */
   function flameSlash(ctx, s, t) {
+    if (s.dark) { darkSlash(ctx, s, t); return; }
     const dir = s.vx < 0 ? -1 : 1;
     const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
     ctx.save();
@@ -7040,6 +7041,36 @@ const Sprites = (function () {
     ctx.quadraticCurveTo(10, 0, -10, -hh);
     ctx.closePath(); ctx.fill();
     ctx.strokeStyle = 'rgba(255, 252, 230, 0.95)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-4, -hh + 4); ctx.quadraticCurveTo(32, 0, -4, hh - 4); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** v1.31.2 暗夜騎士的劍氣：紫黑色的月牙，後面拖著黑霧（高低跟火焰劍光一樣，看高度決定跳不跳） */
+  function darkSlash(ctx, s, t) {
+    const dir = s.vx < 0 ? -1 : 1;
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(dir, 1);
+    const hh = s.h / 2 + 4;
+    ctx.fillStyle = 'rgba(60, 20, 90, 0.45)';
+    for (let k = 0; k < 4; k++) {
+      const ph = (t * 0.5 + k * 9) % 30;
+      ctx.beginPath(); ctx.arc(-14 - ph * 1.5, (k - 1.5) * hh * 0.45, 4 - ph * 0.1, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(150, 70, 255, 0.28)';
+    ctx.beginPath(); ctx.ellipse(2, 0, s.w / 2 + 10, hh + 2, 0, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createLinearGradient(-20, 0, 24, 0);
+    g.addColorStop(0, 'rgba(40, 10, 70, 0.3)');
+    g.addColorStop(0.55, 'rgba(140, 60, 240, 0.95)');
+    g.addColorStop(1, 'rgba(235, 215, 255, 1)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-10, -hh);
+    ctx.quadraticCurveTo(40, 0, -10, hh);
+    ctx.quadraticCurveTo(10, 0, -10, -hh);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(250, 240, 255, 0.95)'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(-4, -hh + 4); ctx.quadraticCurveTo(32, 0, -4, hh - 4); ctx.stroke();
     ctx.restore();
   }

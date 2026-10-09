@@ -2,8 +2,10 @@
  * v1.31.2 暗夜騎士檢查。在瀏覽器執行 runKnightCheck()（要先載入 traversal-bot.js，借用魔王對打機器人）。
  *
  *   A) 歐洲地圖上有暗夜騎士，一直待在法國的國土裡走來走去（不會走進海裡、不會走出法國）；要走路才碰得到（開船碰不到）
- *   B) 決鬥：魔王血 9 格、有狂暴；沒有裝備的魔王對打機器人 3 場最多贏 1 場；全套裝備的成績記在 report（給人看難度）
+ *   B) 決鬥：巴黎鐵塔下、沒有平台、騎馬衝鋒＋劍氣（joust）；血 9 格、有狂暴；
+ *      魔王對打機器人：沒裝備、22 件裝備打不贏，28 件全套打得贏
  *   C) 第一次打倒拿到稱號「神之手」（flag godHand）；冒險紀錄裡列得出來
+ *   D) 紀念品送給人魚（人魚的家）→ 好感度滿 → 巴黎鐵塔的夜景看完 → 變成人類（flag merHuman）
  * 會暫時改存檔，結束前還原。
  */
 function runKnightCheck() {
@@ -60,12 +62,34 @@ function runKnightCheck() {
   report.bare = bares.map(function (q) { return q.won + ':' + q.hitsLanded; }).join(' ');
   if (bares.filter(function (q) { return q.won; }).length > 1) issues.push('沒有裝備的機器人也常常打贏暗夜騎士（太簡單）');
   const full = fight(Equipment.defs.map(function (d) { return d.id; }));
-  report.full = full;
+  report.full = full.won + ':' + full.hitsLanded + ' 受傷 ' + full.timesHurt;
+  if (!full.won) issues.push('全套裝備的機器人也打不贏暗夜騎士（太難）');
+  const most = fight(Equipment.defs.slice(0, 22).map(function (d) { return d.id; }));
+  report.most = most.won + ':' + most.hitsLanded;
+  if (most.won) issues.push('裝備沒收齊（22 件）的機器人就打贏暗夜騎士了（太簡單）');
+  // v1.31.2 沒有平台給玩家站
+  if ((def.platforms || []).length) issues.push('暗夜騎士的決鬥場不該有平台');
+  if (def.boss.pattern !== 'joust') issues.push('暗夜騎士要用騎馬衝鋒＋劍氣（joust）');
 
   // ── C) 稱號 ──
   sv.flags.godHand = 0;
   const r = Expedition.onClear({ kind: 'darkKnight', def: K }, { def: def });
   if (!Save.flag('godHand') || !r.note || r.note.indexOf('神之手') < 0) issues.push('打倒暗夜騎士沒有拿到稱號「神之手」');
+
+  // ── D) 人魚的好感度 → 巴黎鐵塔的夜景 → 變成人類 ──
+  sv.flags.merHuman = 0; sv.flags.mermaid = 1; Save.markSeaBoss('darkKnight');
+  Souvenirs.defs.forEach(function (d) { sv.flags['merGift_' + d.id] = 0; Save.addSouvenir(d.id); });
+  if (!Abyss.SPOTS.some(function (q) { return q.npc === 'merHome'; })) issues.push('海底城沒有人魚的家');
+  const home = Quests.talk('merHome');
+  if (!home || home.panel !== 'merHome' || home.reveal.length !== Souvenirs.count) issues.push('人魚的家沒有把紀念品一樣一樣送出去');
+  home.end(true);
+  if (Quests.merLove() !== Quests.merLoveMax()) issues.push('紀念品全送完好感度沒有滿（' + Quests.merLove() + '）');
+  if (!Quests.eiffelReady()) issues.push('好感度滿＋打倒騎士＋人魚同行，卻沒辦法看巴黎鐵塔的夜景');
+  const ev = Quests.talk('eiffel');
+  ev.end(false);
+  if (Quests.merHuman()) issues.push('夜景沒看完就變成人類了');
+  ev.end(true);
+  if (!Quests.merHuman() || Quests.eiffelReady()) issues.push('看完巴黎鐵塔的夜景，人魚沒有變成人類');
 
   const keep = JSON.parse(backup);
   Object.keys(keep).forEach(function (k) { sv[k] = keep[k]; });

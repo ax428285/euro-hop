@@ -141,6 +141,11 @@ function makeWave(x, dir, speed) {
  * 玩家站著頭頂離地 40，跳最高約 128 —— 兩種劍光不能用同一招躲。
  */
 const SLASH_SPEED = 4.2;
+/*
+ * v1.31.2 暗夜騎士（pattern 'joust'）：騎著黑馬。玩家離得遠（> JOUST_FAR）→ 揮劍放劍氣（高低交錯、跟火巨人同一種劍光）；
+ * 離得近 → 騎馬整片衝過來（跳過去），衝到場地邊緣馬累了 = 破綻期。劍氣揮完不會累 —— 想打他就得靠近、逼他衝。
+ */
+const JOUST_FAR = 300;
 const SLASH_WINDUP = 34;      // 每一劍舉劍蓄力多久（看得出高低）
 const SLASH_GAP = 56;         // 兩劍之間隔多久（含蓄力）：劍光間距約 235px，跳過一道落地前下一道還沒到
 function makeSlash(x, dir, high) {
@@ -318,6 +323,7 @@ function makeBoss(def) {
     recoverTime: def.recoverTime || 170,
     idleTime: def.idleTime || 90,
     debris: def.debris || 0,
+    chargeSpeed: def.chargeSpeed || 6,   // v1.31.2 暗夜騎士（joust）騎馬衝鋒的速度
     landPause: 0
   };
 }
@@ -837,6 +843,11 @@ function updateBoss(state, t) {
         b.y += U.clamp(hoverY - b.y, -2.4, 2.4);
       }
       if (b.timer <= 0) {
+        if (b.pattern === 'joust') {
+          // 預告時就看得出是哪一招：舉劍發光 = 劍氣、馬抬起前腳 = 要衝了
+          b.joust = Math.abs(pcx - (b.x + b.w / 2)) > JOUST_FAR ? 'wave' : 'charge';
+          b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
+        }
         b.phase = 'telegraph';
         b.timer = 50;            // 預告時間，夠長讓玩家閃開
         events.push('telegraph');
@@ -913,6 +924,25 @@ function updateBoss(state, t) {
             b.shotCd = 0;
             b.timer = 420;
             break;
+          case 'joust': {
+            const rage = bossEnraged(b);
+            b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
+            if (b.joust === 'wave') {
+              // 劍氣：兩道（狂暴三道），高低交錯 —— 低的跳過去、高的站在地上別跳；每一輪從哪一種開始輪流換
+              b.round = (b.round || 0) + 1;
+              b.slashes = [];
+              for (let k = 0; k < (rage ? 3 : 2); k++) b.slashes.push((k + b.round) % 2 === 0);
+              b.swingT = 0;
+              b.timer = b.slashes.length * SLASH_GAP + 80;
+            } else {
+              // 衝鋒：一趟（狂暴兩趟：撞到邊緣停一下、掉頭再衝回來）
+              b.chargesLeft = rage ? 2 : 1;
+              b.turnPause = 0;
+              b.charging = true;
+              b.timer = 480;
+            }
+            break;
+          }
           case 'charge':
             b.timer = 70;
             b.dir = pcx < b.x + b.w / 2 ? -1 : 1;
@@ -1101,6 +1131,50 @@ function updateBoss(state, t) {
             b.phase = 'recover';
             b.timer = b.recoverTime;
             events.push('slam');
+          }
+          break;
+        }
+
+        case 'joust': {
+          if (b.joust === 'wave') {
+            const k = b.swingT % SLASH_GAP;
+            const idx = Math.floor(b.swingT / SLASH_GAP);
+            if (idx < b.slashes.length) {
+              const high = b.slashes[idx];
+              if (k === 0) { b.dir = pcx < b.x + b.w / 2 ? -1 : 1; events.push('throw'); }
+              b.swing = high ? 'high' : 'low';
+              b.swingK = Math.min(1, k / SLASH_WINDUP);
+              if (k === SLASH_WINDUP) {
+                const sx = b.dir > 0 ? b.x + b.w : b.x - 30;
+                const s = makeSlash(sx, b.dir, high);
+                s.vx *= b.waveSpeed || 1;
+                s.dark = true;                 // 紫黑色的劍氣（不是火）
+                state.shots.push(s);
+                events.push('shoot');
+              }
+            } else {
+              b.swing = null;
+              b.phase = 'idle';
+              b.timer = b.idleTime;
+            }
+            b.swingT++;
+            break;
+          }
+          // 騎馬衝鋒：撞到場地邊緣 → 還有下一趟就停一下掉頭，沒有就喘氣（破綻期）
+          if (b.turnPause > 0) {
+            if (--b.turnPause === 0) b.dir = -b.dir;
+            break;
+          }
+          b.x += b.dir * b.chargeSpeed * (bossEnraged(b) ? 1.12 : 1);
+          if (b.x <= b.left || b.x + b.w >= b.right) {
+            b.x = U.clamp(b.x, b.left, b.right - b.w);
+            events.push('slam');
+            if (--b.chargesLeft > 0) b.turnPause = 30;
+            else {
+              b.charging = false;
+              b.phase = 'recover';
+              b.timer = b.recoverTime;
+            }
           }
           break;
         }
@@ -1375,6 +1449,7 @@ function updateBoss(state, t) {
     case 'recover': {
       // 破綻期：不動，可被打
       b.swing = null;
+      b.charging = false;
       if (b.timer <= 0) {
         b.phase = 'idle';
         b.timer = b.idleTime;

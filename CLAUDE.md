@@ -58,5 +58,9 @@
   海底城地圖不生海上怪物；測試 `tests/abyss-check.js` 的 `runAbyssCheck`。海神夥伴改成安提基特拉沉船拿。
   測試檔用 script 標籤載入有時會拿到舊的，改用 fetch（cache: reload）＋ eval 載入比較保險。
 - v1.31.2 冒險紀錄（game.js scene `journal`，鍵 L，☰ 選單按鈕）：兩頁＝主線關卡（照 region 分組）、支線與收集（海上冒險從 Encounter.KINDS 自動列）。
-- v1.31.2 暗夜騎士（expedition.js `darkKnight`，`fixed`＋`knight`）：在法國國土裡走動，走路才碰得到；決鬥用 slam 魔王（血 9）；打贏 `Save.flag('godHand')` = 稱號「神之手」。測試 `tests/knight-check.js` 的 `runKnightCheck`（要先載入 traversal-bot.js）。
+- v1.31.2 暗夜騎士（expedition.js `darkKnight`，`fixed`＋`knight`）：在法國國土裡走動，走路才碰得到；決鬥場是巴黎鐵塔的夜晚（`Sprites.skylines.KNT`）、沒有平台，
+  魔王 pattern `'joust'`（entities.js：近 = 騎馬衝鋒、遠 = 劍氣 `makeSlash`＋`dark`；血 9）；機器人：22 件裝備打不贏、28 件全套打得贏。打贏 `Save.flag('godHand')` = 稱號「神之手」。
+  測試 `tests/knight-check.js` 的 `runKnightCheck`（要先載入 traversal-bot.js）。
+- v1.31.2 人魚的好感度（quests.js `merLove`）：海底城的「人魚的家」（Abyss.SPOTS `Q_merHome`，talk `merHome`，panel 畫架子）把紀念品送給她，旗標 `merGift_<id>`；
+  好感度滿＋打倒暗夜騎士＋人魚同行，走到法國圖釘 → talk `eiffel`（夜景），看完 `Save.flag('merHuman')`，pet.js 改畫 `drawThalassa`（人類）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

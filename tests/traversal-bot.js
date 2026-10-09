@@ -439,7 +439,16 @@ function runBossFightTest(only) {
                q.y + q.h <= p.y && q.y + q.h > p.y - 110;
       });
       const reactT = lowCeil ? 5 : 13;
-      const incoming = st.shots.some(function (s) {
+      // v1.31.2 暗夜騎士騎馬衝過來：跟震波一樣，快撞到就整個跳過去
+      function bossCharging() {
+        if (!b.charging || b.turnPause > 0) return false;
+        const dx = bcx - pcx;
+        if ((dx > 0) === (b.dir > 0)) return false;          // 往另一邊跑
+        const gap = Math.abs(dx) - (bx.w + p.w) / 2;
+        const closing = b.chargeSpeed + (dx > 0 ? p.vx : -p.vx);
+        return gap / Math.max(0.5, closing) < 9.5;
+      }
+      const incoming = bossCharging() || st.shots.some(function (s) {
         if (s.debris || s.ember || s.pillar) return false;   // 從天上掉的、從地底噴的另外處理
         if (!(s.y < p.y + p.h + 2 && s.y + s.h > p.y)) return false;
         const dx = (s.x + s.w / 2) - pcx;
