@@ -79,5 +79,5 @@
 - v1.31.7（2026-10-10 已上線）：戰艦在地圖上亂繞（expedition.js `wander`：歐洲範圍 `wanderBox`、離海岸 `WANDER_COAST` 內、避開北歐結界）；quest-check 的 C2 會檢查。
 - v1.31.8（2026-10-10 已上線）：墨西哥賽道的「石頭」障礙換成紅色油桶（race.js kind `barrel`），風滾草畫得更明顯；電腦版選單快捷鍵 O（☰）、U（連線）、F11（main.js）；古巴（topdown.js）的坑洞、三角錐、水果攤車重畫，加紅色警示影子。
 - v1.31.9（2026-10-10 已上線）：光之井的觸發範圍改成整片最上面（game.js updateMap：`sp.y < 光之井.y + 22`）。
-- v1.31.10（在 `nordic`，**還沒上線**）：首頁不再畫按鍵說明（跟 index.html 的 #hint 重複）；刪除存檔只能用 ☰ 選單的「刪除存檔」（點兩次），Delete 鍵拿掉了，說明不提 F2、刪除存檔；index.html #hint 的橘色字都是按鈕（`.hk`、data-act，main.js 處理）；手機版畫面上的按鍵提示由 utils.js `U.touchText` 自動換成手機說法（所有 U.text 都會過），新加的提示文字照「Enter／Esc、Q 回地圖」這種寫法就會自動轉。
+- v1.31.10（在 `nordic`，**還沒上線**）：首頁不再畫按鍵說明（跟 index.html 的 #hint 重複）；刪除存檔只能用 ☰ 選單的「刪除存檔」（點兩次），Delete 鍵拿掉了，說明不提 F2、刪除存檔；index.html #hint 只有鍵盤上的鍵用橘色（<strong>），其他字一般顏色；手機版畫面上的按鍵提示由 utils.js `U.touchText` 自動換成手機說法（所有 U.text 都會過），新加的提示文字照「Enter／Esc、Q 回地圖」這種寫法就會自動轉。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

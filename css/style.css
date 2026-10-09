@@ -66,14 +66,6 @@ canvas#game:focus-visible {
 
 #hint strong { color: #ffd166; font-weight: 600; }
 #hint b { color: #c6d2e8; font-weight: 600; }
-/* v1.31.10 說明列的橘色字 = 按鈕（點了跟按那個鍵一樣） */
-#hint .hk {
-  font: inherit; font-weight: 600; color: #ffd166; cursor: pointer;
-  background: rgba(255, 209, 102, 0.08); border: 1px solid rgba(255, 209, 102, 0.35); border-radius: 4px;
-  padding: 0 5px; margin: 1px 0; line-height: 1.35;
-}
-#hint .hk:hover { background: rgba(255, 209, 102, 0.22); border-color: #ffd166; }
-#hint .hk:active { transform: translateY(1px); }
 
 /* ── 觸控操作：只在觸控裝置顯示 ───────────────────────────── */
 
