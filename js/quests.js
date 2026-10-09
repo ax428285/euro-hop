@@ -304,6 +304,7 @@ const Quests = (function () {
   let pickArmed = true;
   function pickSpot() { const p = EuropeWorld.project(PICK_AT[0], PICK_AT[1]); return [p[0] + PICK_OFF[0], p[1] + PICK_OFF[1]]; }
   /** 大地圖每帧呼叫：這一帧被偷了幾枚（0 = 沒事） */
+  const ROB_TITLE = 3;
   function pickpocket(ship) {
     if (typeof Save === 'undefined' || typeof EuropeWorld === 'undefined') return 0;
     if (typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() !== 'eu') return 0;   // 新大陸沒有比利時
@@ -315,7 +316,12 @@ const Quests = (function () {
     pickArmed = false;
     if (hasAsp()) return -2;   // -2：被埃及豔后的聖蛇嚇跑（v1.30 玩家：買過就永遠不怕扒手）
     const n = Math.min(PICK_COINS, Save.get().wallet || 0);
-    if (n > 0) { Save.spendCoins(n); Save.setFlag('robbed', (flag('robbed') || 0) + n); }
+    if (n > 0) {
+      Save.spendCoins(n); Save.setFlag('robbed', (flag('robbed') || 0) + n);
+      // v1.31.2 玩家：被扒手偷三次可獲得新稱號 → 第 ROB_TITLE 次拿到「比利時肥羊」（flag robbedTimes、sheep）
+      Save.setFlag('robbedTimes', (flag('robbedTimes') || 0) + 1);
+      if (flag('robbedTimes') >= ROB_TITLE && !flag('sheep')) Save.setFlag('sheep', 1);
+    }
     return n || -1;          // -1：錢包空空，扒手摸了個空
   }
   /** 港邊鬼鬼祟祟的扒手：戴黑帽、揹著錢袋，左右張望 */
@@ -1098,6 +1104,7 @@ const Quests = (function () {
     ASP_COST: ASP_COST,
     pickpocket: pickpocket,
     PICK_COINS: PICK_COINS,
+    ROB_TITLE: ROB_TITLE,
     zooFee: zooFee,
     talk: talk,
     portrait: portrait,

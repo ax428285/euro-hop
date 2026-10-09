@@ -4,6 +4,7 @@
  *   A) 歐洲地圖上有「撒哈拉沙漠」地點，在陸地上（非洲）
  *   B) 沙漠關：沒有終點、沒有敵人；一直往右走 5 分鐘之前都不會過關，滿 5 分鐘綠洲出現在前面，走進去就過關
  *   C) 遠征圖鑑列得出撒哈拉沙漠；時裝：雅典娜取代波賽頓
+ *   D) 被比利時扒手偷三次 → 稱號「比利時肥羊」
  */
 function runSaharaCheck() {
   const issues = [];
@@ -40,5 +41,17 @@ function runSaharaCheck() {
   if (!(K.fixed || K.desert)) issues.push('撒哈拉沒有列進遠征圖鑑');
   if (!Costumes.get('athena')) issues.push('沒有雅典娜時裝');
   if (Costumes.get('poseidon')) issues.push('波賽頓時裝還在');
+  // ── D) 被比利時扒手偷三次 → 稱號「比利時肥羊」 ──
+  const sv = Save.get(), keep = JSON.stringify(sv);
+  sv.flags.robbedTimes = 0; sv.flags.sheep = 0; sv.flags.asp = 0; sv.wallet = 9999;
+  WorldMap.useWorld('eu'); Voyage.rebuild();
+  const be = EuropeBackdrop.BE.shapes[0][0];
+  for (let k = 0; k < Quests.ROB_TITLE; k++) {
+    Quests.pickpocket({ x: -9999, y: -9999 });            // 離開一下（扒手重新準備）
+    if (k === Quests.ROB_TITLE - 1 && Save.flag('sheep')) issues.push('還沒被偷滿 ' + Quests.ROB_TITLE + ' 次就拿到稱號');
+    if (!(Quests.pickpocket({ x: be[0], y: be[1] }) > 0)) issues.push('在比利時沒有被扒手偷');
+  }
+  if (!Save.flag('sheep')) issues.push('被偷 ' + Quests.ROB_TITLE + ' 次沒有拿到稱號「比利時肥羊」');
+  const back = JSON.parse(keep); Object.keys(back).forEach(function (k) { sv[k] = back[k]; }); Save.touch();
   return { issueCount: issues.length, issues: issues, oasisAt: oasisAt, clearedAt: clearedAt };
 }

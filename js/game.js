@@ -974,7 +974,9 @@ const Game = (function () {
       const stolen = Quests.pickpocket(shipNow);
       if (stolen > 0) {
         Sfx.clang(); shake = 4;
-        toast = { text: '錢包被扒了！-' + stolen + ' 金幣', sub: '比利時港邊的扒手一溜煙跑掉了⋯⋯歐洲扒手真多，下次繞遠一點', life: 220 };
+        toast = Save.flag('robbedTimes') === Quests.ROB_TITLE
+          ? { text: '又被扒了！-' + stolen + ' 金幣⋯⋯獲得稱號「比利時肥羊」', sub: '被同一個扒手偷了 ' + Quests.ROB_TITLE + ' 次，連他都不好意思了', life: 300 }
+          : { text: '錢包被扒了！-' + stolen + ' 金幣', sub: '比利時港邊的扒手一溜煙跑掉了⋯⋯歐洲扒手真多，下次繞遠一點（被偷 ' + Save.flag('robbedTimes') + ' 次）', life: 220 };
       } else if (stolen === -2) {
         Sfx.stomp();
         toast = { text: '扒手伸手⋯⋯嘶！', sub: '埃及豔后的聖蛇把比利時扒手嚇跑了！', life: 220 };
@@ -3277,7 +3279,7 @@ const Game = (function () {
       return n + (lv.secrets || []).length;
     }, 0);
     U.text(ctx,
-      `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　密道 ${sv.secrets.length}/${secretsAll}　總分 ${sv.score}` + (Save.flag('godHand') ? '　稱號「神之手」' : ''),
+      `通關 ${sv.cleared.length}/${Levels.count}　裝備 ${sv.equipment.length}/${Equipment.count}　密道 ${sv.secrets.length}/${secretsAll}　總分 ${sv.score}` + (titleText() ? '　稱號' + titleText() : ''),
       W / 2, 392, { size: 15, color: '#4a2e14', strokeColor: 'rgba(250, 238, 205, 0.8)' });
 
     // 已取得的裝備排一列
@@ -3682,6 +3684,13 @@ const Game = (function () {
    * 遠征圖鑑（☰ →「遠征圖鑑」或 L）：兩頁 —— 主線（各篇章的每一關）、支線（海上冒險、劇情、收集）。
    * ←→ 換頁（手機點畫面左右半邊），Esc / Q / L 回大地圖。支線的海上冒險從 Encounter.KINDS 自動列（以後加的也會出現）。
    */
+  /** v1.31.2 拿到的稱號（首頁、存檔資訊顯示）：神之手（暗夜騎士）、比利時肥羊（被扒手偷三次） */
+  function titleText() {
+    const t = [];
+    if (Save.flag('godHand')) t.push('「神之手」');
+    if (Save.flag('sheep')) t.push('「比利時肥羊」');
+    return t.join('');
+  }
   let journalPage = 0;
   const JOURNAL_REGIONS = [['west', '西歐篇'], ['east', '東歐篇'], ['africa', '非洲篇'], ['north', '北歐篇'], ['america', '美洲篇'], ['abyss', '亞特蘭提斯海底城']];
   function journalPages() {
@@ -3725,6 +3734,7 @@ const Game = (function () {
       side.push({ name: c.name + ' ' + cn(pr.got, pr.total), done: !!pr.complete });
     });
     side.push({ name: '稱號「神之手」（打倒暗夜騎士）', done: !!Save.flag('godHand') });
+    side.push({ name: '稱號「比利時肥羊」（被扒手偷 ' + Math.min(Save.flag('robbedTimes') || 0, Quests.ROB_TITLE) + ' / ' + Quests.ROB_TITLE + ' 次）', done: !!Save.flag('sheep') });
     return [{ title: '主線關卡', items: main, cols: 3 }, { title: '支線與收集', items: side, cols: 3 }];
   }
   function updateJournal() {
@@ -3802,7 +3812,7 @@ const Game = (function () {
         (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（EXP 篇章都解鎖了）') +
         // v1.31 新大陸另外累積的美洲 EXP
         (Quests.americaOpen() ? '　美洲 EXP ' + Save.expAm() + (Save.expAm() < Encounter.SOUTH_EXP ? ' / ' + Encounter.SOUTH_EXP + '（南美篇）' : '（南美已解鎖）') : '')],
-      ['總分', String(sv.score) + (Save.flag('godHand') ? '　稱號：神之手' : '')]
+      ['總分', String(sv.score) + (titleText() ? '　稱號：' + titleText() : '')]
     ];
 
     rows.forEach(function (r, i) {
