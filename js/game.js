@@ -617,7 +617,8 @@ const Game = (function () {
       case 'journal': updateJournal(); break;
 
       case 'saveinfo':
-        if (Input.once('wipe')) {
+        // v1.31.10 玩家：刪除存檔改成用滑鼠點 —— 點畫面下方的「刪除存檔」按鈕，再點一次確認（不再用 Delete 鍵，免得手滑）
+        if (Input.once('wipe') || saveWipeClicked()) {
           if (confirmWipe) {
             wipeSave();      // 會自己回大地圖
           } else {
@@ -3319,11 +3320,9 @@ const Game = (function () {
       });
     }
 
-    U.text(ctx, '←→ 移動　空白 跳躍　K 遠程攻擊　Q 回大地圖　I 裝備　P 暫停',
-      W / 2, 440, { size: 13, color: '#6e5232', strokeColor: 'rgba(250, 238, 205, 0.8)' });
-    // 兩人同機的開關說明（放在標題，讓玩家一開始就知道有這功能）
-    U.text(ctx, coop ? 'C 兩人同機：開（2P 用 WASD + G）' : 'C 兩人同機：關',
-      W / 2, 460, { size: 13, color: coop ? '#2f7a4a' : '#6e5232', strokeColor: 'rgba(250, 238, 205, 0.8)' });
+    // v1.31.10 玩家：電腦版的按鍵說明重複了（畫面下方的說明列已經有）→ 這裡只留兩人同機的開關狀態
+    if (!document.documentElement.classList.contains('touch')) U.text(ctx, coop ? 'C 兩人同機：開（2P 用 WASD + G）' : 'C 兩人同機：關',
+      W / 2, 448, { size: 13, color: coop ? '#2f7a4a' : '#6e5232', strokeColor: 'rgba(250, 238, 205, 0.8)' });
   }
 
   /**
@@ -3846,7 +3845,16 @@ const Game = (function () {
       }
       row++;
     });
-    U.text(ctx, '←→ 換頁（手機點左右半邊）　Esc、Q、L 回大地圖', W / 2, H - 16, { size: 12, color: '#7d88a6' });
+    U.text(ctx, document.documentElement.classList.contains('touch') ? '點畫面左右半邊換頁　↩ 回大地圖' : '←→ 換頁　Esc、Q、L 回大地圖', W / 2, H - 16, { size: 12, color: '#7d88a6' });
+  }
+
+  const SAVE_WIPE_BTN = { x: W - 170, y: 404, w: 130, h: 36 };
+  /** 存檔畫面：這一帧有沒有點到「刪除存檔」按鈕 */
+  function saveWipeClicked() {
+    const c = Input.takeClick();
+    if (!c) return false;
+    const b = SAVE_WIPE_BTN;
+    return c.x >= b.x && c.x <= b.x + b.w && c.y >= b.y && c.y <= b.y + b.h;
   }
 
   function drawSaveInfo() {
@@ -3894,12 +3902,18 @@ const Game = (function () {
       ctx.strokeStyle = '#e0526b';
       ctx.lineWidth = 1.5;
       U.roundRect(ctx, 240, 408, W - 480, 34, 6); ctx.stroke();
-      U.text(ctx, '再按一次 Delete 清除全部進度（無法復原）',
+      U.text(ctx, '再點一次「刪除存檔」就會清除全部進度（無法復原）・Esc 取消',
         W / 2, 425, { size: 14, color: '#ff9aa8' });
     } else {
-      U.text(ctx, 'Delete 清除存檔　　F2 或 Esc 返回地圖',
-        W / 2, 425, { size: 13, color: '#9aa7c7' });
+      U.text(ctx, 'F2 或 Esc 返回地圖', W / 2, 425, { size: 13, color: '#9aa7c7' });
     }
+    // 刪除存檔的按鈕（用滑鼠點）
+    const b = SAVE_WIPE_BTN;
+    ctx.fillStyle = confirmWipe ? '#c0384f' : 'rgba(224, 82, 107, 0.25)';
+    U.roundRect(ctx, b.x, b.y, b.w, b.h, 8); ctx.fill();
+    ctx.strokeStyle = '#e0526b'; ctx.lineWidth = 1.5;
+    U.roundRect(ctx, b.x, b.y, b.w, b.h, 8); ctx.stroke();
+    U.text(ctx, confirmWipe ? '確定刪除' : '刪除存檔', b.x + b.w / 2, b.y + b.h / 2, { size: 14, color: '#ffffff' });
   }
 
   function drawInventory() {
@@ -4997,7 +5011,7 @@ const Game = (function () {
   }
 
   /**
-   * 清除存檔。存檔畫面（Delete 鍵按兩次）和手機標題畫面的「刪除存檔」按鈕共用。
+   * 清除存檔。存檔畫面（v1.31.10 起用滑鼠點按鈕兩次）和手機標題畫面的「刪除存檔」按鈕共用。
    * 「要按兩次才算」由呼叫端負責 —— 這裡只管清乾淨、把能力重算。
    */
   function wipeSave() {

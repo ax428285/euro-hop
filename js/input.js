@@ -34,7 +34,7 @@ const Input = (function () {
     KeyQ: 'tomap', Backquote: 'tomap',
     // 存檔資訊 / 清除存檔
     F2: 'saveinfo',
-    Delete: 'wipe',
+    // （v1.31.10 刪除存檔改成只能用滑鼠點：存檔畫面的按鈕、☰ 選單的「刪除存檔」）
     // 兩人模式切換（標題與地圖畫面用）
     KeyC: 'coop'
   };
