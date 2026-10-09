@@ -285,7 +285,7 @@ const Game = (function () {
 
   /*
    * v1.31.2 亞特蘭提斯海底城：歐洲地圖的亞特蘭提斯（第一次潛到神殿之後）按 Enter 潛下去；
-   * 海底城最上面的「光之井」按 Enter 往上游，回到歐洲的亞特蘭提斯旁邊。
+   * 海底城最上面的「光之井」游進去（v1.31.3 起不用按 Enter），回到歐洲的亞特蘭提斯旁邊。
    */
   /*
    * v1.31.2 玩家：亞特蘭提斯破完後要讓玩家明顯知道多了海底城（有人先破關過了）→ 回大地圖時各講一次：
@@ -318,7 +318,7 @@ const Game = (function () {
     const first = Levels.list.findIndex(function (lv) { return lv.region === 'abyss'; });
     cursor = lastCursor.sea >= 0 ? lastCursor.sea : first;
     Sfx.fanfare();
-    toast = { text: '潛進了亞特蘭提斯海底城！', sub: '去中央廣場找人魚 Thalassa 說話・想回海面就游到最上面的光之井', life: 280 };
+    toast = { text: '潛進了亞特蘭提斯海底城！', sub: '去中央廣場找人魚 Thalassa 說話・想回海面就游進最上面的光之井', life: 280 };
   }
   function leaveAbyss() {
     switchWorld('eu');
@@ -907,7 +907,7 @@ const Game = (function () {
    * 玩家在海上開船、在陸地上步行（自動切換），走到某國城市圖釘旁按 Enter 進關卡。
    * cursor 仍然保留，代表「目前靠近的國家」，底部資訊卡與其他畫面都還是讀它。
    */
-  let eiffelArmed = true;
+  let eiffelArmed = true, surfArmed = false;
   function updateMap() {
     const unlocked = Save.get().unlocked;
 
@@ -933,6 +933,16 @@ const Game = (function () {
     const events = Voyage.update(Input);
     // 寵物（v1.29）：收養的黃金獵犬沿著足跡跟在後面
     Pet.update(Voyage.shipPos());
+    /*
+     * v1.31.3 玩家：光之井不用按 Enter 就能回去（跟開到地圖邊緣進新大陸一樣）—— 游進光之井就浮回海面。
+     * 剛潛下來時人在光之井正下方，要先游開一點（surfArmed）才會觸發，不然一下來就被送回去。
+     */
+    if (WorldMap.world() === 'sea') {
+      const sw = Abyss.SPOTS.filter(function (q) { return q.surface; })[0], sp = Voyage.shipPos();
+      const d = Math.hypot(sp.x - sw.x, sp.y - sw.y);
+      if (d > 30) surfArmed = true;
+      else if (d < 16 && surfArmed) { surfArmed = false; leaveAbyss(); return; }
+    } else surfArmed = false;
     /*
      * v1.31.2 玩家：打倒暗夜騎士之後，帶著人魚、好感度全滿來到巴黎鐵塔 → 看夜景的對話，看完她變成人類。
      * 走到法國的圖釘（巴黎）旁邊就自動開始；中途按 Esc 離開，要先走遠一點再回來才會再開始。

@@ -56,7 +56,7 @@ const Abyss = (function () {
 
   /** 地圖上的地點（WorldMap.buildSeaSpecials 用）：出口、人魚 */
   const SPOTS = [
-    { id: 'S_surface', name: '光之井・回海面', x: 598, y: 70, surface: true, prompt: '按 Enter 往上游，回到海面（歐洲）' },
+    { id: 'S_surface', name: '光之井・回海面', x: 598, y: 70, surface: true, prompt: '游進光之井就會浮回海面（歐洲）' },
     { id: 'Q_mermaid', name: '人魚 Thalassa', x: 598, y: 400, npc: 'mermaid', prompt: '按 Enter 跟人魚說話' },
     // v1.31.2 玩家：海底城新增商店賣人魚時裝 → 中央廣場的服裝店（shop.js 的 shellHouse）
     { id: 'M_shellHouse', name: '珊瑚貝殼屋', x: 660, y: 444, seller: 'shellHouse', prompt: '按 Enter 逛珊瑚貝殼屋（海底的服裝店）' },
