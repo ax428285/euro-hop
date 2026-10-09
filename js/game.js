@@ -940,9 +940,10 @@ const Game = (function () {
      */
     if (WorldMap.world() === 'sea') {
       const sw = Abyss.SPOTS.filter(function (q) { return q.surface; })[0], sp = Voyage.shipPos();
-      const d = Math.hypot(sp.x - sw.x, sp.y - sw.y);
-      if (d > 30) surfArmed = true;
-      else if (d < 16 && surfArmed) { surfArmed = false; leaveAbyss(); return; }
+      // v1.31.9 玩家：光之井上面那一大片游進去都沒反應 → 不只圖釘旁邊，整片最上面（光柱照下來的那一帶）游上去就回海面
+      const d = Math.hypot(sp.x - sw.x, sp.y - sw.y), top = sp.y < sw.y + 22;
+      if (d > 30 && !top) surfArmed = true;
+      else if ((d < 18 || top) && surfArmed) { surfArmed = false; leaveAbyss(); return; }
     } else surfArmed = false;
     /*
      * v1.31.2 玩家：打倒暗夜騎士之後，帶著人魚、好感度全滿來到巴黎鐵塔 → 看夜景的對話，看完她變成人類。
