@@ -54,8 +54,8 @@ const Quests = (function () {
   function northOpen() { return !!flag('north'); }
   /** v1.31 美洲篇開放了嗎：完成哥倫布的委託（他出航之後） */
   function americaOpen() { return flag('columbus') >= 2; }
-  /** v1.31.2 亞特蘭提斯海底城開放了嗎：第一次潛到亞特蘭提斯的神殿之後 */
-  function abyssOpen() { return typeof Save !== 'undefined' && !!Save.seaBossDown('atlantis'); }
+  /** v1.31.2 亞特蘭提斯海底城開放了嗎：在亞特蘭提斯潛水關的最底層解開「海神的封印」之後（abyss.js 的 riddle） */
+  function abyssOpen() { return !!flag('abyssGate'); }
   /** 卡律布狄斯的漩渦眼掉下去要不要接冥界：v1.30 玩家：進漩渦關掉下去一次就進得去 → 一律會（救出洛基後再去也行） */
   function helReady() { return true; }
 

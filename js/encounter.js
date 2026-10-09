@@ -535,9 +535,41 @@ const Encounter = (function () {
         ctx.restore();
         return;
       }
+      if (m.kind === 'atlantis' && typeof Quests !== 'undefined' && Quests.abyssOpen()) {
+        /*
+         * v1.31.2 玩家：亞特蘭提斯破完圖案換一下 → 封印解開之後變成「海底城入口」：
+         * 一圈一圈往下轉的金色光渦、中間一道拱門，名牌換成金色的「海底城入口」。
+         */
+        const pulse = 26 + Math.sin(t * 0.08) * 3;
+        const g = ctx.createRadialGradient(0, 0, 2, 0, 0, pulse + 6);
+        g.addColorStop(0, 'rgba(255, 240, 180, 0.9)'); g.addColorStop(0.5, 'rgba(80, 220, 230, 0.55)'); g.addColorStop(1, 'rgba(40, 140, 170, 0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, pulse + 6, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = near ? 2.4 : 1.6;
+        for (let k = 0; k < 3; k++) {
+          const a0 = t * 0.06 + k * 2.1;
+          ctx.strokeStyle = k === 1 ? 'rgba(255, 220, 120, 0.95)' : 'rgba(160, 250, 255, 0.85)';
+          ctx.beginPath(); ctx.arc(0, 0, 8 + k * 7, a0, a0 + 3.6); ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(240, 230, 200, 0.95)';
+        ctx.fillRect(-10, -14, 4, 16); ctx.fillRect(6, -14, 4, 16);
+        ctx.beginPath(); ctx.moveTo(-12, -14); ctx.quadraticCurveTo(0, -24, 12, -14); ctx.lineTo(12, -11); ctx.quadraticCurveTo(0, -20, -12, -11); ctx.closePath(); ctx.fill();
+        if (near) { ctx.strokeStyle = 'rgba(255, 209, 102, 1)'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.arc(0, 0, pulse + 4, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(70, 40, 10, 0.92)';
+        U.roundRect(ctx, -34, -46, 68, 15, 4); ctx.fill();
+        U.text(ctx, '海底城入口', 0, -38.5, { size: 10, color: '#ffd166', stroke: false });
+        ctx.restore();
+        return;
+      }
       if (m.kind === 'atlantis') {
         // 亞特蘭提斯：海面上一圈青色光、冒泡，水下隱約露出神殿的三角山牆和柱子
         const been = typeof Save !== 'undefined' && Save.seaBossDown(m.kind);
+        // v1.31.2：潛到過神殿、但封印還沒解開 → 頭上冒一個閃爍的「！」（神殿深處還有東西）
+        if (been) {
+          const bob = Math.sin(t * 0.12) * 2;
+          ctx.fillStyle = 'rgba(255, 209, 102, ' + (0.75 + Math.sin(t * 0.2) * 0.25).toFixed(2) + ')';
+          ctx.beginPath(); ctx.arc(20, -26 + bob, 8, 0, Math.PI * 2); ctx.fill();
+          U.text(ctx, '！', 20, -26 + bob, { size: 11, weight: 800, color: '#5a2a0a', stroke: false });
+        }
         const pulse = 22 + Math.sin(t * 0.08) * 2;
         ctx.strokeStyle = near ? 'rgba(120, 240, 230, 1)' : 'rgba(120, 240, 230, 0.55)';
         ctx.lineWidth = near ? 2.6 : 1.6;
@@ -677,6 +709,13 @@ const Encounter = (function () {
       diveBase.features = diveBase.shaftFloors
         .filter(function (f, i) { return i >= 3 && i % DIVE_VENT_EVERY === 3 && !f.goal && f.w >= 80; })
         .map(function (f) { return { type: 'vent', x: Math.round(f.x + f.w / 2 - 20), y: f.y, w: 40 }; });
+      /*
+       * v1.31.2 海神的封印（abyss.js 的 makeRiddle）：第 6、12、18 層的牆上有壁畫，最底層的神殿大門前有三塊石板。
+       * 最底層左邊多一個氣泡噴口（解謎的時候空氣才不會用完）。
+       */
+      diveBase.riddle = { murals: [6, 12, 18] };
+      const gf = diveBase.shaftFloors.filter(function (f) { return f.goal; })[0];
+      if (gf) diveBase.features.push({ type: 'vent', x: gf.x + 20, y: gf.y, w: 40 });
     }
     const k = m.def;
     const first = !(typeof Save !== 'undefined' && Save.seaBossDown(m.kind));

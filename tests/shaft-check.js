@@ -655,7 +655,8 @@ function runShaftCheck() {
         return { ok: false, why: '掉出畫面底部', deepest: st.shaft.deepest,
                  frames: f, hurt: hurt };
       }
-      if (evs.indexOf('clear') >= 0 || st.cleared) {
+      // v1.31.2 亞特蘭提斯：到底之後還有海神的封印要解（abyss-check 驗），站上最底層就算潛到了
+      if (evs.indexOf('clear') >= 0 || st.cleared || (st.riddle && st.riddle.arrived)) {
         return { ok: true, deepest: st.shaft.deepest, frames: f, hurt: hurt, drowned: drowned };
       }
       // 受傷太多次等於死了（真人會沒命）

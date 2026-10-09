@@ -3,9 +3,12 @@
  *
  *   A) 地圖：海底城地圖上剛好是 4 區、入口都在陸地上；光之井（出口）在開得到的水裡、人魚站在陸地上、船游得到她旁邊；
  *      圖釘、地點都在地圖範圍內（只用到上面 760）；國名離自己的圖釘不遠；海底城的地圖上不生海上怪物
- *   B) 開放與進出：還沒潛到亞特蘭提斯的神殿 → 海底城篇鎖著；潛過就開；
+ *   B) 開放與進出：只潛到亞特蘭提斯的神殿還不夠 —— 要解開「海神的封印」（flag abyssGate）海底城篇才開；
  *      進海底城 → 地圖換成 'sea'、人在光之井下面；回海面 → 換回歐洲、人在亞特蘭提斯旁邊的海上
  *   C) 機關：發光水母從上面踩會彈起來、碰到觸手會痛；水晶光束預告時不痛、發射時站在地上會痛、跳在空中不痛
+ *   E) 海神的封印（亞特蘭提斯潛水關的最底層）：三幅壁畫的圖案各不相同、都在井裡；照順序踩石板 = 解開、過一會兒過關；
+ *      踩錯順序 = 石板浮回來重來；不解謎游進右邊的氣泡柱也能過關（但封印沒解開）；剛到底就站在氣泡柱裡不算
+ *      回大地圖：潛過神殿、封印沒解開 → 講一次「再潛一次」；解開、還沒進去過 → 講一次「海底城開放了」；亞特蘭提斯的圖示跟著換
  *   D) 每一區有地標、遠景、旗子、紀念品（放在關卡裡）、世界之謎的線索、曲子；橫向關有自己的敵人外型；
  *      最終魔王克拉肯的觸手畫得出來（Sprites.shot 的 tentacle）
  * 會暫時改存檔、換地圖，結束前還原。
@@ -57,9 +60,12 @@ function runAbyssCheck() {
   // ── B) 開放與進出 ──
   const bosses0 = sv.seaBosses.slice();
   sv.seaBosses = sv.seaBosses.filter(function (k) { return k !== 'atlantis'; });
+  sv.flags.abyssGate = 0;
   if (Encounter.regionUnlocked('abyss', sv.exp)) issues.push('還沒潛到亞特蘭提斯的神殿，海底城就開了');
   sv.seaBosses.push('atlantis');
-  if (!Encounter.regionUnlocked('abyss', sv.exp)) issues.push('潛過亞特蘭提斯的神殿，海底城還是鎖著');
+  if (Encounter.regionUnlocked('abyss', sv.exp)) issues.push('只潛到神殿、還沒解開封印，海底城就開了');
+  sv.flags.abyssGate = 1;
+  if (!Encounter.regionUnlocked('abyss', sv.exp)) issues.push('解開了海神的封印，海底城還是鎖著');
   Game.debug.enterAbyss();
   if (WorldMap.world() !== 'sea') issues.push('進海底城之後地圖不是 sea（' + WorldMap.world() + '）');
   else if (surf && Math.hypot(Voyage.shipPos().x - surf.pin[0], Voyage.shipPos().y - surf.pin[1]) > 60) issues.push('進海底城之後人不在光之井下面');
@@ -134,6 +140,85 @@ function runAbyssCheck() {
       const hurt = p.invuln > 0;
       if (hurt !== c[3]) issues.push('水晶宮：光束' + (c[0] === 'warn' ? '預告時' : '發射時') + (c[2] ? '跳在空中' : '站在地上') + (c[3] ? '應該會痛' : '不應該痛'));
     });
+  })();
+
+  // ── E) 海神的封印 ──
+  (function () {
+    const m = { kind: 'atlantis', def: Encounter.KINDS.atlantis, x: 0, y: 0 };
+    const def = Encounter.makeDef(m, Equipment.resolve([]));
+    if (!def.riddle) { issues.push('亞特蘭提斯的潛水關沒有海神的封印'); return; }
+    const gf = def.shaftFloors.filter(function (f) { return f.goal; })[0];
+    const inp = { isDown: function () { return false; }, once: function () { return false; }, endFrame: function () {} };
+    function fresh() {
+      sv.flags.abyssGate = 0;
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      st.enemies = []; st.shots = [];
+      const p = st.player;
+      p.y = gf.y - p.h; p.vy = 0; p.onGround = true;
+      return st;
+    }
+    function stand(st, x, n) {
+      const p = st.player, evs = [];
+      for (let f = 0; f < (n || 3); f++) {
+        p.x = x - p.w / 2; p.y = gf.y - p.h; p.vx = 0; if (p.vy < 0) p.vy = 0;
+        updatePlayer(st, inp, 1000 + f).forEach(function (e) { evs.push(String(e).replace(/^p\d:/, '')); });
+      }
+      return evs;
+    }
+    let st = fresh();
+    const r = st.riddle;
+    if (!r) { issues.push('潛水關的狀態裡沒有封印'); return; }
+    if (r.murals.length !== 3 || new Set(r.murals.map(function (q) { return q.sym; })).size !== 3) issues.push('封印的三幅壁畫圖案要各不相同');
+    r.murals.forEach(function (q) {
+      if (q.x < gf.x - 10 || q.x + 100 > gf.x + gf.w + 10) issues.push('封印的壁畫畫到井外面去了');
+      if (q.y > gf.y - 100 || q.y < def.shaftFloors[0].y - 400) issues.push('封印的壁畫不在往下潛的路上');
+    });
+    const plateX = function (st, sym) { const q = st.riddle.plates.filter(function (k) { return k.sym === sym; })[0]; return q.x + q.w / 2; };
+    // 照順序踩
+    stand(st, gf.x + gf.w * 0.12, 4);
+    if (!st.riddle.arrived) issues.push('站上神殿最底層沒有開始解謎');
+    if (st.cleared) issues.push('封印還沒解開，一到底就過關了');
+    let all = [];
+    st.riddle.order.forEach(function (sym) { all = all.concat(stand(st, plateX(st, sym), 3)); stand(st, gf.x + gf.w * 0.12, 2); });
+    if (all.indexOf('riddle:solved') < 0 || !st.riddle.solved) issues.push('照壁畫的順序踩石板，封印沒有解開（' + all.join(',') + '）');
+    let cleared = false;
+    for (let f = 0; f < 200 && !cleared; f++) { if (stand(st, gf.x + gf.w * 0.12, 1).indexOf('clear') >= 0) cleared = true; }
+    if (!cleared) issues.push('封印解開之後沒有過關');
+    // 踩錯順序
+    st = fresh();
+    stand(st, gf.x + gf.w * 0.12, 4);
+    const wrong = stand(st, plateX(st, st.riddle.order[1]), 3);
+    if (wrong.indexOf('riddle:wrong') < 0) issues.push('踩錯順序沒有反應');
+    stand(st, gf.x + gf.w * 0.12, 60);
+    if (st.riddle.pressed.length || st.riddle.plates.some(function (q) { return q.down; })) issues.push('踩錯之後石板沒有浮回來');
+    // 不解謎：游進氣泡柱
+    st = fresh();
+    const ex = st.riddle.exit.x + st.riddle.exit.w / 2;
+    const early = stand(st, ex, 3);
+    if (early.indexOf('clear') >= 0) issues.push('剛到底就站在氣泡柱裡也算浮上去了');
+    stand(st, gf.x + gf.w * 0.12, 70);
+    const leave = stand(st, ex, 3);
+    if (leave.indexOf('clear') < 0) issues.push('不解謎游進右邊的氣泡柱，沒有過關');
+    if (st.riddle.solved) issues.push('沒解謎浮上去，封印卻算解開了');
+    // 回大地圖的提示、地圖上的圖示
+    WorldMap.useWorld('eu'); Voyage.rebuild();
+    if (sv.seaBosses.indexOf('atlantis') < 0) sv.seaBosses.push('atlantis');
+    sv.flags.abyssGate = 0; sv.flags.abyssHint = 0; sv.flags.abyssNews = 0; sv.flags.abyssVisited = 0;
+    const n1 = Game.debug.abyssNotice(), n2 = Game.debug.abyssNotice();
+    if (!n1 || n1.text.indexOf('亞特蘭提斯') < 0) issues.push('潛過神殿、封印沒解開，回大地圖沒有提示再潛一次');
+    if (n2) issues.push('「再潛一次」的提示講了不只一次');
+    sv.flags.abyssGate = 1;
+    const n3 = Game.debug.abyssNotice(), n4 = Game.debug.abyssNotice();
+    if (!n3 || n3.text.indexOf('海底城') < 0) issues.push('封印解開了，回大地圖沒有提示海底城開放');
+    if (n4) issues.push('「海底城開放了」的提示講了不只一次');
+    try {
+      Encounter.clear(); Encounter.updateMap(Voyage.shipPos(), 0);
+      if (!Encounter.monsters().some(function (q) { return q.kind === 'atlantis'; })) issues.push('歐洲地圖上找不到亞特蘭提斯');
+      const c = document.createElement('canvas').getContext('2d');
+      sv.flags.abyssGate = 0; Encounter.drawMap(c, 0);
+      sv.flags.abyssGate = 1; Encounter.drawMap(c, 0);
+    } catch (e) { issues.push('亞特蘭提斯的地圖圖示畫不出來：' + e.message); }
+    Encounter.clear();
   })();
 
   // ── D) 美術與內容 ──

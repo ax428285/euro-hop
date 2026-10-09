@@ -230,6 +230,7 @@ const Game = (function () {
     skirmish = null;
     toast = null;      // 關卡裡的提示（「第 3/3 波」之類）不要帶到地圖上
     if (bountyNote) { toast = bountyNote; bountyNote = null; }
+    if (!toast) toast = abyssNotice();
     // 地圖有自己的曲子（從關卡回來就換曲；從商店回來則一路接著播）
     Music.playTrack('MAP');
     // 剛湊齊一整個洲的線索：先揭曉謎底（看完按返回就是地圖，船已經擺好了）
@@ -283,7 +284,24 @@ const Game = (function () {
    * v1.31.2 亞特蘭提斯海底城：歐洲地圖的亞特蘭提斯（第一次潛到神殿之後）按 Enter 潛下去；
    * 海底城最上面的「光之井」按 Enter 往上游，回到歐洲的亞特蘭提斯旁邊。
    */
+  /*
+   * v1.31.2 玩家：亞特蘭提斯破完後要讓玩家明顯知道多了海底城（有人先破關過了）→ 回大地圖時各講一次：
+   *   潛過神殿、封印還沒解開 → 提示「再潛一次」；封印解開、還沒進去過 → 提示「海底城開放了」
+   */
+  function abyssNotice() {
+    if (!Save.seaBossDown('atlantis')) return null;
+    if (!Quests.abyssOpen()) {
+      if (Save.flag('abyssHint')) return null;
+      Save.setFlag('abyssHint', 1);
+      return { text: '亞特蘭提斯有新東西了！', sub: '神殿最深處的大門上有一道封印 —— 再潛一次，記住路上牆上的三幅壁畫', life: 360 };
+    }
+    if (Save.flag('abyssVisited') || Save.flag('abyssNews')) return null;
+    Save.setFlag('abyssNews', 1);
+    return { text: '亞特蘭提斯海底城開放了！', sub: '到大西洋上的亞特蘭提斯（金色的光渦）按 Enter 潛下去', life: 360 };
+  }
+
   function enterAbyss() {
+    Save.setFlag('abyssVisited', 1);
     switchWorld('sea');
     const sp = Abyss.SPOTS.filter(function (q) { return q.surface; })[0];
     Voyage.placeShip(sp.x, sp.y + 40);
@@ -1262,6 +1280,24 @@ const Game = (function () {
         ev = raw.slice(3);
       }
       // 密道事件帶索引，格式 "secret:0"
+      // v1.31.2 海神的封印（亞特蘭提斯潛水關的最底層）
+      if (ev === 'riddle:start') {
+        Sfx.secret();
+        toast = { text: '神殿的大門上刻著三個圖案', sub: '照潛下來時牆上壁畫的順序（I → II → III）踩石板・不想解就游進右邊的氣泡柱浮上去', life: 330 };
+        return;
+      }
+      if (ev === 'riddle:press') { Sfx.select(); return; }
+      if (ev === 'riddle:wrong') {
+        Sfx.clang(); shake = 5;
+        toast = { text: '順序不對⋯⋯', sub: '石板又浮回來了 —— 回想一下牆上的壁畫：I、II、III 各是什麼圖案？', life: 200 };
+        return;
+      }
+      if (ev === 'riddle:solved') {
+        Sfx.fanfare(); shake = 8;
+        Save.setFlag('abyssGate', 1);
+        toast = { text: '海神的封印解開了！', sub: '大門後面⋯⋯是一整座沉在海底的城市！', life: 260 };
+        return;
+      }
       // v1.31 洞裡的密道："pitcave:0" = 掉進了沒有尖刺的那個斷崖
       if (ev.indexOf && ev.indexOf('pitcave:') === 0) {
         startPitCave(parseInt(ev.split(':')[1], 10), pid);
@@ -2182,8 +2218,13 @@ const Game = (function () {
         Save.addCoins(state.def.bossCoins || 0);
         coinsBanked += state.def.bossCoins || 0;
         expResult.firstBoss = skirmish.def.name;
-        // v1.31.2：亞特蘭提斯第一次潛到神殿 → 海底城的入口打開
-        if (skirmish.kind === 'atlantis') expResult.note = '神殿最深處的大門打開了！回大地圖在亞特蘭提斯按 Enter，就能潛進海底城';
+      }
+      // v1.31.2 亞特蘭提斯：過關畫面講海神的封印（解開了 = 海底城開了；沒解開 = 提示下次怎麼解）
+      if (skirmish.kind === 'atlantis' && state.riddle) {
+        const rd = state.riddle;
+        expResult.note = rd.done ? '封印解開了！回大地圖在亞特蘭提斯按 Enter，就能潛進海底城'
+          : rd.solved ? '海底城的大門開著 —— 回大地圖在亞特蘭提斯按 Enter 潛進去'
+          : '神殿大門的封印還沒解開 —— 下次潛下來，記住牆上三幅壁畫（I、II、III）的圖案';
       }
       // 安提基特拉沉船：沿路撈到的寶物＋終點的安提基特拉機械，收進存檔
       // v1.31.2 玩家：亞特蘭提斯的夥伴移到沉船那關 → 每次撈起機械都拿到一個海神夥伴（最多 Save.ALLY_MAX 個）
@@ -2573,6 +2614,8 @@ const Game = (function () {
 
     // 兩側石壁
     sh.walls.forEach(function (wl) { Sprites.shaftWall(ctx, wl, camY, H, def.theme, t); });
+    // v1.31.2 亞特蘭提斯：牆上的壁畫、神殿大門（在樓層後面）
+    if (state.riddle) Abyss.drawRiddle(ctx, state, t, 'back', camY, H);
 
     // 樓層（只畫看得到的，整座井有 30+ 層）
     sh.floors.forEach(function (f) {
@@ -2601,6 +2644,7 @@ const Game = (function () {
 
     // 招牌機制（亞特蘭提斯的氣泡噴口）
     if (state.features) Features.drawWorld(ctx, state, 0, t, 'fg');
+    if (state.riddle) Abyss.drawRiddle(ctx, state, t, 'front', camY, H);
 
     // 玩家的遠程攻擊（豎井裡也丟得出去）
     (state.pshots || []).forEach(function (s) { Sprites.playerShot(ctx, s, 0, t); });
@@ -3436,7 +3480,7 @@ const Game = (function () {
       const blink = Math.floor(t / 20) % 2 === 0;
       const bossTxt = mon.kind === 'atlantis' && Quests.abyssOpen() ? '按 Enter 潛進亞特蘭提斯海底城'
         : mon.def.custom ? Expedition.prompt(mon) : mon.def.dive
-        ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
+        ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP・神殿大門的封印還沒解開）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : mon.def.boss
         ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）`;
@@ -4804,6 +4848,7 @@ const Game = (function () {
       /** v1.31.2 海底城（測試用）：直接潛下去／游回海面 */
       enterAbyss: function () { scene = 'map'; enterAbyss(); },
       leaveAbyss: function () { scene = 'map'; leaveAbyss(); },
+      abyssNotice: function () { return abyssNotice(); },
       enter: function (i) { startLevel(i || 0); },
       /** 立刻畫一帧（測試用：抓「畫的時候才會丟例外」的 bug） */
       render: function () { render(); },

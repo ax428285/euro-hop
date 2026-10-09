@@ -561,7 +561,160 @@ const Abyss = (function () {
     baseShot(ctx, s, t);
   };
 
+  // ── 海神的封印（v1.31.2 玩家：設計個解謎小任務在亞特蘭提斯關卡，解開才能找到海底城）──────────
+  /*
+   * 亞特蘭提斯的潛水關（encounter.js 的 diveDef，def.riddle）：
+   *   往下潛的路上，牆上有三幅壁畫，各刻一個圖案和羅馬數字 I、II、III（順序每次潛水都不一樣）。
+   *   潛到神殿底部，大門前有三塊石板（貝殼、海星、三叉戟），照壁畫的順序踩 —— 踩錯了石板會浮回來重踩。
+   *   三塊都對 = 封印解開（Save.flag('abyssGate')），大門後面就是海底城（Quests.abyssOpen）。
+   *   不想解也行：游進右邊的氣泡柱就浮上去（照樣過關、拿 EXP，只是海底城還沒開）。
+   * 解開過一次之後，再潛下來大門就是開著的（踩到底照舊直接過關）。
+   */
+  const SYMS = ['shell', 'star', 'trident'];
+  const NUMS = ['I', 'II', 'III'];
+  function makeRiddle(def) {
+    const gf = (def.shaftFloors || []).filter(function (f) { return f.goal; })[0];
+    if (!gf || !def.riddle) return null;
+    const order = SYMS.slice();
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const q = order[i]; order[i] = order[j]; order[j] = q; }
+    const floorY = function (n) { const f = def.shaftFloors.filter(function (q) { return q.floor === n; })[0]; return f ? f.y : gf.y; };
+    return {
+      order: order,
+      murals: def.riddle.murals.map(function (n, k) {
+        return { y: floorY(n) - 120, x: k % 2 ? gf.x + gf.w - 108 : gf.x + 8, sym: order[k], n: k };
+      }),
+      plates: SYMS.map(function (sym, k) { return { sym: sym, x: Math.round(gf.x + gf.w * (0.3 + k * 0.2) - 30), y: gf.y, w: 60, down: false }; }),
+      exit: { x: gf.x + gf.w - 52, y: gf.y, w: 44 },
+      door: { x: gf.x + gf.w / 2, y: gf.y },
+      solved: typeof Save !== 'undefined' && !!Save.flag('abyssGate'),
+      pressed: [], cool: 0, over: -1, arrived: false, done: false, doneT: 0, left: false, wrongT: 0
+    };
+  }
+  /**
+   * 每帧（豎井關的過關判定那裡呼叫）：onGoal = 站在抵達層上。回傳 true = 這一關現在過關。
+   * 已經解開過的：踩到底就過關（跟原本一樣）。
+   */
+  function updateRiddle(state, p, onGoal, events) {
+    const r = state.riddle;
+    if (r.wrongT > 0) r.wrongT--;
+    if (r.solved && !r.done) return onGoal;
+    if (r.cool > 0 && --r.cool === 0) { r.pressed = []; r.plates.forEach(function (q) { q.down = false; }); }
+    if (onGoal && !r.arrived) { r.arrived = true; events.push('riddle:start'); }
+    if (!r.arrived) return false;
+    r.arriveT = (r.arriveT || 0) + 1;
+    if (r.done) return --r.doneT <= 0;
+    const cx = p.x + p.w / 2;
+    // 踩上一塊石板（剛走進那塊的那一帧才算：站在上面不會一直踩）
+    let over = -1;
+    r.plates.forEach(function (q, k) { if (onGoal && cx > q.x + 6 && cx < q.x + q.w - 6) over = k; });
+    if (over >= 0 && over !== r.over && r.cool <= 0) {
+      const q = r.plates[over];
+      if (!q.down) {
+        q.down = true;
+        r.pressed.push(q.sym);
+        const k = r.pressed.length - 1;
+        if (r.pressed[k] !== r.order[k]) { r.cool = 50; r.wrongT = 50; events.push('riddle:wrong'); }
+        else if (r.pressed.length === SYMS.length) { r.done = true; r.solved = true; r.doneT = 110; events.push('riddle:solved'); }
+        else events.push('riddle:press');
+      }
+    }
+    r.over = over;
+    // 不解了：游進右邊的氣泡柱浮上去
+    // （剛沉到底的頭一秒不算：免得落點剛好在氣泡柱裡，什麼都沒看到就浮上去了）
+    if (r.arriveT > 60 && cx > r.exit.x && cx < r.exit.x + r.exit.w && p.y + p.h > r.exit.y - 220) { r.left = true; return true; }
+    return false;
+  }
+
+  /** 三個圖案：貝殼、海星、三叉戟（x, y = 中心） */
+  function symbol(ctx, sym, x, y, s, color) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    if (sym === 'shell') {
+      ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(-13, -4); ctx.quadraticCurveTo(0, -18, 13, -4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.2;
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(k * 5, -10 + Math.abs(k)); ctx.stroke(); }
+    } else if (sym === 'star') {
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 5 : 14; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(0, -6);
+      ctx.moveTo(-9, -12); ctx.lineTo(-9, -3); ctx.quadraticCurveTo(-9, 2, 0, 2); ctx.quadraticCurveTo(9, 2, 9, -3); ctx.lineTo(9, -12);
+      ctx.moveTo(0, -6); ctx.lineTo(0, -14); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  /**
+   * 畫（豎井的世界座標，呼叫端已經 translate(0, -camY)）。
+   * layer 'back'：牆上的壁畫、神殿大門（在樓層後面）；'front'：大門前的石板、離開的氣泡柱（在樓層上面）。
+   */
+  function drawRiddle(ctx, state, t, layer, camY, H) {
+    const r = state.riddle;
+    if (!r) return;
+    const vis = function (y) { return y > camY - 140 && y < camY + H + 140; };
+    if (layer === 'back') {
+      r.murals.forEach(function (m) {
+        if (!vis(m.y)) return;
+        // 壁畫：一大塊刻字的石板（要大，往下潛的時候瞄一眼就看得到）
+        const glow = 0.25 + Math.sin(t * 0.08 + m.n) * 0.15;
+        ctx.fillStyle = 'rgba(160, 240, 255, ' + (glow * 0.6).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(m.x + 50, m.y + 56, 62, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(214, 204, 172, 0.95)'; U.roundRect(ctx, m.x, m.y, 100, 112, 8); ctx.fill();
+        ctx.strokeStyle = 'rgba(120, 100, 70, 0.9)'; ctx.lineWidth = 2.5; U.roundRect(ctx, m.x + 5, m.y + 5, 90, 102, 5); ctx.stroke();
+        U.text(ctx, NUMS[m.n], m.x + 50, m.y + 22, { size: 22, weight: 800, color: '#7a2a10', stroke: false });
+        symbol(ctx, m.sym, m.x + 50, m.y + 70, 1.8, '#1e5a7a');
+      });
+      const d = r.door;
+      if (!vis(d.y)) return;
+      // 神殿大門：大理石框、三個圖案的凹槽；解開 = 門往兩邊滑開，後面透出海底城的光
+      ctx.fillStyle = 'rgba(220, 212, 190, 0.9)';
+      ctx.fillRect(d.x - 90, d.y - 170, 180, 14); ctx.fillRect(d.x - 90, d.y - 156, 16, 156); ctx.fillRect(d.x + 74, d.y - 156, 16, 156);
+      ctx.beginPath(); ctx.moveTo(d.x - 100, d.y - 170); ctx.lineTo(d.x, d.y - 210); ctx.lineTo(d.x + 100, d.y - 170); ctx.closePath(); ctx.fill();
+      if (r.solved) {
+        const g = ctx.createLinearGradient(0, d.y - 156, 0, d.y);
+        g.addColorStop(0, 'rgba(120, 230, 255, 0.85)'); g.addColorStop(1, 'rgba(40, 120, 180, 0.6)');
+        ctx.fillStyle = g; ctx.fillRect(d.x - 74, d.y - 156, 148, 156);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        for (let k = 0; k < 6; k++) ctx.fillRect(d.x - 60 + k * 24, d.y - 40 - (k % 3) * 18, 10, 40 + (k % 3) * 18);
+        const open = r.done ? Math.min(1, (110 - r.doneT) / 60) : 1;
+        ctx.fillStyle = '#6a5a4a';
+        ctx.fillRect(d.x - 74 - open * 60, d.y - 156, 74, 156); ctx.fillRect(d.x + open * 60, d.y - 156, 74, 156);
+      } else {
+        ctx.fillStyle = '#6a5a4a'; ctx.fillRect(d.x - 74, d.y - 156, 148, 156);
+        ctx.strokeStyle = 'rgba(40, 30, 20, 0.6)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(d.x, d.y - 156); ctx.lineTo(d.x, d.y); ctx.stroke();
+        SYMS.forEach(function (sym, k) {
+          const lit = r.pressed.length > k && !r.wrongT;
+          ctx.fillStyle = 'rgba(30, 20, 14, 0.6)'; ctx.beginPath(); ctx.arc(d.x - 44 + k * 44, d.y - 112, 15, 0, Math.PI * 2); ctx.fill();
+          if (r.pressed[k]) symbol(ctx, r.pressed[k], d.x - 44 + k * 44, d.y - 112, 0.8, r.wrongT ? '#e84a4a' : '#ffd166');
+          else U.text(ctx, NUMS[k], d.x - 44 + k * 44, d.y - 112, { size: 11, color: 'rgba(220, 200, 160, 0.7)', stroke: false });
+          if (lit) { ctx.fillStyle = 'rgba(255, 220, 120, 0.25)'; ctx.beginPath(); ctx.arc(d.x - 44 + k * 44, d.y - 112, 20, 0, Math.PI * 2); ctx.fill(); }
+        });
+      }
+      return;
+    }
+    if (!vis(r.door.y)) return;
+    // 石板
+    r.plates.forEach(function (q) {
+      const down = q.down || r.solved;
+      ctx.fillStyle = down ? '#c8a858' : '#8a8478';
+      U.roundRect(ctx, q.x, q.y - (down ? 3 : 7), q.w, down ? 5 : 9, 3); ctx.fill();
+      symbol(ctx, q.sym, q.x + q.w / 2, q.y - 22, 0.75, down ? (r.wrongT ? '#e84a4a' : '#ffd166') : 'rgba(200, 240, 255, 0.85)');
+    });
+    // 離開的氣泡柱（還沒解開時才有）
+    if (!r.solved) {
+      const e = r.exit;
+      ctx.strokeStyle = 'rgba(220, 245, 255, 0.75)'; ctx.lineWidth = 1.5;
+      for (let k = 0; k < 8; k++) {
+        const ph = (t * 1.4 + k * 27) % 210;
+        ctx.beginPath(); ctx.arc(e.x + 10 + (k % 3) * 12 + Math.sin(t * 0.1 + k) * 3, e.y - ph, 3 + (k % 3), 0, Math.PI * 2); ctx.stroke();
+      }
+      U.text(ctx, '↑ 浮上去', e.x + e.w / 2, e.y - 230, { size: 11, color: '#d8f4ff', stroke: true });
+    }
+  }
+
   return {
+    makeRiddle: makeRiddle, updateRiddle: updateRiddle, drawRiddle: drawRiddle, symbol: symbol,
     SPOTS: SPOTS, REGIONS: REGIONS, SEAS: SEAS, PALETTE: PALETTE,
     drawMapBack: drawMapBack, drawMapDistricts: drawMapDistricts, drawSurface: drawSurface, drawBell: drawBell
   };

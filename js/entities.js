@@ -451,6 +451,8 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
     particles: [],
     // 豎井關的執行期狀態（非豎井關是 null）
     shaft: def.layout === 'shaft' ? makeShaftState(def) : null,
+    // v1.31.2 亞特蘭提斯潛水關的「海神的封印」（abyss.js）
+    riddle: def.riddle && typeof Abyss !== 'undefined' ? Abyss.makeRiddle(def) : null,
     // v1.31 往前衝的賽道關的執行期狀態（見 race.js；其他關是 null）
     race: def.layout === 'race' && typeof Race !== 'undefined' ? Race.makeState(def) : null,
     // v1.31 巴西足球魔王的球
@@ -2263,7 +2265,8 @@ function updatePlayer(state, input, t, who) {
         state.shaft.floors.some(function (f) {
           return f.goal && f.rect === landedOn;
         });
-      if (onGoal && !dropPending) {
+      // v1.31.2 亞特蘭提斯：到底之後要解封印（或游進氣泡柱浮上去）才過關
+      if (state.riddle ? Abyss.updateRiddle(state, p, onGoal, events) : (onGoal && !dropPending)) {
         state.cleared = true;
         events.push('clear');
       }
