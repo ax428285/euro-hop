@@ -617,8 +617,8 @@ const Game = (function () {
       case 'journal': updateJournal(); break;
 
       case 'saveinfo':
-        // v1.31.10 玩家：刪除存檔改成用滑鼠點 —— 點畫面下方的「刪除存檔」按鈕，再點一次確認（不再用 Delete 鍵，免得手滑）
-        if (Input.once('wipe') || saveWipeClicked()) {
+        // v1.31.10 玩家：刪除存檔只用 ☰ 選單裡的「刪除存檔」（滑鼠點兩次）；Delete 鍵拿掉了
+        if (Input.once('wipe')) {
           if (confirmWipe) {
             wipeSave();      // 會自己回大地圖
           } else {
@@ -3558,7 +3558,7 @@ const Game = (function () {
       U.text(ctx, blink ? '按 Enter 進入' + Levels.list[near].city : '　', W / 2, H - 15,
         { size: 14, color: '#ffd166' });
     } else {
-      U.text(ctx, '方向鍵 移動　Enter 進城　B 商店　I 裝備　N 世界之謎　F2 存檔',
+      U.text(ctx, '方向鍵 移動　Enter 進城　B 商店　I 裝備　N 世界之謎',
         W / 2, H - 15, { size: 12, color: '#c0aa84' });
     }
   }
@@ -3848,15 +3848,6 @@ const Game = (function () {
     U.text(ctx, document.documentElement.classList.contains('touch') ? '點畫面左右半邊換頁　↩ 回大地圖' : '←→ 換頁　Esc、Q、L 回大地圖', W / 2, H - 16, { size: 12, color: '#7d88a6' });
   }
 
-  const SAVE_WIPE_BTN = { x: W - 170, y: 404, w: 130, h: 36 };
-  /** 存檔畫面：這一帧有沒有點到「刪除存檔」按鈕 */
-  function saveWipeClicked() {
-    const c = Input.takeClick();
-    if (!c) return false;
-    const b = SAVE_WIPE_BTN;
-    return c.x >= b.x && c.x <= b.x + b.w && c.y >= b.y && c.y <= b.y + b.h;
-  }
-
   function drawSaveInfo() {
     const sv = Save.get();
     drawMapBackdrop(sv);
@@ -3905,15 +3896,8 @@ const Game = (function () {
       U.text(ctx, '再點一次「刪除存檔」就會清除全部進度（無法復原）・Esc 取消',
         W / 2, 425, { size: 14, color: '#ff9aa8' });
     } else {
-      U.text(ctx, 'F2 或 Esc 返回地圖', W / 2, 425, { size: 13, color: '#9aa7c7' });
+      U.text(ctx, 'Esc 返回地圖　（刪除存檔在 ☰ 選單裡）', W / 2, 425, { size: 13, color: '#9aa7c7' });
     }
-    // 刪除存檔的按鈕（用滑鼠點）
-    const b = SAVE_WIPE_BTN;
-    ctx.fillStyle = confirmWipe ? '#c0384f' : 'rgba(224, 82, 107, 0.25)';
-    U.roundRect(ctx, b.x, b.y, b.w, b.h, 8); ctx.fill();
-    ctx.strokeStyle = '#e0526b'; ctx.lineWidth = 1.5;
-    U.roundRect(ctx, b.x, b.y, b.w, b.h, 8); ctx.stroke();
-    U.text(ctx, confirmWipe ? '確定刪除' : '刪除存檔', b.x + b.w / 2, b.y + b.h / 2, { size: 14, color: '#ffffff' });
   }
 
   function drawInventory() {
@@ -5011,7 +4995,7 @@ const Game = (function () {
   }
 
   /**
-   * 清除存檔。存檔畫面（v1.31.10 起用滑鼠點按鈕兩次）和手機標題畫面的「刪除存檔」按鈕共用。
+   * 清除存檔。☰ 選單的「刪除存檔」（滑鼠點兩次）用的就是這個。
    * 「要按兩次才算」由呼叫端負責 —— 這裡只管清乾淨、把能力重算。
    */
   function wipeSave() {
