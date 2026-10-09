@@ -1515,21 +1515,7 @@ const Sprites = (function () {
   // ── 時裝（稀有怪掉落，見 costumes.js）────────────────────────
 
   function costumeBack(ctx, c, cx, y, dir, t) {
-    if (c === 'athena') {
-      // （v1.31.3 玩家：人魚時裝拿掉 → 只留雅典娜）    } else if (c === 'athena') {
-      // 雅典娜（v1.31.2 玩家：波賽頓是男生不適合當時裝 → 雅典娜女神）：背上一面金色圓盾、一支長矛；栗色長髮披在背後
-      ctx.fillStyle = '#7a4a2a';
-      ctx.beginPath(); ctx.moveTo(cx - 9, y + 4); ctx.quadraticCurveTo(cx - dir * 14, y + 18, cx - dir * 8, y + 28); ctx.lineTo(cx + dir * 4, y + 22); ctx.lineTo(cx + 9, y + 4); ctx.closePath(); ctx.fill();
-      const tx = cx - dir * 12;
-      ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(tx, y + 40); ctx.lineTo(tx, y - 12); ctx.stroke();
-      ctx.fillStyle = '#d8dce4';
-      ctx.beginPath(); ctx.moveTo(tx, y - 20); ctx.lineTo(tx - 3, y - 11); ctx.lineTo(tx + 3, y - 11); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#e8b830';
-      ctx.beginPath(); ctx.arc(cx - dir * 8, y + 22, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#a8761a'; ctx.lineWidth = 1.4; ctx.stroke();
-      ctx.fillStyle = '#a8761a'; ctx.beginPath(); ctx.arc(cx - dir * 8, y + 22, 3, 0, Math.PI * 2); ctx.fill();
-    } else if (c === 'royal') {
+    if (c === 'royal') {
       const sw = Math.sin(t * 0.08) * 2;
       ctx.fillStyle = '#5a2a8a';
       ctx.beginPath();
@@ -1584,15 +1570,6 @@ const Sprites = (function () {
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 10, y + 12, 20, 4);
       ctx.fillStyle = '#2a50a0'; ctx.fillRect(cx - 10, y + 15, 20, 2);
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
-    } else if (c === 'athena') {
-      // 雅典娜：白色長袍（裙擺到腳踝）、斜披一條藍色披肩、金色腰帶，裙擺一圈希臘回紋
-      ctx.fillStyle = '#f8f4ea';
-      ctx.beginPath(); ctx.moveTo(cx - 9, y + 12); ctx.lineTo(cx + 9, y + 12); ctx.lineTo(cx + 11, y + h - 4); ctx.lineTo(cx - 11, y + h - 4); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#3a6ab8';
-      ctx.beginPath(); ctx.moveTo(cx - dir * 9, y + 12); ctx.lineTo(cx - dir * 3, y + 12); ctx.lineTo(cx + dir * 9, y + 26); ctx.lineTo(cx + dir * 9, y + 31); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2.4);
-      ctx.fillStyle = '#c89820';
-      for (let k = 0; k < 5; k++) { ctx.fillRect(cx - 10 + k * 4.4, y + h - 7, 3, 1.2); ctx.fillRect(cx - 10 + k * 4.4 + 2, y + h - 7, 1, 2.6); }
     } else if (c === 'golden') {
       const g = ctx.createLinearGradient(cx - 9, y + 12, cx + 9, y + 32);
       g.addColorStop(0, '#fff4b0'); g.addColorStop(0.5, '#f2c14e'); g.addColorStop(1, '#c8862a');
@@ -1638,18 +1615,6 @@ const Sprites = (function () {
       ctx.fillStyle = '#2a50a0';
       ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
       ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
-    } else if (c === 'athena') {
-      // 雅典娜：金色的科林斯頭盔（推到額頭上，露出臉）＋一道紅色馬鬃羽冠；兩邊垂下栗色長髮
-      ctx.fillStyle = '#7a4a2a';
-      ctx.fillRect(cx - 10, y + 2, 4, 12); ctx.fillRect(cx + 6, y + 2, 4, 12);
-      ctx.fillStyle = '#e8b830';
-      ctx.beginPath(); ctx.arc(cx, y + 4, 10, Math.PI, 0); ctx.closePath(); ctx.fill();
-      ctx.fillRect(cx - 10, y + 2, 20, 3);
-      ctx.fillStyle = '#a8761a'; ctx.fillRect(cx - 10, y + 4, 20, 1.2);
-      ctx.fillStyle = '#c8202a';
-      ctx.beginPath(); ctx.moveTo(cx + dir * 7, y - 4);
-      ctx.quadraticCurveTo(cx, y - 16, cx - dir * 12, y - 6); ctx.quadraticCurveTo(cx - dir * 8, y - 3, cx - dir * 8, y + 2);
-      ctx.quadraticCurveTo(cx - dir * 2, y - 9, cx + dir * 7, y - 4); ctx.closePath(); ctx.fill();
     } else if (c === 'royal' || c === 'golden') {
       ctx.fillStyle = '#f2c14e';
       ctx.beginPath();

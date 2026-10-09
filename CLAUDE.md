@@ -50,17 +50,17 @@
   - 瑞士銀行：歐洲任意 `Quests.BANK_NEED`（10）國金幣收滿就能開戶。
 - 塞爾維亞（滑雪，`js/ski.js`，view `'ski'`）、保加利亞（羽球，`js/badminton.js`，view `'badminton'`）也是 layout `'race'`，由 race.js 轉發；測試是 race-check 的 `runRemakeCheck`。
   舊存檔破過這兩關的會在讀檔時變回還沒破（game.js `remakeReset`，旗標 `remake131`，每個存檔只做一次）。
-- v1.31.2（2026-10-09 已上線，`nordic:live`）：比利時扒手偷 50 枚（quests.js `PICK_COINS`）；首頁「怎麼玩」（game.js `TITLE_GUIDE`）更新成 8 條。
+- v1.31.2、v1.31.3（2026-10-09 已上線，`nordic:live`）：比利時扒手偷 50 枚（quests.js `PICK_COINS`）；首頁「怎麼玩」（game.js `TITLE_GUIDE`）更新成 8 條。
 - v1.31.2 亞特蘭提斯海底城（region `abyss`，Levels.list 最後四關 A1～A4）：入口是歐洲地圖的亞特蘭提斯（`Quests.abyssOpen()` = `Save.flag('abyssGate')`：潛水關最底層的「海神的封印」解開了，abyss.js 的 riddle），出口是光之井（special `surface`）。
   珊瑚市集 `underwater`＋Features `jellies`、水晶宮 Features `beams`、海馬競技場 race 主題 `seahorse`、海神神殿克拉肯（pattern `sphinx`，kind `kraken`，觸手 = pillar.tentacle）。
   亞特蘭提斯在歐洲地圖上時有時無（encounter.js 的 `atlantisShown`，封印解開後一直在）；海底城全破後跟人魚說話 → `Save.flag('mermaid')`，pet.js 讓她跟在後面；
-  中央廣場的珊瑚貝殼屋（shop.js seller `shellHouse`）賣人魚、海神時裝（Costumes `athena`，special）。魔王關沒有 NPC 了（bossLevel 的 npcs 是空的）。
+  中央廣場的珊瑚貝殼屋（shop.js seller `shellHouse`）賣 Thalassa 的衣服。魔王關沒有 NPC 了（bossLevel 的 npcs 是空的）。
   海底城地圖不生海上怪物；測試 `tests/abyss-check.js` 的 `runAbyssCheck`。海神夥伴改成安提基特拉沉船拿。
   測試檔用 script 標籤載入有時會拿到舊的，改用 fetch（cache: reload）＋ eval 載入比較保險。
 - v1.31.2 遠征圖鑑（原名冒險紀錄；game.js scene `journal`、`journalPages()`，鍵 L，☰ 選單按鈕）：兩頁＝主線關卡（照 region 分組）、支線與收集（地圖上的冒險從 Encounter.KINDS 自動列）。
   **新增遊戲內容（地點、劇情、收集）後要記得更新 journalPages()。**
 - v1.31.2 撒哈拉沙漠（quests.js SPOTS `Q_sahara`，expedition.js `K.sahara`、minigame `desert`）：沒有終點，待滿 `DESERT_T`（5 分鐘）綠洲才出現在前面、走進去過關。測試 `tests/sahara-check.js` 的 `runSaharaCheck`。
-- 珊瑚貝殼屋只賣雅典娜時裝（`athena`；人魚時裝 v1.31.3 拿掉了）。人魚 Thalassa 照使用者給的範例圖畫：灰棕長髮、珍珠頭飾、魚鰭耳朵、白貝殼上衣、藍銀魚尾、提燈籠（pet.js `chibiMer`、quests.js 頭像）。
+- 珊瑚貝殼屋只賣 Thalassa 的衣服（人魚、雅典娜時裝 v1.31.3 都拿掉了，不要再加回海底的時裝）。人魚 Thalassa 照使用者給的範例圖畫：灰棕長髮、珍珠頭飾、魚鰭耳朵、白貝殼上衣、藍銀魚尾、提燈籠（pet.js `chibiMer`、quests.js 頭像）。
 - 海底城大地圖（abyss.js `PALETTE`）是半透明的水晶感，不要用綠色。
 - 大地圖的曲子：game.js `mapTrack()`（歐洲 MAP、新大陸 AMMAP、海底城 SEAMAP，music.js）。
 - Thalassa 的衣服：shop.js `MER_OUTFITS`（商品 `mer_<id>`，珊瑚貝殼屋），旗標 `merOutfit` = 穿第幾套（0 = 白貝殼上衣）；畫在 pet.js `chibiMer` 與 quests.js 頭像。

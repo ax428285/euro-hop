@@ -301,7 +301,7 @@ const Voyage = (function () {
   /*
    * 大地圖上走路的小人。
    * v1.31.3 玩家：人魚時裝跟沒穿一模一樣 —— 原本地圖上一律畫條紋衫，穿什麼時裝都看不出來 → 照身上的時裝畫
-   * （雅典娜：白袍＋金頭盔紅羽冠；船長：三角帽⋯⋯），脫掉就變回條紋衫。
+   * （船長：三角帽、維京：角盔、法老：頭巾⋯⋯），脫掉就變回條紋衫。
    */
   const WALK_LOOK = {
     captain: { body: '#a8242a', trim: '#e8c060', hat: 'tricorn' },
@@ -310,8 +310,7 @@ const Voyage = (function () {
     harlequin: { body: '#c0242a', trim: '#2a8a4a', hat: 'jester' },
     royal: { body: '#f4efe2', trim: '#5a2a8a', hat: 'crown', cape: '#5a2a8a' },
     golden: { body: '#f2c14e', trim: '#fff4b0', hat: 'crown' },
-    pharaoh: { body: '#f4efe2', trim: '#2a50a0', hat: 'nemes' },
-    athena: { body: '#f8f4ea', trim: '#3a6ab8', hat: 'athena', robe: true }
+    pharaoh: { body: '#f4efe2', trim: '#2a50a0', hat: 'nemes' }
   };
   function drawWalker(ctx, t) {
     const x = ship.x, y = ship.y;
@@ -329,8 +328,7 @@ const Voyage = (function () {
     ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-2 + sw, 0); ctx.moveTo(0, -5); ctx.lineTo(2 - sw, 0); ctx.stroke();
     if (lk) {
       ctx.fillStyle = lk.body;
-      if (lk.robe) { ctx.beginPath(); ctx.moveTo(-3, -12); ctx.lineTo(3, -12); ctx.lineTo(4, -2); ctx.lineTo(-4, -2); ctx.closePath(); ctx.fill(); }
-      else ctx.fillRect(-3, -12, 6, 7);
+      ctx.fillRect(-3, -12, 6, 7);
       ctx.fillStyle = lk.trim;
       ctx.fillRect(-3, -9, 6, 1.5);
     } else {
@@ -343,10 +341,7 @@ const Voyage = (function () {
     ctx.beginPath(); ctx.arc(0, -15, 3, 0, Math.PI * 2); ctx.fill();
     // 帽子／頭飾
     const hat = lk && lk.hat;
-    if (hat === 'athena') {
-      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(0, -15.6, 3.4, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = '#c8202a'; ctx.beginPath(); ctx.moveTo(2, -18); ctx.quadraticCurveTo(-1, -23, -5, -18); ctx.lineTo(-2, -17.5); ctx.closePath(); ctx.fill();
-    } else if (hat === 'crown') {
+    if (hat === 'crown') {
       ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.moveTo(-3, -17); ctx.lineTo(-3, -20); ctx.lineTo(-1.5, -18.4); ctx.lineTo(0, -20.5); ctx.lineTo(1.5, -18.4); ctx.lineTo(3, -20); ctx.lineTo(3, -17); ctx.closePath(); ctx.fill();
     } else if (hat === 'tricorn' || hat === 'matador') {
       ctx.fillStyle = '#1a1a20'; ctx.fillRect(-4.5, -18.4, 9, 2); ctx.fillRect(-2.5, -20, 5, 2);

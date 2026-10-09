@@ -600,7 +600,7 @@ const America = (function () {
   };
 
   // ── 聖胡安服裝店的時裝圖示：縮小的主角穿上那一套（shop.js 的 cos_*）──
-  ['captain', 'matador', 'viking', 'harlequin', 'royal', 'golden', 'pharaoh', 'athena'].forEach(function (id) {
+  ['captain', 'matador', 'viking', 'harlequin', 'royal', 'golden', 'pharaoh'].forEach(function (id) {
     IC['cos_' + id] = function (ctx, s) {
       ctx.save(); ctx.scale(s * 0.8, s * 0.8);
       Sprites.player(ctx, { x: -11, y: -18, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: 0, equipped: {}, costume: id }, 0);

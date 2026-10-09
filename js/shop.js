@@ -130,22 +130,7 @@ const Shop = (function () {
     items.push({ id: 'cos_' + c[0], costume: c[0], name: c[1], icon: 'cos_' + c[0], desc: '時裝：' + c[2],
                  kind: 'look', maxLevel: 1, cost: [c[3]] });
   });
-  // v1.31.2 亞特蘭提斯海底城的珊瑚貝殼屋：海底才有的時裝
-  [
-    ['athena', '雅典娜女神', '白袍＋金頭盔＋盾牌和長矛', 2000]
-  ].forEach(function (c) {
-    items.push({ id: 'cos_' + c[0], costume: c[0], name: c[1], icon: 'cos_' + c[0], desc: '時裝：' + c[2],
-                 kind: 'look', maxLevel: 1, cost: [c[3]], shop: 'shellHouse' });
-  });
-  [
-    ['bandana', '紅色領巾', '綁在脖子上的紅色三角巾', 250],
-    ['shades', '酷酷墨鏡', '加勒比海的太陽好大', 300],
-    ['sombrero', '小草帽', '墨西哥的寬邊草帽，縮小版', 400],
-    ['cape', '英雄披風', '跑起來會飄的紅色小披風', 600]
-  ].forEach(function (c) {
-    items.push({ id: 'dog_' + c[0], acc: c[0], name: c[1], icon: 'dog_' + c[0], desc: c[2],
-                 kind: 'look', maxLevel: 1, cost: [c[3]], needDog: true });
-  });
+  // （v1.31.3 玩家：雅典娜女神時裝移除 —— 珊瑚貝殼屋現在只賣 Thalassa 的衣服）
 
   /*
    * v1.31.3 玩家：人魚時裝再幫我多弄幾套 → Thalassa 自己的衣服（珊瑚貝殼屋買，買了她就換上；再按一次 = 換回貝殼上衣）。
@@ -179,7 +164,7 @@ const Shop = (function () {
     boutique: { name: '聖胡安服裝店', who: '波多黎各聖胡安的服裝店', line: '「出門旅行，總要有幾套體面的衣服。」買了就穿上，按 I 可以換', look: true },
     petshop:  { name: '千里達寵物用品店', who: '千里達的寵物用品店', line: '「給你的狗狗也打扮一下吧！」買了狗狗就會戴上', look: true },
     // v1.31.2 亞特蘭提斯海底城
-    shellHouse: { name: '珊瑚貝殼屋', who: '亞特蘭提斯中央廣場的服裝店', line: '「海底才買得到的衣服喔！」買了就穿上，按 I 可以換', look: true }
+    shellHouse: { name: '珊瑚貝殼屋', who: '亞特蘭提斯中央廣場的服裝店', line: '「給 Thalassa 的衣服喔！」買了她就換上，再按一次換回貝殼上衣', look: true }
   };
   const SELLER_OF = { heart: 'portugal', magnet: 'isle', shield: 'fjord', boots: 'fjord', luck: 'oasis' };
   items.forEach(function (it) { it.seller = it.shop || (it.costume ? 'boutique' : it.acc ? 'petshop' : (SELLER_OF[it.id] || 'portugal')); });
