@@ -9,6 +9,9 @@
  *   E) 海神的封印（亞特蘭提斯潛水關的最底層）：三幅壁畫的圖案各不相同、都在井裡；照順序踩石板 = 解開、過一會兒過關；
  *      踩錯順序 = 石板浮回來重來；不解謎游進右邊的氣泡柱也能過關（但封印沒解開）；剛到底就站在氣泡柱裡不算
  *      回大地圖：潛過神殿、封印沒解開 → 講一次「再潛一次」；解開、還沒進去過 → 講一次「海底城開放了」；亞特蘭提斯的圖示跟著換
+ *   F) 珊瑚貝殼屋（海底城的服裝店）在地圖上、賣人魚和海神時裝（買了就穿上、有圖示畫得出來）；
+ *      海底城全破、跟人魚說完話 → 她跟在你後面（大地圖上），廣場上就沒有她了
+ *   G) 亞特蘭提斯在歐洲地圖上：封印沒解開時會沉下去又浮上來（一段時間看不到）；解開之後一直都在
  *   D) 每一區有地標、遠景、旗子、紀念品（放在關卡裡）、世界之謎的線索、曲子；橫向關有自己的敵人外型；
  *      最終魔王克拉肯的觸手畫得出來（Sprites.shot 的 tentacle）
  * 會暫時改存檔、換地圖，結束前還原。
@@ -218,6 +221,72 @@ function runAbyssCheck() {
       sv.flags.abyssGate = 0; Encounter.drawMap(c, 0);
       sv.flags.abyssGate = 1; Encounter.drawMap(c, 0);
     } catch (e) { issues.push('亞特蘭提斯的地圖圖示畫不出來：' + e.message); }
+    Encounter.clear();
+  })();
+
+  // ── F) 珊瑚貝殼屋、人魚跟著走 ──
+  (function () {
+    WorldMap.useWorld('sea'); Voyage.rebuild();
+    const shop = WorldMap.specials.filter(function (q) { return q.def.seller === 'shellHouse'; })[0];
+    if (!shop) issues.push('海底城地圖上沒有珊瑚貝殼屋');
+    else if (!Voyage.isLand(shop.pin[0], shop.pin[1])) issues.push('珊瑚貝殼屋沒有蓋在陸地上');
+    const items = Shop.itemsOf('shellHouse');
+    if (!items.some(function (it) { return it.costume === 'mermaid'; })) issues.push('珊瑚貝殼屋沒有賣人魚時裝');
+    items.forEach(function (it) {
+      if (!Costumes.get(it.costume)) issues.push('珊瑚貝殼屋賣的 ' + it.name + ' 不是時裝');
+      if (!Sprites.icons[it.icon]) issues.push('珊瑚貝殼屋的 ' + it.name + ' 沒有圖示');
+    });
+    const w0 = sv.wallet, cos0 = sv.costumes.slice(), c0 = sv.costume;
+    sv.wallet = 99999; sv.costumes = sv.costumes.filter(function (k) { return k !== 'mermaid'; });
+    if (!Shop.buy('cos_mermaid') || sv.costume !== 'mermaid') issues.push('買了人魚時裝沒有穿上');
+    try {
+      const c = document.createElement('canvas').getContext('2d');
+      ['mermaid', 'poseidon'].forEach(function (id) {
+        Sprites.player(c, { x: 100, y: 100, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: 0, equipped: {}, costume: id }, 0);
+      });
+    } catch (e) { issues.push('人魚／海神時裝畫不出來：' + e.message); }
+    sv.wallet = w0; sv.costumes = cos0; sv.costume = c0;
+    // 人魚
+    const mer = WorldMap.specials.filter(function (q) { return q.def.npc === 'mermaid'; })[0];
+    sv.flags.mermaid = 0;
+    if (Pet.mermaidOn()) issues.push('還沒跟人魚說話，她就跟著你了');
+    if (mer && mer.def.gone && mer.def.gone()) issues.push('還沒帶人魚走，廣場上就沒有她了');
+    const done0 = sv.cleared.slice();
+    AB.forEach(function (o) { if (sv.cleared.indexOf(o.i) < 0) sv.cleared.push(o.i); });
+    const tk = Quests.talk('mermaid');
+    const r = tk && tk.end ? tk.end(true) : null;
+    if (!r || !Save.flag('mermaid')) issues.push('海底城全破之後跟人魚說話，她沒有跟你走');
+    if (!(mer && mer.def.gone && mer.def.gone())) issues.push('人魚跟你走了，廣場上還站著她');
+    const sp = Voyage.shipPos();
+    for (let k = 0; k < 120; k++) { Voyage.placeShip(sp.x + k * 0.8, sp.y); Pet.update(Voyage.shipPos()); }
+    if (!Pet.mermaid.ready) issues.push('人魚跟你走了，大地圖上卻沒有出現在你後面');
+    else if (Math.hypot(Pet.mermaid.x - Voyage.shipPos().x, Pet.mermaid.y - Voyage.shipPos().y) > 80) issues.push('人魚沒有跟在你後面（離太遠）');
+    try { Pet.drawMermaid(document.createElement('canvas').getContext('2d'), 50, 50, 0, 1, true); Pet.drawMermaid(document.createElement('canvas').getContext('2d'), 50, 50, 0, -1, false); }
+    catch (e) { issues.push('人魚跟隨者畫不出來：' + e.message); }
+    sv.cleared = done0; sv.flags.mermaid = 0;
+    WorldMap.useWorld('eu'); Voyage.rebuild();
+  })();
+
+  // ── G) 亞特蘭提斯時有時無 ──
+  (function () {
+    WorldMap.useWorld('eu'); Voyage.rebuild();
+    sv.flags.abyssGate = 0;
+    Encounter.clear();
+    let seen = 0, gone = 0;
+    for (let k = 0; k < 60 * 130; k++) {
+      Encounter.updateMap(Voyage.shipPos(), 0);
+      if (k % 30) continue;
+      if (Encounter.monsters().some(function (m) { return m.kind === 'atlantis'; })) seen++; else gone++;
+    }
+    if (!seen) issues.push('封印沒解開時，亞特蘭提斯一直都沒出現');
+    if (!gone) issues.push('封印沒解開時，亞特蘭提斯一直都在（應該偶爾沉下去）');
+    sv.flags.abyssGate = 1;
+    Encounter.clear(); gone = 0;
+    for (let k = 0; k < 60 * 130; k++) {
+      Encounter.updateMap(Voyage.shipPos(), 0);
+      if (k % 30 === 0 && !Encounter.monsters().some(function (m) { return m.kind === 'atlantis'; })) gone++;
+    }
+    if (gone) issues.push('封印解開之後，亞特蘭提斯還會消失');
     Encounter.clear();
   })();
 

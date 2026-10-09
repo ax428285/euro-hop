@@ -477,7 +477,7 @@ const WorldMap = (function () {
     ctx.fillStyle = '#f2e6cc'; ctx.fillRect(-9, -12, 18, 12);
     ctx.fillStyle = '#7a4a2a'; ctx.fillRect(-2.5, -7, 5, 7);
     // 遮雨棚（紅白／藍白條紋）
-    const c = kind === 'petshop' ? '#3a7ac8' : '#d0405a';
+    const c = kind === 'petshop' ? '#3a7ac8' : kind === 'shellHouse' ? '#2ab0a0' : '#d0405a';
     for (let k = 0; k < 5; k++) {
       ctx.fillStyle = k % 2 ? '#ffffff' : c;
       ctx.beginPath(); ctx.moveTo(-11 + k * 4.4, -12); ctx.lineTo(-11 + (k + 1) * 4.4, -12);
@@ -505,7 +505,9 @@ const WorldMap = (function () {
       specials.push({
         id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 18],
         def: q.surface ? { role: '出口', scene: 'surface', surface: true, prompt: q.prompt }
-                       : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+           : q.seller ? { role: '商店', scene: 'shop', seller: q.seller, merchant: true, stall: q.seller, prompt: q.prompt }
+           // 海底城全破之後人魚跟著你走（pet.js），廣場上就不畫她了
+           : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt, gone: q.npc === 'mermaid' ? function () { return Quests.mermaidJoined(); } : null }
       });
     });
   }

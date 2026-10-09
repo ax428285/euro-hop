@@ -64,8 +64,8 @@ const Levels = (function () {
       secrets: [],
       enemies: cfg.enemies || [],
       coins: cfg.coins || [],
-      // 出生點旁的當地人，開場提醒魔王打法
-      npcs: Npcs.placeBoss(cfg.id, GROUND_Y),
+      // v1.31.2 玩家：魔王關的 NPC 全數移除（原本出生點旁站一位當地人提醒打法）
+      npcs: [],
       goal: width
     };
   }

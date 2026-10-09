@@ -1515,7 +1515,18 @@ const Sprites = (function () {
   // ── 時裝（稀有怪掉落，見 costumes.js）────────────────────────
 
   function costumeBack(ctx, c, cx, y, dir, t) {
-    if (c === 'royal') {
+    if (c === 'mermaid') {
+      // 人魚：長長的青綠色頭髮垂到背後
+      ctx.fillStyle = '#2ab0a0';
+      ctx.beginPath(); ctx.moveTo(cx - 9, y + 2); ctx.quadraticCurveTo(cx - dir * 14, y + 14, cx - dir * 10 + Math.sin(t * 0.08) * 2, y + 26);
+      ctx.lineTo(cx - dir * 2, y + 22); ctx.lineTo(cx + 9, y + 2); ctx.closePath(); ctx.fill();
+    } else if (c === 'poseidon') {
+      // 海神：背著一支金色三叉戟
+      const tx = cx - dir * 10;
+      ctx.strokeStyle = '#e8c050'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(tx, y + 38); ctx.lineTo(tx, y - 10);
+      ctx.moveTo(tx - 5, y - 14); ctx.lineTo(tx - 5, y - 7); ctx.lineTo(tx + 5, y - 7); ctx.lineTo(tx + 5, y - 14); ctx.stroke();
+    } else if (c === 'royal') {
       const sw = Math.sin(t * 0.08) * 2;
       ctx.fillStyle = '#5a2a8a';
       ctx.beginPath();
@@ -1569,6 +1580,22 @@ const Sprites = (function () {
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 10, y + 12, 20, 4);
       ctx.fillStyle = '#2a50a0'; ctx.fillRect(cx - 10, y + 15, 20, 2);
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
+    } else if (c === 'mermaid') {
+      // 人魚：粉紫色的貝殼上衣，下半身是青綠色、有鱗片的魚尾裙，裙襬像尾鰭一樣張開
+      ctx.fillStyle = '#2a9a90'; ctx.fillRect(cx - 10, y + 22, 20, 14);
+      ctx.beginPath(); ctx.moveTo(cx - 10, y + 34); ctx.lineTo(cx - 15, y + 41); ctx.lineTo(cx, y + 37); ctx.lineTo(cx + 15, y + 41); ctx.lineTo(cx + 10, y + 34); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(160, 240, 230, 0.75)';
+      for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(cx - 7 + k * 5 + (r % 2) * 2, y + 25 + r * 4, 1.6, 0, Math.PI); ctx.fill(); }
+      ctx.fillStyle = '#f0d0b8'; ctx.fillRect(cx - 9, y + 12, 18, 10);
+      ctx.fillStyle = '#e88ac8';
+      ctx.beginPath(); ctx.arc(cx - 4, y + 16, 4, Math.PI, 0); ctx.arc(cx + 4, y + 16, 4, Math.PI, 0); ctx.fill();
+      ctx.fillRect(cx - 9, y + 16, 18, 2);
+    } else if (c === 'poseidon') {
+      // 海神：白色長袍斜披一條金邊
+      ctx.fillStyle = '#f4f0e6'; ctx.fillRect(cx - 10, y + 12, 20, 26);
+      ctx.strokeStyle = '#e8c050'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(cx - dir * 9, y + 12); ctx.lineTo(cx + dir * 9, y + 30); ctx.stroke();
+      ctx.fillStyle = '#2a7ab0'; ctx.fillRect(cx - 10, y + 34, 20, 3);
     } else if (c === 'golden') {
       const g = ctx.createLinearGradient(cx - 9, y + 12, cx + 9, y + 32);
       g.addColorStop(0, '#fff4b0'); g.addColorStop(0.5, '#f2c14e'); g.addColorStop(1, '#c8862a');
@@ -1614,6 +1641,22 @@ const Sprites = (function () {
       ctx.fillStyle = '#2a50a0';
       ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
       ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
+    } else if (c === 'mermaid') {
+      // 人魚：青綠色的瀏海＋頭上一顆橘色海星髮夾
+      ctx.fillStyle = '#2ab0a0';
+      ctx.beginPath(); ctx.arc(cx, y + 4, 9.5, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+      ctx.fillStyle = '#f2a040';
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + i * Math.PI * 2 / 5, sx = cx + dir * 5, sy = y - 4;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * 5, sy + Math.sin(a) * 5); ctx.lineTo(sx + Math.cos(a + 0.6) * 2, sy + Math.sin(a + 0.6) * 2); ctx.fill();
+      }
+    } else if (c === 'poseidon') {
+      // 海神：金冠（尖端像三叉戟）＋一大把白鬍子
+      ctx.fillStyle = '#f2c14e';
+      ctx.beginPath(); ctx.moveTo(cx - 8, y + 1); ctx.lineTo(cx - 8, y - 4); ctx.lineTo(cx - 5, y - 9); ctx.lineTo(cx - 3, y - 3);
+      ctx.lineTo(cx, y - 11); ctx.lineTo(cx + 3, y - 3); ctx.lineTo(cx + 5, y - 9); ctx.lineTo(cx + 8, y - 4); ctx.lineTo(cx + 8, y + 1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f4f4f0';
+      ctx.beginPath(); ctx.moveTo(cx - 7, y + 7); ctx.quadraticCurveTo(cx, y + 20, cx + 7, y + 7); ctx.closePath(); ctx.fill();
     } else if (c === 'royal' || c === 'golden') {
       ctx.fillStyle = '#f2c14e';
       ctx.beginPath();

@@ -36,35 +36,91 @@ const Pet = (function () {
     dog.x = x - 10; dog.y = y + 2; dog.ready = true;
   }
 
-  /** 每帧（大地圖）：記足跡、把狗放到後面那個點 */
-  function update(ship) {
-    if (!adopted()) { dog.ready = false; return; }
-    const last = trail[trail.length - 1];
-    if (!dog.ready || !last || Math.hypot(ship.x - last.x, ship.y - last.y) > 40) { snap(ship.x, ship.y); return; }
-    if (Math.hypot(ship.x - last.x, ship.y - last.y) >= STEP) {
-      trail.push({ x: ship.x, y: ship.y });
-      if (trail.length > 80) trail.shift();
-    }
-    // 從最新往回量 FOLLOW 的距離
-    let need = FOLLOW, tx = trail[0].x, ty = trail[0].y;
+  /*
+   * v1.31.2 玩家：海底城全破，人魚會跟你走（跟狗狗一樣跟在後面）。
+   * 用同一條足跡：狗在 FOLLOW 的地方、人魚再後面一點（沒有狗就是她跟在 FOLLOW）。
+   * 在水裡她甩著尾巴游，上岸時坐在一顆透明的大水泡裡飄著跟過來。
+   */
+  const mer = { x: 0, y: 0, facing: 1, ready: false, inWater: true };
+  function mermaidOn() { return typeof Quests !== 'undefined' && !!Quests.mermaidJoined && Quests.mermaidJoined(); }
+
+  /** 從足跡最新的點往回量 dist 遠的那一點 */
+  function pointBack(ship, dist) {
+    let need = dist, tx = trail[0].x, ty = trail[0].y;
     let px = ship.x, py = ship.y;
     for (let i = trail.length - 1; i >= 0; i--) {
       const d = Math.hypot(px - trail[i].x, py - trail[i].y);
       if (d >= need) {
         const k = need / d;
-        tx = px + (trail[i].x - px) * k; ty = py + (trail[i].y - py) * k;
-        need = 0;
-        break;
+        return { x: px + (trail[i].x - px) * k, y: py + (trail[i].y - py) * k };
       }
       need -= d; px = trail[i].x; py = trail[i].y;
     }
-    if (need > 0) { tx = px; ty = py; }
-    const mv = Math.hypot(tx - dog.x, ty - dog.y);
-    if (Math.abs(tx - dog.x) > 0.05) dog.facing = tx > dog.x ? 1 : -1;
-    // 慢慢靠過去（不要一帧跳到位，停下來時會小跑幾步才停）
-    dog.x += (tx - dog.x) * 0.35; dog.y += (ty - dog.y) * 0.35;
-    dog.step += Math.min(mv, 2) * 0.5;
-    dog.inWater = typeof Voyage !== 'undefined' && !Voyage.isLand(dog.x, dog.y);
+    return { x: px, y: py };
+  }
+  /** 跟隨者往目標點靠過去（不要一帧跳到位，停下來時會小跑幾步才停） */
+  function chase(f, tp) {
+    const mv = Math.hypot(tp.x - f.x, tp.y - f.y);
+    if (Math.abs(tp.x - f.x) > 0.05) f.facing = tp.x > f.x ? 1 : -1;
+    f.x += (tp.x - f.x) * 0.35; f.y += (tp.y - f.y) * 0.35;
+    f.step = (f.step || 0) + Math.min(mv, 2) * 0.5;
+    f.inWater = typeof Voyage !== 'undefined' && !Voyage.isLand(f.x, f.y);
+  }
+
+  /** 每帧（大地圖）：記足跡、把狗（和人魚）放到後面那個點 */
+  function update(ship) {
+    const hasDog = adopted(), hasMer = mermaidOn();
+    if (!hasDog) dog.ready = false;
+    if (!hasMer) mer.ready = false;
+    if (!hasDog && !hasMer) return;
+    const last = trail[trail.length - 1];
+    if ((hasDog && !dog.ready) || (hasMer && !mer.ready) || !last || Math.hypot(ship.x - last.x, ship.y - last.y) > 40) {
+      snap(ship.x, ship.y);
+      if (hasMer) { mer.x = ship.x - (hasDog ? 22 : 12); mer.y = ship.y + 4; mer.ready = true; }
+      return;
+    }
+    if (Math.hypot(ship.x - last.x, ship.y - last.y) >= STEP) {
+      trail.push({ x: ship.x, y: ship.y });
+      if (trail.length > 80) trail.shift();
+    }
+    if (hasDog) {
+      chase(dog, pointBack(ship, FOLLOW));
+      dog.step = dog.step || 0;
+    }
+    if (hasMer) chase(mer, pointBack(ship, hasDog ? FOLLOW * 2 + 6 : FOLLOW));
+  }
+
+  /** 人魚 Thalassa（大地圖上的跟隨者）：在水裡游、上岸坐在水泡裡 */
+  function drawMermaid(ctx, x, y, t, facing, inWater) {
+    ctx.save();
+    ctx.translate(x, y);
+    const bob = Math.sin(t * 0.08) * 1.5;
+    if (!inWater) {
+      // 上岸：一顆透明的大水泡，她坐在裡面飄
+      ctx.translate(0, -8 + bob);
+      ctx.fillStyle = 'rgba(170, 230, 255, 0.28)';
+      ctx.beginPath(); ctx.arc(0, -6, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(220, 250, 255, 0.85)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(0, -6, 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx.beginPath(); ctx.ellipse(-5, -12, 3, 1.6, -0.6, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.translate(0, bob);
+      ctx.strokeStyle = 'rgba(226, 240, 255, 0.6)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(0, 1, 9, 3, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.scale(facing || 1, 1);
+    const wag = Math.sin(t * 0.18) * 3;
+    // 尾巴（往後甩）
+    ctx.fillStyle = '#2ab0a0';
+    ctx.beginPath(); ctx.moveTo(2, -6); ctx.quadraticCurveTo(-4, -2, -9, -3 + wag); ctx.lineTo(-13, -7 + wag); ctx.lineTo(-12, 0 + wag); ctx.quadraticCurveTo(-4, 2, 2, -2); ctx.fill();
+    // 上半身、頭、頭髮
+    ctx.fillStyle = '#e88ac8'; ctx.fillRect(0, -10, 5, 4);
+    ctx.fillStyle = '#f0d0b8'; ctx.beginPath(); ctx.arc(3, -13, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3ad0c0';
+    ctx.beginPath(); ctx.arc(2.5, -14, 3.8, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
+    ctx.fillRect(-1.5, -14, 2.4, 8);
+    ctx.fillStyle = '#16161c'; ctx.fillRect(4.6, -13.6, 1, 1);
+    ctx.restore();
   }
 
   // ── 繪製（大地圖座標，WorldMap 的 view 裡）──
@@ -192,6 +248,7 @@ const Pet = (function () {
 
   /** 收養之後：跟在主角後面（WorldMap 畫完、主角畫之前呼叫，狗在主角下面一層） */
   function drawFollower(ctx, t) {
+    if (mermaidOn() && mer.ready) drawMermaid(ctx, mer.x, mer.y, t, mer.facing, mer.inWater);
     if (!adopted() || !dog.ready) return;
     drawDog(ctx, dog.x, dog.y, t, { facing: dog.facing, swim: dog.inWater, accs: typeof Shop !== 'undefined' ? Shop.dogAccs() : [] });
   }
@@ -199,6 +256,9 @@ const Pet = (function () {
   return {
     SPOT: SPOT,
     adopted: adopted,
+    mermaidOn: mermaidOn,
+    mermaid: mer,
+    drawMermaid: drawMermaid,
     spotPin: spotPin,
     update: update,
     snap: snap,

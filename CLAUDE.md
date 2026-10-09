@@ -53,6 +53,8 @@
 - v1.31.2（在 `nordic`，**還沒上線**）：比利時扒手偷 50 枚（quests.js `PICK_COINS`）；首頁「怎麼玩」（game.js `TITLE_GUIDE`）更新成 8 條。
 - v1.31.2 亞特蘭提斯海底城（region `abyss`，Levels.list 最後四關 A1～A4）：入口是歐洲地圖的亞特蘭提斯（`Quests.abyssOpen()` = `Save.flag('abyssGate')`：潛水關最底層的「海神的封印」解開了，abyss.js 的 riddle），出口是光之井（special `surface`）。
   珊瑚市集 `underwater`＋Features `jellies`、水晶宮 Features `beams`、海馬競技場 race 主題 `seahorse`、海神神殿克拉肯（pattern `sphinx`，kind `kraken`，觸手 = pillar.tentacle）。
+  亞特蘭提斯在歐洲地圖上時有時無（encounter.js 的 `atlantisShown`，封印解開後一直在）；海底城全破後跟人魚說話 → `Save.flag('mermaid')`，pet.js 讓她跟在後面；
+  中央廣場的珊瑚貝殼屋（shop.js seller `shellHouse`）賣人魚、海神時裝（Costumes `mermaid`、`poseidon`，special）。魔王關沒有 NPC 了（bossLevel 的 npcs 是空的）。
   海底城地圖不生海上怪物；測試 `tests/abyss-check.js` 的 `runAbyssCheck`。海神夥伴改成安提基特拉沉船拿。
   測試檔用 script 標籤載入有時會拿到舊的，改用 fetch（cache: reload）＋ eval 載入比較保險。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

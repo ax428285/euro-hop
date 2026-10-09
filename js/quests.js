@@ -56,6 +56,8 @@ const Quests = (function () {
   function americaOpen() { return flag('columbus') >= 2; }
   /** v1.31.2 亞特蘭提斯海底城開放了嗎：在亞特蘭提斯潛水關的最底層解開「海神的封印」之後（abyss.js 的 riddle） */
   function abyssOpen() { return !!flag('abyssGate'); }
+  /** v1.31.2 海底城全破之後，跟人魚說話她就跟你走（pet.js 畫在後面） */
+  function mermaidJoined() { return !!flag('mermaid'); }
   /** 卡律布狄斯的漩渦眼掉下去要不要接冥界：v1.30 玩家：進漩渦關掉下去一次就進得去 → 一律會（救出洛基後再去也行） */
   function helReady() { return true; }
 
@@ -593,8 +595,13 @@ const Quests = (function () {
         L('mermaid', '你把克拉肯趕走了！整座城的人都在唱歌。'),
         L('mermaid', '老人家說，很久很久以前我們的國王太驕傲，想征服海面上的國家，海神一生氣，整座島一夜之間就沉了下來。'),
         L('mermaid', '從那天起，我們就一直住在海底 —— 其實也不壞，對吧？'),
-        L('mermaid', '想回海面的話，往上游到「光之井」就好。（海底城 ' + cleared + ' / ' + lv.length + ' 區）')
-      ] };
+        L('mermaid', '不過⋯⋯我好想看看海面上的世界。帶我一起去旅行好不好？'),
+        L('mermaid', '就這麼說定了！不管你游到哪、走到哪，我都跟在你後面。')
+      ], end: function () {
+        if (Save.flag('mermaid')) return null;
+        Save.setFlag('mermaid', 1);
+        return { sfx: 'fanfare', toast: { text: '人魚 Thalassa 跟著你走了！', sub: '在水裡她會游在你後面，上岸時坐在水泡裡飄著跟過來', life: 260 } };
+      } };
     }
     return { who: 'mermaid', lines: [
       L('mermaid', '人類？你是第一個游到這裡來的人類！歡迎來到亞特蘭提斯。'),
@@ -736,6 +743,7 @@ const Quests = (function () {
     northOpen: northOpen,
     americaOpen: americaOpen,
     abyssOpen: abyssOpen,
+    mermaidJoined: mermaidJoined,
     AM_SPOTS: AM_SPOTS,
     BANK_NEED: BANK_NEED,
     helReady: helReady,

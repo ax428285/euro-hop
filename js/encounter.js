@@ -232,12 +232,30 @@ const Encounter = (function () {
     return d;
   }
 
+  /*
+   * v1.31.2 玩家：亞特蘭提斯在地圖上改成偶爾會出現、偶爾會消失，解謎完才會一直出現。
+   * 大地圖上每帧算一次（只在歐洲地圖算）：浮上來 ATL_UP 帧、沉下去 ATL_DOWN 帧，一直輪；
+   * 沉下去的時候慢慢淡出（從清單拿掉），浮上來時慢慢淡入。海神的封印解開之後（Quests.abyssOpen）一直都在。
+   */
+  const ATL_UP = 60 * 40, ATL_DOWN = 60 * 22;
+  let atlClock = 0;
+  function atlantisShown() {
+    if (typeof Quests !== 'undefined' && Quests.abyssOpen && Quests.abyssOpen()) return true;
+    return atlClock % (ATL_UP + ATL_DOWN) < ATL_UP;
+  }
+
   /** 海上魔王一直待在固定位置：不在清單上就補回來（打完、clear() 之後） */
   function ensureBosses() {
     if (typeof EuropeWorld === 'undefined') return;
     // v1.31：海上魔王、哥倫布的戰艦、動物大遷徙都在歐洲地圖上（新大陸地圖目前只有一般的海上怪）
     if (WorldMap.world && WorldMap.world() !== 'eu') return;
+    atlClock++;
+    const atlUp = atlantisShown();
+    monsters.forEach(function (m) {
+      if (m.kind === 'atlantis' && !atlUp && m.life > 60) m.life = 60;        // 沉下去：一秒內淡出、從清單拿掉
+    });
     SEA_BOSSES.forEach(function (b) {
+      if (b.kind === 'atlantis' && !atlUp) return;
       if (monsters.some(function (m) { return m.boss && m.kind === b.kind; })) return;
       const p = EuropeWorld.project(b.lon, b.lat);
       let at = null;
@@ -250,7 +268,8 @@ const Encounter = (function () {
         }
       }
       if (!at) return;
-      monsters.push({ kind: b.kind, def: KINDS[b.kind], x: at.x, y: at.y, heading: 0, life: Infinity, appear: 1, boss: true });
+      // 亞特蘭提斯浮上來時慢慢淡入（其他海上魔王一開始就在）
+      monsters.push({ kind: b.kind, def: KINDS[b.kind], x: at.x, y: at.y, heading: 0, life: Infinity, appear: b.kind === 'atlantis' && atlClock > 1 ? 0 : 1, boss: true });
     });
     // v1.30 哥倫布委託的戰艦、撒哈拉的動物大遷徙（expedition.js）
     if (typeof Expedition !== 'undefined') Expedition.ensure(monsters);

@@ -130,6 +130,14 @@ const Shop = (function () {
     items.push({ id: 'cos_' + c[0], costume: c[0], name: c[1], icon: 'cos_' + c[0], desc: '時裝：' + c[2],
                  kind: 'look', maxLevel: 1, cost: [c[3]] });
   });
+  // v1.31.2 亞特蘭提斯海底城的珊瑚貝殼屋：海底才有的時裝
+  [
+    ['mermaid', '人魚', '貝殼上衣＋魚尾裙＋海星髮夾', 1500],
+    ['poseidon', '海神波賽頓', '白袍＋金冠＋白鬍子＋三叉戟', 2000]
+  ].forEach(function (c) {
+    items.push({ id: 'cos_' + c[0], costume: c[0], name: c[1], icon: 'cos_' + c[0], desc: '時裝：' + c[2],
+                 kind: 'look', maxLevel: 1, cost: [c[3]], shop: 'shellHouse' });
+  });
   [
     ['bandana', '紅色領巾', '綁在脖子上的紅色三角巾', 250],
     ['shades', '酷酷墨鏡', '加勒比海的太陽好大', 300],
@@ -152,10 +160,12 @@ const Shop = (function () {
     oasis:    { name: '神祕商人・駱駝商隊', who: '撒哈拉綠洲的駱駝商隊', line: '「穿過沙漠的人，都相信這枚幸運徽章。」' },
     // v1.31 新大陸
     boutique: { name: '聖胡安服裝店', who: '波多黎各聖胡安的服裝店', line: '「出門旅行，總要有幾套體面的衣服。」買了就穿上，按 I 可以換', look: true },
-    petshop:  { name: '千里達寵物用品店', who: '千里達的寵物用品店', line: '「給你的狗狗也打扮一下吧！」買了狗狗就會戴上', look: true }
+    petshop:  { name: '千里達寵物用品店', who: '千里達的寵物用品店', line: '「給你的狗狗也打扮一下吧！」買了狗狗就會戴上', look: true },
+    // v1.31.2 亞特蘭提斯海底城
+    shellHouse: { name: '珊瑚貝殼屋', who: '亞特蘭提斯中央廣場的服裝店', line: '「海底才買得到的衣服喔！」買了就穿上，按 I 可以換', look: true }
   };
   const SELLER_OF = { heart: 'portugal', magnet: 'isle', shield: 'fjord', boots: 'fjord', luck: 'oasis' };
-  items.forEach(function (it) { it.seller = it.costume ? 'boutique' : it.acc ? 'petshop' : (SELLER_OF[it.id] || 'portugal'); });
+  items.forEach(function (it) { it.seller = it.shop || (it.costume ? 'boutique' : it.acc ? 'petshop' : (SELLER_OF[it.id] || 'portugal')); });
 
   const byId = {};
   items.forEach(function (it) { byId[it.id] = it; });

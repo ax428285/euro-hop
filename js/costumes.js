@@ -16,7 +16,10 @@ const Costumes = (function () {
     { id: 'royal', name: '歐羅巴王子', desc: '金王冠 + 紫色披風' },
     { id: 'golden', name: '黃金套裝', desc: '全身金光閃閃' },
     // v1.30：只有吉薩金字塔探險第一次走到墓室才拿得到（special = 黃金海馬不會掉）
-    { id: 'pharaoh', name: '法老', desc: '金藍條紋頭巾 + 白色亞麻裙', special: true }
+    { id: 'pharaoh', name: '法老', desc: '金藍條紋頭巾 + 白色亞麻裙', special: true },
+    // v1.31.2 亞特蘭提斯海底城的珊瑚貝殼屋賣的（special = 黃金海馬不會掉）
+    { id: 'mermaid', name: '人魚', desc: '貝殼上衣 + 閃亮的魚尾裙 + 海星髮夾', special: true },
+    { id: 'poseidon', name: '海神波賽頓', desc: '白袍 + 金冠 + 白鬍子 + 背著三叉戟', special: true }
   ];
   const byId = {};
   defs.forEach(function (d) { byId[d.id] = d; });

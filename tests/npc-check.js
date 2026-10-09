@@ -16,7 +16,7 @@ function runNpcCheck() {
     const npcs = def.npcs || [];
     counts[def.id] = npcs.length;
     // v1.30：送禮物的特別 NPC（芬蘭的聖誕老人）另外算
-    const want = (def.layout === 'shaft' || def.layout === 'race' ? 0 : def.isBoss ? 1 : 3) + npcs.filter(function (n) { return n.gift; }).length;
+    const want = (def.layout === 'shaft' || def.layout === 'race' ? 0 : def.isBoss ? 0 : 3) + npcs.filter(function (n) { return n.gift; }).length;
     if (npcs.length !== want) issues.push(tag + '：NPC 有 ' + npcs.length + ' 位，應該 ' + want + ' 位');
 
     npcs.forEach(function (n) {

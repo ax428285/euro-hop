@@ -293,7 +293,13 @@ const Game = (function () {
     if (!Quests.abyssOpen()) {
       if (Save.flag('abyssHint')) return null;
       Save.setFlag('abyssHint', 1);
-      return { text: '亞特蘭提斯有新東西了！', sub: '神殿最深處的大門上有一道封印 —— 再潛一次，記住路上牆上的三幅壁畫', life: 360 };
+      return { text: '亞特蘭提斯有新東西了！', sub: '神殿深處的大門有一道封印 —— 再潛一次，記住牆上的三幅壁畫（亞特蘭提斯不時會沉下去，等一下就浮上來）', life: 400 };
+    }
+    // 海底城四區全破、還沒帶人魚走 → 提醒回廣場找她（講一次）
+    const ab = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === 'abyss'; });
+    if (ab.length && ab.every(function (o) { return Save.isCleared(o.i); }) && !Save.flag('mermaid') && !Save.flag('mermaidCall')) {
+      Save.setFlag('mermaidCall', 1);
+      return { text: '亞特蘭提斯海底城全部破完了！', sub: '中央廣場的人魚 Thalassa 好像有話想跟你說', life: 320 };
     }
     if (Save.flag('abyssVisited') || Save.flag('abyssNews')) return null;
     Save.setFlag('abyssNews', 1);
