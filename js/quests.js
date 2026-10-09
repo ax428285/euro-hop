@@ -339,7 +339,52 @@ const Quests = (function () {
     U.text(ctx, '$', x - look * 8, y - 5.5, { size: 6, weight: 800, color: '#5a4310', stroke: false });
   }
 
+  /*
+   * v1.31.2 玩家：右邊亞洲那邊畫一條絲路，寫「取經中」—— 從君士坦丁堡往東穿過安納托利亞，一路畫到地圖右邊，
+   * 虛線的駝隊路線＋一支慢慢往東走的駱駝商隊；路還沒開（以後的亞洲篇），所以寫「取經中⋯⋯」。
+   */
+  const SILK = [[28.9, 41.0], [32.8, 39.9], [35.5, 38.7], [38.6, 38.3], [41.3, 39.9], [45, 39.4]];
+  function drawSilkRoad(ctx, t) {
+    const pts = SILK.map(function (q) { return EuropeWorld.project(q[0], q[1]); });
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(200, 150, 60, 0.35)'; ctx.lineWidth = 7;
+    ctx.beginPath(); pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
+    ctx.strokeStyle = 'rgba(150, 80, 30, 0.85)'; ctx.lineWidth = 2.2;
+    ctx.setLineDash([7, 5]); ctx.lineDashOffset = -t * 0.3;
+    ctx.beginPath(); pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
+    ctx.setLineDash([]);
+    // 地圖右邊的箭頭（路還往東延伸）
+    const e = pts[pts.length - 1];
+    ctx.fillStyle = 'rgba(150, 80, 30, 0.85)';
+    ctx.beginPath(); ctx.moveTo(e[0] - 2, e[1] - 7); ctx.lineTo(e[0] + 8, e[1]); ctx.lineTo(e[0] - 2, e[1] + 7); ctx.closePath(); ctx.fill();
+    // 慢慢往東走的駱駝商隊（走到底再從起點出發）
+    const segs = [], lens = [];
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); lens.push(d); total += d; }
+    for (let c = 0; c < 3; c++) {
+      let d = ((t * 0.12) - c * 14) % total; if (d < 0) d += total;
+      let i = 0; while (i < lens.length - 1 && d > lens[i]) { d -= lens[i]; i++; }
+      const a = pts[i], b = pts[i + 1], k = d / lens[i];
+      const x = a[0] + (b[0] - a[0]) * k, y = a[1] + (b[1] - a[1]) * k - 3;
+      const bob = Math.sin(t * 0.2 + c) * 0.6;
+      ctx.fillStyle = 'rgba(120, 72, 32, 0.95)';
+      ctx.beginPath(); ctx.ellipse(x, y + bob, 4.4, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x - 0.6, y - 2 + bob, 1.8, Math.PI, 0); ctx.fill();
+      ctx.fillRect(x + 3, y - 4 + bob, 1.4, 4); ctx.fillRect(x + 3, y - 5 + bob, 3, 1.6);
+      ctx.fillRect(x - 3, y + 1.5, 1, 3); ctx.fillRect(x + 2, y + 1.5, 1, 3);
+      if (c === 0) { ctx.fillStyle = '#c8302a'; ctx.fillRect(x - 2, y - 4.6 + bob, 3, 1.2); }
+    }
+    // 字
+    const lp = EuropeWorld.project(38.0, 42.0);
+    const rc = 'rgba(120, 60, 30, 0.7)';
+    U.text(ctx, '絲　路　→', lp[0], lp[1], { size: 20, weight: 800, color: rc, stroke: false });
+    U.text(ctx, '（取經中⋯⋯）', lp[0] + 4, lp[1] + 20, { size: 12, color: rc, stroke: false });
+    ctx.restore();
+  }
+
   function drawMapExtras(ctx, t) {
+    if (typeof EuropeWorld !== 'undefined') drawSilkRoad(ctx, t);
     if (typeof EuropeWorld !== 'undefined') drawPickpocket(ctx, t);
     if (flag('columbus') < 2 || typeof EuropeWorld === 'undefined') return;
     const p = EuropeWorld.project(-21, 41);
