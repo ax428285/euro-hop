@@ -1402,13 +1402,19 @@ const Sprites = (function () {
       ctx.fillRect(cx - dir * 11, y + 14, 9, 14);
     }
 
+    // v1.31.2 人魚時裝：沒有腿（整條魚尾巴，在 costumeBody 裡畫）
+    const tail = costume === 'mermaid';
     // 腿
     ctx.fillStyle = '#3a4a7a';
-    ctx.fillRect(cx - 8, y + h - 14, 6, 14 - Math.max(0, swing));
-    ctx.fillRect(cx + 2, y + h - 14, 6, 14 + Math.min(0, swing));
+    if (!tail) {
+      ctx.fillRect(cx - 8, y + h - 14, 6, 14 - Math.max(0, swing));
+      ctx.fillRect(cx + 2, y + h - 14, 6, 14 + Math.min(0, swing));
+    }
 
     // 鞋：木鞋 / 涼鞋 / 普通
-    if (eq.clogs) {
+    if (tail) {
+      // 沒有鞋
+    } else if (eq.clogs) {
       ctx.fillStyle = '#e8b45a';
       ctx.fillRect(cx - 10, y + h - 5, 9, 5);
       ctx.fillRect(cx + 1, y + h - 5, 9, 5);
@@ -1431,11 +1437,12 @@ const Sprites = (function () {
     ctx.fillStyle = shirt;
     for (let i = 0; i < 3; i++) ctx.fillRect(cx - 9, y + 15 + i * 6, 18, 3);
     // 時裝的衣服蓋在條紋衫上
-    if (costume) costumeBody(ctx, costume, cx, y, dir, t);
+    if (costume) costumeBody(ctx, costume, cx, y, dir, t, h, walking);
 
     // 手
-    ctx.fillStyle = '#f0c49a';
+    ctx.fillStyle = costume === 'mermaid' ? '#fde4d4' : '#f0c49a';
     ctx.fillRect(cx + dir * 9 - 2, y + 16 + (walking ? -swing : 0), 5, 11);
+    if (costume === 'mermaid') { ctx.fillStyle = '#f2c040'; ctx.fillRect(cx + dir * 9 - 2, y + 24 + (walking ? -swing : 0), 5, 1.6); }
 
     // 啤酒杯（持在手上）
     if (eq.stein) {
@@ -1516,16 +1523,28 @@ const Sprites = (function () {
 
   function costumeBack(ctx, c, cx, y, dir, t) {
     if (c === 'mermaid') {
-      // 人魚：長長的青綠色頭髮垂到背後
-      ctx.fillStyle = '#2ab0a0';
-      ctx.beginPath(); ctx.moveTo(cx - 9, y + 2); ctx.quadraticCurveTo(cx - dir * 14, y + 14, cx - dir * 10 + Math.sin(t * 0.08) * 2, y + 26);
-      ctx.lineTo(cx - dir * 2, y + 22); ctx.lineTo(cx + 9, y + 2); ctx.closePath(); ctx.fill();
-    } else if (c === 'poseidon') {
-      // 海神：背著一支金色三叉戟
-      const tx = cx - dir * 10;
-      ctx.strokeStyle = '#e8c050'; ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.moveTo(tx, y + 38); ctx.lineTo(tx, y - 10);
-      ctx.moveTo(tx - 5, y - 14); ctx.lineTo(tx - 5, y - 7); ctx.lineTo(tx + 5, y - 7); ctx.lineTo(tx + 5, y - 14); ctx.stroke();
+      // 人魚（v1.31.2 照 Thalassa 的範例圖）：一大把粉紅色波浪長髮披到腰（髮尾帶紫），兩邊都看得到
+      const sw = Math.sin(t * 0.08) * 2;
+      const g = ctx.createLinearGradient(cx, y, cx, y + 32);
+      g.addColorStop(0, '#f2689c'); g.addColorStop(0.7, '#ea70ae'); g.addColorStop(1, '#a87ed8');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(cx - 10, y + 2);
+      ctx.quadraticCurveTo(cx - 17, y + 14, cx - 14 - dir * 3 + sw, y + 32); ctx.quadraticCurveTo(cx - 8, y + 30, cx - 7, y + 20);
+      ctx.lineTo(cx + 7, y + 20); ctx.quadraticCurveTo(cx + 8, y + 30, cx + 14 - dir * 3 + sw, y + 32); ctx.quadraticCurveTo(cx + 17, y + 14, cx + 10, y + 2);
+      ctx.closePath(); ctx.fill();
+    } else if (c === 'athena') {
+      // 雅典娜（v1.31.2 玩家：波賽頓是男生不適合當時裝 → 雅典娜女神）：背上一面金色圓盾、一支長矛；栗色長髮披在背後
+      ctx.fillStyle = '#7a4a2a';
+      ctx.beginPath(); ctx.moveTo(cx - 9, y + 4); ctx.quadraticCurveTo(cx - dir * 14, y + 18, cx - dir * 8, y + 28); ctx.lineTo(cx + dir * 4, y + 22); ctx.lineTo(cx + 9, y + 4); ctx.closePath(); ctx.fill();
+      const tx = cx - dir * 12;
+      ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(tx, y + 40); ctx.lineTo(tx, y - 12); ctx.stroke();
+      ctx.fillStyle = '#d8dce4';
+      ctx.beginPath(); ctx.moveTo(tx, y - 20); ctx.lineTo(tx - 3, y - 11); ctx.lineTo(tx + 3, y - 11); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8b830';
+      ctx.beginPath(); ctx.arc(cx - dir * 8, y + 22, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#a8761a'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.fillStyle = '#a8761a'; ctx.beginPath(); ctx.arc(cx - dir * 8, y + 22, 3, 0, Math.PI * 2); ctx.fill();
     } else if (c === 'royal') {
       const sw = Math.sin(t * 0.08) * 2;
       ctx.fillStyle = '#5a2a8a';
@@ -1538,7 +1557,8 @@ const Sprites = (function () {
     }
   }
 
-  function costumeBody(ctx, c, cx, y, dir, t) {
+  function costumeBody(ctx, c, cx, y, dir, t, h, walking) {
+    h = h || 40;
     if (c === 'captain') {
       ctx.fillStyle = '#a8242a'; ctx.fillRect(cx - 10, y + 12, 20, 22);
       ctx.fillStyle = '#e8c060';
@@ -1582,32 +1602,48 @@ const Sprites = (function () {
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
     } else if (c === 'mermaid') {
       /*
-       * 人魚（v1.31.2 玩家：時裝也要超辣）：露肩露腰，兩片粉紅扇貝＋珍珠串的上衣，
-       * 低腰、貼身的魚尾裙（青綠漸層、一片片閃亮的鱗片、側邊開衩的尾鰭），腰上一圈珍珠，整條裙子一直在閃。
+       * 人魚（v1.31.2 玩家：1500 元的人魚時裝穿上去很不明顯 → 照 Thalassa 的範例圖）：
+       * 雙腳換成一整條青綠色的魚鱗尾巴（走路時尾鰭左右甩），露腰、粉紅貝殼上衣、手上金手環。
        */
-      ctx.fillStyle = '#f2d2bc'; ctx.fillRect(cx - 9, y + 12, 18, 13);                 // 露肩露腰
-      const tg = ctx.createLinearGradient(cx, y + 24, cx, y + 40);
-      tg.addColorStop(0, '#36d0c0'); tg.addColorStop(1, '#1a6a9a');
+      ctx.fillStyle = '#fde4d4'; ctx.fillRect(cx - 9.5, y + 11.5, 19, 11);              // 露肩露腰（把條紋衫整個蓋掉）
+      const wag = (walking ? Math.sin(t * 0.35) * 4 : Math.sin(t * 0.08) * 1.5);
+      const tg = ctx.createLinearGradient(cx, y + 21, cx, y + h);
+      tg.addColorStop(0, '#4fd6bc'); tg.addColorStop(1, '#2a8cae');
       ctx.fillStyle = tg;
-      ctx.beginPath(); ctx.moveTo(cx - 9, y + 24); ctx.lineTo(cx + 9, y + 24); ctx.lineTo(cx + 6, y + 36); ctx.lineTo(cx - 6, y + 36); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx - 6, y + 35); ctx.lineTo(cx - 16, y + 42); ctx.lineTo(cx - 2, y + 39); ctx.lineTo(cx, y + 36);
-      ctx.lineTo(cx + 2, y + 39); ctx.lineTo(cx + 16, y + 42); ctx.lineTo(cx + 6, y + 35); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(200, 255, 245, 0.8)';
-      for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(cx - 5 + k * 5 + (r % 2) * 2, y + 27 + r * 3, 1.4, 0, Math.PI); ctx.fill(); }
-      const gl = (t % 70) / 70;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx.fillRect(cx - 8 + gl * 14, y + 25, 1.4, 10);
-      ctx.fillStyle = '#fff8f0';
-      for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.arc(cx - 7.5 + k * 3, y + 24, 1.1, 0, Math.PI * 2); ctx.fill(); }       // 腰上的珍珠
-      ctx.fillStyle = '#e86aa8';
-      [-1, 1].forEach(function (s) { ctx.beginPath(); ctx.moveTo(cx + s * 1, y + 19); ctx.lineTo(cx + s * 8, y + 15); ctx.quadraticCurveTo(cx + s * 5, y + 13, cx + s * 1, y + 15.5); ctx.closePath(); ctx.fill(); });
-      ctx.fillStyle = '#fff8f0';
-      for (let k = 0; k < 5; k++) ctx.fillRect(cx - 4 + k * 2, y + 13 + Math.abs(k - 2) * -0.4, 1, 1);
-    } else if (c === 'poseidon') {
-      // 海神：白色長袍斜披一條金邊
-      ctx.fillStyle = '#f4f0e6'; ctx.fillRect(cx - 10, y + 12, 20, 26);
-      ctx.strokeStyle = '#e8c050'; ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.moveTo(cx - dir * 9, y + 12); ctx.lineTo(cx + dir * 9, y + 30); ctx.stroke();
-      ctx.fillStyle = '#2a7ab0'; ctx.fillRect(cx - 10, y + 34, 20, 3);
+      ctx.beginPath(); ctx.moveTo(cx - 9.5, y + 21); ctx.lineTo(cx + 9.5, y + 21); ctx.lineTo(cx + 9.5, y + 32);
+      ctx.quadraticCurveTo(cx + 8, y + h - 8, cx + 3 + wag * 0.3, y + h - 6); ctx.lineTo(cx - 3 + wag * 0.3, y + h - 6);
+      ctx.quadraticCurveTo(cx - 8, y + h - 8, cx - 9.5, y + 32); ctx.closePath(); ctx.fill();
+      // 尾鰭
+      ctx.fillStyle = '#2a96b0';
+      ctx.beginPath(); ctx.moveTo(cx + wag * 0.3, y + h - 8);
+      ctx.quadraticCurveTo(cx - 10 + wag, y + h - 6, cx - 14 + wag, y + h + 1); ctx.quadraticCurveTo(cx - 5 + wag, y + h - 2, cx + wag * 0.3, y + h - 1);
+      ctx.quadraticCurveTo(cx + 5 + wag, y + h - 2, cx + 14 + wag, y + h + 1); ctx.quadraticCurveTo(cx + 10 + wag, y + h - 6, cx + wag * 0.3, y + h - 8);
+      ctx.closePath(); ctx.fill();
+      // 鱗片＋一道閃光
+      ctx.strokeStyle = 'rgba(210, 255, 245, 0.8)'; ctx.lineWidth = 1;
+      for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) {
+        if (r === 3 && k !== 1) continue;
+        ctx.beginPath(); ctx.arc(cx - 5 + k * 5 + (r % 2) * 2 - (r % 2), y + 24 + r * 3.4, 1.8, 0, Math.PI); ctx.stroke();
+      }
+      const gl = (t % 80) / 80;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'; ctx.fillRect(cx - 8 + gl * 15, y + 22, 1.4, 10);
+      // 腰上一圈金色、粉紅貝殼上衣
+      ctx.fillStyle = '#f2c040'; ctx.fillRect(cx - 9, y + 20.5, 18, 1.6);
+      [-1, 1].forEach(function (s) {
+        ctx.fillStyle = '#f2609a';
+        ctx.beginPath(); ctx.moveTo(cx + s * 0.8, y + 18); ctx.arc(cx + s * 4.2, y + 16.4, 3.6, Math.PI * 0.95, Math.PI * 2.05); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#ffb0cc'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(cx + s * 4.2, y + 17.6); ctx.lineTo(cx + s * 4.2, y + 13.4); ctx.stroke();
+      });
+    } else if (c === 'athena') {
+      // 雅典娜：白色長袍（裙擺到腳踝）、斜披一條藍色披肩、金色腰帶，裙擺一圈希臘回紋
+      ctx.fillStyle = '#f8f4ea';
+      ctx.beginPath(); ctx.moveTo(cx - 9, y + 12); ctx.lineTo(cx + 9, y + 12); ctx.lineTo(cx + 11, y + h - 4); ctx.lineTo(cx - 11, y + h - 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#3a6ab8';
+      ctx.beginPath(); ctx.moveTo(cx - dir * 9, y + 12); ctx.lineTo(cx - dir * 3, y + 12); ctx.lineTo(cx + dir * 9, y + 26); ctx.lineTo(cx + dir * 9, y + 31); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2.4);
+      ctx.fillStyle = '#c89820';
+      for (let k = 0; k < 5; k++) { ctx.fillRect(cx - 10 + k * 4.4, y + h - 7, 3, 1.2); ctx.fillRect(cx - 10 + k * 4.4 + 2, y + h - 7, 1, 2.6); }
     } else if (c === 'golden') {
       const g = ctx.createLinearGradient(cx - 9, y + 12, cx + 9, y + 32);
       g.addColorStop(0, '#fff4b0'); g.addColorStop(0.5, '#f2c14e'); g.addColorStop(1, '#c8862a');
@@ -1654,24 +1690,34 @@ const Sprites = (function () {
       ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
       ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
     } else if (c === 'mermaid') {
-      // 人魚：青綠色的斜瀏海＋頭上一顆橘色海星髮夾、一朵粉紅花，紅唇
-      ctx.fillStyle = '#26c4b4';
-      ctx.beginPath(); ctx.arc(cx, y + 4, 9.5, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx - 9, y + 3); ctx.quadraticCurveTo(cx - dir * 2, y + 6, cx + dir * 6, y - 3); ctx.lineTo(cx, y - 4); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ff7ab0'; ctx.beginPath(); ctx.arc(cx - dir * 7, y - 3, 2.4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#d8203a'; ctx.fillRect(cx + dir * 4 - 1, y + 9, 2.4, 1.2);
-      ctx.fillStyle = '#f2a040';
-      for (let i = 0; i < 5; i++) {
-        const a = -Math.PI / 2 + i * Math.PI * 2 / 5, sx = cx + dir * 5, sy = y - 4;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * 5, sy + Math.sin(a) * 5); ctx.lineTo(sx + Math.cos(a + 0.6) * 2, sy + Math.sin(a + 0.6) * 2); ctx.fill();
+      // 人魚：粉紅色的瀏海（一綹一綹）、頭上一顆大大的黃色海星、藍色小貝殼髮夾、腮紅
+      ctx.fillStyle = '#f2689c';
+      ctx.beginPath(); ctx.moveTo(cx - 10, y + 8); ctx.arc(cx, y + 5, 10, Math.PI * 1.02, Math.PI * 1.98);
+      ctx.lineTo(cx + 10, y + 8); ctx.quadraticCurveTo(cx + 6, y + 1, cx + 2, y + 3); ctx.quadraticCurveTo(cx - 2, y - 1, cx - 5, y + 3); ctx.quadraticCurveTo(cx - 8, y + 2, cx - 10, y + 8);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 130, 165, 0.55)';
+      ctx.fillRect(cx + dir * 1 - 1.5, y + 11, 3, 1.5); ctx.fillRect(cx + dir * 8 - 1.5, y + 11, 3, 1.5);
+      ctx.fillStyle = '#f8c838';
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.2 : 5.6, sx = cx + dir * 5, sy = y - 3;
+        ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
       }
-    } else if (c === 'poseidon') {
-      // 海神：金冠（尖端像三叉戟）＋一大把白鬍子
-      ctx.fillStyle = '#f2c14e';
-      ctx.beginPath(); ctx.moveTo(cx - 8, y + 1); ctx.lineTo(cx - 8, y - 4); ctx.lineTo(cx - 5, y - 9); ctx.lineTo(cx - 3, y - 3);
-      ctx.lineTo(cx, y - 11); ctx.lineTo(cx + 3, y - 3); ctx.lineTo(cx + 5, y - 9); ctx.lineTo(cx + 8, y - 4); ctx.lineTo(cx + 8, y + 1); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#f4f4f0';
-      ctx.beginPath(); ctx.moveTo(cx - 7, y + 7); ctx.quadraticCurveTo(cx, y + 20, cx + 7, y + 7); ctx.closePath(); ctx.fill();
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#6ac8e8';
+      ctx.beginPath(); ctx.moveTo(cx - dir * 7, y + 1); ctx.arc(cx - dir * 7, y - 1, 2.8, Math.PI * 0.8, Math.PI * 2.2); ctx.closePath(); ctx.fill();
+    } else if (c === 'athena') {
+      // 雅典娜：金色的科林斯頭盔（推到額頭上，露出臉）＋一道紅色馬鬃羽冠；兩邊垂下栗色長髮
+      ctx.fillStyle = '#7a4a2a';
+      ctx.fillRect(cx - 10, y + 2, 4, 12); ctx.fillRect(cx + 6, y + 2, 4, 12);
+      ctx.fillStyle = '#e8b830';
+      ctx.beginPath(); ctx.arc(cx, y + 4, 10, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.fillRect(cx - 10, y + 2, 20, 3);
+      ctx.fillStyle = '#a8761a'; ctx.fillRect(cx - 10, y + 4, 20, 1.2);
+      ctx.fillStyle = '#c8202a';
+      ctx.beginPath(); ctx.moveTo(cx + dir * 7, y - 4);
+      ctx.quadraticCurveTo(cx, y - 16, cx - dir * 12, y - 6); ctx.quadraticCurveTo(cx - dir * 8, y - 3, cx - dir * 8, y + 2);
+      ctx.quadraticCurveTo(cx - dir * 2, y - 9, cx + dir * 7, y - 4); ctx.closePath(); ctx.fill();
     } else if (c === 'royal' || c === 'golden') {
       ctx.fillStyle = '#f2c14e';
       ctx.beginPath();

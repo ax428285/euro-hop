@@ -78,8 +78,18 @@ const Expedition = (function () {
                    goal: '離得遠他放劍氣（低的跳、高的別跳）・靠近他騎馬衝過來 —— 跳過去，等馬喘氣時踩頭',
                    clearTitle: '打倒了暗夜騎士！' };
 
+  /*
+   * v1.31.2 撒哈拉沙漠（玩家：裡面要待超過 5 分鐘，會突然發現綠洲破關；在此之前只會無窮無盡的走）。
+   * 地圖上撒哈拉中間的一個地點（quests.js 的 Q_sahara），按 Enter 走進去：一片一直延伸的沙漠，
+   * 沒有敵人、沒有終點，只有沙丘、駱駝骨頭、偶爾一閃而過的海市蜃樓；待滿 DESERT_T 帧，綠洲突然出現在前面，走進去就過關。
+   */
+  K.sahara = { name: '撒哈拉沙漠', lv: '沙漠', exp: 120, bossExp: 300, bossCoins: 400, game: '沙漠之旅', custom: true, fixed: true, desert: true, track: 'DZ',
+               goal: '一直往前走⋯⋯聽說沙漠的某個地方，藏著一片綠洲', clearTitle: '找到綠洲了！' };
+  const DESERT_T = 5 * 60 * 60;          // 5 分鐘（60 帧／秒）
+  const DESERT_W = 2000000;              // 沙漠的寬度：走 5 分鐘大約 7 萬 px，遠遠走不完
+
   /** 這個小遊戲（state.def.minigame）歸這裡管嗎 */
-  function has(kind) { return kind === 'warship' || kind === 'herd'; }
+  function has(kind) { return kind === 'warship' || kind === 'herd' || kind === 'desert'; }
 
   // ── 地圖上的戰艦、遷徙的動物 ───────────────────────────
 
@@ -391,6 +401,19 @@ const Expedition = (function () {
   function makeDef(m) {
     if (m.def.quest) return shaftDef(m);
     const G = GY();
+    if (m.kind === 'sahara') {
+      const first = firstTime(m);
+      return arena(m, {
+        minigame: 'desert', duration: 1e9, id: 'SAH', city: '一望無際的沙丘',
+        flag: ['#c8963e', '#f0d48a', '#c8963e'], flagDir: 'h',
+        sky: ['#f0a850', '#fbe2a8'], hill: '#d8a860', groundTop: '#e8c47a', groundBody: '#b8864a', cloud: 'rgba(255, 240, 210, 0.25)',
+        width: DESERT_W, bossArena: null,
+        ground: [{ x: 0, y: G, w: DESERT_W, h: Levels.GROUND_H }],
+        exp: first ? m.def.bossExp : m.def.exp, bossCoins: first ? m.def.bossCoins : 0, firstBoss: first,
+        fact: '撒哈拉沙漠差不多跟整個美國一樣大，是世界上最大的熱沙漠；綠洲底下有地下水冒上來，椰棗樹就長在那裡。' +
+              (first ? '　第一次找到綠洲：' + m.def.bossExp + ' EXP＋' + m.def.bossCoins + ' 金幣' : '　再來一次：' + m.def.exp + ' EXP')
+      });
+    }
     if (m.kind === 'darkKnight') {
       const first = firstTime(m);
       return arena(m, {
@@ -461,6 +484,8 @@ const Expedition = (function () {
       mini.balls = []; mini.shells = []; mini.volCd = 110; mini.marineCd = 420; mini.seq = 0; mini.shake = 0; mini.flash = 0;
     } else if (mini.kind === 'herd') {
       mini.animals = []; mini.next = 50; mini.seq = 0; mini.caught = []; mini.species = state.def.species || 'zebra';
+    } else if (mini.kind === 'desert') {
+      mini.far = 0; mini.oasis = null;
     }
   }
 
@@ -490,6 +515,14 @@ const Expedition = (function () {
     const G = GY();
     const p = state.player;
     const players = state.players.filter(function (q) { return !q.out; });
+
+    if (mini.kind === 'desert') {
+      mini.far = Math.max(mini.far, p.x);
+      // 待滿 5 分鐘：綠洲突然出現在前面（畫面右邊看得到的地方）
+      if (!mini.oasis && mini.elapsed >= DESERT_T) { mini.oasis = { x: p.x + 500 }; events.push('shoo'); }
+      if (mini.oasis && players.some(function (q) { return q.x + q.w > mini.oasis.x + 40; })) win();
+      return;
+    }
 
     if (mini.kind === 'warship') {
       const tier = mini.w.tier;
@@ -602,6 +635,10 @@ const Expedition = (function () {
   /** 打贏之後：動物送進動物園；冥界 → 回地圖要跟洛基說話；金字塔第一次 → 法老時裝 */
   function onClear(skirmish, state) {
     const out = {};
+    if (skirmish.kind === 'sahara' && state.mini) {
+      const s = Math.floor(state.mini.elapsed / 60);
+      out.note = '在沙漠裡走了 ' + Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒，終於找到綠洲了！';
+    }
     if (skirmish.kind === 'darkKnight') {
       if (!Save.flag('godHand')) { Save.setFlag('godHand', 1); out.note = '獲得稱號「神之手」！騎士：「⋯⋯鐵塔交給你了。帶你重要的人，來看看它的夜景吧。」'; }
       else out.note = '暗夜騎士又被你打倒了';
@@ -881,9 +918,73 @@ const Expedition = (function () {
     });
   }
 
+  /** 沙漠：海市蜃樓（遠遠的綠洲，一靠近就淡掉）、最後真的綠洲（椰棗樹＋一池水） */
+  function oasisArt(ctx, x, G, t, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#3a9ac0';
+    ctx.beginPath(); ctx.ellipse(x + 120, G - 4, 120, 14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    for (let k = 0; k < 4; k++) ctx.fillRect(x + 50 + k * 40 + Math.sin(t * 0.06 + k) * 6, G - 6, 18, 2);
+    ctx.fillStyle = '#6aa040';
+    ctx.beginPath(); ctx.ellipse(x + 120, G - 2, 150, 8, 0, Math.PI, 0); ctx.fill();
+    [[20, 150], [90, 190], [200, 160], [250, 120]].forEach(function (q, i) {
+      const tx = x + q[0], th = q[1], lean = (i % 2 ? 1 : -1) * 14;
+      ctx.strokeStyle = '#8a5a30'; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(tx, G); ctx.quadraticCurveTo(tx + lean * 0.3, G - th * 0.5, tx + lean, G - th); ctx.stroke();
+      ctx.fillStyle = '#3a8a3a';
+      for (let k = 0; k < 6; k++) {
+        const a = -Math.PI / 2 + (k - 2.5) * 0.55 + Math.sin(t * 0.04 + i) * 0.05;
+        ctx.save(); ctx.translate(tx + lean, G - th); ctx.rotate(a);
+        ctx.beginPath(); ctx.ellipse(0, -26, 8, 30, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = '#8a3a20';
+      ctx.beginPath(); ctx.arc(tx + lean - 4, G - th + 6, 4, 0, Math.PI * 2); ctx.arc(tx + lean + 4, G - th + 7, 4, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
+  }
+  function drawDesert(ctx, state, mini, t) {
+    const G = GY();
+    const camX = typeof Game !== 'undefined' && Game.debug ? Game.debug.getCam().x : 0;
+    // 地上的駱駝骨頭、枯樹（每 1700px 一個，照位置挑，結果可重現）
+    const k0 = Math.floor(camX / 1700) - 1;
+    for (let k = k0; k <= k0 + 2; k++) {
+      if (k < 0) continue;
+      const x = k * 1700 + 600 + (k * 397 % 500) - camX;
+      if (x < -120 || x > 1100) continue;
+      if (k % 3 === 0) {
+        // 駱駝的骨頭
+        ctx.strokeStyle = '#f4ead8'; ctx.lineWidth = 3;
+        for (let r = 0; r < 5; r++) { ctx.beginPath(); ctx.arc(x + r * 10, G - 2, 9, Math.PI, Math.PI * 1.9); ctx.stroke(); }
+        ctx.fillStyle = '#f4ead8'; ctx.beginPath(); ctx.ellipse(x + 62, G - 6, 9, 5, 0.3, 0, Math.PI * 2); ctx.fill();
+      } else if (k % 3 === 1) {
+        // 枯樹
+        ctx.strokeStyle = '#7a5a3a'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(x, G); ctx.lineTo(x + 4, G - 50); ctx.lineTo(x - 12, G - 70); ctx.moveTo(x + 4, G - 50); ctx.lineTo(x + 18, G - 66); ctx.stroke();
+      } else {
+        // 半埋在沙裡的石頭
+        ctx.fillStyle = '#b8945a'; ctx.beginPath(); ctx.ellipse(x, G - 4, 26, 12, 0, Math.PI, 0); ctx.fill();
+      }
+    }
+    // 海市蜃樓：大約每 70 秒在遠方浮出一片綠洲，人一靠近（或過幾秒）就淡掉
+    if (!mini.oasis) {
+      const ph = mini.elapsed % 4200;
+      if (mini.elapsed > 1800 && ph < 420) {
+        const a = Math.sin(ph / 420 * Math.PI) * 0.35;
+        ctx.save(); ctx.translate(0, Math.sin(t * 0.2) * 2);
+        oasisArt(ctx, 640, G - 70, t, a);
+        ctx.restore();
+      }
+    } else {
+      oasisArt(ctx, mini.oasis.x - camX, G, t, 1);
+    }
+  }
+
   function drawWorld(ctx, state, t) {
     const mini = state.mini;
     if (!mini) return;
+    if (mini.kind === 'desert') { drawDesert(ctx, state, mini, t); return; }
     if (mini.kind === 'warship') { drawWarship(ctx, state, mini, t); return; }
     if (mini.kind === 'herd') {
       const G = GY();
@@ -917,7 +1018,16 @@ const Expedition = (function () {
     }
   }
 
+  // 沙漠裡一段一段的自言自語（每 40 秒換一句；不倒數，不讓玩家知道要走多久）
+  const DESERT_LINES = ['一望無際的沙漠⋯⋯一直往前走吧', '好熱⋯⋯水壺裡的水只剩一半了', '遠方好像有綠洲？⋯⋯走近一看，只是海市蜃樓',
+    '一副駱駝的骨頭⋯⋯不要多想，繼續走', '沙子跑進鞋子裡了', '太陽好像一直停在同一個地方⋯⋯', '風把腳印吹平了，回頭也看不到來的路',
+    '聽說只有不放棄的人，才找得到綠洲'];
   function hud(mini) {
+    if (mini.kind === 'desert') {
+      const s = Math.floor(mini.elapsed / 60), km = (mini.far / 2000).toFixed(1);
+      if (mini.oasis) return '前面⋯⋯是綠洲！真的綠洲！快跑過去！';
+      return DESERT_LINES[Math.floor(mini.elapsed / 2400) % DESERT_LINES.length] + '　（走了 ' + km + ' 公里・' + Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒）';
+    }
     const sec = Math.max(0, Math.ceil(mini.time / 60));
     if (mini.kind === 'warship') return '敵艦船身 ' + mini.hp + ' / ' + mini.hpMax + '　剩 ' + sec + ' 秒（砲旁按 K 開砲・紅圈是落點）';
     return '抓一隻' + Quests.ANIMALS[mini.species].name + '：跳到發光的那隻背上　剩 ' + sec + ' 秒';
@@ -1394,6 +1504,28 @@ const Expedition = (function () {
    * 決鬥場的背景：巴黎的夜晚。星星、月亮、遠遠一排亮著窗的屋頂，正中間一座點滿金色燈光的巴黎鐵塔
    * （塔身一閃一閃 = 整點的閃燈，塔頂的探照燈一直轉）。
    */
+  /** 撒哈拉的遠景：一顆大太陽、熱浪、三層沙丘（越遠越淡、捲得越慢） */
+  Sprites.skylines.SAH = function (ctx, camX, gy, W, def, t) {
+    const sg = ctx.createRadialGradient(W * 0.7, 90, 10, W * 0.7, 90, 120);
+    sg.addColorStop(0, 'rgba(255, 250, 220, 1)'); sg.addColorStop(0.3, 'rgba(255, 230, 150, 0.8)'); sg.addColorStop(1, 'rgba(255, 200, 120, 0)');
+    ctx.fillStyle = sg; ctx.fillRect(W * 0.7 - 120, -30, 240, 240);
+    [[0.08, 120, '#e8b870', 0.6], [0.22, 80, '#dca460', 0.8], [0.45, 46, '#d09450', 1]].forEach(function (L, li) {
+      ctx.fillStyle = L[2]; ctx.globalAlpha = L[3];
+      const off = camX * L[0];
+      ctx.beginPath(); ctx.moveTo(0, gy);
+      for (let x = 0; x <= W + 20; x += 20) {
+        const wx = x + off;
+        const h = L[1] * (0.55 + 0.25 * Math.sin(wx / (180 + li * 60)) + 0.2 * Math.sin(wx / (73 + li * 21) + li));
+        ctx.lineTo(x, gy - h);
+      }
+      ctx.lineTo(W, gy); ctx.closePath(); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    // 熱浪（地平線附近一條條晃動的亮紋）
+    ctx.fillStyle = 'rgba(255, 245, 220, 0.18)';
+    for (let k = 0; k < 6; k++) ctx.fillRect(((k * 190 + t * 0.6) % (W + 200)) - 100, gy - 30 - k * 6 + Math.sin(t * 0.1 + k) * 3, 120, 2);
+  };
+
   Sprites.skylines.KNT = function (ctx, camX, gy, W, def, t) {
     const rnd = U.rng(889);
     // 星星

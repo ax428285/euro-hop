@@ -1066,13 +1066,14 @@ const Game = (function () {
       if (spNear.def.scene === 'dog') { greetDog(); return; }
       // v1.30 劇情人物與地點：金字塔直接進去探險，其他都是對話
       if (spNear.def.scene === 'talk') {
-        if (spNear.def.npc === 'pyramid' || spNear.def.npc === 'zoo' || spNear.def.npc === 'cleopatra') {
+        if (spNear.def.npc === 'pyramid' || spNear.def.npc === 'zoo' || spNear.def.npc === 'cleopatra' || spNear.def.npc === 'sahara') {
           if (!regionUnlocked('africa')) {
             Sfx.clang();
             toast = { text: '非洲篇還沒解鎖', sub: '打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf('africa').exp, life: 170 };
             return;
           }
           if (spNear.def.npc === 'pyramid') { Sfx.select(); startQuestLevel('pyramid'); return; }
+          if (spNear.def.npc === 'sahara') { Sfx.select(); startQuestLevel('sahara'); return; }
         }
         openTalk(spNear.def.npc);
         return;
@@ -3676,8 +3677,9 @@ const Game = (function () {
   }
 
   /*
-   * v1.31.2 玩家：設定列表加一個「所有關卡和支線關卡」，把開發過的東西都列進去，破完的打勾。
-   * 冒險紀錄（☰ →「冒險紀錄」或 L）：兩頁 —— 主線（各篇章的每一關）、支線（海上冒險、劇情、收集）。
+   * v1.31.2 玩家：設定列表加一個「所有關卡和支線關卡」，把開發過的東西都列進去，破完的打勾（玩家：叫「紀錄」有點 low → 遠征圖鑑）。
+   * 新增遊戲內容（地圖上的冒險、劇情、收集）時記得也加進 journalPages()。
+   * 遠征圖鑑（☰ →「遠征圖鑑」或 L）：兩頁 —— 主線（各篇章的每一關）、支線（海上冒險、劇情、收集）。
    * ←→ 換頁（手機點畫面左右半邊），Esc / Q / L 回大地圖。支線的海上冒險從 Encounter.KINDS 自動列（以後加的也會出現）。
    */
   let journalPage = 0;
@@ -3694,11 +3696,11 @@ const Game = (function () {
       });
     });
     const side = [];
-    side.push({ head: '海上冒險' });
+    side.push({ head: '地圖上的冒險' });
     Object.keys(Encounter.KINDS).forEach(function (k) {
       const d = Encounter.KINDS[k];
       if (k === 'herd' || d.am) return;
-      if (!(d.boss || d.dive || d.duo || d.fixed || d.quest || d.knight)) return;
+      if (!(d.boss || d.dive || d.duo || d.fixed || d.quest || d.knight || d.desert)) return;
       side.push({ name: d.name, done: Save.seaBossDown(k) });
     });
     side.push({ name: '動物大遷徙（動物園 ' + Object.keys(Save.zoo()).length + ' / ' + Object.keys(Quests.ANIMALS).length + '）', done: Object.keys(Save.zoo()).length >= Object.keys(Quests.ANIMALS).length });
@@ -3741,7 +3743,7 @@ const Game = (function () {
     const pages = journalPages(), pg = pages[journalPage];
     const done = pg.items.filter(function (q) { return !q.head && q.done; }).length;
     const total = pg.items.filter(function (q) { return !q.head; }).length;
-    U.text(ctx, '冒險紀錄', W / 2, 30, { size: 26, color: '#ffd166' });
+    U.text(ctx, '遠征圖鑑', W / 2, 30, { size: 26, color: '#ffd166' });
     // 分頁籤
     pages.forEach(function (p, k) {
       const x = W / 2 + (k ? 90 : -90), on = k === journalPage;

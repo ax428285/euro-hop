@@ -241,10 +241,10 @@ function runAbyssCheck() {
     if (!Shop.buy('cos_mermaid') || sv.costume !== 'mermaid') issues.push('買了人魚時裝沒有穿上');
     try {
       const c = document.createElement('canvas').getContext('2d');
-      ['mermaid', 'poseidon'].forEach(function (id) {
+      ['mermaid', 'athena'].forEach(function (id) {
         Sprites.player(c, { x: 100, y: 100, w: 22, h: 40, facing: 1, onGround: true, vx: 0, invuln: 0, pid: 0, equipped: {}, costume: id }, 0);
       });
-    } catch (e) { issues.push('人魚／海神時裝畫不出來：' + e.message); }
+    } catch (e) { issues.push('人魚／雅典娜時裝畫不出來：' + e.message); }
     sv.wallet = w0; sv.costumes = cos0; sv.costume = c0;
     // 人魚
     const mer = WorldMap.specials.filter(function (q) { return q.def.npc === 'mermaid'; })[0];

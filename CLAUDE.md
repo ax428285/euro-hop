@@ -54,10 +54,13 @@
 - v1.31.2 亞特蘭提斯海底城（region `abyss`，Levels.list 最後四關 A1～A4）：入口是歐洲地圖的亞特蘭提斯（`Quests.abyssOpen()` = `Save.flag('abyssGate')`：潛水關最底層的「海神的封印」解開了，abyss.js 的 riddle），出口是光之井（special `surface`）。
   珊瑚市集 `underwater`＋Features `jellies`、水晶宮 Features `beams`、海馬競技場 race 主題 `seahorse`、海神神殿克拉肯（pattern `sphinx`，kind `kraken`，觸手 = pillar.tentacle）。
   亞特蘭提斯在歐洲地圖上時有時無（encounter.js 的 `atlantisShown`，封印解開後一直在）；海底城全破後跟人魚說話 → `Save.flag('mermaid')`，pet.js 讓她跟在後面；
-  中央廣場的珊瑚貝殼屋（shop.js seller `shellHouse`）賣人魚、海神時裝（Costumes `mermaid`、`poseidon`，special）。魔王關沒有 NPC 了（bossLevel 的 npcs 是空的）。
+  中央廣場的珊瑚貝殼屋（shop.js seller `shellHouse`）賣人魚、海神時裝（Costumes `mermaid`、`athena`，special）。魔王關沒有 NPC 了（bossLevel 的 npcs 是空的）。
   海底城地圖不生海上怪物；測試 `tests/abyss-check.js` 的 `runAbyssCheck`。海神夥伴改成安提基特拉沉船拿。
   測試檔用 script 標籤載入有時會拿到舊的，改用 fetch（cache: reload）＋ eval 載入比較保險。
-- v1.31.2 冒險紀錄（game.js scene `journal`，鍵 L，☰ 選單按鈕）：兩頁＝主線關卡（照 region 分組）、支線與收集（海上冒險從 Encounter.KINDS 自動列）。
+- v1.31.2 遠征圖鑑（原名冒險紀錄；game.js scene `journal`、`journalPages()`，鍵 L，☰ 選單按鈕）：兩頁＝主線關卡（照 region 分組）、支線與收集（地圖上的冒險從 Encounter.KINDS 自動列）。
+  **新增遊戲內容（地點、劇情、收集）後要記得更新 journalPages()。**
+- v1.31.2 撒哈拉沙漠（quests.js SPOTS `Q_sahara`，expedition.js `K.sahara`、minigame `desert`）：沒有終點，待滿 `DESERT_T`（5 分鐘）綠洲才出現在前面、走進去過關。測試 `tests/sahara-check.js` 的 `runSaharaCheck`。
+- 珊瑚貝殼屋的時裝是人魚（`mermaid`：魚尾巴取代雙腳）和雅典娜（`athena`，取代原本的波賽頓）。人魚的畫法照使用者給的範例圖（Q 版、粉紅長髮、青綠魚尾；pet.js `chibiMer`、quests.js 頭像）。
 - v1.31.2 暗夜騎士（expedition.js `darkKnight`，`fixed`＋`knight`）：在法國國土裡走動，走路才碰得到；決鬥場是巴黎鐵塔的夜晚（`Sprites.skylines.KNT`）、沒有平台，
   魔王 pattern `'joust'`（entities.js：近 = 騎馬衝鋒、遠 = 劍氣 `makeSlash`＋`dark`；血 9）；機器人：22 件裝備打不贏、28 件全套打得贏。打贏 `Save.flag('godHand')` = 稱號「神之手」。
   測試 `tests/knight-check.js` 的 `runKnightCheck`（要先載入 traversal-bot.js）。
