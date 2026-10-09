@@ -220,6 +220,15 @@ function runLevelCheck() {
     });
   });
 
+  // v1.31.5 玩家：自動往前衝的關卡（瑞典雪橇）出生點左邊的金幣拿不到（不能回頭），只能靠死掉重生回溯
+  Levels.list.forEach(function (def, li) {
+    if (!def.autorun) return;
+    const st = buildLevelState(def, li, [], Equipment.resolve([]));
+    const behind = st.coins.filter(function (c) { return c.x < st.player.x; }).length;
+    if (behind) issues.push(def.country + '：出生點左邊還有 ' + behind + ' 枚金幣（雪橇不能回頭，拿不到）');
+    if (st.coinsTotal !== st.coins.length) issues.push(def.country + '：金幣總數跟場上的金幣數對不上');
+  });
+
   return {
     jumpHeight: Math.round(PH),
     airTime: Math.round(AIR),

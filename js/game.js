@@ -183,12 +183,7 @@ const Game = (function () {
   /** 雙人試煉：場上有兩位玩家才進得去（同機 C 鍵，或連線時朋友當 2P） */
   function tryStartDuo(spNear) {
     const k = Encounter.KINDS[spNear.def.port];
-    // v1.31.4 玩家反映：雙人關卡不需要任何前置條件就能挑戰 → 跟土耳其旁邊的東歐篇一起解鎖（海上冒險 EXP 夠了才開）
-    if (!regionUnlocked('east')) {
-      Sfx.clang();
-      toast = { text: k.name + '還沒開放', sub: '要先解鎖東歐篇（打海上怪物累積 EXP：' + Save.get().exp + ' / ' + Encounter.regionOf('east').exp + '）', life: 220 };
-      return;
-    }
+    // v1.31.5 玩家：哈圖沙獅子門、代林庫尤地下城不用解鎖東歐篇也能玩（只要有兩位玩家）
     if (!coop) {
       Sfx.clang();
       // 手機沒有鍵盤（按不了 C）：只提示連線

@@ -439,7 +439,11 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
     shots: [],
     boss: def.boss ? makeBoss(def.boss) : null,
     secrets: secrets,
-    coins: (def.coins || []).map(function (c) {
+    /*
+     * v1.31.5 玩家：瑞典雪橇關的第一顆金幣，不先自殺一次（重生）是一定拿不到的 —— 它在出生點的左邊，
+     * 雪橇只會往右衝、不能回頭。自動往前衝的關卡（autorun）把出生點左邊的金幣拿掉，不用靠死掉回溯去拿。
+     */
+    coins: (def.coins || []).filter(function (c) { return !def.autorun || c.x >= spawnX + 4; }).map(function (c) {
       return { x: c.x, y: c.y, w: 24, h: 24, taken: false };
     }),
     // 這關的裝備。已經拿過就不再出現
@@ -469,7 +473,7 @@ function buildLevelState(def, levelIndex, ownedEquip, stats, coop) {
     duo: def.duo && typeof Duo !== 'undefined' ? Duo.makeState(def) : null,
     // 會講話的 NPC（見 npcs.js）
     npcs: typeof Npcs !== 'undefined' ? Npcs.makeState(def) : [],
-    coinsTotal: (def.coins || []).length,
+    coinsTotal: (def.coins || []).filter(function (c) { return !def.autorun || c.x >= spawnX + 4; }).length,
     coinsGot: 0,
     secretsFound: 0,
     cleared: false
@@ -2039,8 +2043,8 @@ function updatePlayer(state, input, t, who) {
     const dx = pcx0 - ccx, dy = pcy0 - ccy;
     const d = Math.hypot(dx, dy);
     if (d > magnet || d < 0.5) return;
-    // 越近吸得越快
-    const pull = 3.4 * (1 - d / magnet) + 0.7;
+    // 越近吸得越快；v1.31.5 再加上玩家自己的速度 —— 不然人往前衝（瑞典雪橇）時，後面的金幣永遠追不上，磁鐵等於沒用
+    const pull = 3.4 * (1 - d / magnet) + 0.7 + Math.hypot(p.vx, p.vy);
     c.x += (dx / d) * pull;
     c.y += (dy / d) * pull;
   }
