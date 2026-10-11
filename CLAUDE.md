@@ -81,6 +81,6 @@
 - v1.31.9（2026-10-10 已上線）：光之井的觸發範圍改成整片最上面（game.js updateMap：`sp.y < 光之井.y + 22`）。
 - v1.31.10（2026-10-10 已上線）：首頁不再畫按鍵說明（跟 index.html 的 #hint 重複）；刪除存檔只能用 ☰ 選單的「刪除存檔」（點兩次），Delete 鍵拿掉了，說明不提 F2、刪除存檔；index.html #hint 只有鍵盤上的鍵用橘色（<strong>），其他字一般顏色；手機版畫面上的按鍵提示由 utils.js `U.touchText` 自動換成手機說法（所有 U.text 都會過），新加的提示文字照「Enter／Esc、Q 回地圖」這種寫法就會自動轉。
 - v1.32.0（在 `nordic`，**還沒上線**）咖啡與絲路：新大陸（region america）關卡的金幣是咖啡果實（game.js `cherryMode()`、`bankCoins` 存進 `Save.flag('cherries')`；Sprites.cherry、race.js、topdown.js 照它換畫法）；
-  咖啡烘豆場（quests.js AM_SPOTS `Q_roastery`，talk `roastery`，`ROAST_COST` 2500 蓋、`ROAST_PER` = 中南美洲每關果實加總（453）一箱）→ Trade 的 `coffee`（home null，只能賣）；
-  絲路公主（SPOTS `Q_princess`，talk `princess`，`PRINCESS_NEED` 3 箱）→ `Save.flag('silkRoad')`，地圖上的絲路變金色「已開通・亞洲篇製作中」。測試 `tests/coffee-check.js` 的 `runCoffeeCheck`。
+  咖啡烘豆場（quests.js AM_SPOTS `Q_roastery`，talk `roastery`，`ROAST_COST` 2500 蓋、`ROAST_PER` 200 顆一箱）→ Trade 的 `coffee`（home null，只能賣）；
+  絲路公主（SPOTS `Q_princess`，talk `princess`，`PRINCESS_NEED` 2 箱，公主不給「去哪裡弄」的提示）→ `Save.flag('silkRoad')`，地圖上的絲路變金色「已開通・亞洲篇製作中」。測試 `tests/coffee-check.js` 的 `runCoffeeCheck`。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

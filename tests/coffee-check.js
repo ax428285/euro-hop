@@ -46,9 +46,7 @@ function runCoffeeCheck() {
       tk.end(true);
       if (!Save.flag('roastery') || sv.wallet !== 100) issues.push('蓋烘豆場沒有扣 ' + Quests.ROAST_COST + '（剩 ' + sv.wallet + '）');
     }
-    // v1.32 一箱至少要中南美洲每一關的果實加起來那麼多
-    const allAm = Levels.list.reduce(function (n, l) { return n + (l.region === 'america' ? (l.coins || []).length : 0); }, 0);
-    if (Quests.ROAST_PER < allAm) issues.push('一箱咖啡豆只要 ' + Quests.ROAST_PER + ' 顆果實（中南美洲全部有 ' + allAm + ' 顆），太簡單');
+    if (Quests.ROAST_PER !== 200 || Quests.PRINCESS_NEED !== 2) issues.push('一箱要 200 顆果實、公主要 2 箱（現在 ' + Quests.ROAST_PER + ' 顆、' + Quests.PRINCESS_NEED + ' 箱）');
     sv.flags.cherries = Quests.ROAST_PER * 2 + 3;
     tk = Quests.talk('roastery');
     if (tk.end) tk.end(true);
