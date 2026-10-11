@@ -112,7 +112,7 @@
   - 西遊記：收到的徒弟先回那爛陀寺（站在玄奘旁邊），只有護送途中（sutra 2～3）師徒四人才跟著走；馬可波羅只有 marco 1（護送去上都）時跟著走。
 - v1.33.4（還沒上線）：AS_SPOTS 可以有 `gone()`（馬可波羅跟你走之後喀什的地點收起來）；entities.js 的丟在 `def.hidePlayer` 的關卡不作用（海戰按 J／K 不會丟出平台的子彈）。
 - v1.33.5（還沒上線）：地圖上的「！」= 有事情可以做（quests.js 的 `todo(kind)`，歐洲、新大陸、海底城；亞洲的在 asiaquest.js 的 questMark）。新增劇情人物時要記得補 todo。亞洲地圖的國名貼近圖釘（worldmap.js placeOne：as 地圖 35px）；上都搬到 (120.0, 44.6)。
-- v1.33.11（還沒上線）：玩家：除了人魚和黃金獵犬，其他 NPC 不要跟在後面 → AsiaQuest.followers() 永遠是空的；師徒四人、馬可波羅畫在要去的地點旁邊等（waiting）。
+- v1.33.11（還沒上線）：玩家：除了人魚和黃金獵犬，其他 NPC 不要跟在後面 → AsiaQuest.followers() 永遠是空的；馬可波羅畫在上都旁邊等（waiting）；v1.33.12 玄奘師徒不畫在地圖上。
 - v1.33.9（還沒上線）：印度一關一隻大象（mount_elephant 的 update：被打跑後 callElephant 從左邊畫面外走回來；barricade 推不動也會叫牠）。
 - v1.33.7（還沒上線）：亞洲地圖畫萬里長城（huns.js 的 WALL、drawWall，由 worldmap.js 在 as 地圖呼叫）。
 - v1.33.6（還沒上線）匈奴進攻（js/huns.js）：flag `huns` 0 → 亞洲關卡（不含東亞 gate easia）全破、人在亞洲地圖 → 1（talk hunsAlarm，長城守將）→ 三支騎兵隊 hun0～2（陸地上往長安走，registerMini 的 mapNear）

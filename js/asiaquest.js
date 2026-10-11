@@ -107,8 +107,6 @@ const AsiaQuest = (function () {
       for (let k = 0; k < 3; k++) ctx.fillRect(x - 9, y - 21 + k * 5, 7, 2);
       Q.tinyPerson(ctx, x + 1, y, '#d8902a', '#e8c49a');
       ctx.fillStyle = '#c8a060'; ctx.beginPath(); ctx.ellipse(x + 1, y - 22, 8, 2.6, 0, 0, Math.PI * 2); ctx.fill();
-      // 收到的徒弟先回來這裡等師父（站在玄奘旁邊）
-      if (flag('sutra') === 1) DISCIPLES.forEach(function (d, i) { if (got(d)) drawChibi(ctx, d.id, x + 12 + i * 7, y + 2, t + i * 9); });
       questMark(ctx, x, y, t, flag('sutra') === 0 || (flag('sutra') === 1 && !missing().length));
     },
     portraits: {
@@ -291,7 +289,6 @@ const AsiaQuest = (function () {
         ctx.fillStyle = k % 2 ? '#ffa030' : '#ff5a2a';
         ctx.beginPath(); ctx.moveTo(x - 8 + k * 7, y - 8); ctx.quadraticCurveTo(x - 6 + k * 7 + fl, y - 20, x - 4 + k * 7, y - 8); ctx.fill();
       }
-      if (flag('sutra') === 2) waiting(ctx, PARTY, x, y, t);
       questMark(ctx, x, y, t, flag('sutra') === 2);
     }
   });
@@ -335,7 +332,6 @@ const AsiaQuest = (function () {
         ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x - w / 2 - 1.5, yy - 4.8, w + 3, 1.2);
       }
       ctx.fillStyle = '#8a6a4a'; ctx.fillRect(x - 1, y - 32, 2, 6);
-      if (flag('sutra') === 3) waiting(ctx, PARTY, x, y, t);
       questMark(ctx, x, y - 8, t, flag('sutra') === 3);
     }
   });
@@ -445,7 +441,7 @@ const AsiaQuest = (function () {
   function waiting(ctx, list, x, y, t) {
     list.forEach(function (who, i) { drawChibi(ctx, who, x + 14 + i * 7, y + 2, t + i * 9); });
   }
-  const PARTY = ['xuanzang', 'wukong', 'bajie', 'wujing'];
+  // v1.33.12 玩家：玄奘師徒不用出現在地圖上 → 只畫馬可波羅在上都等
   /** game.js 畫地圖時呼叫（在主角之前畫） */
   function drawFollowers(ctx, t) {
     if (WorldMap.world() !== 'as') { trail.length = 0; return; }
