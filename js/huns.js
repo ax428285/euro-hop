@@ -454,10 +454,12 @@ const Huns = (function () {
     // 名字（城牆中段的北邊，鄂爾多斯一帶）
     const lp = WorldMap.project(109.0, 40.6);
     U.text(ctx, '萬 里 長 城', lp[0], lp[1], { size: 11, color: 'rgba(110, 80, 50, 0.85)', stroke: false });
-    // v2.0.3 東亞還在開發中：韓國、日本那一帶寫上「開發中」
-    const kp = WorldMap.project(138.6, 36.6);     // 日本本州（避開東海、日本海的魔王和艦隊）
-    ctx.fillStyle = 'rgba(40, 30, 20, 0.55)'; U.roundRect(ctx, kp[0] - 46, kp[1] - 10, 92, 20, 6); ctx.fill();
-    U.text(ctx, '韓國・日本 開發中', kp[0], kp[1], { size: 10, color: '#ffe9c8', stroke: false });
+    // v2.0.3 還在開發中的地方：v2.0.4 玩家：東北亞和東南亞不用寫國名，標註開發中就好
+    [[138.6, 36.6, '東北亞　開發中'], [101.5, 15.5, '東南亞　開發中']].forEach(function (q) {
+      const kp = WorldMap.project(q[0], q[1]);
+      ctx.fillStyle = 'rgba(40, 30, 20, 0.55)'; U.roundRect(ctx, kp[0] - 44, kp[1] - 10, 88, 20, 6); ctx.fill();
+      U.text(ctx, q[2], kp[0], kp[1], { size: 10, color: '#ffe9c8', stroke: false });
+    });
     ctx.restore();
   }
 
