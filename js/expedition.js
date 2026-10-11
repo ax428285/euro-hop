@@ -64,7 +64,7 @@ const Expedition = (function () {
     { id: 'ZY', country: '鄭一嫂', label: '鄭一嫂的旗艦', ship: '的紅旗號', lon: 113.5, lat: 16.0, hp: 170, rank: 2, tier: 3, style: 'junk',
       flag: ['#c8202a', '#c8202a', '#c8202a'], flagDir: 'h',
       fact: '鄭一嫂是歷史上最強的海盜之一：她的紅旗幫有七萬多個海盜，最後還跟清朝談判、帶著船隊全身而退。' },
-    { id: 'AT', country: '安宅船', label: '鐵甲安宅船', ship: '「日本丸」', lon: 128.5, lat: 29.0, hp: 280, rank: 3, tier: 5, style: 'atake',
+    { id: 'AT', country: '安宅船', label: '鐵甲安宅船', ship: '「日本丸」', lon: 131.0, lat: 30.8, hp: 280, rank: 3, tier: 5, style: 'atake',
       flag: ['#f4f4f0', '#c8202a', '#f4f4f0'], flagDir: 'h',
       fact: '日本戰國時代的安宅船是一座會浮在海上的木頭城堡；織田信長還造過外面包著鐵板的「鐵甲船」。' }
   ];
@@ -225,7 +225,10 @@ const Expedition = (function () {
     const nx = m.x + Math.cos(m.heading) * WANDER_SPEED, ny = m.y + Math.sin(m.heading) * WANDER_SPEED;
     // v2.0.3 玩家：阿拉伯船常會跟大鵬金翅鳥重疊 → 繞的時候不靠近海上魔王（80px 以內就掉頭）
     const nearBoss = Encounter.monsters().some(function (b) { return b.boss && Math.hypot(nx - b.x, ny - b.y) < 80; });
-    if (!nearBoss && Math.hypot(nx - m.home.x, ny - m.home.y) < WANDER_HOME && Voyage.isNavigable(nx, ny)) { m.x = nx; m.y = ny; }
+    // v2.0.5 也不開到台灣（寶島 Formosa 的圖案和字）上面
+    const fz = WorldMap.project(122.8, 23.7);
+    const nearFormosa = Math.hypot(nx - fz[0], ny - fz[1]) < 70;
+    if (!nearBoss && !nearFormosa && Math.hypot(nx - m.home.x, ny - m.home.y) < WANDER_HOME && Voyage.isNavigable(nx, ny)) { m.x = nx; m.y = ny; }
     else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
   }
 
