@@ -151,6 +151,12 @@ const Encounter = (function () {
    *   })
    */
   const EXTM = {};
+  /*
+   * v1.33.6 外掛的「地圖上該有的東西」：每帧呼叫 fn(monsters, world)，自己把怪補進清單（匈奴騎兵隊、阿提拉，見 huns.js）。
+   * registerMini 的 h.mapNear(m, ship, d)：怪在地圖上怎麼走、主角多近可以按 Enter（陸地上的怪用這個）。
+   */
+  const ENSURE = [];
+  function registerEnsure(fn) { ENSURE.push(fn); }
   function registerMini(kind, h) { EXTM[kind] = h; KINDS[kind] = h.def; DUR[kind] = h.def.duration || 40 * 60; }
 
   /*
@@ -312,6 +318,7 @@ const Encounter = (function () {
 
   function ensureBosses() {
     if (typeof EuropeWorld === 'undefined') return;
+    ENSURE.forEach(function (fn) { fn(monsters, WorldMap.world ? WorldMap.world() : 'eu'); });
     // v1.33.1 亞洲地圖：外掛的海上魔王（asiaboss.js，h.at = 經緯度）＋東方艦隊（expedition.js）
     if (WorldMap.world && WorldMap.world() === 'as') {
       Object.keys(EXTM).forEach(function (k) {
@@ -380,6 +387,10 @@ const Encounter = (function () {
       }
       if (m.custom) {
         if (Expedition.mapNear(m, ship, d) && d < best + 10) { best = d; nearM = m; }
+        continue;
+      }
+      if (EXTM[m.kind] && EXTM[m.kind].mapNear) {
+        if (EXTM[m.kind].mapNear(m, ship, d) && d < best + 10) { best = d; nearM = m; }
         continue;
       }
       if (m.boss) {
@@ -873,9 +884,10 @@ const Encounter = (function () {
       flagDir: 'h',
       landmark: null,
       fact: (function () {
-        if (k.boss && k.as) {
+        if (k.boss && (k.as || k.fact)) {
           const first = !(typeof Save !== 'undefined' && Save.seaBossDown(m.kind));
-          return (k.fact || '') + (first ? '　第一次打倒：' + k.bossExp + ' 亞洲 EXP＋' + k.bossCoins + ' 金幣' : '　再戰：' + k.exp + ' 亞洲 EXP');
+          const pool = k.as ? ' 亞洲 EXP' : ' EXP';
+          return (k.fact || '') + (first ? '　第一次打倒：' + k.bossExp + pool + '＋' + k.bossCoins + ' 金幣' : '　再戰：' + k.exp + pool);
         }
         if (k.boss) {
           const first = !(typeof Save !== 'undefined' && Save.seaBossDown(kind));
@@ -2097,6 +2109,7 @@ const Encounter = (function () {
     SOUTH_EXP: SOUTH_EXP,
     EASIA_EXP: EASIA_EXP,
     registerMini: registerMini,
+    registerEnsure: registerEnsure,
     /** 外掛的海上冒險用的小工具 */
     helpers: { hurt: function (p, fromX, events) { hurt(p, fromX, events); }, burst: function (state, x, y, color, n) { burst(state, x, y, color, n); } },
     regionOf: regionOf,

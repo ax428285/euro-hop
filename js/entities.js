@@ -1781,7 +1781,7 @@ function updatePlayer(state, input, t, who) {
    */
   if (p.throwCd > 0) p.throwCd--;
   // v1.33.4 東方艦隊的海戰（hidePlayer）：丟 = 船的舷砲，藏起來的主角不要跟著丟東西
-  if (st.ranged && !state.def.hidePlayer && input.once('throw') && !(p.throwCd > 0)) {
+  if (st.ranged && !state.def.hidePlayer && !state.def.noThrow && input.once('throw') && !(p.throwCd > 0)) {     // noThrow：丟 = 小遊戲自己的武器（阿提拉之戰的弓）
     const fire = st.ranged === 'fire';
     const sx = p.x + p.w / 2 + p.facing * 12, sy = p.y + 16;
     (state.pshots || (state.pshots = [])).push(fire

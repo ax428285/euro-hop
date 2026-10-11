@@ -17,6 +17,8 @@
  *   K) 三隻魔王都打得倒（照牠們的破綻踩），時間到會輸；東方艦隊的海戰給亞洲 EXP
  *   L) v1.33.3 泉州造船廠：買船、換船；沒船不能跟東方艦隊開戰；開買來的船打（並排齊射打得沉、什麼都不做會被打沉）；
  *      任務做完不再有人跟在後面（收到的徒弟先回那爛陀寺，只有護送途中才跟著走）
+ *   M) v1.33.6 匈奴進攻：亞洲沒破完不會觸發；全破 → 三支騎兵隊在亞洲的陸地上往長安走；長城保衛戰打得贏、放騎兵過去會輸；
+ *      三支都打退 → 阿提拉出現在歐洲的陸地上；阿提拉之戰射箭打得倒、什麼都不做會輸；打倒 → 稱號
  * 會暫時改存檔，結束前還原。
  */
 function runAsiaCheck() {
@@ -501,6 +503,83 @@ function runAsiaCheck() {
     if (idle.res !== 'lose') issues.push('東方艦隊：什麼都不做也不會輸');
     const slow = navalRun('warDH', 'baochuan'), fast = navalRun('warDH', 'dhow');
     if (!(slow.mini.hpMax > fast.mini.hpMax && slow.mini.guns > fast.mini.guns)) issues.push('寶船沒有比三角帆船硬、砲多');
+
+    // ── M) 匈奴進攻 ──
+    sv.flags.huns = 0; sv.flags.hunbane = 0;
+    sv.seaBosses = sv.seaBosses.filter(function (k) { return k.indexOf('hun') !== 0 && k !== 'attila'; });
+    const cleared0 = sv.cleared.slice();
+    WorldMap.useWorld('as'); Voyage.rebuild(); Encounter.clear();
+    sv.cleared = sv.cleared.filter(function (i) { return Levels.list[i].region !== 'asia'; });
+    if (Huns.check()) issues.push('亞洲還沒破完，匈奴就打過來了');
+    Levels.list.forEach(function (l, i) { if (l.region === 'asia' && sv.cleared.indexOf(i) < 0) sv.cleared.push(i); });
+    if (Huns.check() !== 'hunsAlarm' || Save.flag('huns') !== 1) issues.push('亞洲全破了，沒有觸發匈奴進攻');
+    if (!Quests.talk('hunsAlarm') || !Quests.talk('hunsFlee')) issues.push('匈奴進攻的對話不見了');
+    Encounter.updateMap(Voyage.shipPos(), 0);
+    Huns.HORDES.forEach(function (hd) {
+      const m = Encounter.monsters().filter(function (q) { return q.kind === hd.kind; })[0];
+      if (!m) { issues.push('亞洲地圖上沒有' + hd.name); return; }
+      if (!Voyage.isLand(m.x, m.y)) issues.push(hd.name + '不在陸地上');
+      const d0 = Math.hypot(m.tx - m.x, m.ty - m.y);
+      for (let k = 0; k < 200; k++) Encounter.updateMap({ x: -999, y: -999 }, 0);
+      if (!(Math.hypot(m.tx - m.x, m.ty - m.y) < d0)) issues.push(hd.name + '沒有往長安走');
+    });
+    function hunRun(kind, act) {
+      const def = Encounter.makeDef({ kind: kind, def: Encounter.KINDS[kind], x: 0, y: 0 });
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      const p = st.player;
+      let res = null, f = 0, fire = false;
+      const inp = { isDown: function () { return false; }, once: function (a) { return a === 'throw' && fire; } };
+      try {
+        for (; f < def.duration + 10 && !res; f++) {
+          p.invuln = 999; fire = false;
+          if (act && st.mini) fire = act(st, st.mini, p);
+          const ev = Encounter.updateSkirmish(st, inp);
+          updatePlayer(st, inp, f);
+          if (ev.indexOf('clear') >= 0) res = 'win';
+          if (ev.indexOf('minifail') >= 0) res = 'lose';
+        }
+        const cv = document.createElement('canvas'); cv.width = 960; cv.height = 480;
+        Encounter.drawWorld(cv.getContext('2d'), st, f); Encounter.drawHud(cv.getContext('2d'), st, 960);
+      } catch (e) { issues.push(kind + ' 出錯：' + e.message); }
+      return res;
+    }
+    Huns.HORDES.forEach(function (hd) {
+      const GYh = Levels.GROUND_Y;
+      const r = hunRun(hd.kind, function (st, mini, p) {
+        const rd = mini.riders.filter(function (q) { return !q.down && q.x < 900 && q.x > 0; })[0];
+        if (rd) { p.x = rd.x + 33 - p.w / 2; p.y = GYh - 60 - p.h + 4; p.vy = 4; }
+      });
+      if (r !== 'win') issues.push(hd.name + '：把騎兵踩下馬也打不贏（' + r + '）');
+      if (hunRun(hd.kind) !== 'lose') issues.push(hd.name + '：什麼都不做也不會輸');
+    });
+    Huns.HORDES.forEach(function (hd) { Save.markSeaBoss(hd.kind); });
+    if (Huns.check() !== 'hunsFlee' || Save.flag('huns') !== 2) issues.push('三支騎兵隊打退了，匈奴沒有往西逃');
+    Encounter.clear();
+    WorldMap.useWorld('eu'); Voyage.rebuild();
+    Encounter.updateMap({ x: -999, y: -999 }, 0);
+    const att = Encounter.monsters().filter(function (q) { return q.kind === 'attila'; })[0];
+    if (!att) issues.push('歐洲地圖上沒有阿提拉');
+    else if (!Voyage.isLand(att.x, att.y)) issues.push('阿提拉不在陸地上');
+    Encounter.clear();
+    let ar = hunRun('attila', function (st, mini, p) {
+      p.x = 40; p.y = Levels.GROUND_Y - p.h; p.facing = 1;
+      return mini.shootCd === 0;
+    });
+    if (ar !== 'win') issues.push('阿提拉：一直射箭也打不倒（' + ar + '）');
+    if (hunRun('attila') !== 'lose') issues.push('阿提拉：什麼都不做也不會輸');
+    (function () {
+      // 盾牌擋得住阿提拉平射的箭
+      const def = Encounter.makeDef({ kind: 'attila', def: Encounter.KINDS.attila, x: 0, y: 0 });
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      Encounter.updateSkirmish(st, NOIN);
+      const s = st.mini.pavises[0];
+      st.mini.arrows.push({ x: s.x + s.w + 20, y: Levels.GROUND_Y - 22, vx: -8, vy: 0, g: 0 });
+      for (let f = 0; f < 10; f++) Encounter.updateSkirmish(st, NOIN);
+      if (st.mini.arrows.some(function (a) { return a.x < s.x; })) issues.push('阿提拉：木盾牌擋不住平射的箭');
+    })();
+    Encounter.KINDS.attila.onWin();
+    if (Save.flag('huns') !== 3 || !Save.flag('hunbane')) issues.push('打倒阿提拉沒有完成匈奴進攻');
+    sv.cleared = cleared0;
 
     // ── K) 三隻魔王打得倒 ──
     function bossRun(kind, act) {

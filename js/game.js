@@ -1076,6 +1076,8 @@ const Game = (function () {
     WorldMap.follow(shipNow.x, shipNow.y);
     // 稀有怪出現時提示一下（牠待不久，而且會逃）
     const mapEv = Encounter.updateMap(shipNow, Save.get().exp);
+    // v1.33.6 匈奴進攻：亞洲全破後觸發、三支騎兵隊打退後往西逃（huns.js）
+    if (typeof Huns !== 'undefined') { const hk = Huns.check(); if (hk) { openTalk(hk); return; } }
     // E 卡律布狄斯：被吸到漩渦眼 → 漩渦逃生
     if (mapEv.indexOf('vortex') >= 0) {
       Sfx.bossRoar();
@@ -3871,6 +3873,7 @@ const Game = (function () {
     if (Save.flag('archer')) t.push('「草原神射手」');        // v1.33 蒙古：一趟射中全部的箭靶
     if (Save.flag('pilgrim')) t.push('「取經人」');           // v1.33.2 西天取經
     if (Save.flag('envoy')) t.push('「大汗的使者」');          // v1.33.2 替忽必烈找齊亞洲的寶物
+    if (Save.flag('hunbane')) t.push('「上帝之鞭的剋星」');    // v1.33.6 打倒阿提拉
     return t.join('');
   }
   let journalPage = 0;
@@ -3901,7 +3904,8 @@ const Game = (function () {
      ['人魚的好感度 ♥ ' + Quests.merLove() + ' / ' + Quests.merLoveMax(), Quests.merLove() >= Quests.merLoveMax()],
      ['巴黎鐵塔的夜景（人魚變成人類）', Quests.merHuman()], ['瑞士銀行開戶', !!Save.bank().open],
      ['咖啡烘豆場（新大陸）', !!Save.flag('roastery')], ['絲路公主的委託（開通絲路）', !!Save.flag('silkRoad')],
-     ['西天取經（收齊三個徒弟、過火焰山、回長安）', Save.flag('sutra') >= 4], ['大汗的寶物（護送馬可波羅見忽必烈）', Save.flag('marco') >= 3],
+     ['西天取經（收齊三個徒弟、過火焰山、回長安）', Save.flag('sutra') >= 4],
+     ['匈奴進攻（長城保衛戰、打倒阿提拉）', (Save.flag('huns') || 0) >= 3], ['大汗的寶物（護送馬可波羅見忽必烈）', Save.flag('marco') >= 3],
      ['收養黃金獵犬', Save.pet() === 'dog'], ['埃及豔后的聖蛇', !!Save.flag('asp')], ['聖誕老人的禮物', !!Save.flag('gift')]
     ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
     side.push({ head: '收集' });
@@ -3923,6 +3927,7 @@ const Game = (function () {
     side.push({ name: '稱號「草原神射手」（蒙古一趟射中全部箭靶）', done: !!Save.flag('archer') });
     side.push({ name: '稱號「取經人」（西天取經）', done: !!Save.flag('pilgrim') });
     side.push({ name: '稱號「大汗的使者」（忽必烈的寶物）', done: !!Save.flag('envoy') });
+    side.push({ name: '稱號「上帝之鞭的剋星」（打倒阿提拉）', done: !!Save.flag('hunbane') });
     side.push({ name: '稱號「比利時肥羊」（被扒手偷 ' + Math.min(Save.flag('robbedTimes') || 0, Quests.ROB_TITLE) + ' / ' + Quests.ROB_TITLE + ' 次）', done: !!Save.flag('sheep') });
     return [{ title: '主線關卡', items: main, cols: 3 }, { title: '支線與收集', items: side, cols: 3 }];
   }
