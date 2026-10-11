@@ -829,7 +829,12 @@ const Quests = (function () {
    * v1.32 咖啡：中南美洲關卡撿到的是咖啡果實（Save.flag('cherries')）→ 烘豆場（要先花 ROAST_COST 蓋）把 ROAST_PER 顆烘成一箱「烘焙咖啡豆」（Trade 的 coffee，放船艙）
    * → 拿去碼頭（四個貿易港）賣，或交 PRINCESS_NEED 箱給絲路公主，開通絲路（flag silkRoad）。
    */
-  const ROAST_COST = 2500, ROAST_PER = 10, PRINCESS_NEED = 3;
+  /*
+   * v1.32 玩家：10 顆一箱太簡單，至少要中南美洲關卡全部吃到的數量 →
+   * 一箱 = 中南美洲（region america）每一關的果實加起來那麼多（現在 453 顆）。全收集多給的 50% 也算，所以大約每把中南美洲全破一輪烘得出一箱。
+   */
+  const ROAST_PER = (typeof Levels !== 'undefined' ? Levels.list : []).reduce(function (n, l) { return n + (l.region === 'america' ? (l.coins || []).length : 0); }, 0) || 450;
+  const ROAST_COST = 2500, PRINCESS_NEED = 3;
   function holdFree() {
     const cap = Trade.capacity(Save.ship()) + ((typeof Shop !== 'undefined' && Shop.resolve().hold) || 0);
     return Math.max(0, cap - Save.cargoCount());
@@ -841,7 +846,8 @@ const Quests = (function () {
       const lines = [
         L('roaster', '¡Hola! 這裡是哥斯大黎加的中央谷地，火山灰的土種出來的咖啡全世界最香。'),
         L('roaster', '你在中南美洲那些國家摘到的紅色果子，就是咖啡果實。可是果實要烘過，才會變成香噴噴的咖啡豆。'),
-        L('roaster', '我想在這裡蓋一座烘豆場，只差一筆錢：€ ' + ROAST_COST + '。蓋好以後，每 ' + ROAST_PER + ' 顆果實就幫你烘一箱咖啡豆。')
+        L('roaster', '我想在這裡蓋一座烘豆場，只差一筆錢：€ ' + ROAST_COST + '。蓋好以後，每 ' + ROAST_PER + ' 顆果實就幫你烘一箱咖啡豆。'),
+        L('roaster', '一箱可不簡單喔 —— 差不多要把中南美洲每一關的果實都摘光那麼多。')
       ];
       if (wallet < ROAST_COST) {
         lines.push(L('roaster', '你現在錢包只有 € ' + wallet + '⋯⋯存夠了再來找我吧！'));
