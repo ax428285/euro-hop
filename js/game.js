@@ -983,6 +983,12 @@ const Game = (function () {
     const monster = Encounter.nearby();
     if (monster && monster.kind === 'atlantis' && Quests.abyssOpen() && Input.once('confirm')) { enterAbyss(); return; }
     if (monster && Input.once('confirm')) {
+      // v1.33.3 東方艦隊：要先在泉州造船廠買船
+      if (monster.def.warship && monster.def.warship.asia && !Save.flag('asShip')) {
+        Sfx.clang();
+        toast = { text: '沒有船可以開戰！', sub: '先到泉州造船廠（中國東南的海邊）買一艘船', life: 200 };
+        return;
+      }
       Sfx.bossRoar();
       startSkirmish(monster);
       return;
@@ -1749,7 +1755,7 @@ const Game = (function () {
       if (price == null && it.kind === 'look') {
         // v1.31.2 玩家：時裝、狗狗配件要可以脫下來 → 已經有的再按一次 = 穿上／脫下
         const r = Shop.toggleWear(it.id);
-        shopMsg = it.mer
+        shopMsg = it.aship ? { text: '改開「' + it.name + '」出海！', color: '#8fe3a0', life: 130 } : it.mer
           ? (r === 'off' ? { text: 'Thalassa 換回白貝殼上衣', color: '#c6d2e8', life: 130 }
                          : { text: 'Thalassa 換上了' + it.name.replace('Thalassa：', '「') + '」！', color: '#8fe3a0', life: 130 })
           : it.costume
@@ -2860,7 +2866,7 @@ const Game = (function () {
 
     // 玩家（兩人同機時畫所有還在場上的）
     state.players.forEach(function (p, i) {
-      if (downed[i]) return;
+      if (downed[i] || state.def.hidePlayer) return;          // v1.33.3 東方艦隊的海戰：畫的是船，不畫人
       Sprites.player(ctx, {
         x: p.x, y: p.y, w: p.w, h: p.h,
         facing: p.facing, onGround: p.onGround, vx: p.vx,
@@ -3139,7 +3145,7 @@ const Game = (function () {
 
     // 玩家（兩人同機時畫所有還在場上的）
     state.players.forEach(function (p, i) {
-      if (downed[i]) return;
+      if (downed[i] || state.def.hidePlayer) return;          // v1.33.3 東方艦隊的海戰：畫的是船，不畫人
       Sprites.player(ctx, {
         x: p.x - camX, y: p.y - (p.mount ? (p.mount.lift || 14) : 0), w: p.w, h: p.h,
         facing: p.facing, onGround: p.onGround, vx: p.vx,
@@ -4295,9 +4301,9 @@ const Game = (function () {
       // 價格 / 狀態
       if (maxed && look) {
         const on = Shop.wearing(it.id);
-        U.text(ctx, on ? (it.acc ? '戴著' : '穿著') : '已擁有', cx + 16, cy + 98,
+        U.text(ctx, on ? (it.aship ? '開這艘' : it.acc ? '戴著' : '穿著') : '已擁有', cx + 16, cy + 98,
           { size: 14, color: on ? '#8fe3a0' : '#c6d2e8', align: 'left' });
-        U.text(ctx, on ? (it.acc ? 'Enter 拿下來' : 'Enter 脫下') : (it.acc ? 'Enter 戴上' : 'Enter 穿上'), cx + cw - 16, cy + 98,
+        U.text(ctx, it.aship ? (on ? '' : 'Enter 換這艘') : on ? (it.acc ? 'Enter 拿下來' : 'Enter 脫下') : (it.acc ? 'Enter 戴上' : 'Enter 穿上'), cx + cw - 16, cy + 98,
           { size: 12, color: on ? '#ffb0b8' : '#8fe3a0', align: 'right' });
       } else if (maxed) {
         U.text(ctx, '已滿級', cx + 16, cy + 98,

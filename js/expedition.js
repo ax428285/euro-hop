@@ -72,7 +72,7 @@ const Expedition = (function () {
     w.asia = true;
     w.kind = 'war' + w.id;
     K[w.kind] = { name: w.country + w.ship, lv: '戰艦', exp: 90, bossExp: 200, bossCoins: 200, game: '戰艦海戰',
-                  goal: '站在砲旁按 K／Enter 開砲！紅圈是敵艦砲彈的落點・踩扁跳上船的水兵', custom: true, warship: w, fixed: true,
+                  goal: '開到敵艦旁邊，按 K／丟 兩側舷砲齊射・別停在它的正側面', custom: true, warship: w, fixed: true,
                   clearTitle: '擊沉了' + w.label + '！' };
   });
   /** 戰艦掛的旗子：歐洲的用那一國的國旗；亞洲的東方艦隊用自己的旗 */
@@ -453,6 +453,8 @@ const Expedition = (function () {
     }
     const down = Save.seaBossDown(m.kind);
     const ex = m.def.warship.asia ? ' 亞洲 EXP' : ' EXP';
+    // v1.33.3 東方艦隊要開自己買的船打
+    if (m.def.warship.asia && !Save.flag('asShip')) return m.def.name + '：要先到泉州造船廠買一艘船才能開戰';
     return '按 Enter 跟' + '★★★'.slice(0, m.def.warship.rank) + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ex : '首次 +' + m.def.bossExp + ex + '、€' + m.def.bossCoins) + '）';
   }
 
@@ -565,6 +567,19 @@ const Expedition = (function () {
     const w = m.def.warship;
     const lv = shipFlag(w);
     const first = firstTime(m);
+    /*
+     * v1.33.3 東方艦隊：開自己在泉州造船廠買的船，從上面往下看的海上對決（navalwar.js 的 'naval'）。
+     * 平台的主角藏起來（hidePlayer），站在看不到的地面上不動。
+     */
+    if (w.asia) {
+      return arena(m, {
+        minigame: 'naval', duration: 150 * 60, hidePlayer: true, asShip: Save.flag('asShip') || 'dhow',
+        flag: lv ? lv.flag : ['#1d3a5c', '#e8e2d2', '#1d3a5c'], flagDir: lv ? lv.flagDir : 'h',
+        sky: ['#2a6a9a', '#1a4a72'], bossArena: { x: 0, y: 0, w: 960, h: 480 },
+        exp: first ? m.def.bossExp : m.def.exp, bossCoins: first ? m.def.bossCoins : 0, firstBoss: first, as: true,
+        fact: w.fact + (first ? '　第一次擊沉：' + m.def.bossExp + ' 亞洲 EXP＋' + m.def.bossCoins + ' 金幣' : '　再戰：' + m.def.exp + ' 亞洲 EXP')
+      });
+    }
     return arena(m, {
       minigame: 'warship', duration: 120 * 60,
       flag: lv ? lv.flag : ['#1d3a5c', '#e8e2d2', '#1d3a5c'], flagDir: lv ? lv.flagDir : 'h',

@@ -15,6 +15,8 @@
  *   v1.33.1：
  *   J) 亞洲地圖上有三隻海上魔王（大鵬、龍王、八岐大蛇）和東方艦隊三艘戰艦，都在海上；南海海盜船會出現
  *   K) 三隻魔王都打得倒（照牠們的破綻踩），時間到會輸；東方艦隊的海戰給亞洲 EXP
+ *   L) v1.33.3 泉州造船廠：買船、換船；沒船不能跟東方艦隊開戰；開買來的船打（並排齊射打得沉、什麼都不做會被打沉）；
+ *      任務做完不再有人跟在後面（收到的徒弟先回那爛陀寺，只有護送途中才跟著走）
  * 會暫時改存檔，結束前還原。
  */
 function runAsiaCheck() {
@@ -150,6 +152,9 @@ function runAsiaCheck() {
       if (id !== 'MN' && !Sprites.skylines[id]) issues.push(id + ' 沒有遠景');
     });
     // 地圖上的劇情人物
+    const yard = WorldMap.specials.filter(function (q) { return q.def.seller === 'asYard'; })[0];
+    if (!yard) issues.push('亞洲地圖上沒有泉州造船廠');
+    else if (!Voyage.isLand(yard.pin[0], yard.pin[1])) issues.push('泉州造船廠不在陸地上');
     ['xuanzang', 'goose', 'marco', 'wukong', 'bajie', 'wujing', 'flame', 'xanadu'].forEach(function (npc) {
       const s = WorldMap.specials.filter(function (q) { return q.def.npc === npc; })[0];
       if (!s) issues.push('亞洲地圖上沒有 ' + npc);
@@ -322,9 +327,10 @@ function runAsiaCheck() {
     tk = Quests.talk('xuanzang');
     if (tk.end && tk.end(true)) issues.push('徒弟還沒收齊，玄奘就出發了');
     AsiaQuest.DISCIPLES.forEach(function (d) { Save.markSeaBoss(d.kind); });
-    if (AsiaQuest.followers().length !== 3) issues.push('收到的三個徒弟沒有跟在後面（' + AsiaQuest.followers().join('、') + '）');
+    if (AsiaQuest.followers().length) issues.push('收到的徒弟還跟在後面（應該先回那爛陀寺等）：' + AsiaQuest.followers().join('、'));
     tk = Quests.talk('xuanzang'); if (tk.end) tk.end(true);
     if (Save.flag('sutra') !== 2) issues.push('徒弟收齊了，玄奘沒有出發');
+    if (AsiaQuest.followers().length !== 4) issues.push('護送途中師徒四人沒有跟著走（' + AsiaQuest.followers().join('、') + '）');
     tk = Quests.talk('goose');
     if (tk.end && tk.end(true)) issues.push('還沒過火焰山就到大雁塔完成了');
     tk = Quests.talk('flame');
@@ -354,6 +360,7 @@ function runAsiaCheck() {
     AsiaQuest.KHAN_WANTS.forEach(function (id) { Save.addSouvenir(id); });
     tk = Quests.talk('xanadu'); if (tk.end) tk.end(true);
     if (Save.flag('marco') !== 3 || !Save.flag('envoy')) issues.push('寶物找齊了，沒有成為「大汗的使者」');
+    if (AsiaQuest.followers().length) issues.push('任務完成了還有人跟在後面：' + AsiaQuest.followers().join('、'));
     sv.souvenirs = souv0;
 
     // 四個小遊戲：照玩法打得贏、什麼都不做會輸
@@ -425,7 +432,7 @@ function runAsiaCheck() {
     // 東方艦隊：海戰給亞洲 EXP
     (function () {
       const k = Encounter.KINDS.warZY, def = Encounter.makeDef({ kind: 'warZY', def: k, x: 0, y: 0 });
-      if (def.minigame !== 'warship' || !def.as) issues.push('鄭一嫂的紅旗號不是給亞洲 EXP 的戰艦海戰');
+      if (def.minigame !== 'naval' || !def.as || !def.hidePlayer) issues.push('鄭一嫂的紅旗號不是開自己的船打的亞洲海戰');
       const st = buildLevelState(def, -1, [], Equipment.resolve([]));
       try {
         for (let f = 0; f < 300; f++) Encounter.updateSkirmish(st, { isDown: function () { return false; }, once: function () { return false; } });
@@ -438,6 +445,51 @@ function runAsiaCheck() {
         });
       } catch (e) { issues.push('東方艦隊的海戰出錯：' + e.message); }
     })();
+
+    // ── L) 泉州造船廠、開買來的船打東方艦隊 ──
+    sv.flags.asShip = 0;
+    ['dhow', 'fuchuan', 'baochuan'].forEach(function (id) { sv.upgrades && delete sv.upgrades['aship_' + id]; });
+    if (Expedition.prompt({ kind: 'warZY', def: Encounter.KINDS.warZY }).indexOf('泉州造船廠') < 0) issues.push('沒有船的時候，東方艦隊的提示沒說要去買船');
+    sv.wallet = 100000;
+    if (!Shop.buy('aship_dhow') || Save.flag('asShip') !== 'dhow') issues.push('買了三角帆船沒有開這艘');
+    Shop.buy('aship_baochuan');
+    if (Save.flag('asShip') !== 'baochuan') issues.push('買了寶船沒有換開寶船');
+    Shop.toggleWear('aship_dhow');
+    if (Save.flag('asShip') !== 'dhow' || !Shop.wearing('aship_dhow')) issues.push('造船廠再按一次沒有換回三角帆船');
+    if (Shop.itemsOf('asYard').length !== 3) issues.push('泉州造船廠賣的船不是 3 艘');
+    function navalRun(kind, ship, act) {
+      sv.flags.asShip = ship;
+      const def = Encounter.makeDef({ kind: kind, def: Encounter.KINDS[kind], x: 0, y: 0 });
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      let res = null, f = 0, fire = false;
+      const inp = { isDown: function () { return false; }, once: function (a) { return a === 'throw' && fire; } };
+      try {
+        for (; f < def.duration + 10 && !res; f++) {
+          fire = false;
+          if (act && st.mini) fire = act(st.mini);
+          const ev = Encounter.updateSkirmish(st, inp);
+          if (ev.indexOf('clear') >= 0) res = 'win';
+          if (ev.indexOf('minifail') >= 0) res = 'lose';
+        }
+        const cv = document.createElement('canvas'); cv.width = 960; cv.height = 480;
+        Encounter.drawWorld(cv.getContext('2d'), st, f); Encounter.drawHud(cv.getContext('2d'), st, 960);
+      } catch (e) { issues.push(kind + ' 海戰出錯：' + e.message); }
+      return { res: res, frames: f, mini: st.mini };
+    }
+    // 並排齊射：每次裝填好，把敵艦擺到我方的正側面再開砲
+    ['warDH', 'warZY', 'warAT'].forEach(function (kind) {
+      const r = navalRun(kind, 'fuchuan', function (mini) {
+        const me = mini.me, foe = mini.foe;
+        if (mini.reload !== 0) return false;
+        foe.x = me.x - Math.sin(me.a) * 120; foe.y = me.y + Math.cos(me.a) * 120;
+        return true;
+      });
+      if (r.res !== 'win') issues.push(kind + '：並排齊射打不沉（' + r.res + '）');
+    });
+    const idle = navalRun('warAT', 'dhow');
+    if (idle.res !== 'lose') issues.push('東方艦隊：什麼都不做也不會輸');
+    const slow = navalRun('warDH', 'baochuan'), fast = navalRun('warDH', 'dhow');
+    if (!(slow.mini.hpMax > fast.mini.hpMax && slow.mini.guns > fast.mini.guns)) issues.push('寶船沒有比三角帆船硬、砲多');
 
     // ── K) 三隻魔王打得倒 ──
     function bossRun(kind, act) {

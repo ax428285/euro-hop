@@ -444,5 +444,16 @@ const Asia = (function () {
     ctx.beginPath(); ctx.moveTo(-0.6 * s, -7 * s); ctx.lineTo(-0.6 * s, 13 * s); ctx.moveTo(0.6 * s, -7 * s); ctx.lineTo(0.6 * s, 13 * s); ctx.stroke();
   };
 
+  // v1.33.3 泉州造船廠的船（從上面看）
+  ['dhow', 'fuchuan', 'baochuan'].forEach(function (id) {
+    IC['aship_' + id] = function (ctx, s) {
+      if (typeof NavalWar === 'undefined') return;
+      const sp = NavalWar.SHIPS[id];
+      ctx.save(); ctx.scale(s * 0.42, s * 0.42); ctx.rotate(-0.5);
+      NavalWar.drawTopShip(ctx, { x: 0, y: 0, a: 0, len: sp.len, wid: sp.wid }, id, 0, 0);
+      ctx.restore();
+    };
+  });
+
   return { FLAGS: FLAGS, dome: dome };
 })();

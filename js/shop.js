@@ -133,6 +133,19 @@ const Shop = (function () {
   // （v1.31.3 玩家：雅典娜女神時裝移除 —— 珊瑚貝殼屋現在只賣 Thalassa 的衣服）
 
   /*
+   * v1.33.3 泉州造船廠（亞洲）：買船。東方艦隊的海戰（navalwar.js）要開自己買的船打 ——
+   * 買了就換這艘出海；已經有的再按一次 = 改開這艘。旗標 asShip = 現在開哪一艘。船的性能在 navalwar.js 的 SHIPS。
+   */
+  [
+    ['dhow', '阿拉伯三角帆船', '輕又快、轉彎靈活，兩側各 2 門砲', 1200],
+    ['fuchuan', '福船', '泉州的戰船：船身厚，兩側各 3 門砲', 2600],
+    ['baochuan', '鄭和寶船', '九根桅杆的超大寶船：最硬、兩側各 4 門砲，但轉彎很慢', 5000]
+  ].forEach(function (c) {
+    items.push({ id: 'aship_' + c[0], aship: c[0], name: c[1], icon: 'aship_' + c[0], desc: '船：' + c[2],
+                 kind: 'look', maxLevel: 1, cost: [c[3]], shop: 'asYard' });
+  });
+
+  /*
    * v1.31.3 玩家：人魚時裝再幫我多弄幾套 → Thalassa 自己的衣服（珊瑚貝殼屋買，買了她就換上；再按一次 = 換回貝殼上衣）。
    * 0 號是原本的白貝殼上衣（不用買）。旗標 merOutfit = 現在穿第幾套。變成人類之後，洋裝也換成同一套的顏色。畫法在 pet.js、quests.js。
    */
@@ -164,7 +177,9 @@ const Shop = (function () {
     boutique: { name: '聖胡安服裝店', who: '波多黎各聖胡安的服裝店', line: '「出門旅行，總要有幾套體面的衣服。」買了就穿上，按 I 可以換', look: true },
     petshop:  { name: '千里達寵物用品店', who: '千里達的寵物用品店', line: '「給你的狗狗也打扮一下吧！」買了狗狗就會戴上', look: true },
     // v1.31.2 亞特蘭提斯海底城
-    shellHouse: { name: '珊瑚貝殼屋', who: '亞特蘭提斯中央廣場的服裝店', line: '「給 Thalassa 的衣服喔！」買了她就換上，再按一次換回貝殼上衣', look: true }
+    shellHouse: { name: '珊瑚貝殼屋', who: '亞特蘭提斯中央廣場的服裝店', line: '「給 Thalassa 的衣服喔！」買了她就換上，再按一次換回貝殼上衣', look: true },
+    // v1.33.3 亞洲
+    asYard: { name: '泉州造船廠', who: '泉州港的造船師傅', line: '「跟東方艦隊打，要一艘好船！」買了就開這艘出海，已經有的再按一次換船', look: true }
   };
   const SELLER_OF = { heart: 'portugal', magnet: 'isle', shield: 'fjord', boots: 'fjord', luck: 'oasis' };
   items.forEach(function (it) { it.seller = it.shop || (it.costume ? 'boutique' : it.acc ? 'petshop' : (SELLER_OF[it.id] || 'portugal')); });
@@ -208,6 +223,7 @@ const Shop = (function () {
     if (byId[id].costume) Save.addCostume(byId[id].costume);     // 時裝：買了就穿上
     else Save.addUpgrade(id);
     if (byId[id].mer) Save.setFlag('merOutfit', byId[id].mer);   // Thalassa 的衣服：買了她就換上
+    if (byId[id].aship) Save.setFlag('asShip', byId[id].aship);  // 泉州造船廠：買了就開這艘
     return true;
   }
 
@@ -257,6 +273,7 @@ const Shop = (function () {
       if (!it) return false;
       if (it.costume) return Save.get().costume === it.costume;
       if (it.mer) return (Save.flag('merOutfit') || 0) === it.mer;
+      if (it.aship) return Save.flag('asShip') === it.aship;
       if (it.acc) return Save.upgradeLevel(it.id) > 0 && !Save.flag('dogOff_' + it.acc);
       return false;
     },
@@ -277,6 +294,7 @@ const Shop = (function () {
         Save.setFlag('merOutfit', on ? 0 : it.mer);
         return on ? 'off' : 'on';
       }
+      if (it.aship) { Save.setFlag('asShip', it.aship); return 'on'; }     // 船只能換、不能「脫掉」
       if (it.acc) {
         const off = !!Save.flag('dogOff_' + it.acc);
         Save.setFlag('dogOff_' + it.acc, off ? 0 : 1);

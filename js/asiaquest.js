@@ -10,7 +10,7 @@
  *         五行山的孫悟空   xyWukong  三打白骨精：三個村民裡有一個是白骨精變的（影子是骷髏），踩對的那一個
  *         高老莊的豬八戒   xyBajie   吃西瓜比賽：天上掉西瓜，搶在八戒前面吃掉 10 顆
  *         流沙河的沙悟淨   xyWujing  渡流沙河：踩著會沉下去的石頭過河，來回兩趟
- *       （收到的徒弟跟在你後面走；打贏 = Save.seaBossDown(那一關)）
+ *       （打贏 = Save.seaBossDown(那一關)；收到的徒弟先回那爛陀寺跟師父會合 —— v1.33.3 玩家：任務解完後不要跟在我後面）
  *     三個都收齊 → 回去找玄奘：師徒四人一起出發                                           sutra 2
  *     → 火焰山 xyFlame：往前走過整座火焰山（地上的裂縫會噴火）                              sutra 3
  *     → 長安的大雁塔：稱號「取經人」（pilgrim）、時裝「齊天大聖」、亞洲 EXP、金幣             sutra 4
@@ -48,7 +48,9 @@ const AsiaQuest = (function () {
     { id: 'Q_flame', npc: 'flame', name: '火焰山', lon: 89.0, lat: 43.6, prompt: '按 Enter 走向火焰山' },
     // 喀什：絲路南北兩條路在這裡會合；上都：忽必烈的夏宮（馬可波羅寫的 Xanadu）
     { id: 'Q_marco', npc: 'marco', name: '馬可波羅', lon: 76.0, lat: 39.5, prompt: '按 Enter 跟馬可波羅說話' },
-    { id: 'Q_xanadu', npc: 'xanadu', name: '上都', lon: 116.2, lat: 43.2, prompt: '按 Enter 走進忽必烈的上都' }
+    { id: 'Q_xanadu', npc: 'xanadu', name: '上都', lon: 116.2, lat: 43.2, prompt: '按 Enter 走進忽必烈的上都' },
+    // v1.33.3 玩家：亞洲新增一個地方可以買船 → 泉州（馬可波羅說它是世界最大的港口「刺桐」），東方艦隊的海戰要開買來的船
+    { id: 'M_asYard', seller: 'asYard', name: '泉州造船廠', lon: 118.6, lat: 25.0, prompt: '按 Enter 進泉州造船廠買船' }
   );
 
   // ════════════════════════════════════════════════════════
@@ -103,6 +105,8 @@ const AsiaQuest = (function () {
       for (let k = 0; k < 3; k++) ctx.fillRect(x - 9, y - 21 + k * 5, 7, 2);
       Q.tinyPerson(ctx, x + 1, y, '#d8902a', '#e8c49a');
       ctx.fillStyle = '#c8a060'; ctx.beginPath(); ctx.ellipse(x + 1, y - 22, 8, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+      // 收到的徒弟先回來這裡等師父（站在玄奘旁邊）
+      if (flag('sutra') === 1) DISCIPLES.forEach(function (d, i) { if (got(d)) drawChibi(ctx, d.id, x + 12 + i * 7, y + 2, t + i * 9); });
       questMark(ctx, x, y, t, flag('sutra') === 0 || (flag('sutra') === 1 && !missing().length));
     },
     portraits: {
@@ -204,21 +208,21 @@ const AsiaQuest = (function () {
       ask: [L('wukong', '你是師父派來的？太好了！可是山頂有一道封印 —— 附近的白骨精一直跑來搗亂。'),
             L('wukong', '她會變成村民的樣子騙人，看她的影子就知道：影子是骷髏的才是她！'),
             L('wukong', '踩她三下，俺老孫就能把封印撕掉出來！千萬別踩到真的村民啊。')],
-      done: '俺老孫先去師父那邊等你！'
+      done: '俺老孫先回那爛陀寺找師父了！'
     },
     bajie: {
       wait: ['bajie', '我是豬八戒，在高老莊吃好睡好⋯⋯什麼師父？我不記得了，呼嚕嚕。'],
       ask: [L('bajie', '師父找我？可是⋯⋯西瓜季到了，我要在這裡吃西瓜。'),
             L('bajie', '不然這樣：我們來比吃西瓜！天上掉下來的西瓜，誰先吃到 10 顆誰贏。'),
             L('bajie', '你贏了我就跟你走。嘿嘿，我可是很會吃的喔！')],
-      done: '走吧走吧，路上有好吃的記得叫我！'
+      done: '我先回師父那裡⋯⋯路上有好吃的記得叫我！'
     },
     wujing: {
       wait: ['wujing', '（流沙河裡冒出一顆光頭）⋯⋯這條河鵝毛都浮不起來，你過不去的。'],
       ask: [L('wujing', '你是師父派來接我的？我在河的那一頭等，可是流沙河的石頭一踩就會沉下去。'),
             L('wujing', '踩著石頭過河，來回兩趟，證明你走得過去 —— 我就跟你走。'),
             L('wujing', '小心河裡會冒出水柱！')],
-      done: '師父的行李交給我挑。'
+      done: '我先去那爛陀寺，師父的行李交給我挑。'
     }
   };
   DISCIPLES.forEach(function (d) {
@@ -257,7 +261,7 @@ const AsiaQuest = (function () {
         const m = missing();
         return { who: d.id, lines: [
           L(d.id, d.id === 'wukong' ? '哈哈！封印撕掉了，俺老孫自由啦！' : d.id === 'bajie' ? '⋯⋯好吧，你比我還會吃，我認輸。' : '你過得了流沙河，我信你了。'),
-          L(d.id, '我跟你走，去找師父！'),
+          L(d.id, '我先回那爛陀寺找師父，在那裡等你！'),
           L('me', m.length ? '還有' + m.map(function (q) { return q.where + '的' + q.name; }).join('、') + '要找。' : '三個徒弟都到齊了，回那爛陀寺找玄奘法師吧！')
         ] };
       }
@@ -429,8 +433,8 @@ const AsiaQuest = (function () {
   function followers() {
     const out = [];
     const s = flag('sutra');
-    if (s === 2 || s === 3) out.push('xuanzang');
-    if (s >= 1 && s < 4) DISCIPLES.forEach(function (d) { if (got(d)) out.push(d.id); });
+    // 只有護送途中（師徒四人出發後、送到長安前）才跟著走；收到的徒弟先回那爛陀寺等，任務完成就各自散了
+    if (s === 2 || s === 3) { out.push('xuanzang'); DISCIPLES.forEach(function (d) { out.push(d.id); }); }
     if (flag('marco') === 1) out.push('marco');
     return out;
   }
