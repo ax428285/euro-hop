@@ -83,7 +83,7 @@
 - v1.32.0（2026-10-11 已上線）咖啡與絲路：新大陸（region america）關卡的金幣是咖啡果實（game.js `cherryMode()`、`bankCoins` 存進 `Save.flag('cherries')`；Sprites.cherry、race.js、topdown.js 照它換畫法）；
   咖啡烘豆場（quests.js AM_SPOTS `Q_roastery`，talk `roastery`，`ROAST_COST` 2500 蓋、`ROAST_PER` 200 顆一箱）→ Trade 的 `coffee`（home null，只能賣）；
   絲路公主（SPOTS `Q_princess`，talk `princess`，`PRINCESS_NEED` 2 箱，公主不給「去哪裡弄」的提示）→ `Save.flag('silkRoad')`，地圖上的絲路變金色「已開通・亞洲篇製作中」。測試 `tests/coffee-check.js` 的 `runCoffeeCheck`。
-- v1.32.1（還沒上線，在 nordic）亞洲篇第一批：亞洲大地圖 `WorldMap.useWorld('as')`（`js/asia-geo.js` 由 `tools/build-asia-map.js` 產生，經度 43～143），region `asia`，Levels.list 第 39、40 關（IR 伊朗、UZ 烏茲別克）。
+- v1.32.1（2026-10-11 已上線）亞洲篇第一批：亞洲大地圖 `WorldMap.useWorld('as')`（`js/asia-geo.js` 由 `tools/build-asia-map.js` 產生，經度 43～143），region `asia`，Levels.list 第 39、40 關（IR 伊朗、UZ 烏茲別克）。
   - 進出：開通絲路（`Save.flag('silkRoad')`）後在歐洲地圖土耳其往東走到地圖邊緣（voyage.js `silkEast`）→ game.js `crossSilk`；亞洲地圖往西走到底（`silkWest`）回歐洲。亞洲地圖不生海上怪物，大地圖曲 ASMAP。
   - 亞洲關卡的金幣是蠶繭（game.js `HARVEST` 表：america = 咖啡果實、asia = 蠶繭 `Save.flag('cocoons')`；`Game.harvestKind()`、`Sprites.harvest`），之後的批次拿去絲綢工坊。
   - 亞洲的機關寫在 `js/silkroad.js`，用 `Features.register(type, {plan, init, update, draw, solid})` 掛進 features.js（不要再把新機關塞進 features.js）；美術在 `js/asia.js`。
