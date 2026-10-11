@@ -17,7 +17,7 @@
  *   K) 三隻魔王都打得倒（照牠們的破綻踩），時間到會輸；東方艦隊的海戰給亞洲 EXP
  *   L) v1.33.3 泉州造船廠：買船、換船；沒船不能跟東方艦隊開戰；開買來的船打（並排齊射打得沉、什麼都不做會被打沉）；
  *      任務做完不再有人跟在後面（收到的徒弟先回那爛陀寺，只有護送途中才跟著走）
- *   M) v1.33.6 匈奴進攻：亞洲沒破完不會觸發；全破 → 三支騎兵隊在亞洲的陸地上往長安走；長城保衛戰打得贏、放騎兵過去會輸；
+ *   M) v1.33.6 匈奴進攻：亞洲（不算東亞）沒破完不會觸發；破完 → 三支騎兵隊在亞洲的陸地上往長安走；長城保衛戰打得贏、放騎兵過去會輸；
  *      三支都打退 → 阿提拉出現在歐洲的陸地上；阿提拉之戰射箭打得倒、什麼都不做會輸；打倒 → 稱號
  * 會暫時改存檔，結束前還原。
  */
@@ -511,7 +511,8 @@ function runAsiaCheck() {
     WorldMap.useWorld('as'); Voyage.rebuild(); Encounter.clear();
     sv.cleared = sv.cleared.filter(function (i) { return Levels.list[i].region !== 'asia'; });
     if (Huns.check()) issues.push('亞洲還沒破完，匈奴就打過來了');
-    Levels.list.forEach(function (l, i) { if (l.region === 'asia' && sv.cleared.indexOf(i) < 0) sv.cleared.push(i); });
+    // 東亞（中國、蒙古）不用破：其他亞洲的關卡破完就觸發
+    Levels.list.forEach(function (l, i) { if (l.region === 'asia' && l.gate !== 'easia' && sv.cleared.indexOf(i) < 0) sv.cleared.push(i); });
     if (Huns.check() !== 'hunsAlarm' || Save.flag('huns') !== 1) issues.push('亞洲全破了，沒有觸發匈奴進攻');
     if (!Quests.talk('hunsAlarm') || !Quests.talk('hunsFlee')) issues.push('匈奴進攻的對話不見了');
     Encounter.updateMap(Voyage.shipPos(), 0);

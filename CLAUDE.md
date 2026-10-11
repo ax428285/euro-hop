@@ -113,8 +113,8 @@
 - v1.33.4（還沒上線）：AS_SPOTS 可以有 `gone()`（馬可波羅跟你走之後喀什的地點收起來）；entities.js 的丟在 `def.hidePlayer` 的關卡不作用（海戰按 J／K 不會丟出平台的子彈）。
 - v1.33.5（還沒上線）：地圖上的「！」= 有事情可以做（quests.js 的 `todo(kind)`，歐洲、新大陸、海底城；亞洲的在 asiaquest.js 的 questMark）。新增劇情人物時要記得補 todo。亞洲地圖的國名貼近圖釘（worldmap.js placeOne：as 地圖 35px）；上都搬到 (120.0, 44.6)。
 - v1.33.7（還沒上線）：亞洲地圖畫萬里長城（huns.js 的 WALL、drawWall，由 worldmap.js 在 as 地圖呼叫）。
-- v1.33.6（還沒上線）匈奴進攻（js/huns.js）：flag `huns` 0 → 亞洲關卡全破、人在亞洲地圖 → 1（talk hunsAlarm，長城守將）→ 三支騎兵隊 hun0～2（陸地上往長安走，registerMini 的 mapNear）
+- v1.33.6（還沒上線）匈奴進攻（js/huns.js）：flag `huns` 0 → 亞洲關卡（不含東亞 gate easia）全破、人在亞洲地圖 → 1（talk hunsAlarm，長城守將）→ 三支騎兵隊 hun0～2（陸地上往長安走，registerMini 的 mapNear）
   長城保衛戰（踩騎兵下馬、衝過長城太多會輸）→ 全打退 → 2（hunsFlee）→ 歐洲喀爾巴阡山下的魔王 `attila`（沙隆平原之戰：小遊戲自己的弓、木盾牌擋平射的箭；def.noThrow）→ 3、稱號 hunbane。
-  Encounter.registerEnsure(fn(monsters, world)) 每帧補地圖上的怪；game.js 地圖畫面每帧問 Huns.check()。亞洲之後再加關卡（第三批），亞洲「全破」的條件會跟著變。
+  Encounter.registerEnsure(fn(monsters, world)) 每帧補地圖上的怪；game.js 地圖畫面每帧問 Huns.check()。v1.33.8 起觸發條件不含東亞；第三批的韓國、日本如果標 gate easia 也不算。
   - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店、忍者在大地圖隨機出現（八岐大蛇已經在 v1.33.1 做了）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

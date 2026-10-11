@@ -3,7 +3,7 @@
 /**
  * v1.33.6 匈奴進攻（玩家：亞洲地圖全過後，會觸發匈奴進攻）。
  *
- *   觸發：亞洲的關卡全部破完、人在亞洲地圖 → 長城的守將來報：烽火點起來了，三支匈奴騎兵隊從北方草原南下（flag huns 1）
+ *   觸發：亞洲的關卡（不算東亞：中國、蒙古⋯⋯）全部破完、人在亞洲地圖 → 長城的守將來報：烽火點起來了，三支匈奴騎兵隊從北方草原南下（flag huns 1）
  *   一、長城保衛戰（hun0、hun1、hun2）
  *       三支騎兵隊在地圖上從蒙古草原往長安慢慢逼近（陸地上的怪，走路碰到按 Enter）。
  *       站在長城上：騎兵從右邊一隊隊衝過來 —— 跳到騎兵頭上把他踩下馬；被馬撞到會痛；弓騎兵會往你射箭，
@@ -29,8 +29,9 @@ const Huns = (function () {
   const CHANGAN = [108.9, 34.2];
   const ATTILA_AT = [22.6, 48.3];          // 喀爾巴阡山下（匈牙利東北）
   function flag(k) { return Save.flag(k) || 0; }
+  /** v1.33.8 玩家：亞洲全破「不包含東亞」就會觸發 —— 只看西亞、中亞、南亞（gate 不是 easia 的亞洲關卡） */
   function asiaDone() {
-    return Levels.list.every(function (l, i) { return l.region !== 'asia' || Save.isCleared(i); });
+    return Levels.list.every(function (l, i) { return l.region !== 'asia' || l.gate === 'easia' || Save.isCleared(i); });
   }
   function hordesDown() { return HORDES.every(function (h) { return Save.seaBossDown(h.kind); }); }
   function rnd(mini) { mini.rs = (mini.rs * 16807) % 2147483647; return (mini.rs - 1) / 2147483646; }
