@@ -350,7 +350,8 @@ const Expedition = (function () {
     if (lv) Sprites.flagFace(ctx, 0.7, top - 8, 11, 7, lv.flag, lv.flagDir);
     ctx.restore();
     const tagY = -46 * sz - 4;
-    const label = '★★★'.slice(0, w.rank) + ' ' + (w.label || w.country + '戰艦') + (down ? '（已擊沉）' : '');
+    // v1.33.13 玩家：打完船艦不用寫「已擊沉」，牌子變灰就好
+    const label = '★★★'.slice(0, w.rank) + ' ' + (w.label || w.country + '戰艦');
     ctx.fillStyle = down ? 'rgba(50, 40, 40, 0.9)' : 'rgba(110, 20, 20, 0.92)';
     U.roundRect(ctx, -40, tagY, 80, 13, 4); ctx.fill();
     U.text(ctx, label, 0, tagY + 6.5, { size: 9, color: down ? '#c8bcb0' : '#ffd0c8', stroke: false });
