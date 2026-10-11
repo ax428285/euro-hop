@@ -181,7 +181,7 @@ const AsiaBoss = (function () {
   // ════════════════════════════════════════════════════════
   const DRAGON_HP = 6, SEGS = 18;
   Encounter.registerMini('dragon', {
-    at: [124, 33],
+    at: [122.5, 36.5],       // 黃海（東海的北邊；南邊留給安宅船）
     def: { name: '東海龍王', lv: '魔王', exp: 150, bossExp: 350, bossCoins: 350, game: '東海的龍王', as: true, boss: true, duration: 100 * 60,
            fact: '中國的傳說裡，東海龍王住在海底的水晶宮；《西遊記》的孫悟空就是去他那裡借走了金箍棒。',
            goal: '水花 = 龍要躍出來・紅圈 = 火球落點・頭靠在甲板上時踩龍珠' },

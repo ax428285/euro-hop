@@ -10,7 +10,8 @@
  *   F) 印度、尼泊爾、中國、蒙古在亞洲地圖上；中國、蒙古是東亞（gate easia），亞洲 EXP 夠了才解鎖
  *   G) 印度：騎大象才撞得開路障；尼泊爾：氧氣會掉、帳篷補滿、用完扣命；中國：烽火全點燃關門才開、箭雨會痛；蒙古：射中箭靶
  *   H) 亞洲的海上冒險：四種都生得出來、跑得動；龍舟照鼓點打會贏、不打會輸；香料接得到
- *   I) 玄奘的委託：接下 → 經書送到大雁塔 → 稱號「取經人」、亞洲 EXP；玄奘、大雁塔、馬可波羅都在陸地上
+ *   I) v1.33.2 西天取經：接下委託 → 三個徒弟各打贏一場小遊戲 → 玄奘出發 → 火焰山 → 大雁塔（取經人、齊天大聖時裝、亞洲 EXP）；
+ *      大汗的寶物：馬可波羅跟著走 → 上都（東亞沒解鎖進不去）→ 三件紀念品 → 大汗的使者。四個小遊戲打得贏、什麼都不做會輸
  *   v1.33.1：
  *   J) 亞洲地圖上有三隻海上魔王（大鵬、龍王、八岐大蛇）和東方艦隊三艘戰艦，都在海上；南海海盜船會出現
  *   K) 三隻魔王都打得倒（照牠們的破綻踩），時間到會輸；東方艦隊的海戰給亞洲 EXP
@@ -149,7 +150,7 @@ function runAsiaCheck() {
       if (id !== 'MN' && !Sprites.skylines[id]) issues.push(id + ' 沒有遠景');
     });
     // 地圖上的劇情人物
-    ['xuanzang', 'goose', 'marco'].forEach(function (npc) {
+    ['xuanzang', 'goose', 'marco', 'wukong', 'bajie', 'wujing', 'flame', 'xanadu'].forEach(function (npc) {
       const s = WorldMap.specials.filter(function (q) { return q.def.npc === npc; })[0];
       if (!s) issues.push('亞洲地圖上沒有 ' + npc);
       else if (!Voyage.isLand(s.pin[0], s.pin[1])) issues.push(npc + ' 不在陸地上');
@@ -300,22 +301,110 @@ function runAsiaCheck() {
     if (!picked.spices || Object.keys(picked).some(function (k) { return !Encounter.KINDS[k].as; })) issues.push('亞洲地圖上生出來的海上怪不對（' + Object.keys(picked).join('、') + '）');
     WorldMap.useWorld('eu'); Voyage.rebuild();
 
-    // ── I) 玄奘的委託 ──
+    // ── I) 西天取經 ──
+    const NOIN = { isDown: function () { return false; }, once: function () { return false; } };
     sv.flags.sutra = 0; sv.flags.pilgrim = 0;
+    sv.seaBosses = (sv.seaBosses || []).filter(function (k) { return k.indexOf('xy') !== 0; });
+    sv.costumes = sv.costumes.filter(function (c) { return c !== 'wukong'; });
     const e0 = sv.expAs;
     let tk = Quests.talk('goose');
-    if (tk.end) { tk.end(true); }
-    if (Save.flag('pilgrim')) issues.push('沒帶經書就拿到「取經人」');
+    if (tk.end && tk.end(true)) issues.push('什麼都沒做，大雁塔就給了獎勵');
+    tk = Quests.talk('wukong');
+    if (tk.end && tk.end(true)) issues.push('還沒接委託就能收孫悟空');
     tk = Quests.talk('xuanzang');
     if (!tk.end) issues.push('玄奘沒有給委託');
     else { tk.end(false); if (Save.flag('sutra')) issues.push('話沒聽完就接了委託'); tk.end(true); }
-    if (Save.flag('sutra') !== 1) issues.push('接下玄奘的委託後沒有記成帶著經書');
+    if (Save.flag('sutra') !== 1) issues.push('接下玄奘的委託後 sutra 不是 1');
+    AsiaQuest.DISCIPLES.forEach(function (d) {
+      const t2 = Quests.talk(d.id), r2 = t2.end && t2.end(true);
+      if (!r2 || r2.fight !== d.kind) issues.push(d.name + '：對話完沒有開始小遊戲');
+    });
+    tk = Quests.talk('xuanzang');
+    if (tk.end && tk.end(true)) issues.push('徒弟還沒收齊，玄奘就出發了');
+    AsiaQuest.DISCIPLES.forEach(function (d) { Save.markSeaBoss(d.kind); });
+    if (AsiaQuest.followers().length !== 3) issues.push('收到的三個徒弟沒有跟在後面（' + AsiaQuest.followers().join('、') + '）');
+    tk = Quests.talk('xuanzang'); if (tk.end) tk.end(true);
+    if (Save.flag('sutra') !== 2) issues.push('徒弟收齊了，玄奘沒有出發');
     tk = Quests.talk('goose');
-    if (tk.end) tk.end(true);
-    if (Save.flag('sutra') !== 2 || !Save.flag('pilgrim')) issues.push('經書送到大雁塔沒有完成委託');
-    if (sv.expAs !== e0 + AsiaQuest.SUTRA_EXP) issues.push('經書送到沒有加亞洲 EXP');
-    tk = Quests.talk('marco');
-    if (!tk || !tk.lines.length) issues.push('馬可波羅不會說話');
+    if (tk.end && tk.end(true)) issues.push('還沒過火焰山就到大雁塔完成了');
+    tk = Quests.talk('flame');
+    const rf = tk.end && tk.end(true);
+    if (!rf || rf.fight !== 'xyFlame') issues.push('火焰山沒有開始小遊戲');
+    Encounter.KINDS.xyFlame.onWin();
+    if (Save.flag('sutra') !== 3) issues.push('過了火焰山 sutra 不是 3');
+    tk = Quests.talk('goose'); if (tk.end) tk.end(true);
+    if (Save.flag('sutra') !== 4 || !Save.flag('pilgrim')) issues.push('送到大雁塔沒有完成西天取經');
+    if (sv.expAs !== e0 + AsiaQuest.SUTRA_EXP) issues.push('西天取經沒有加亞洲 EXP');
+    if (sv.costumes.indexOf('wukong') < 0) issues.push('西天取經沒有給「齊天大聖」時裝');
+    if (AsiaQuest.followers().length) issues.push('取經完成了，徒弟還跟在後面');
+    // ── I) 大汗的寶物 ──
+    sv.flags.marco = 0; sv.flags.envoy = 0;
+    const souv0 = sv.souvenirs.slice();
+    sv.souvenirs = sv.souvenirs.filter(function (id) { return AsiaQuest.KHAN_WANTS.indexOf(id) < 0; });
+    tk = Quests.talk('marco'); if (tk.end) tk.end(true);
+    if (Save.flag('marco') !== 1 || AsiaQuest.followers().indexOf('marco') < 0) issues.push('馬可波羅沒有跟著走');
+    sv.expAs = 0;
+    tk = Quests.talk('xanadu');
+    if (tk.end && tk.end(true)) issues.push('東亞還沒解鎖就進了上都');
+    sv.expAs = Encounter.EASIA_EXP;
+    tk = Quests.talk('xanadu'); if (tk.end) tk.end(true);
+    if (Save.flag('marco') !== 2) issues.push('帶馬可波羅到上都，忽必烈沒有給委託');
+    tk = Quests.talk('xanadu');
+    if (tk.end && tk.end(true)) issues.push('寶物還沒找齊，大汗就給了獎勵');
+    AsiaQuest.KHAN_WANTS.forEach(function (id) { Save.addSouvenir(id); });
+    tk = Quests.talk('xanadu'); if (tk.end) tk.end(true);
+    if (Save.flag('marco') !== 3 || !Save.flag('envoy')) issues.push('寶物找齊了，沒有成為「大汗的使者」');
+    sv.souvenirs = souv0;
+
+    // 四個小遊戲：照玩法打得贏、什麼都不做會輸
+    function xyRun(kind, act) {
+      const def = Encounter.makeDef({ kind: kind, def: Encounter.KINDS[kind], x: 0, y: 0 });
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      const p = st.player;
+      let res = null, f = 0;
+      try {
+        for (; f < def.duration + 10 && !res; f++) {
+          p.invuln = 999;
+          if (act && st.mini) act(st, st.mini, p);
+          const ev = Encounter.updateSkirmish(st, NOIN);
+          if (!res) { updatePlayer(st, NOIN, f); }
+          if (ev.indexOf('clear') >= 0) res = 'win';
+          if (ev.indexOf('minifail') >= 0) res = 'lose';
+        }
+        const cv = document.createElement('canvas'); cv.width = 960; cv.height = 480;
+        Encounter.drawWorld(cv.getContext('2d'), st, f); Encounter.drawHud(cv.getContext('2d'), st, 960);
+      } catch (e) { issues.push(kind + ' 出錯：' + e.message); }
+      return res;
+    }
+    const GYx = Levels.GROUND_Y;
+    if (xyRun('xyWukong', function (st, mini, p) {
+      const dm = mini.folk.filter(function (q) { return q.demon; })[0];
+      if (dm) { p.x = dm.x - p.w / 2; p.y = GYx - 44 - p.h + 4; p.vy = 4; }
+    }) !== 'win') issues.push('三打白骨精：踩白骨精打不贏');
+    if (xyRun('xyWukong', function (st, mini, p) {
+      const h = mini.folk.filter(function (q) { return !q.demon; })[0];
+      if (h) { p.x = h.x - p.w / 2; p.y = GYx - 44 - p.h + 4; p.vy = 4; }
+    }) === 'win') issues.push('三打白骨精：一直踩村民也會贏');
+    if (xyRun('xyBajie', function (st, mini, p) {
+      const m = mini.melons.filter(function (q) { return q.on; })[0];
+      if (m) { p.x = m.x - p.w / 2; p.y = m.y - 10; p.vy = 0; }
+    }) !== 'win') issues.push('吃西瓜比賽：每顆都去吃還是輸給八戒');
+    if (xyRun('xyBajie') !== 'lose') issues.push('吃西瓜比賽：什麼都不做也不會輸');
+    if (xyRun('xyWujing', function (st, mini, p) {
+      if (mini.elapsed % 60 === 30) { p.x = mini.goRight ? 900 : 40; p.y = GYx - p.h; p.vy = 0; p.onGround = true; }
+    }) !== 'win') issues.push('渡流沙河：到了對岸沒有算數');
+    if (xyRun('xyWujing') !== 'lose') issues.push('渡流沙河：什麼都不做也不會輸');
+    (function () {
+      // 石頭站一下會沉
+      const def = Encounter.makeDef({ kind: 'xyWujing', def: Encounter.KINDS.xyWujing, x: 0, y: 0 });
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      const s = st.def.stones[0], p = st.player;
+      if (!st.def.platforms || st.def.platforms.indexOf(s) < 0) issues.push('渡流沙河：石頭不是踩得到的平台');
+      for (let f = 0; f < 90; f++) { p.x = s.x + 10; p.y = s.y - p.h; p.vy = 0; p.onGround = true; Encounter.updateSkirmish(st, NOIN); }
+      if (!(s.gone > 0 || s.y > s.home + 5)) issues.push('渡流沙河：石頭站著不會沉');
+    })();
+    if (xyRun('xyFlame', function (st, mini, p) { if (mini.elapsed > 30) { p.x = AsiaQuest.FLAME_W - 100; } }) !== 'win') issues.push('火焰山：走到底沒有過關');
+    if (xyRun('xyFlame') !== 'lose') issues.push('火焰山：站著不動也不會輸');
 
     // ── J) 亞洲地圖上的魔王、艦隊 ──
     WorldMap.useWorld('as'); Voyage.rebuild(); Encounter.clear();
@@ -351,7 +440,6 @@ function runAsiaCheck() {
     })();
 
     // ── K) 三隻魔王打得倒 ──
-    const NOIN = { isDown: function () { return false; }, once: function () { return false; } };
     function bossRun(kind, act) {
       const k = Encounter.KINDS[kind], def = Encounter.makeDef({ kind: kind, def: k, x: 0, y: 0 });
       if (!def.as || !def.firstBoss && !Save.seaBossDown(kind)) issues.push(kind + '：魔王的定義不對（亞洲 EXP、第一次的獎勵）');

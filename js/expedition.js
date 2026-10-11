@@ -64,7 +64,7 @@ const Expedition = (function () {
     { id: 'ZY', country: '鄭一嫂', label: '鄭一嫂的旗艦', ship: '的紅旗號', lon: 116.0, lat: 20.0, hp: 170, rank: 2, tier: 3, style: 'junk',
       flag: ['#c8202a', '#c8202a', '#c8202a'], flagDir: 'h',
       fact: '鄭一嫂是歷史上最強的海盜之一：她的紅旗幫有七萬多個海盜，最後還跟清朝談判、帶著船隊全身而退。' },
-    { id: 'AT', country: '安宅船', label: '鐵甲安宅船', ship: '「日本丸」', lon: 127.5, lat: 32.0, hp: 280, rank: 3, tier: 5, style: 'atake',
+    { id: 'AT', country: '安宅船', label: '鐵甲安宅船', ship: '「日本丸」', lon: 128.5, lat: 29.0, hp: 280, rank: 3, tier: 5, style: 'atake',
       flag: ['#f4f4f0', '#c8202a', '#f4f4f0'], flagDir: 'h',
       fact: '日本戰國時代的安宅船是一座會浮在海上的木頭城堡；織田信長還造過外面包著鐵板的「鐵甲船」。' }
   ];

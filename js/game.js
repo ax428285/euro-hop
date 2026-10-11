@@ -422,6 +422,11 @@ const Game = (function () {
     if (r.sfx && Sfx[r.sfx]) Sfx[r.sfx]();
     if (r.shake) shake = r.shake;
     if (r.toast) toast = r.toast;
+    // v1.33.2 對話完直接開一場小遊戲（西遊記收徒弟、火焰山）
+    if (r.fight && Encounter.KINDS[r.fight]) {
+      const sp = Voyage.shipPos();
+      startSkirmish({ kind: r.fight, def: Encounter.KINDS[r.fight], x: sp.x, y: sp.y, port: true });
+    }
   }
 
   function drawTalk() {
@@ -2437,6 +2442,9 @@ const Game = (function () {
         if (ex.costume) expResult.costume = ex.costume;
         if (ex.talk) pendingTalk = ex.talk;
       }
+      // v1.33.2 外掛的小遊戲：打贏之後接一段對話（收到徒弟）、推進劇情（過了火焰山）
+      if (skirmish.def.winTalk) pendingTalk = skirmish.def.winTalk;
+      if (skirmish.def.onWin) { const note = skirmish.def.onWin(); if (note) expResult.note = note; }
       // 稀有怪：掉一套還沒有的時裝（全部都有了就改給金幣）
       if (skirmish.def.rare) {
         const missing = Costumes.defs.filter(function (d) { return !d.special && !Save.get().costumes.includes(d.id); });
@@ -3540,7 +3548,7 @@ const Game = (function () {
       clearedFn: function (i) { return Save.isCleared(i); },
       east: { unlocked: eastOpen },
       regionOpen: regionUnlocked,
-      beforeShip: function () { Encounter.drawMap(ctx, t); Pet.drawFollower(ctx, t); }
+      beforeShip: function () { Encounter.drawMap(ctx, t); Pet.drawFollower(ctx, t); if (typeof AsiaQuest !== 'undefined') AsiaQuest.drawFollowers(ctx, t); }
     });
     WorldMap.endView(ctx);
     drawMapScroll();
@@ -3855,7 +3863,8 @@ const Game = (function () {
     if (Save.flag('godHand')) t.push('「神之手」');
     if (Save.flag('sheep')) t.push('「比利時肥羊」');
     if (Save.flag('archer')) t.push('「草原神射手」');        // v1.33 蒙古：一趟射中全部的箭靶
-    if (Save.flag('pilgrim')) t.push('「取經人」');           // v1.33 幫玄奘把經書送回長安
+    if (Save.flag('pilgrim')) t.push('「取經人」');           // v1.33.2 西天取經
+    if (Save.flag('envoy')) t.push('「大汗的使者」');          // v1.33.2 替忽必烈找齊亞洲的寶物
     return t.join('');
   }
   let journalPage = 0;
@@ -3886,7 +3895,7 @@ const Game = (function () {
      ['人魚的好感度 ♥ ' + Quests.merLove() + ' / ' + Quests.merLoveMax(), Quests.merLove() >= Quests.merLoveMax()],
      ['巴黎鐵塔的夜景（人魚變成人類）', Quests.merHuman()], ['瑞士銀行開戶', !!Save.bank().open],
      ['咖啡烘豆場（新大陸）', !!Save.flag('roastery')], ['絲路公主的委託（開通絲路）', !!Save.flag('silkRoad')],
-     ['玄奘的經書（送回長安）', Save.flag('sutra') >= 2], ['遇見馬可波羅', !!Save.flag('marco')],
+     ['西天取經（收齊三個徒弟、過火焰山、回長安）', Save.flag('sutra') >= 4], ['大汗的寶物（護送馬可波羅見忽必烈）', Save.flag('marco') >= 3],
      ['收養黃金獵犬', Save.pet() === 'dog'], ['埃及豔后的聖蛇', !!Save.flag('asp')], ['聖誕老人的禮物', !!Save.flag('gift')]
     ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
     side.push({ head: '收集' });
@@ -3906,7 +3915,8 @@ const Game = (function () {
     });
     side.push({ name: '稱號「神之手」（打倒暗夜騎士）', done: !!Save.flag('godHand') });
     side.push({ name: '稱號「草原神射手」（蒙古一趟射中全部箭靶）', done: !!Save.flag('archer') });
-    side.push({ name: '稱號「取經人」（玄奘的經書）', done: !!Save.flag('pilgrim') });
+    side.push({ name: '稱號「取經人」（西天取經）', done: !!Save.flag('pilgrim') });
+    side.push({ name: '稱號「大汗的使者」（忽必烈的寶物）', done: !!Save.flag('envoy') });
     side.push({ name: '稱號「比利時肥羊」（被扒手偷 ' + Math.min(Save.flag('robbedTimes') || 0, Quests.ROB_TITLE) + ' / ' + Quests.ROB_TITLE + ' 次）', done: !!Save.flag('sheep') });
     return [{ title: '主線關卡', items: main, cols: 3 }, { title: '支線與收集', items: side, cols: 3 }];
   }
@@ -4495,7 +4505,7 @@ const Game = (function () {
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
       W / 2, 252, { size: 13, color: '#ffd166' });
     U.text(ctx, skirmish
-        ? (deadNote || (skirmish.def.duo ? '試煉場還在，兩個人準備好再來' : skirmish.def.rare ? skirmish.def.name + '溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
+        ? (deadNote || (skirmish.def.loseNote ? skirmish.def.loseNote : skirmish.def.duo ? '試煉場還在，兩個人準備好再來' : skirmish.def.rare ? skirmish.def.name + '溜走了⋯⋯下次看到要把握' : skirmish.def.dive ? '遺跡還在海底，準備好再潛一次' : skirmish.kind === 'charybdis' ? '被漩渦甩出來了⋯⋯' : '怪物還在海上，準備好再去挑戰'))
         : '裝備不會消失，回地圖再挑戰一次',
       W / 2, 280, { size: 14, color: '#c6d2e8' });
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {

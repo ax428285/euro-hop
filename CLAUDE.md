@@ -101,5 +101,10 @@
   - 大地圖魔王（asiaboss.js，registerMini 的 `at` = 經緯度、def.boss）：roc 大鵬金翅鳥（阿拉伯海）、dragon 東海龍王（東海）、orochi 八岐大蛇（日本海，酒罈灌醉再踩）；Encounter.ensureBosses 在亞洲地圖時放這些＋東方艦隊。
   - 東方艦隊（expedition.js `ASIA_WARSHIPS`、`ensureAsia`、`wanderAsia`）：warDH 阿拉伯海盜船（dhow）、warZY 鄭一嫂紅旗號（junk）、warAT 鐵甲安宅船（atake），戰艦海戰、給亞洲 EXP。
   - 亂數的南海海盜船 `asPirates`（base pirates，艦砲對決）。稀有怪的提示照實際生出來的名字（亞洲是黃金錦鯉）。
+- v1.33.2（還沒上線，在 nordic）亞洲的劇情（全部在 js/asiaquest.js，載入在 asiaboss.js 之後）：
+  - 西天取經 flag `sutra`：0 → 玄奘委託 1 → 三個徒弟各一個小遊戲（xyWukong 三打白骨精、xyBajie 吃西瓜比賽、xyWujing 渡流沙河；收到 = Save.seaBossDown）→ 玄奘出發 2 → 火焰山 xyFlame 3 → 大雁塔 4（稱號 pilgrim、時裝 `wukong` 齊天大聖）。
+  - 大汗的寶物 flag `marco`：0 → 馬可波羅跟著走 1 → 上都（要解鎖東亞）忽必烈委託 2 → 帶齊紀念品 minicarpet、masala、porcelain → 3（稱號 envoy）。
+  - 對話的 end 可以回傳 `{ fight: kind }` 直接開小遊戲；小遊戲的 def 可以有 `winTalk`（打贏接對話）、`onWin()`、`loseNote`。地圖上跟著走的人：AsiaQuest.drawFollowers。
+  - 時裝 `wukong`（costumes.js special、sprites.js costumeBody/Hat、voyage.js WALK_LOOK hat band）。
   - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店、忍者在大地圖隨機出現（八岐大蛇已經在 v1.33.1 做了）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

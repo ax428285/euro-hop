@@ -1570,6 +1570,12 @@ const Sprites = (function () {
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 10, y + 12, 20, 4);
       ctx.fillStyle = '#2a50a0'; ctx.fillRect(cx - 10, y + 15, 20, 2);
       ctx.fillStyle = '#e8b830'; ctx.fillRect(cx - 9, y + 22, 18, 2);
+    } else if (c === 'wukong') {
+      // 齊天大聖（v1.33.2 西天取經）：紅色上衣＋虎皮裙（橘底黑紋）
+      ctx.fillStyle = '#c8302a'; ctx.fillRect(cx - 9, y + 12, 18, 11);
+      ctx.fillStyle = '#e8a030'; ctx.fillRect(cx - 9, y + 23, 18, 9);
+      ctx.fillStyle = '#1a1a1a'; for (let k = 0; k < 4; k++) ctx.fillRect(cx - 8 + k * 5, y + 24, 2, 7);
+      ctx.fillStyle = '#e8c040'; ctx.fillRect(cx - 9, y + 22, 18, 2);
     } else if (c === 'golden') {
       const g = ctx.createLinearGradient(cx - 9, y + 12, cx + 9, y + 32);
       g.addColorStop(0, '#fff4b0'); g.addColorStop(0.5, '#f2c14e'); g.addColorStop(1, '#c8862a');
@@ -1615,6 +1621,10 @@ const Sprites = (function () {
       ctx.fillStyle = '#2a50a0';
       ctx.fillRect(cx - 9, y - 1, 18, 2); ctx.fillRect(cx - 11, y + 7, 4, 2); ctx.fillRect(cx + 7, y + 7, 4, 2);
       ctx.fillStyle = '#c8202a'; ctx.fillRect(cx + dir * 1 - 1, y - 6, 2, 4);
+    } else if (c === 'wukong') {
+      // 金箍：頭上一圈金色的箍，額頭中間尖起來
+      ctx.fillStyle = '#e8c040'; ctx.fillRect(cx - 9, y + 1, 18, 3);
+      ctx.beginPath(); ctx.moveTo(cx - 2, y + 1); ctx.lineTo(cx, y - 3); ctx.lineTo(cx + 2, y + 1); ctx.fill();
     } else if (c === 'royal' || c === 'golden') {
       ctx.fillStyle = '#f2c14e';
       ctx.beginPath();

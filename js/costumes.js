@@ -16,7 +16,9 @@ const Costumes = (function () {
     { id: 'royal', name: '歐羅巴王子', desc: '金王冠 + 紫色披風' },
     { id: 'golden', name: '黃金套裝', desc: '全身金光閃閃' },
     // v1.30：只有吉薩金字塔探險第一次走到墓室才拿得到（special = 黃金海馬不會掉）
-    { id: 'pharaoh', name: '法老', desc: '金藍條紋頭巾 + 白色亞麻裙', special: true }
+    { id: 'pharaoh', name: '法老', desc: '金藍條紋頭巾 + 白色亞麻裙', special: true },
+    // v1.33.2：西天取經完成時孫悟空送的
+    { id: 'wukong', name: '齊天大聖', desc: '金箍 + 紅色上衣 + 虎皮裙', special: true }
   ];
   const byId = {};
   defs.forEach(function (d) { byId[d.id] = d; });

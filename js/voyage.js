@@ -313,7 +313,8 @@ const Voyage = (function () {
     harlequin: { body: '#c0242a', trim: '#2a8a4a', hat: 'jester' },
     royal: { body: '#f4efe2', trim: '#5a2a8a', hat: 'crown', cape: '#5a2a8a' },
     golden: { body: '#f2c14e', trim: '#fff4b0', hat: 'crown' },
-    pharaoh: { body: '#f4efe2', trim: '#2a50a0', hat: 'nemes' }
+    pharaoh: { body: '#f4efe2', trim: '#2a50a0', hat: 'nemes' },
+    wukong: { body: '#c8302a', trim: '#e8a030', hat: 'band' }
   };
   function drawWalker(ctx, t) {
     const x = ship.x, y = ship.y;
@@ -354,6 +355,8 @@ const Voyage = (function () {
     } else if (hat === 'jester') {
       ctx.fillStyle = '#c0242a'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(-5, -21); ctx.lineTo(-1, -16.5); ctx.fill();
       ctx.fillStyle = '#2a8a4a'; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(5, -21); ctx.lineTo(1, -16.5); ctx.fill();
+    } else if (hat === 'band') {
+      ctx.fillStyle = '#e8c040'; ctx.fillRect(-3.2, -17.4, 6.4, 1.3);
     } else if (hat === 'nemes') {
       ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(0, -15.4, 3.6, Math.PI, 0); ctx.fill(); ctx.fillRect(-3.6, -15.4, 1.6, 4); ctx.fillRect(2, -15.4, 1.6, 4);
     }
