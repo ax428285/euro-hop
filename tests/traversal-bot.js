@@ -168,7 +168,8 @@ function makeBot(state) {
        * 比發光水母的傘蓋高（水母最高到離地 212），又還在氣泡噴口的氣泡柱裡（230 以內），游過去順便補氣。
        * 沉下去就划一下（跳躍 = 往上游）；斷崖上空沒有地面，照前一段的高度游。
        */
-      if (state.def.underwater) {
+      // v1.32.1 伊朗的飛毯也一樣（物理跟游泳一樣；225 高也在宣禮塔的塔頂上面）
+      if (state.def.underwater || state.def.carpet) {
         const gy = LevelGen.groundAt(state.def.groundSegs || [], p.x + p.w / 2 + 40);
         if (gy != null) this.swimGy = gy;
         const target = (this.swimGy || Levels.GROUND_Y) - 225;

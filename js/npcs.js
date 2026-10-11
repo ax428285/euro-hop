@@ -310,6 +310,29 @@ const Npcs = (function () {
         look: { skin: '#a8724a', hair: '#2a1e18', shirt: '#f2c230', pants: '#2a4aa8', hat: null, item: null },
         lines: ['踩他的頭沒用 —— 把球踢進他身後的球門，進 4 球就贏！', '他丟完球會累倒在地上，這時候他擋不到球 —— 趕快帶球衝過去射門！', '他站著的時候看到高球會跳起來擋，那就踢貼地球。'] }
     ],
+    // ── 亞洲篇（v1.32.1）──
+    IR: [
+      { at: 0.1, name: '飛毯商人 Dariush',
+        look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#a8202e', pants: '#3a2a4a', hat: 'kerchief', hatColor: '#2a7a5a', item: null },
+        lines: ['坐上我的飛毯！按跳躍就往上飛一下，放著會慢慢往下飄。', '金色的熱風會把你往上托，藍色的冷風會把你往下壓 —— 先調好高度再進去。', '一條好的波斯地毯，一個工匠要織上好幾年。'] },
+      { at: 0.46, name: '詩人 Hafez',
+        look: { skin: '#d8a880', hair: '#e8e8e8', shirt: '#f4f0e6', pants: '#6a5a3a', hat: 'kerchief', hatColor: '#f4f0e6', item: 'book' },
+        lines: ['宣禮塔的塔頂碰到會痛，從塔的上面飛過去就好。', '伊朗人家裡幾乎都有一本我的詩集，大家會隨手翻一頁來占卜。', '伊斯法罕的廣場上，以前國王看的是馬球比賽。'] },
+      { at: 0.84, name: '茶館老闆 Reza',
+        look: { skin: '#c08860', hair: '#1e1a18', shirt: '#3a6a9a', pants: '#2a2a30', hat: 'cap', hatColor: '#2a2a30', item: 'mug' },
+        lines: ['來杯紅茶吧！伊朗人喝茶，是把方糖含在嘴裡再喝。', '三十三孔橋晚上會亮燈，大家都在橋下唱歌。', '再往東走就是中亞的沙漠了，那裡的商隊要提防盜賊。'] }
+    ],
+    UZ: [
+      { at: 0.1, name: '商隊隊長 Bahodir',
+        look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#2a6ab8', pants: '#3a2a22', hat: 'kerchief', hatColor: '#e8d8b0', item: null },
+        lines: ['我的駱駝就交給你了！牠會跟在你後面走。', '戴紅頭巾的是盜賊 —— 他們會往回走去搶駱駝，靠近之前先踩倒他們！', '駱駝被搶三次，整隊的貨就沒了⋯⋯'] },
+      { at: 0.46, name: '磁磚師傅 Ulugbek',
+        look: { skin: '#d8a880', hair: '#6a6a6a', shirt: '#e8d8b0', pants: '#4a3a2a', hat: 'cap', hatColor: '#1a5aa8', item: 'brush' },
+        lines: ['雷吉斯坦廣場的藍色磁磚，每一片都是手畫的。', '六百年前的國王兀魯伯在撒馬爾罕蓋了天文台，量出一年有幾天，誤差不到一分鐘。', '後面風沙變大的時候，看不清楚的地方要小心。'] },
+      { at: 0.84, name: '烤餅大嬸 Nodira',
+        look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#a8202e', pants: '#2a6a4a', hat: 'scarf', hatColor: '#f2c230', item: 'pan' },
+        lines: ['撒馬爾罕的圓麵包（non）放好幾天都不會壞，商隊帶著它走好幾個月。', '絲路上的商人在這裡換貨：中國的絲綢、波斯的銀器、印度的香料。', '聽說再往東，有人會把蠶繭織成發光的絲綢⋯⋯'] }
+    ],
     // ── 亞特蘭提斯海底城（v1.31.2）──
     A1: [
       { at: 0.1, name: '珊瑚攤老闆 Nerea',

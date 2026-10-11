@@ -2915,8 +2915,35 @@ const Sprites = (function () {
     ctx.restore();
   }
 
+  /*
+   * v1.32.1 亞洲篇的蠶繭：一顆白裡透黃的橢圓繭，表面一圈圈的絲，掛在一小段桑葉枝上（中心在 x, y，r = 半徑）。
+   */
+  function cocoon(ctx, x, y, r, t) {
+    const bob = Math.sin((t || 0) * 0.08 + x * 0.05) * r * 0.12;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.fillStyle = '#5a9a3a';
+    ctx.beginPath(); ctx.ellipse(-r * 0.7, -r * 1.05, r * 0.6, r * 0.28, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#6a4a2a'; ctx.lineWidth = Math.max(1, r * 0.12);
+    ctx.beginPath(); ctx.moveTo(-r * 1.1, -r * 1.2); ctx.lineTo(r * 0.1, -r * 0.95); ctx.stroke();
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r * 1.1);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e8d8a8');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.72, r, 0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(190, 160, 100, 0.7)'; ctx.lineWidth = Math.max(0.7, r * 0.08);
+    for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.ellipse(0, k * r * 0.32, r * 0.66, r * 0.16, 0.15, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath(); ctx.arc(-r * 0.28, -r * 0.42, r * 0.16, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  /** 各篇章的「金幣」：kind = 'cherry'（咖啡果實）、'cocoon'（蠶繭） */
+  function harvest(ctx, kind, x, y, r, t) {
+    if (kind === 'cocoon') cocoon(ctx, x, y, r, t); else cherry(ctx, x, y, r, t);
+  }
+
   function coin(ctx, c, t) {
-    if (typeof Game !== 'undefined' && Game.cherryMode && Game.cherryMode()) { cherry(ctx, c.x + 12, c.y + 13, 9, t); return; }
+    const hk = typeof Game !== 'undefined' && Game.harvestKind ? Game.harvestKind() : null;
+    if (hk) { harvest(ctx, hk, c.x + 12, c.y + 13, 9, t); return; }
     const ph = Math.cos((t * 0.09) + c.x * 0.01);
     const rw = Math.max(2.5, 11 * Math.abs(ph));
     ctx.save();
@@ -7102,6 +7129,8 @@ const Sprites = (function () {
     secretRoom: secretRoom,
     coin: coin,
     cherry: cherry,
+    cocoon: cocoon,
+    harvest: harvest,
     flagFace: flagFace,
     flagDirs: flagDirs,
     goalFlag: goalFlag

@@ -374,7 +374,7 @@ const TopRace = (function () {
       const y = sy(cn.y);
       if (y < -20 || y > H + 20) return;
       const x = centerAt(pl, cn.y) + cn.lx, sq = Math.abs(Math.cos(t * 0.1 + i));
-      if (typeof Game !== 'undefined' && Game.cherryMode && Game.cherryMode()) { Sprites.cherry(ctx, x, y, 10, t + i * 9); return; }   // v1.32 古巴：咖啡果實
+      { const hk = typeof Game !== 'undefined' && Game.harvestKind ? Game.harvestKind() : null; if (hk) { Sprites.harvest(ctx, hk, x, y, 10, t + i * 9); return; } }   // v1.32 古巴：咖啡果實
       ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.ellipse(x, y, 11 * sq + 1, 11, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff2a0'; ctx.beginPath(); ctx.ellipse(x - 2 * sq, y - 2, 4 * sq + 0.5, 5, 0, 0, Math.PI * 2); ctx.fill();
     });

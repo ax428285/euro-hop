@@ -72,11 +72,22 @@ const Game = (function () {
    * 新大陸（region 'america'）的關卡裡撿到的「金幣」都是咖啡果實：畫成咖啡果實、入帳時存進 Save.flag('cherries')（不進錢包）；
    * 拿去新大陸的烘豆場（quests.js 的 roastery）烘成咖啡豆，裝船拿去賣，或交給絲路公主開通絲路。
    */
-  function cherryMode() { return !!state && !skirmish && !!state.def && state.def.region === 'america'; }
-  /** 關卡的收穫入帳：一般關卡進錢包，中南美洲的進咖啡果實 */
+  /*
+   * v1.32.1 亞洲篇：亞洲的關卡（region 'asia'）撿到的是蠶繭（Save.flag('cocoons')），之後的批次拿去絲綢工坊織成絲綢。
+   * 各篇章的「金幣」換成什麼：HARVEST[region]；沒有列的篇章就是一般的金幣（進錢包）。
+   */
+  const HARVEST = {
+    america: { kind: 'cherry', flag: 'cherries', name: '咖啡果實', short: '果實', verb: '摘到', note: '拿去烘豆場烘', color: '#ffb0a0' },
+    asia:    { kind: 'cocoon', flag: 'cocoons',  name: '蠶繭',     short: '蠶繭', verb: '收到', note: '之後可以織成絲綢', color: '#f4ead0' }
+  };
+  function harvest() { return state && !skirmish && state.def ? (HARVEST[state.def.region] || null) : null; }
+  function harvestKind() { const h = harvest(); return h ? h.kind : null; }
+  function cherryMode() { return harvestKind() === 'cherry'; }
+  /** 關卡的收穫入帳：一般關卡進錢包，中南美洲的進咖啡果實、亞洲的進蠶繭 */
   function bankCoins(n) {
     if (n <= 0) return;
-    if (cherryMode()) Save.setFlag('cherries', (Save.flag('cherries') || 0) + n);
+    const h = harvest();
+    if (h) Save.setFlag(h.flag, (Save.flag(h.flag) || 0) + n);
     else Save.addCoins(n);
   }
 
@@ -255,14 +266,14 @@ const Game = (function () {
 
   // ── 兩張地圖（v1.31 美洲篇）──────────────────────────
   // 歐洲地圖往西開到底 → 新大陸；新大陸往東開到底 → 回歐洲。兩邊各記得上次停在哪一國（cursor）。
-  const lastCursor = { eu: 0, am: -1, sea: -1 };
+  const lastCursor = { eu: 0, am: -1, sea: -1, as: -1 };
   let crossToastT = 0;
   function worldOfLevel(i) {
     const r = Levels.list[i] && Levels.list[i].region;
-    return r === 'america' ? 'am' : r === 'abyss' ? 'sea' : 'eu';      // v1.31.2 海底城的四區在 'sea' 地圖
+    return r === 'america' ? 'am' : r === 'abyss' ? 'sea' : r === 'asia' ? 'as' : 'eu';      // v1.31.2 海底城的四區在 'sea' 地圖；v1.32.1 亞洲篇在 'as'
   }
   /** 大地圖的曲子（v1.31.3）：歐洲 = 航海的 MAP、新大陸 = 卡利普索 AMMAP、海底城 = SEAMAP */
-  function mapTrack() { const w = WorldMap.world(); return w === 'sea' ? 'SEAMAP' : w === 'am' ? 'AMMAP' : 'MAP'; }
+  function mapTrack() { const w = WorldMap.world(); return w === 'sea' ? 'SEAMAP' : w === 'am' ? 'AMMAP' : w === 'as' ? 'ASMAP' : 'MAP'; }
   function switchWorld(id) {
     if (WorldMap.world() !== id) lastCursor[WorldMap.world()] = cursor;
     if (!WorldMap.useWorld(id)) return false;
@@ -273,6 +284,32 @@ const Game = (function () {
   }
   /** 地圖切到第 i 關所在的那一張 */
   function worldFor(i) { switchWorld(worldOfLevel(i)); }
+  /*
+   * v1.32.1 亞洲篇：絲路開通（交咖啡豆給絲路公主，flag silkRoad）之後，在歐洲地圖往東一直走到地圖邊緣，
+   * 就跟著駱駝商隊走進亞洲地圖（伊朗西北邊）；在亞洲地圖往西走到邊緣就回歐洲（土耳其東邊）。
+   */
+  function crossSilk(to) {
+    switchWorld(to);
+    const p = to === 'as' ? WorldMap.project(46.2, 38.2) : WorldMap.project(43.4, 39.4);
+    let at = null;
+    for (let r = 0; r <= 120 && !at; r += 6) {
+      for (let k = 0; k < 16 && !at; k++) {
+        const a = k * Math.PI / 8, x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
+        if (Voyage.isLand(x, y)) at = { x: x, y: y };
+        if (r === 0) break;
+      }
+    }
+    at = at || { x: p[0], y: p[1] };
+    Voyage.placeShip(at.x, at.y);
+    WorldMap.follow(at.x, at.y, true);
+    const firstAs = Levels.list.findIndex(function (lv) { return lv.region === 'asia'; });
+    cursor = to === 'as' ? (lastCursor.as >= 0 ? lastCursor.as : firstAs) : lastCursor.eu;
+    Sfx.fanfare();
+    toast = to === 'as'
+      ? { text: '跟著駱駝商隊走上絲路，進入亞洲！', sub: '往西走到地圖最西邊就回歐洲', life: 280 }
+      : { text: '回到歐洲', sub: '想再去亞洲：在土耳其往東走到地圖最東邊', life: 200 };
+  }
+
   /** 船開到地圖邊緣：to = 'am'（往西到新大陸）／'eu'（往東回歐洲） */
   function crossAtlantic(to) {
     switchWorld(to);
@@ -984,6 +1021,16 @@ const Game = (function () {
     }
     // v1.31 橫越大西洋（Voyage 在船頂著地圖邊緣還往外開時回報）
     if (crossToastT > 0) crossToastT--;
+    if (events.indexOf('silkEast') >= 0) {
+      if (!Save.flag('silkRoad')) {
+        if (crossToastT === 0) {
+          crossToastT = 180;
+          Sfx.clang();
+          toast = { text: '往東的路被沙漠擋住了⋯⋯', sub: '沒有駱駝商隊帶路，走不過去', life: 200 };
+        }
+      } else { crossSilk('as'); return; }
+    }
+    if (events.indexOf('silkWest') >= 0) { crossSilk('eu'); return; }
     if (events.indexOf('edgeWest') >= 0 || events.indexOf('edgeEast') >= 0) {
       const toAm = events.indexOf('edgeWest') >= 0;
       if (toAm && !Quests.americaOpen()) {
@@ -1187,6 +1234,10 @@ const Game = (function () {
     race_wave: ['大浪要打上來了！', '浪會蓋住整條路 —— 快到的時候按跳躍，從浪上面飛過去'],
     topwave: ['大浪要打上來了！', '海堤冒水花 = 浪要從左邊打上路面，蓋住左邊三分之二的馬路 —— 快開到最右邊的車道'],
     race_crates: ['走私卡車丟下木箱！', '一整排木箱擋住整條路 —— 按跳躍飛過去'],
+    // v1.32.1 亞洲篇（絲路）
+    wind: ['波斯的熱風', '金色的熱氣流會把飛毯往上托、藍色的下沉氣流往下壓 —— 進去之前先調好高度'],
+    minaret: ['宣禮塔', '塔頂會痛 —— 坐飛毯從塔的上面飛過去，或從旁邊繞'],
+    camelTrain: ['護送駱駝商隊', '駱駝跟在你後面走 —— 戴紅頭巾的盜賊會往回走去搶牠，先把他們踩倒'],
     // v1.31 東歐換新玩法：塞爾維亞滑雪、保加利亞羽球
     ski: ['科帕奧尼克滑雪場', '按住 ↓ 壓低滑得更快、按 ← 剎車；石頭、雪人、樹幹要跳過去'],
     ski_kick: ['跳台！', '衝上跳台會飛起來 —— 空中的金幣只有飛過去才拿得到'],
@@ -1387,10 +1438,18 @@ const Game = (function () {
       }
       if (ev.indexOf && ev.indexOf('feature:') === 0) {
         const vt = state.def.vehicle && VEHICLE_TIPS[state.def.vehicle];
-        const tip = (vt && vt[ev.slice(8)]) || FEATURE_TIPS[ev.slice(8)];
+        let tip = (vt && vt[ev.slice(8)]) || FEATURE_TIPS[ev.slice(8)];
+        if (tip && ev === 'feature:sandstorm' && state.def.region === 'asia') tip = ['中亞的沙塵暴', tip[1]];
         if (tip) toast = { text: tip[0], sub: tip[1], life: 170 };
         return;
       }
+      // v1.32.1 烏茲別克：駱駝商隊被盜賊撞到（'caravan:hit:2' = 還剩 2 袋貨）
+      if (ev.indexOf && ev.indexOf('caravan:hit:') === 0) {
+        Sfx.clang(); shake = 4;
+        toast = { text: '盜賊搶走了一袋貨！', sub: '駱駝還剩 ' + ev.slice(12) + ' 袋 —— 被搶光會扣一條命', life: 140 };
+        return;
+      }
+      if (ev === 'caravan:bandit') return;
       switch (ev) {
         case 'jump': Sfx.jump(); break;
         case 'doublejump': Sfx.doubleJump(); break;
@@ -1438,6 +1497,15 @@ const Game = (function () {
         case 'pearl': Sfx.coin(); runCoins += 10; runScore += 50; break;      // 巨蚌裡的珍珠
         // 潛水（亞特蘭提斯）
         case 'swim': break;
+        // v1.32.1 烏茲別克：駱駝的貨被搶光了
+        case 'caravanLost': {
+          Sfx.hurt(); shake = 10;
+          toast = { text: '駱駝的貨被搶光了！', sub: '扣一條命 —— 商隊重新裝好貨繼續走，盜賊靠近駱駝前就要踩倒', life: 160 };
+          const cp = state.players[pid || 0];
+          if (cp) cp.invuln = 90 + stats.invulnBonus;
+          loseLife(false, pid);
+          break;
+        }
         case 'breathe': Sfx.coin(); break;
         case 'drown': {
           Sfx.hurt(); shake = 8;
@@ -2208,7 +2276,7 @@ const Game = (function () {
       // 但只給一半，死亡仍有代價。
       const keep = Math.floor(runCoins / 2);
       bankCoins(keep);
-      netProgress({ t: 'coins', n: keep, cherry: cherryMode() });
+      netProgress({ t: 'coins', n: keep, hflag: harvest() && harvest().flag });
       coinsBanked = keep;
       runCoins = 0;
       Music.stop();
@@ -2345,7 +2413,7 @@ const Game = (function () {
       // 世界之謎：第一次通關這一國 = 拿到它的線索（線索就是「已通關」，不另外存）
       const first = !Save.isCleared(levelIndex);
       Save.markCleared(levelIndex, state.coinsGot, state.coinsTotal, runScore);
-      netProgress({ t: 'clear', li: levelIndex, cg: state.coinsGot, ct: state.coinsTotal, score: runScore, gain: gain, cherry: cherryMode() });
+      netProgress({ t: 'clear', li: levelIndex, cg: state.coinsGot, ct: state.coinsTotal, score: runScore, gain: gain, hflag: harvest() && harvest().flag });
       const clue = Mystery.clueFor(levelIndex);
       const cont = Mystery.continentOf(levelIndex);
       if (first && clue && cont) {
@@ -3024,6 +3092,7 @@ const Game = (function () {
       if (p.mount) Features.drawMount(ctx, p, p.x - camX, t);
       // 瑞典馴鹿雪橇（v1.30）：雪橇墊在腳下、馴鹿在前面拉
       if (state.def.autorun && !p.out) (state.def.ride === 'car' ? Features.drawCar : Features.drawSled)(ctx, p, p.x - camX, t);
+      if (state.def.carpet && !p.out) SilkRoad.drawCarpet(ctx, p, p.x - camX, t);       // v1.32.1 伊朗的飛毯
       drawChargeBar(p, p.x - camX);
     });
     // 海神夥伴（魔王關）與牠丟出去的三叉戟
@@ -3076,9 +3145,9 @@ const Game = (function () {
     U.text(ctx, title, 60, 23,
       { size: 16, align: 'left', color: def.isBoss || def.skirmish ? '#ffc0c8' : '#ffffff' });
 
-    if (cherryMode()) {
-      Sprites.cherry(ctx, 408, 23, 7, t);
-      U.text(ctx, `果實 ${state.coinsGot}/${state.coinsTotal}`, 418, 23, { size: 15, align: 'left', color: '#ffb0a0' });
+    if (harvest()) {
+      Sprites.harvest(ctx, harvestKind(), 408, 23, 7, t);
+      U.text(ctx, `${harvest().short} ${state.coinsGot}/${state.coinsTotal}`, 418, 23, { size: 15, align: 'left', color: harvest().color });
     } else U.text(ctx, `\u20AC ${state.coinsGot}/${state.coinsTotal}`, 400, 23,
       { size: 15, align: 'left', color: '#f6d98a' });
 
@@ -3432,7 +3501,7 @@ const Game = (function () {
     ctx.fillRect(0, 0, W, 40);
     ctx.fillStyle = 'rgba(212, 162, 58, 0.7)';
     ctx.fillRect(0, 39, W, 1.5);
-    U.text(ctx, WorldMap.world() === 'am' ? '新大陸' : WorldMap.world() === 'sea' ? '海底城' : '世界地圖', 16, 20,
+    U.text(ctx, WorldMap.world() === 'am' ? '新大陸' : WorldMap.world() === 'sea' ? '海底城' : WorldMap.world() === 'as' ? '亞洲' : '世界地圖', 16, 20,
       { size: 18, color: '#ffd166', align: 'left' });
 
     /*
@@ -3441,15 +3510,16 @@ const Game = (function () {
      * 進度是「上一篇門檻 → 下一篇門檻」這一段，不是從 0 算（不然解鎖東歐後條子一開始就快滿）。
      */
     // v1.31.2 海底城：沒有海上怪物，EXP 條換成「四區破了幾區」
-    if (WorldMap.world() === 'sea') {
+    if (WorldMap.world() === 'sea' || WorldMap.world() === 'as') {
       const bx = 160, by = 14, bw = 160, bh = 12;
-      const ab = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === 'abyss'; });
+      const reg = WorldMap.world() === 'as' ? 'asia' : 'abyss';
+      const ab = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === reg; });
       const got = ab.filter(function (o) { return Save.isCleared(o.i); }).length;
       U.text(ctx, '探索', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
       ctx.fillStyle = 'rgba(255, 230, 180, 0.15)'; U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
       ctx.fillStyle = got >= ab.length ? '#8fe3a0' : '#4ac0d0';
       if (got) { U.roundRect(ctx, bx, by, Math.max(bh, bw * got / ab.length), bh, 6); ctx.fill(); }
-      U.text(ctx, got >= ab.length ? '海底城全部破完' : '海底城 ' + got + ' / ' + ab.length + ' 區', bx + bw + 8, 20,
+      U.text(ctx, reg === 'asia' ? '絲路 ' + got + ' / ' + ab.length + ' 國（亞洲篇第一批）' : got >= ab.length ? '海底城全部破完' : '海底城 ' + got + ' / ' + ab.length + ' 區', bx + bw + 8, 20,
         { size: 12, color: got >= ab.length ? '#8fe3a0' : '#f0dcb0', align: 'left' });
     } else {
       const bx = 160, by = 14, bw = 160, bh = 12;   // v1.25.1 標題只剩「世界地圖」，EXP 條往左靠
@@ -3735,7 +3805,7 @@ const Game = (function () {
     return t.join('');
   }
   let journalPage = 0;
-  const JOURNAL_REGIONS = [['west', '西歐篇'], ['east', '東歐篇'], ['africa', '非洲篇'], ['north', '北歐篇'], ['america', '美洲篇'], ['abyss', '亞特蘭提斯海底城']];
+  const JOURNAL_REGIONS = [['west', '西歐篇'], ['east', '東歐篇'], ['africa', '非洲篇'], ['north', '北歐篇'], ['america', '美洲篇'], ['abyss', '亞特蘭提斯海底城'], ['asia', '亞洲篇']];
   function journalPages() {
     const sv = Save.get();
     const main = [];
@@ -3882,7 +3952,7 @@ const Game = (function () {
       ['狀態', info.writable ? '可寫入，進度會自動儲存' : '無法寫入（無痕模式？進度不會保留）'],
       ['目前大小', info.bytes + ' bytes'],
       ['通關', sv.cleared.length + ' / ' + Levels.count + ' 關'],
-      ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件　美洲紀念品 ' + sv.souvenirs.length + ' / ' + Souvenirs.count + '　時裝 ' + sv.costumes.length + ' / ' + Costumes.count],
+      ['裝備', sv.equipment.length + ' / ' + Equipment.count + ' 件　紀念品 ' + sv.souvenirs.length + ' / ' + Souvenirs.count + '　時裝 ' + sv.costumes.length + ' / ' + Costumes.count],
       ['密道', sv.secrets.length + ' 條'],
       ['魔王', sv.bosses.length + ' 隻'],
       ['貿易', '第 ' + (sv.day + 1) + ' 天　船艙 ' + Save.cargoCount() + ' 箱' + (sv.bounty ? '　懸賞：' + Trade.describe(sv.bounty) : '')],
@@ -4295,7 +4365,7 @@ const Game = (function () {
 
     U.text(ctx, '關卡完成！', W / 2, top + 44, { size: 36, color: '#8fe3a0' });
     U.text(ctx, `${def.country} · ${def.city}`, W / 2, top + 86, { size: 21, color: '#ffd166' });
-    U.text(ctx, `${cherryMode() ? '咖啡果實' : '金幣'} ${state.coinsGot}/${state.coinsTotal}　　剩餘命 ${livesTotal()}　　本關 ${runScore} 分`,
+    U.text(ctx, `${harvest() ? harvest().name : '金幣'} ${state.coinsGot}/${state.coinsTotal}　　剩餘命 ${livesTotal()}　　本關 ${runScore} 分`,
       W / 2, top + 118, { size: 16, color: '#ffffff' });
 
     let y = top + 136;
@@ -4303,8 +4373,8 @@ const Game = (function () {
     // 入帳金額（含全收集的 50% 獎勵）——讓玩家知道錢包多了多少
     if (bankLine) {
       const full = state.coinsTotal > 0 && state.coinsGot >= state.coinsTotal;
-      U.text(ctx, cherryMode()
-        ? `咖啡果實 +${coinsBanked}` + (full ? '（全收集 +50%）' : '') + `　共 ${Save.flag('cherries')} 顆（拿去烘豆場烘）`
+      U.text(ctx, harvest()
+        ? `${harvest().name} +${coinsBanked}` + (full ? '（全收集 +50%）' : '') + `　共 ${Save.flag(harvest().flag)} 顆（${harvest().note}）`
         : `錢包 +\u20AC ${coinsBanked}` + (full ? '（全收集 +50%）' : '') + `　餘額 \u20AC ${Save.get().wallet}`,
         W / 2, y + 8, { size: 14, color: '#ffd166' });
       y += 26;
@@ -4357,10 +4427,10 @@ const Game = (function () {
     ctx.fillRect(0, 0, W, H);
     panel(230, 134, 500, 222);
     U.text(ctx, '旅程中斷', W / 2, 182, { size: 38, color: '#ff8a9c' });
-    U.text(ctx, cherryMode() ? `這關摘到 ${state.coinsGot} 顆咖啡果實` : `這關拿到 ${state.coinsGot} 枚金幣`, W / 2, 224, { size: 17, color: '#ffffff' });
+    U.text(ctx, harvest() ? `這關${harvest().verb} ${state.coinsGot} 顆${harvest().name}` : `這關拿到 ${state.coinsGot} 枚金幣`, W / 2, 224, { size: 17, color: '#ffffff' });
     // 死亡只保住一半金幣，講清楚才不會覺得被偷
-    U.text(ctx, cherryMode()
-        ? (coinsBanked > 0 ? `咖啡果實 +${coinsBanked}（死亡只保留一半）　共 ${Save.flag('cherries')} 顆` : `咖啡果實沒有帶回來　共 ${Save.flag('cherries')} 顆`)
+    U.text(ctx, harvest()
+        ? (coinsBanked > 0 ? `${harvest().name} +${coinsBanked}（死亡只保留一半）　共 ${Save.flag(harvest().flag)} 顆` : `${harvest().name}沒有帶回來　共 ${Save.flag(harvest().flag)} 顆`)
         : coinsBanked > 0
         ? `錢包 +\u20AC ${coinsBanked}（死亡只保留一半）　餘額 \u20AC ${Save.get().wallet}`
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
@@ -4750,7 +4820,7 @@ const Game = (function () {
         Save.markCleared(msg.li, msg.cg, msg.ct, msg.score);
         Save.addScore(msg.score);
         if (msg.gain > 0) {
-          if (msg.cherry) Save.setFlag('cherries', (Save.flag('cherries') || 0) + msg.gain);
+          if (msg.hflag) Save.setFlag(msg.hflag, (Save.flag(msg.hflag) || 0) + msg.gain);
           else Save.addCoins(msg.gain);
         }
         const clue = Mystery.clueFor(msg.li);
@@ -4774,7 +4844,7 @@ const Game = (function () {
         Save.addExp(msg.n);
         if (msg.gain > 0) Save.addCoins(msg.gain);
         break;
-      case 'coins': if (msg.n > 0) { if (msg.cherry) Save.setFlag('cherries', (Save.flag('cherries') || 0) + msg.n); else Save.addCoins(msg.n); } break;
+      case 'coins': if (msg.n > 0) { if (msg.hflag) Save.setFlag(msg.hflag, (Save.flag(msg.hflag) || 0) + msg.n); else Save.addCoins(msg.n); } break;
     }
   }
 
@@ -5068,6 +5138,8 @@ const Game = (function () {
     /** 測試用 */
     /** v1.32 這一關的「金幣」是不是咖啡果實（中南美洲的關卡）—— Sprites.coin、race.js、topdown.js 照它換畫法 */
     cherryMode: cherryMode,
+    /** v1.32.1 這一關的「金幣」換成什麼：'cherry'（中南美洲）、'cocoon'（亞洲），一般關卡 null */
+    harvestKind: harvestKind,
     debug: {
       getScene: function () { return scene; },
       setScene: function (s) { scene = s; sceneTimer = 0; },
@@ -5100,6 +5172,10 @@ const Game = (function () {
       /** v1.31.2 直接打開一段對話（測試用：merHome、eiffel⋯⋯） */
       talk: function (who) { scene = 'map'; openTalk(who); return talk; },
       enter: function (i) { startLevel(i || 0); },
+      /** v1.32.1 絲路（測試用）：照地圖上走到邊緣的規則換地圖（往東要先開通絲路） */
+      crossSilk: function (to) { scene = 'map'; if (to === 'as' && !Save.flag('silkRoad')) return false; crossSilk(to); return true; },
+      /** v1.32.1 關卡的收穫入帳（測試用：亞洲的蠶繭、中南美洲的咖啡果實） */
+      bank: function (n) { bankCoins(n); },
       /** 立刻畫一帧（測試用：抓「畫的時候才會丟例外」的 bug） */
       render: function () { render(); },
       /** 直接開一場海上遭遇戰（kind = 'gulls' / 'pirates' / 'serpent'） */

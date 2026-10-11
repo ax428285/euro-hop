@@ -54,6 +54,9 @@ const Quests = (function () {
     { id: 'Q_roastery', npc: 'roastery', name: '咖啡烘豆場', lon: -84.1, lat: 10.0, prompt: '按 Enter 到咖啡烘豆場' }
   ];
 
+  /** v1.32.1 亞洲地圖上的地點（WorldMap.buildAsiaSpecials 用，跟 AM_SPOTS 同一種格式）；第一批還沒有 */
+  const AS_SPOTS = [];
+
   const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa', thalassa: 'Thalassa',
                   roaster: '烘豆師傅 Don Pedro', princess: '絲路公主 Roxana' };
 
@@ -71,8 +74,8 @@ const Quests = (function () {
    * 好感度全滿＋打倒暗夜騎士＋她跟著你 → 走到巴黎（法國的圖釘）會看巴黎鐵塔的夜景，看完她變成人類（flag merHuman）。
    */
   function merGifted(id) { return !!flag('merGift_' + id); }
-  function merLove() { return typeof Souvenirs === 'undefined' ? 0 : Souvenirs.defs.filter(function (d) { return merGifted(d.id); }).length; }
-  function merLoveMax() { return typeof Souvenirs === 'undefined' ? 1 : Souvenirs.count; }
+  function merLove() { return typeof Souvenirs === 'undefined' ? 0 : Souvenirs.merDefs().filter(function (d) { return merGifted(d.id); }).length; }
+  function merLoveMax() { return typeof Souvenirs === 'undefined' ? 1 : Souvenirs.merDefs().length; }
   function merHuman() { return !!flag('merHuman'); }
   function eiffelReady() {
     return mermaidJoined() && !merHuman() && merLove() >= merLoveMax() && Save.seaBossDown('darkKnight');
@@ -422,7 +425,7 @@ const Quests = (function () {
     const rc = open ? 'rgba(170, 110, 20, 0.9)' : 'rgba(120, 60, 30, 0.7)';
     U.text(ctx, '絲　路　→', lp[0], lp[1], { size: 20, weight: 800, color: rc, stroke: false });
     // v1.32 交 3 箱咖啡豆給絲路公主 → 開通（亞洲篇還在做）
-    U.text(ctx, open ? '（已開通・亞洲篇製作中）' : '（取經中⋯⋯）', lp[0] + 4, lp[1] + 20, { size: 12, color: rc, stroke: false });
+    U.text(ctx, open ? '（已開通：往東走進亞洲）' : '（取經中⋯⋯）', lp[0] + 4, lp[1] + 20, { size: 12, color: rc, stroke: false });
     ctx.restore();
   }
 
@@ -772,7 +775,7 @@ const Quests = (function () {
   function talkMerHome() {
     const who = merHuman() ? 'thalassa' : 'mermaid';
     const max = merLoveMax(), love0 = merLove();
-    const give = Souvenirs.defs.filter(function (d) { return Save.hasSouvenir(d.id) && !merGifted(d.id); });
+    const give = Souvenirs.merDefs().filter(function (d) { return Save.hasSouvenir(d.id) && !merGifted(d.id); });
     const lines = [], reveal = [];
     if (give.length) {
       lines.push(L(who, love0 ? '你又來看我了！⋯⋯咦，你手上拿的是什麼？' : '歡迎來我家！這是我從小住的貝殼屋 —— 咦，你手上拿的是什麼？'));
@@ -886,7 +889,7 @@ const Quests = (function () {
     if (flag('silkRoad')) {
       return { who: 'princess', lines: [
         L('princess', '駱駝商隊已經帶著你的咖啡往東方出發了。'),
-        L('princess', '絲路的另一頭還有好多國家在等你⋯⋯等商隊回來，我再帶你去。（亞洲篇製作中）')
+        L('princess', '絲路的另一頭還有好多國家在等你 —— 往東一直走，就會走進亞洲。')
       ] };
     }
     if (have < PRINCESS_NEED) {
@@ -909,7 +912,7 @@ const Quests = (function () {
       if (!complete || flag('silkRoad') || (Save.get().cargo.coffee || 0) < PRINCESS_NEED) return null;
       Save.moveCargo('coffee', -PRINCESS_NEED, 0);
       Save.setFlag('silkRoad', 1);
-      return { sfx: 'fanfare', shake: 8, toast: { text: '絲路開通了！', sub: '駱駝商隊帶著咖啡往東方出發了（亞洲篇製作中）', life: 300 } };
+      return { sfx: 'fanfare', shake: 8, toast: { text: '絲路開通了！', sub: '駱駝商隊帶著咖啡往東方出發了 —— 往東走到地圖邊緣，就能進亞洲', life: 300 } };
     } };
   }
 
@@ -1231,12 +1234,12 @@ const Quests = (function () {
     // 好感度
     const max = merLoveMax();
     let n = 0;
-    Souvenirs.defs.forEach(function (d) { if (shown(d.id)) n++; });
+    Souvenirs.merDefs().forEach(function (d) { if (shown(d.id)) n++; });
     U.text(ctx, '好感度', W / 2 - 150, 68, { size: 13, color: '#fff4f8', align: 'right' });
     for (let k = 0; k < max; k++) heart(ctx, W / 2 - 132 + k * 28, 66, 9, k < n);
     // 架子（兩層，一層 5 格）
     const x0 = 110, gap = 92;
-    Souvenirs.defs.forEach(function (d, i) {
+    Souvenirs.merDefs().forEach(function (d, i) {
       const row = Math.floor(i / 5), col = i % 5;
       const x = x0 + col * gap + 40, y = 132 + row * 96;
       if (col === 0) {
@@ -1360,6 +1363,7 @@ const Quests = (function () {
     merHuman: merHuman,
     eiffelReady: eiffelReady,
     AM_SPOTS: AM_SPOTS,
+    AS_SPOTS: AS_SPOTS,
     BANK_NEED: BANK_NEED,
     helReady: helReady,
     blocked: blocked,

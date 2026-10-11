@@ -37,6 +37,9 @@ const WorldMap = (function () {
     eu: { id: 'eu', proj: EuropeWorld, geo: EuropeGeo, back: typeof EuropeBackdrop !== 'undefined' ? EuropeBackdrop : {} },
     am: typeof AmericaWorld !== 'undefined'
       ? { id: 'am', proj: AmericaWorld, geo: AmericaGeo, back: AmericaBackdrop } : null,
+    // v1.32.1 亞洲篇：第四張地圖（AsiaWorld，tools/build-asia-map.js）；絲路開通後從歐洲地圖的東邊走過來
+    as: typeof AsiaWorld !== 'undefined'
+      ? { id: 'as', proj: AsiaWorld, geo: AsiaGeo, back: AsiaBackdrop } : null,
     /*
      * v1.31.2 亞特蘭提斯海底城（abyss.js）：手畫的世界座標、自己的配色（不跟玩家選的大地圖配色）、
      * 只用到上面 760 高；底下的光束、泡泡、魚群（decorBack），城區上的建築小圖（decorLand）。
@@ -51,6 +54,8 @@ const WorldMap = (function () {
    * 世界資料還是一樣大（陸地格子、投影都不用改），只是相機和船到不了 h 以下。
    */
   if (WORLDS.am) WORLDS.am.h = Math.round(AmericaWorld.project(-40, -27)[1]);
+  // 亞洲只用到北緯 5 度（再往南是海和印尼，沒有關卡）
+  if (WORLDS.as) WORLDS.as.h = Math.round(AsiaWorld.project(100, 5)[1]);
   let WD = WORLDS.eu;
   /** 目前這張地圖實際用到的高度（歐洲 = 整個世界） */
   function worldH() { return WD.h || WORLD_H; }
@@ -207,8 +212,13 @@ const WorldMap = (function () {
     MX: [-88.6, 20.6],    // 奇琴伊察（猶加敦半島）
     PA: [-79.3, 9.35],    // 運河北口（地峽很窄，再往南入口會落在海上）
     CO: [-75.2, 10.2],    // 卡塔赫納
-    BR: [-44.6, -18.4]    // 里約熱內盧往內陸（v1.31 玩家：地圖下方裁掉一些，巴西的圖釘往上移）
+    BR: [-44.6, -18.4],   // 里約熱內盧往內陸（v1.31 玩家：地圖下方裁掉一些，巴西的圖釘往上移）
+    // v1.32.1 亞洲篇
+    IR: [51.7, 32.7],     // 伊斯法罕
+    UZ: [66.9, 39.7]      // 撒馬爾罕
   };
+  /** 這一關在哪一張地圖（v1.32.1：有些國家在兩張地圖都有國界，例如伊朗在歐洲地圖東緣也是背景國 —— 只畫在自己那張） */
+  function worldOfRegion(r) { return r === 'america' ? 'am' : r === 'abyss' ? 'sea' : r === 'asia' ? 'as' : 'eu'; }
   const PIN_NUDGE = {
     // v1.30 挪威：國土中心在峽灣附近，跟黃金獵犬、峽灣老漁夫擠在一起，國名被擠到很遠 → 往東南（奧斯陸那側）挪
     NO: [34, 14]
@@ -389,6 +399,7 @@ const WorldMap = (function () {
   function buildSpecials() {
     specials.length = 0;
     if (WD.id === 'sea') { buildSeaSpecials(); return; }
+    if (WD.id === 'as') { buildAsiaSpecials(); return; }
     if (WD.id !== 'eu') { buildAmericaSpecials(); return; }
     if (typeof EuropeBackdrop === 'undefined') return;
     SPECIAL_DEFS.forEach(function (d) {
@@ -457,6 +468,20 @@ const WorldMap = (function () {
       specials.push({
         id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
         // v1.31 服裝店／寵物用品店：跟神祕商人一樣進商店（merchant 讓字放在店底下），畫成小店面
+        def: q.seller ? { role: '商店', scene: 'shop', seller: q.seller, merchant: true, stall: q.seller, prompt: q.prompt }
+                      : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+      });
+    });
+  }
+
+  /** v1.32.1 亞洲地圖上的地點（quests.js 的 AS_SPOTS，用亞洲的投影） */
+  function buildAsiaSpecials() {
+    if (typeof Quests === 'undefined' || !Quests.AS_SPOTS) return;
+    Quests.AS_SPOTS.forEach(function (q) {
+      const p = project(q.lon, q.lat);
+      const pin = [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+      specials.push({
+        id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
         def: q.seller ? { role: '商店', scene: 'shop', seller: q.seller, merchant: true, stall: q.seller, prompt: q.prompt }
                       : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
       });
@@ -810,9 +835,10 @@ const WorldMap = (function () {
     Levels.list.forEach(function (lv, i) {
       // 東歐篇的國家國界在 EuropeBackdrop（產生器把它們當背景國），圖釘點在這裡算
       // v1.31：只建「這張地圖上」的國家（美洲篇的國家只在新大陸地圖、歐洲的只在歐洲地圖）
+      if (worldOfRegion(lv.region) !== WD.id) return;
       const geo = WD.geo[lv.id] || WD.back[lv.id];
       if (!geo) return;   // 沒有地理資料的國家就不畫（不該發生，map-check 會抓）
-      const ll = WD.id === 'am' && PIN_LONLAT[lv.id];
+      const ll = (WD.id === 'am' || WD.id === 'as') && PIN_LONLAT[lv.id];
       const center = ll ? project(ll[0], ll[1]) : (geo.center || innerPoint(geo.shapes[0]));
       const nudge = PIN_NUDGE[lv.id] || [0, 0];
       const cx = center[0] + nudge[0], cy = center[1] + nudge[1];
@@ -898,7 +924,7 @@ const WorldMap = (function () {
   }
   function drawCompass(ctx) {
     // 羅盤：歐洲在比斯開灣外的大西洋，新大陸在小安地列斯群島東邊的大西洋
-    const p = WD.id === 'eu' ? project(-13.5, 47.5) : project(-42, 21);
+    const p = WD.id === 'eu' ? project(-13.5, 47.5) : WD.id === 'as' ? project(70, 10) : project(-42, 21);
     ctx.save();
     ctx.translate(p[0], p[1]);
     ctx.strokeStyle = 'rgba(80, 52, 24, 0.7)'; ctx.lineWidth = 1;
@@ -1161,6 +1187,24 @@ const WorldMap = (function () {
     { name: '撒哈拉沙漠', lon: 2, lat: 22.5, size: 14 }
   ];
 
+  // v1.32.1 亞洲
+  const SEAS_AS = [
+    { name: '阿　拉　伯　海', lon: 63, lat: 16, size: 18 },
+    { name: '孟加拉灣', lon: 89, lat: 15.5, size: 15 },
+    { name: '南　海', lon: 114, lat: 14, size: 17 },
+    { name: '東　海', lon: 125, lat: 29, size: 15 },
+    { name: '日本海', lon: 134, lat: 40, size: 13 },
+    { name: '裏海', lon: 50.5, lat: 41.5, size: 11 },
+    { name: '波斯灣', lon: 51, lat: 27.2, size: 10, angle: -0.5 }
+  ];
+  const REGIONS_AS = [
+    { name: '絲　路', lon: 75, lat: 43.5, size: 26 },
+    { name: '中　亞', lon: 64, lat: 46.5, size: 16 },
+    { name: '青藏高原', lon: 88, lat: 33, size: 14 },
+    { name: '戈壁沙漠', lon: 105, lat: 43, size: 13 },
+    { name: '東　亞', lon: 117, lat: 35, size: 18 }
+  ];
+
   // v1.31 新大陸
   const SEAS_AM = [
     { name: '加　勒　比　海', lon: -75, lat: 14.6, size: 20 },
@@ -1177,7 +1221,7 @@ const WorldMap = (function () {
   ];
 
   function drawRegionNames(ctx) {
-    (WD.regions || (WD.id === 'eu' ? REGIONS : REGIONS_AM)).forEach(function (r) {
+    (WD.regions || (WD.id === 'eu' ? REGIONS : WD.id === 'as' ? REGIONS_AS : REGIONS_AM)).forEach(function (r) {
       const p = project(r.lon, r.lat);
       const rc = PAL.region || 'rgba(246, 232, 196, 0.32)';
       U.text(ctx, r.name, p[0], p[1], { size: r.size, weight: 800, color: rc, stroke: false });
@@ -1186,7 +1230,7 @@ const WorldMap = (function () {
   }
 
   function drawSeaNames(ctx) {
-    (WD.seas || (WD.id === 'eu' ? SEAS : SEAS_AM)).forEach(function (s) {
+    (WD.seas || (WD.id === 'eu' ? SEAS : WD.id === 'as' ? SEAS_AS : SEAS_AM)).forEach(function (s) {
       const p = project(s.lon, s.lat);
       ctx.save();
       ctx.translate(p[0], p[1]);

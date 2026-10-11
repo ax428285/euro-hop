@@ -53,7 +53,10 @@ function runFlagCheck() {
     A1: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
     A2: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
     A3: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
-    A4: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] }                           // 綠底黃菱形藍球
+    A4: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
+    // v1.32.1 亞洲篇
+    IR: { dir: 'iran', points: [[0.1, 0.15, 'green'], [0.1, 0.5, 'white'], [0.1, 0.85, 'red'], [0.5, 0.5, 'red']] },          // 綠白紅橫條＋紅色國徽
+    UZ: { dir: 'uzbekistan', points: [[0.6, 0.15, 'blue'], [0.6, 0.5, 'white'], [0.6, 0.85, 'green']] }                           // 綠底黃菱形藍球
   };
 
   const cv = document.createElement('canvas');

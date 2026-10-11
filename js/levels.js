@@ -1858,6 +1858,62 @@ const Levels = (function () {
     ]
   }));
 
+  // ════════════════════════════════════════════════════════════
+  // 亞洲篇（v1.32.1 絲路）：絲路公主開通絲路之後，從歐洲地圖的最東邊往東走進亞洲地圖（'as'，asia-geo.js）
+  // 一定要接在最後面（存檔照關卡順序記）。第一批：伊朗、烏茲別克；關卡裡的「金幣」是蠶繭（game.js HARVEST）
+  // ════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────────
+  // 39. 伊朗 · 伊斯法罕 —— 🧞 坐飛毯：整關輕飄飄地飛（跳躍 = 往上飛一下），熱氣流往上托、下沉氣流往下壓，
+  //     高高的宣禮塔塔頂碰到會痛
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1071,
+    id: 'IR', country: '伊朗', city: '伊斯法罕', region: 'asia',
+    flag: ['#239f40', '#ffffff', '#da0000'], flagDir: 'iran',
+    landmark: 'naqshJahan',
+    fact: '伊斯法罕的伊瑪目廣場有五百多公尺長，以前的國王在這裡看馬球比賽；波斯人說「伊斯法罕是半個世界」。',
+    sky: ['#f0b878', '#fbe6c0'], hill: '#b89070',
+    groundTop: '#d8b878', groundBody: '#9a6a44',
+    deco: 'cypress',
+    layout: 'hills',
+    groundTypes: ['walker', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.9,
+    features: [{ type: 'winds', count: 5 }, { type: 'minarets', count: 6 }],
+    // 坐飛毯飛得高但頂不到隱形磚（跟游泳一樣）→ 密道藏在沒有尖刺的斷崖裡
+    secretKind: 'pit',
+    secretHint: '飛進了一條坎兒井！古波斯人挖在地底下的水道，把雪水從山上引到沙漠',
+    secretNear: 0.55,
+    intro: ['伊朗・伊斯法罕：坐上飛毯！跳躍 = 往上飛一下', '金色的熱氣流會把你往上托、藍色的往下壓；宣禮塔的塔頂會痛，從上面飛過去'],
+    props: []
+  }));
+  list[list.length - 1].carpet = true;     // 整關坐飛毯（entities.js：跟潛水一樣輕飄飄的物理，但不用換氣）
+
+  // ────────────────────────────────────────────────────────────
+  // 40. 烏茲別克 · 撒馬爾罕 —— 🐫 護送駱駝商隊：駱駝跟在你後面，前面冒出來的盜賊會往回走去搶駱駝，
+  //     踩倒他們；駱駝被搶三次扣一條命。後半段颳沙塵暴
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1072,
+    id: 'UZ', country: '烏茲別克', city: '撒馬爾罕', region: 'asia',
+    flag: ['#1eb5e8', '#ffffff', '#1eb53a'], flagDir: 'uzbekistan',
+    landmark: 'registan',
+    fact: '撒馬爾罕是絲路的十字路口，唐朝的人叫它「康國」；中國的造紙術就是在這裡傳到阿拉伯、再傳到歐洲。',
+    sky: ['#7ab8e8', '#f4e8c8'], hill: '#c0a070',
+    groundTop: '#e0c080', groundBody: '#a07a4a',
+    deco: 'tree',
+    layout: 'flat',
+    groundTypes: ['walker', 'charger', 'guard', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.85,
+    features: [{ type: 'caravan', bandits: 8 }, { type: 'sandstorm', from: 0.55, to: 0.8 }],
+    secretHint: '雷吉斯坦學院的磁磚牆上，有一塊磁磚的花紋是反的',
+    secretNear: 0.45,
+    intro: ['烏茲別克・撒馬爾罕：護送駱駝商隊！', '戴紅頭巾的盜賊會去搶後面的駱駝，踩倒他們；駱駝被搶三次扣一條命'],
+    props: []
+  }));
+
   return {
     GROUND_Y: GROUND_Y,
     GROUND_H: GROUND_H,

@@ -1663,14 +1663,14 @@ function updatePlayer(state, input, t, who) {
    *   重力只剩 28%、下沉最快 2.6；跳躍鍵 = 划水（隨時都能按，往上游一下）；橫向慢 20%。
    */
   // 整關潛水（亞特蘭提斯）或游進淹水段（v1.25.1 西班牙，features 'flood' 設 p.inWater）
-  const uw = !!state.def.underwater || !!p.inWater;
+  const uw = !!state.def.underwater || !!p.inWater || !!state.def.carpet;      // v1.32.1 伊朗：整關坐飛毯，物理跟潛水一樣（不用換氣）
   /*
    * v1.30 瑞典馴鹿雪橇（def.autorun）：一直往右衝、不能停也不能往回走，只能跳；
    * 冰面上雪橇越滑越快（極速 ×1.35，馴鹿皮靴 iceGrip 抓地 → 不會加速），跳得也更遠。
    */
   const auto = !!state.def.autorun;
   const iceDash = auto && p.onIce && !st.iceGrip;
-  const maxRun = PHYS.MAX_RUN * st.speed * (p.mount ? 1.3 : 1) * (uw ? 0.8 : 1) * (iceDash ? 1.35 : 1);
+  const maxRun = PHYS.MAX_RUN * st.speed * (p.mount ? 1.3 : 1) * (uw && !state.def.carpet ? 0.8 : 1) * (iceDash ? 1.35 : 1);
   const accel = PHYS.ACCEL * (st.speed > 1 ? 1.15 : 1) * (onIce ? 0.3 : 1);
   const friction = onIce ? 0.95 : PHYS.FRICTION;
   const left = !auto && input.isDown('left');
@@ -1866,6 +1866,7 @@ function updatePlayer(state, input, t, who) {
   p.y += p.vy;
   // 潛水：游不出水面（畫面上方 HUD 底下是水面）
   if (state.def.underwater && p.y < 64) { p.y = 64; if (p.vy < 0) p.vy = 0; }
+  if (state.def.carpet && p.y < 54) { p.y = 54; if (p.vy < 0) p.vy = 0; }
 
   /*
    * 頂隱形磚：往上跳、頭頂這一帧從磚的下方穿過磚底 → 磚現形。

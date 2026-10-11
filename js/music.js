@@ -377,6 +377,46 @@ const Music = (function () {
       drum:   [0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       soft: true
     },
+    /*
+     * v1.32.1 亞洲篇的大地圖：絲路上的駝鈴 —— 五聲音階（宮商角徵羽），慢慢的四拍子，
+     * 三角波像琵琶撥弦；跟歐洲的水手歌、新大陸的卡利普索、海底城的風鈴都分得出來。
+     */
+    ASMAP: {
+      bpm: 92, wave: 'triangle',
+      root: -2,
+      scale: [0, 2, 4, 7, 9, 12, 14],
+      bass: [0, 0, 3, 3, 4, 4, 0, 0, 2, 2, 3, 3, 1, 1, 0, 0],
+      melody: [4, null, 3, 4, null, 5, 4, null, 3, null, 2, null, 0, null, null, null,
+               1, null, 2, 3, null, 2, 1, null, 0, null, 1, 2, 1, null, null, null,
+               4, null, 5, 6, null, 5, 4, null, 3, 4, null, 3, 2, null, 0, null,
+               2, null, 3, 2, null, 1, 0, null, 1, null, 2, 1, 0, null, null, null],
+      drum:   [1, 0, 0, 0, 0.5, 0, 0, 0, 1, 0, 0, 0.5, 0.5, 0, 0, 0],
+      soft: true
+    },
+    // v1.32.1 伊朗：波斯的「舒爾」調式（像弗里吉亞，降二級），手鼓（tombak）的切分節奏，鋸齒波像塔爾琴
+    IR: {
+      bpm: 118, wave: 'sawtooth',
+      root: -4,
+      scale: [0, 1, 3, 5, 7, 8, 10],
+      bass: [0, 0, 1, 1, 0, 0, 6, 6, 5, 5, 3, 3, 1, 1, 0, 0],
+      melody: [0, 1, 2, null, 1, 0, null, null, 3, null, 2, 1, 2, null, null, null,
+               4, null, 3, 2, 3, null, 1, null, 2, 1, 0, null, 1, null, null, null,
+               5, null, 4, 5, 6, null, 5, 4, 3, null, 4, 3, 2, null, 1, null,
+               2, 3, 2, 1, 0, null, 1, null, 0, null, -1, null, 0, null, null, null],
+      drum:   [1, 0, 0.5, 1, 0, 0.5, 0, 1, 1, 0, 0.5, 0, 1, 0.5, 0.5, 0]
+    },
+    // v1.32.1 烏茲別克：中亞的「希賈茲」木卡姆（增二度），駱駝走路的搖擺三連音感，方波像雙弦琴（dutar）
+    UZ: {
+      bpm: 126, wave: 'square',
+      root: -7,
+      scale: [0, 1, 4, 5, 7, 8, 10],
+      bass: [0, 0, 0, 0, 3, 3, 4, 4, 5, 5, 4, 4, 1, 1, 0, 0],
+      melody: [4, null, 4, 5, 4, 2, null, 1, 2, null, 1, 0, 1, null, null, null,
+               2, null, 3, 4, null, 3, 2, 1, 2, null, 4, null, 2, null, null, null,
+               7, null, 6, 5, 6, null, 5, 4, 5, 4, 2, null, 4, null, 2, null,
+               1, null, 2, 1, 0, null, 1, 2, 1, null, 0, null, 0, null, null, null],
+      drum:   [1, 0, 0, 1, 0, 0, 0.5, 0, 1, 0, 0, 1, 0, 0.5, 0.5, 0]
+    },
     // 匈牙利：查爾達什（吉普賽小調，增二度），先慢後快的感覺用跳音表現
     HU: {
       bpm: 140, wave: 'sawtooth',

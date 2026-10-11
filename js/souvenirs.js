@@ -31,7 +31,12 @@ const Souvenirs = (function () {
     { id: 'saddle', level: 36, country: '海馬競技場', icon: 'seahorseSaddle', name: '海馬的小鞍',
       note: '海馬是爸爸生小孩的魚：媽媽把卵產在爸爸的育兒袋裡，小海馬從爸爸肚子裡出生。' },
     { id: 'trident', level: 37, country: '海神神殿', icon: 'tridentModel', name: '三叉戟模型',
-      note: '希臘神話的海神波賽頓拿著三叉戟，一敲地面就能掀起大浪、讓大地震動；柏拉圖說亞特蘭提斯就是他的國家。' }
+      note: '希臘神話的海神波賽頓拿著三叉戟，一敲地面就能掀起大浪、讓大地震動；柏拉圖說亞特蘭提斯就是他的國家。' },
+    // v1.32.1 亞洲篇（asia: true —— 人魚只收歐洲、美洲、海底城的紀念品，好感度的上限不會因為新的篇章變高）
+    { id: 'minicarpet', level: 38, country: '伊朗', icon: 'miniCarpet', name: '波斯小地毯', asia: true,
+      note: '一張手織的波斯地毯，每平方公分打了上百個結；好的地毯可以用上一百年，越用越漂亮。' },
+    { id: 'suzani', level: 39, country: '烏茲別克', icon: 'suzani', name: '蘇札尼刺繡',
+      asia: true, note: '蘇札尼是烏茲別克的大塊刺繡布，上面繡著石榴和太陽；以前新娘出嫁時，要帶著媽媽繡的蘇札尼。' }
   ];
   const byId = {}, byLevel = {};
   defs.forEach(function (d) { byId[d.id] = d; byLevel[d.level] = d; });
@@ -39,6 +44,8 @@ const Souvenirs = (function () {
     defs: defs,
     count: defs.length,
     get: function (id) { return byId[id] || null; },
-    forLevel: function (i) { return byLevel[i] || null; }
+    forLevel: function (i) { return byLevel[i] || null; },
+    /** v1.32.1 人魚收的紀念品（不含亞洲篇的） */
+    merDefs: function () { return defs.filter(function (d) { return !d.asia; }); }
   };
 })();

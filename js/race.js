@@ -635,7 +635,7 @@ const Race = (function () {
         ctx.fillStyle = 'rgba(60, 120, 60, 0.7)'; ctx.fillRect(-u * 0.16, -u * 0.28, u * 0.16, u * 0.04);
         break;
       case 'coin': {
-        if (typeof Game !== 'undefined' && Game.cherryMode && Game.cherryMode()) { Sprites.cherry(ctx, 0, -u * 0.18, Math.max(2, u * 0.07), t); break; }   // v1.32 中南美洲：咖啡果實
+        { const hk = typeof Game !== 'undefined' && Game.harvestKind ? Game.harvestKind() : null; if (hk) { Sprites.harvest(ctx, hk, 0, -u * 0.18, Math.max(2, u * 0.07), t); break; } }   // v1.32 中南美洲：咖啡果實；亞洲：蠶繭
         const r = Math.max(2, u * 0.07), sq = Math.abs(Math.cos(t * 0.1));
         ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.ellipse(0, -u * 0.18, r * sq + 0.5, r, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff2a0'; ctx.beginPath(); ctx.ellipse(-r * 0.2 * sq, -u * 0.2, r * 0.3 * sq + 0.3, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();

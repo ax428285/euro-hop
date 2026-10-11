@@ -68,7 +68,8 @@ function runAmericaCheck() {
   WorldMap.useWorld('eu'); Voyage.rebuild();
   if (WorldMap.nations.some(function (n) { return Levels.list[n.idx].region === 'america'; })) issues.push('歐洲地圖上出現了美洲的國家');
   const ABYSS_N = Levels.list.filter(function (lv) { return lv.region === 'abyss'; }).length;   // v1.31.2 海底城的四區也不在歐洲地圖上
-  if (WorldMap.nations.length !== Levels.count - AM.length - ABYSS_N) issues.push('換回歐洲地圖後國家數不對：' + WorldMap.nations.length);
+  const ASIA_N = Levels.list.filter(function (lv) { return lv.region === 'asia'; }).length;     // v1.32.1 亞洲篇在 'as' 地圖
+  if (WorldMap.nations.length !== Levels.count - AM.length - ABYSS_N - ASIA_N) issues.push('換回歐洲地圖後國家數不對：' + WorldMap.nations.length);
   // ── B) 往西開到底 ──
   (function () {
     const p = WorldMap.project(-25.6, 31);

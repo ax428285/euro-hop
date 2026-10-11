@@ -34,6 +34,14 @@
  * 載入順序：要在 levelgen.js 之後、levels.js 之前（levels.js 定義關卡時就要 plan）。
  */
 const Features = (function () {
+  /*
+   * v1.32.1 外掛機制（亞洲篇的機關寫在 silkroad.js，不塞進這個已經很大的檔案）：
+   *   Features.register(type, { plan(c, ctx, list, coins), init(o, def), update(state, f, players, lead, events, t), draw(ctx, state, f, camX, t), solid(f) })
+   * plan：關卡產生時把設定換成 list 裡的東西（type 可以跟設定的 type 不同，各自再註冊）；
+   * update／draw：每帧；solid：回傳一個可以站的方塊（或 null）。註冊要在 levels.js 之前（關卡在載入時就產生）。
+   */
+  const EXT = {};
+  function register(type, h) { EXT[type] = h; }
 
   const BULL_SPEED = 3.7;        // 比玩家最高跑速 4.6 慢：一直往前跑一定跑得掉
   const BULL_H = 46, BULL_W = 170;
@@ -421,6 +429,8 @@ const Features = (function () {
       } else if (c.type === 'aurora') {
         // 芬蘭：極夜。一段區間整片黑，極光週期性亮起
         list.push({ type: 'aurora', x0: Math.round(W * (c.from || 0.3)), x1: Math.round(W * (c.to || 0.8)) });
+      } else if (EXT[c.type] && EXT[c.type].plan) {
+        EXT[c.type].plan(c, ctx, list, coins);
       } else if (c.type === 'thorns') {
         // 保加利亞：玫瑰荊棘，定時從地裡冒出來
         const n = c.count || 8;
@@ -641,6 +651,7 @@ const Features = (function () {
       // 牙買加手沖咖啡：濾杯裡的咖啡粉（悶蒸時會往上膨脹）
       if (f.type === 'pourover' && f.box) out.push(f.box);
       if (f.type === 'lockGate') out.push(f);
+      if (EXT[f.type] && EXT[f.type].solid) { const b = EXT[f.type].solid(f); if (b) out.push(b); }
     });
     return out;
   }
@@ -651,6 +662,7 @@ const Features = (function () {
     return {
       list: (def.features || []).map(function (f) {
         const o = Object.assign({}, f);
+        if (EXT[f.type] && EXT[f.type].init) EXT[f.type].init(o, def);
         if (f.type === 'stampede') { o.active = false; o.done = false; o.front = 0; }
         if (f.type === 'barrels') { o.items = []; o.cd = 60; }
         if (f.type === 'cannons') { o.shells = []; o.cd = 60; o.seq = 0; }
@@ -783,6 +795,7 @@ const Features = (function () {
       const tipKey = f.brine ? 'brine' : f.type === 'lockGate' ? 'lock' : f.type;
       if (near && !fs.seen[tipKey]) { fs.seen[tipKey] = true; events.push('feature:' + tipKey); }
 
+      if (EXT[f.type]) { if (EXT[f.type].update) EXT[f.type].update(state, f, players, lead, events, t); return; }
       if (f.type === 'stampede') {
         if (!f.active && !f.done && lead.x > f.x0) {
           f.active = true;
@@ -1299,6 +1312,7 @@ const Features = (function () {
     const fs = state.features;
     if (!fs) return;
     fs.list.forEach(function (f) {
+      if (EXT[f.type]) { if (layer !== 'bg' && EXT[f.type].draw) EXT[f.type].draw(ctx, state, f, camX, t); return; }
       // 背景層：鹽礦岩壁、極夜的星空與極光（要在建築後面）
       if (layer && (layer === 'bg') !== (f.type === 'dark' || f.type === 'aurora')) return;
       if (f.type === 'pourover') {
@@ -2343,6 +2357,9 @@ const Features = (function () {
     LOCK_PERIOD: LOCK_PERIOD,
     GATE_H: GATE_H,
     plan: plan,
+    register: register,
+    // 給外掛（silkroad.js）用的小工具
+    helpers: { findSpot: function () { return findSpot.apply(null, arguments); }, groundTop: groundTop, hurt: hurt, pidOf: pidOf },
     solids: solids,
     gustState: gustState,
     GUST_PUSH: GUST_PUSH,

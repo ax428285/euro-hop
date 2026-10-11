@@ -284,7 +284,8 @@ const Encounter = (function () {
     const events = [];
     ensureBosses();
     // v1.31.2 玩家：海底城不用海上怪物（專心闖關）
-    if (--spawnTimer <= 0 && !(WorldMap.world && WorldMap.world() === 'sea')) {
+    // v1.32.1 亞洲地圖（第一批）還沒有自己的海上怪物 → 跟海底城一樣不生
+    if (--spawnTimer <= 0 && !(WorldMap.world && (WorldMap.world() === 'sea' || WorldMap.world() === 'as'))) {
       spawnTimer = SPAWN_EVERY;
       if (monsters.filter(function (m) { return !m.boss; }).length < MAX_ON_MAP && Math.random() < SPAWN_CHANCE) {
         const hasRare = monsters.some(function (m) { return m.def.rare; });

@@ -217,6 +217,9 @@ const Voyage = (function () {
       const wid = WorldMap.world ? WorldMap.world() : 'eu';
       if (ship.mode === 'sea' && wid === 'eu' && ship.x <= 7 && ax < 0) events.push('edgeWest');
       if (ship.mode === 'sea' && wid === 'am' && ship.x >= W - 7 && ax > 0) events.push('edgeEast');
+      // v1.32.1 絲路：走路（陸地上）頂著歐洲地圖的東邊 → 亞洲；頂著亞洲地圖的西邊 → 回歐洲
+      if (ship.mode === 'land' && wid === 'eu' && ship.x >= W - 7 && ax > 0) events.push('silkEast');
+      if (wid === 'as' && ship.x <= 7 && ax < 0) events.push('silkWest');
     }
     // v1.30 北歐的雷電結界（quests.js）：還沒解開時，船和人都進不了北歐的國土
     if (typeof Quests !== 'undefined' && Quests.blocked(ship.x, ship.y) && !Quests.blocked(px, py)) {

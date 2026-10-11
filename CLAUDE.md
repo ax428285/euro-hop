@@ -83,4 +83,11 @@
 - v1.32.0（2026-10-11 已上線）咖啡與絲路：新大陸（region america）關卡的金幣是咖啡果實（game.js `cherryMode()`、`bankCoins` 存進 `Save.flag('cherries')`；Sprites.cherry、race.js、topdown.js 照它換畫法）；
   咖啡烘豆場（quests.js AM_SPOTS `Q_roastery`，talk `roastery`，`ROAST_COST` 2500 蓋、`ROAST_PER` 200 顆一箱）→ Trade 的 `coffee`（home null，只能賣）；
   絲路公主（SPOTS `Q_princess`，talk `princess`，`PRINCESS_NEED` 2 箱，公主不給「去哪裡弄」的提示）→ `Save.flag('silkRoad')`，地圖上的絲路變金色「已開通・亞洲篇製作中」。測試 `tests/coffee-check.js` 的 `runCoffeeCheck`。
+- v1.32.1（還沒上線，在 nordic）亞洲篇第一批：亞洲大地圖 `WorldMap.useWorld('as')`（`js/asia-geo.js` 由 `tools/build-asia-map.js` 產生，經度 43～143），region `asia`，Levels.list 第 39、40 關（IR 伊朗、UZ 烏茲別克）。
+  - 進出：開通絲路（`Save.flag('silkRoad')`）後在歐洲地圖土耳其往東走到地圖邊緣（voyage.js `silkEast`）→ game.js `crossSilk`；亞洲地圖往西走到底（`silkWest`）回歐洲。亞洲地圖不生海上怪物，大地圖曲 ASMAP。
+  - 亞洲關卡的金幣是蠶繭（game.js `HARVEST` 表：america = 咖啡果實、asia = 蠶繭 `Save.flag('cocoons')`；`Game.harvestKind()`、`Sprites.harvest`），之後的批次拿去絲綢工坊。
+  - 亞洲的機關寫在 `js/silkroad.js`，用 `Features.register(type, {plan, init, update, draw, solid})` 掛進 features.js（不要再把新機關塞進 features.js）；美術在 `js/asia.js`。
+  - 伊朗 `def.carpet`：整關坐飛毯（entities.js 物理同潛水、不用換氣），winds（熱氣流／下沉氣流）、minarets（宣禮塔）；烏茲別克 caravan（駱駝跟在後面，盜賊 `e.bandit` 撞到扣貨，3 次 = `caravanLost` 扣命）。
+  - 亞洲的紀念品標 `asia: true`，人魚只收 `Souvenirs.merDefs()`（不含亞洲，好感度上限不變）。亞洲之謎（mystery.js）主題「字母走過的路」，`wip` 到八國齊。測試 `tests/asia-check.js` 的 `runAsiaCheck`。
+  - 之後：第二批 印度、尼泊爾、中國長城、蒙古＋亞洲海上冒險＋東亞解鎖＋玄奘／馬可波羅；第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店；八岐大蛇當大地圖魔王、忍者在大地圖隨機出現。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

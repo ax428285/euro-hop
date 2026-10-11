@@ -81,7 +81,7 @@ function runKnightCheck() {
   Souvenirs.defs.forEach(function (d) { sv.flags['merGift_' + d.id] = 0; Save.addSouvenir(d.id); });
   if (!Abyss.SPOTS.some(function (q) { return q.npc === 'merHome'; })) issues.push('海底城沒有人魚的家');
   const home = Quests.talk('merHome');
-  if (!home || home.panel !== 'merHome' || home.reveal.length !== Souvenirs.count) issues.push('人魚的家沒有把紀念品一樣一樣送出去');
+  if (!home || home.panel !== 'merHome' || home.reveal.length !== Souvenirs.merDefs().length) issues.push('人魚的家沒有把紀念品一樣一樣送出去');
   home.end(true);
   if (Quests.merLove() !== Quests.merLoveMax()) issues.push('紀念品全送完好感度沒有滿（' + Quests.merLove() + '）');
   if (!Quests.eiffelReady()) issues.push('好感度滿＋打倒騎士＋人魚同行，卻沒辦法看巴黎鐵塔的夜景');
