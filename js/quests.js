@@ -35,7 +35,8 @@ const Quests = (function () {
     // v1.31.2 玩家：新增撒哈拉沙漠關卡（待超過 5 分鐘才會發現綠洲）→ 撒哈拉正中間（expedition.js 的 K.sahara）
     { id: 'Q_sahara', npc: 'sahara', name: '撒哈拉沙漠', lon: 9, lat: 25.5, prompt: '按 Enter 走進撒哈拉沙漠' },
     // v1.32 玩家：咖啡豆是解開絲路的條件，絲路公主要求的 → 絲路的起點（安納托利亞西北，伊斯坦堡東南邊）
-    { id: 'Q_princess', npc: 'princess', name: '絲路公主', lon: 30.4, lat: 40.0, prompt: '按 Enter 晉見絲路公主' },
+    // v2.0.2 玩家：絲路公主擋到土耳其國旗 → 搬到伊斯坦堡的歐洲那一側（絲路往歐洲的那一頭），跟土耳其的國名、國旗錯開
+    { id: 'Q_princess', npc: 'princess', name: '絲路公主', lon: 28.5, lat: 41.2, prompt: '按 Enter 晉見絲路公主' },
     // v1.30 玩家：增加埃及豔后 NPC（用途自由發揮）→ 西奈半島的金色遊船上，賣嚇跑比利時扒手的聖蛇護身符
     { id: 'Q_cleopatra', npc: 'cleopatra', name: '埃及豔后', lon: CLEO_AT[0], lat: CLEO_AT[1], prompt: '按 Enter 晉見埃及豔后' }
   ];
