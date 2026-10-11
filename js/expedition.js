@@ -308,7 +308,7 @@ const Expedition = (function () {
       ctx.strokeStyle = '#c8ccd8'; ctx.lineWidth = 1.4;
       ctx.beginPath(); ctx.moveTo(3, -16); ctx.lineTo(8, -27); ctx.stroke();
       ctx.restore();
-      const label = '★★★★ 暗夜騎士' + (down ? '（已擊敗）' : '');
+      const label = '★★★★ 暗夜騎士';          // v1.33.14 玩家：不用寫「已擊敗」，牌子變灰就好
       ctx.fillStyle = down ? 'rgba(50, 40, 50, 0.9)' : 'rgba(60, 0, 20, 0.92)';
       U.roundRect(ctx, -38, -44, 76, 13, 4); ctx.fill();
       U.text(ctx, label, 0, -37.5, { size: 9, color: down ? '#c8bcb0' : '#ff9aa8', stroke: false });

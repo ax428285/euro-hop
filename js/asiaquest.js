@@ -289,6 +289,8 @@ const AsiaQuest = (function () {
         ctx.fillStyle = k % 2 ? '#ffa030' : '#ff5a2a';
         ctx.beginPath(); ctx.moveTo(x - 8 + k * 7, y - 8); ctx.quadraticCurveTo(x - 6 + k * 7 + fl, y - 20, x - 4 + k * 7, y - 8); ctx.fill();
       }
+      // v1.33.14 玩家：玄奘放在火焰山那 —— 接完委託出發後，他站在火焰山旁邊等你（不然像是消失了）
+      if (flag('sutra') === 2) waiting(ctx, ['xuanzang'], x, y, t);
       questMark(ctx, x, y, t, flag('sutra') === 2);
     }
   });
@@ -332,6 +334,7 @@ const AsiaQuest = (function () {
         ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x - w / 2 - 1.5, yy - 4.8, w + 3, 1.2);
       }
       ctx.fillStyle = '#8a6a4a'; ctx.fillRect(x - 1, y - 32, 2, 6);
+      if (flag('sutra') === 3) waiting(ctx, ['xuanzang'], x, y, t);      // 過了火焰山：玄奘到大雁塔旁邊等
       questMark(ctx, x, y - 8, t, flag('sutra') === 3);
     }
   });
@@ -441,7 +444,7 @@ const AsiaQuest = (function () {
   function waiting(ctx, list, x, y, t) {
     list.forEach(function (who, i) { drawChibi(ctx, who, x + 14 + i * 7, y + 2, t + i * 9); });
   }
-  // v1.33.12 玩家：玄奘師徒不用出現在地圖上 → 只畫馬可波羅在上都等
+  // v1.33.12 玩家：玄奘師徒不用出現在地圖上 → 徒弟不畫；v1.33.14 玄奘本人出發後站在火焰山（過了山站在大雁塔）旁邊；馬可波羅在上都等
   /** game.js 畫地圖時呼叫（在主角之前畫） */
   function drawFollowers(ctx, t) {
     if (WorldMap.world() !== 'as') { trail.length = 0; return; }
