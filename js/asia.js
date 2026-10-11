@@ -94,6 +94,11 @@ const Asia = (function () {
     ctx.beginPath(); ctx.arc(x + pw * 0.25, y + h * 0.3, h * 0.08, 0, Math.PI); ctx.fill();
     star5(ctx, x + pw * 0.25, y + h * 0.75, h * 0.1, 0);
   };
+  // 尼泊爾的旗不是長方形：外框照兩個三角旗的形狀描（Sprites.flagFrame）
+  FLAGS.nepal.outline = function (ctx, x, y, w, h) {
+    const pw = h * 0.82;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + pw, y + h * 0.5); ctx.lineTo(x + pw * 0.42, y + h * 0.5); ctx.lineTo(x + pw, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.stroke();
+  };
   // 中國：紅底，左上一顆大黃星＋四顆小黃星
   FLAGS.china = function (ctx, x, y, w, h, c) {
     ctx.fillStyle = c[0]; ctx.fillRect(x, y, w, h);

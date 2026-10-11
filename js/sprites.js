@@ -2976,6 +2976,15 @@ const Sprites = (function () {
    */
   // v1.31：新國旗畫法可以從外面註冊（america.js 的古巴、牙買加、墨西哥、巴拿馬、哥倫比亞、巴西）
   const flagDirs = {};
+  /**
+   * v1.33.10 國旗的外框：一般是長方形；不是長方形的旗（尼泊爾的兩個三角旗）由 flagDirs[dir].outline 照形狀描邊。
+   * 呼叫前先設好 strokeStyle、lineWidth。
+   */
+  function flagFrame(ctx, x, y, w, h, dir) {
+    const f = flagDirs[dir || 'v'];
+    if (f && f.outline) { f.outline(ctx, x, y, w, h); return; }
+    ctx.strokeRect(x, y, w, h);
+  }
   function flagFace(ctx, x, y, w, h, colors, dir) {
     const d = dir || 'v';
     if (flagDirs[d]) { flagDirs[d](ctx, x, y, w, h, colors); return; }
@@ -7142,6 +7151,7 @@ const Sprites = (function () {
     cocoon: cocoon,
     harvest: harvest,
     flagFace: flagFace,
+    flagFrame: flagFrame,
     flagDirs: flagDirs,
     goalFlag: goalFlag
   };

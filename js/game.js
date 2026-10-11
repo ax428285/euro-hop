@@ -3200,7 +3200,7 @@ const Game = (function () {
     Sprites.flagFace(ctx, 16, 12, 33, 20, def.flag, def.flagDir);
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(16, 12, 33, 20);
+    Sprites.flagFrame(ctx, 16, 12, 33, 20, def.flagDir);
 
     let title;
     if (def.duo) {
@@ -3639,7 +3639,7 @@ const Game = (function () {
     Sprites.flagFace(ctx, 14, H - 50, 33, 22, lv.flag, lv.flagDir);
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = 1.2;
-    ctx.strokeRect(14, H - 50, 33, 22);
+    Sprites.flagFrame(ctx, 14, H - 50, 33, 22, lv.flagDir);
 
     const nameStr = (cursor + 1) + '. ' + lv.country + ' · ' + lv.city;
     U.text(ctx, nameStr, 56, H - 39,

@@ -1122,7 +1122,7 @@ const WorldMap = (function () {
     Sprites.flagFace(ctx, x + 1, y - 26 + bob, fw, fh, lv.flag, lv.flagDir);
     ctx.strokeStyle = 'rgba(12,18,30,0.65)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(x + 1, y - 26 + bob, fw, fh);
+    Sprites.flagFrame(ctx, x + 1, y - 26 + bob, fw, fh, lv.flagDir);
 
     // 魔王關的旗杆頂加一點紅，掃一眼就知道哪幾關是魔王
     if (lv.isBoss) {
