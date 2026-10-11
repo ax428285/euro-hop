@@ -107,11 +107,12 @@
   - 對話的 end 可以回傳 `{ fight: kind }` 直接開小遊戲；小遊戲的 def 可以有 `winTalk`（打贏接對話）、`onWin()`、`loseNote`。地圖上跟著走的人：AsiaQuest.drawFollowers。
   - 時裝 `wukong`（costumes.js special、sprites.js costumeBody/Hat、voyage.js WALK_LOOK hat band）。
 - v1.33.3（還沒上線，在 nordic）：
-  - 泉州造船廠（AS_SPOTS `M_asYard`、shop.js seller `asYard`，商品 `aship_dhow/fuchuan/baochuan`）：買船，旗標 `asShip` = 開哪一艘（再按一次換船）。
+  - 泉州船行（AS_SPOTS `M_asYard`、shop.js seller `asYard`，商品 `aship_dhow/fuchuan/baochuan`）：買船，旗標 `asShip` = 開哪一艘（再按一次換船）。
   - 東方艦隊的海戰改成 js/navalwar.js 的 `naval`（俯瞰海面，←→ 轉舵、↑ 加速、K 兩側齊射；船的性能 NavalWar.SHIPS；歐洲造船廠的 cannon、hull 等級有加成）；沒船不能開戰；關卡 def `hidePlayer` 不畫平台主角。
   - 西遊記：收到的徒弟先回那爛陀寺（站在玄奘旁邊），只有護送途中（sutra 2～3）師徒四人才跟著走；馬可波羅只有 marco 1（護送去上都）時跟著走。
 - v1.33.4（還沒上線）：AS_SPOTS 可以有 `gone()`（馬可波羅跟你走之後喀什的地點收起來）；entities.js 的丟在 `def.hidePlayer` 的關卡不作用（海戰按 J／K 不會丟出平台的子彈）。
 - v1.33.5（還沒上線）：地圖上的「！」= 有事情可以做（quests.js 的 `todo(kind)`，歐洲、新大陸、海底城；亞洲的在 asiaquest.js 的 questMark）。新增劇情人物時要記得補 todo。亞洲地圖的國名貼近圖釘（worldmap.js placeOne：as 地圖 35px）；上都搬到 (120.0, 44.6)。
+- v2.0.1（還沒上線）：泉州造船廠改名「泉州船行」（買船），worldmap.js drawShipDealer 畫它的圖示；歐洲的瓦倫西亞造船廠是升級。
 - **v2.0.0（還沒上線）「東方的開始」**：使用者要求主版號進到 2（亞洲篇起算）。v1.33.x 的內容都在 2.0 裡，之後從 2.0.x／2.1 繼續進版。
 - v1.33.11（還沒上線）：玩家：除了人魚和黃金獵犬，其他 NPC 不要跟在後面 → AsiaQuest.followers() 永遠是空的；馬可波羅畫在上都旁邊等（waiting）；v1.33.12 徒弟不畫在地圖上；v1.33.14 玄奘出發後畫在火焰山旁（sutra 2）、大雁塔旁（sutra 3）。
 - v1.33.9（還沒上線）：印度一關一隻大象（mount_elephant 的 update：被打跑後 callElephant 從左邊畫面外走回來；barricade 推不動也會叫牠）。

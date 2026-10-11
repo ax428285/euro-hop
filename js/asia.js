@@ -449,7 +449,7 @@ const Asia = (function () {
     ctx.beginPath(); ctx.moveTo(-0.6 * s, -7 * s); ctx.lineTo(-0.6 * s, 13 * s); ctx.moveTo(0.6 * s, -7 * s); ctx.lineTo(0.6 * s, 13 * s); ctx.stroke();
   };
 
-  // v1.33.3 泉州造船廠的船（從上面看）
+  // v1.33.3 泉州船行的船（從上面看）
   ['dhow', 'fuchuan', 'baochuan'].forEach(function (id) {
     IC['aship_' + id] = function (ctx, s) {
       if (typeof NavalWar === 'undefined') return;

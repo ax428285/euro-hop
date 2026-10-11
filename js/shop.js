@@ -133,7 +133,7 @@ const Shop = (function () {
   // （v1.31.3 玩家：雅典娜女神時裝移除 —— 珊瑚貝殼屋現在只賣 Thalassa 的衣服）
 
   /*
-   * v1.33.3 泉州造船廠（亞洲）：買船。東方艦隊的海戰（navalwar.js）要開自己買的船打 ——
+   * v1.33.3 泉州船行（亞洲）：買船。東方艦隊的海戰（navalwar.js）要開自己買的船打 ——
    * 買了就換這艘出海；已經有的再按一次 = 改開這艘。旗標 asShip = 現在開哪一艘。船的性能在 navalwar.js 的 SHIPS。
    */
   [
@@ -179,7 +179,7 @@ const Shop = (function () {
     // v1.31.2 亞特蘭提斯海底城
     shellHouse: { name: '珊瑚貝殼屋', who: '亞特蘭提斯中央廣場的服裝店', line: '「給 Thalassa 的衣服喔！」買了她就換上，再按一次換回貝殼上衣', look: true },
     // v1.33.3 亞洲
-    asYard: { name: '泉州造船廠', who: '泉州港的造船師傅', line: '「跟東方艦隊打，要一艘好船！」買了就開這艘出海，已經有的再按一次換船', look: true }
+    asYard: { name: '泉州船行', who: '泉州港的船商', line: '「這裡賣的是整艘船！跟東方艦隊打，要一艘好船。」買了就開這艘出海，已經有的再按一次換船', look: true }
   };
   const SELLER_OF = { heart: 'portugal', magnet: 'isle', shield: 'fjord', boots: 'fjord', luck: 'oasis' };
   items.forEach(function (it) { it.seller = it.shop || (it.costume ? 'boutique' : it.acc ? 'petshop' : (SELLER_OF[it.id] || 'portugal')); });
@@ -223,7 +223,7 @@ const Shop = (function () {
     if (byId[id].costume) Save.addCostume(byId[id].costume);     // 時裝：買了就穿上
     else Save.addUpgrade(id);
     if (byId[id].mer) Save.setFlag('merOutfit', byId[id].mer);   // Thalassa 的衣服：買了她就換上
-    if (byId[id].aship) Save.setFlag('asShip', byId[id].aship);  // 泉州造船廠：買了就開這艘
+    if (byId[id].aship) Save.setFlag('asShip', byId[id].aship);  // 泉州船行：買了就開這艘
     return true;
   }
 

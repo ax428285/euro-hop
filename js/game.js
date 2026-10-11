@@ -983,10 +983,10 @@ const Game = (function () {
     const monster = Encounter.nearby();
     if (monster && monster.kind === 'atlantis' && Quests.abyssOpen() && Input.once('confirm')) { enterAbyss(); return; }
     if (monster && Input.once('confirm')) {
-      // v1.33.3 東方艦隊：要先在泉州造船廠買船
+      // v1.33.3 東方艦隊：要先在泉州船行買船
       if (monster.def.warship && monster.def.warship.asia && !Save.flag('asShip')) {
         Sfx.clang();
-        toast = { text: '沒有船可以開戰！', sub: '先到泉州造船廠（中國東南的海邊）買一艘船', life: 200 };
+        toast = { text: '沒有船可以開戰！', sub: '先到泉州船行（中國東南的海邊）買一艘船', life: 200 };
         return;
       }
       Sfx.bossRoar();

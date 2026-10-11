@@ -51,7 +51,8 @@ const AsiaQuest = (function () {
     { id: 'Q_marco', npc: 'marco', name: '馬可波羅', lon: 76.0, lat: 39.5, prompt: '按 Enter 跟馬可波羅說話', gone: function () { return (Save.flag('marco') || 0) >= 1; } },
     { id: 'Q_xanadu', npc: 'xanadu', name: '上都', lon: 120.0, lat: 44.6, prompt: '按 Enter 走進忽必烈的上都' },
     // v1.33.3 玩家：亞洲新增一個地方可以買船 → 泉州（馬可波羅說它是世界最大的港口「刺桐」），東方艦隊的海戰要開買來的船
-    { id: 'M_asYard', seller: 'asYard', name: '泉州造船廠', lon: 118.6, lat: 25.0, prompt: '按 Enter 進泉州造船廠買船' }
+    // v2.0.1 玩家：要讓泉州的跟原本只能升級的造船廠有區別 → 改名「泉州船行」（賣整艘船的船商），地圖圖示是碼頭邊掛著「賣」字的帆船
+    { id: 'M_asYard', seller: 'asYard', name: '泉州船行', lon: 118.6, lat: 25.0, prompt: '按 Enter 進泉州船行買一艘新船（歐洲的瓦倫西亞造船廠是升級船）' }
   );
 
   // ════════════════════════════════════════════════════════

@@ -496,6 +496,7 @@ const WorldMap = (function () {
 
   /** v1.31 新大陸的小店面：條紋遮雨棚＋招牌（服裝店掛衣架、寵物店掛骨頭） */
   function drawStall(ctx, x, y, t, near, kind) {
+    if (kind === 'asYard') { drawShipDealer(ctx, x, y, t, near); return; }
     ctx.save();
     ctx.translate(x, y);
     if (near) {
@@ -525,6 +526,37 @@ const WorldMap = (function () {
     } else {
       ctx.beginPath(); ctx.moveTo(0, -2.6); ctx.lineTo(0, -1.2); ctx.lineTo(-3.4, 1.8); ctx.lineTo(3.4, 1.8); ctx.lineTo(0, -1.2); ctx.stroke();
     }
+    ctx.restore();
+    ctx.restore();
+  }
+
+  /**
+   * v2.0.1 泉州船行（買船，跟只能升級的瓦倫西亞造船廠分清楚）：
+   * 木頭碼頭邊停著一艘紅帆的中國帆船，船頭掛著寫「賣」的牌子＋金幣，一看就知道是在賣船。
+   */
+  function drawShipDealer(ctx, x, y, t, near) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (near) {
+      ctx.strokeStyle = 'rgba(255, 209, 102, 0.9)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, -8, 19 + Math.sin(t * 0.1) * 2, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(0, 1, 13, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a5a30'; ctx.fillRect(-13, -2, 26, 3);                                  // 碼頭
+    const bob = Math.sin(t * 0.06) * 0.8;
+    ctx.fillStyle = '#6a3a1a';                                                               // 船身
+    ctx.beginPath(); ctx.moveTo(-11, -5 + bob); ctx.lineTo(10, -4 + bob); ctx.lineTo(7, -1 + bob); ctx.lineTo(-8, -1 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillRect(-12, -8 + bob, 5, 3);
+    ctx.fillStyle = '#c0402a';                                                               // 兩面竹條帆
+    ctx.fillRect(-6, -17 + bob, 7, 11); ctx.fillRect(3, -14 + bob, 5, 8);
+    ctx.fillStyle = 'rgba(60, 20, 10, 0.6)';
+    for (let k = 1; k < 3; k++) { ctx.fillRect(-6, -17 + bob + k * 3.6, 7, 0.8); ctx.fillRect(3, -14 + bob + k * 2.7, 5, 0.7); }
+    // 「賣」的價錢牌（晃來晃去）
+    const sw = Math.sin(t * 0.07) * 0.15;
+    ctx.save(); ctx.translate(12, -16); ctx.rotate(sw);
+    ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.fillStyle = '#ffd166'; U.roundRect(ctx, -5.5, 0, 11, 9, 2); ctx.fill();
+    U.text(ctx, '賣', 0, 4.6, { size: 7, color: '#7a2a10', weight: 800, stroke: false });
     ctx.restore();
     ctx.restore();
   }

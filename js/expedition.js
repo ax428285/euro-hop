@@ -61,7 +61,7 @@ const Expedition = (function () {
     { id: 'DH', country: '阿拉伯海盜', label: '阿拉伯海盜船', ship: '「沙漠之鷹號」', lon: 62.0, lat: 20.5, hp: 90, rank: 1, tier: 1, style: 'dhow',
       flag: ['#1a1a1a', '#1a1a1a', '#1a1a1a'], flagDir: 'h',
       fact: '阿拉伯的三角帆船（dhow）乘著季風航行，一千年前就來回在阿拉伯、印度和東非之間做生意。' },
-    { id: 'ZY', country: '鄭一嫂', label: '鄭一嫂的旗艦', ship: '的紅旗號', lon: 116.0, lat: 20.0, hp: 170, rank: 2, tier: 3, style: 'junk',
+    { id: 'ZY', country: '鄭一嫂', label: '鄭一嫂的旗艦', ship: '的紅旗號', lon: 113.5, lat: 16.0, hp: 170, rank: 2, tier: 3, style: 'junk',
       flag: ['#c8202a', '#c8202a', '#c8202a'], flagDir: 'h',
       fact: '鄭一嫂是歷史上最強的海盜之一：她的紅旗幫有七萬多個海盜，最後還跟清朝談判、帶著船隊全身而退。' },
     { id: 'AT', country: '安宅船', label: '鐵甲安宅船', ship: '「日本丸」', lon: 128.5, lat: 29.0, hp: 280, rank: 3, tier: 5, style: 'atake',
@@ -455,7 +455,7 @@ const Expedition = (function () {
     const down = Save.seaBossDown(m.kind);
     const ex = m.def.warship.asia ? ' 亞洲 EXP' : ' EXP';
     // v1.33.3 東方艦隊要開自己買的船打
-    if (m.def.warship.asia && !Save.flag('asShip')) return m.def.name + '：要先到泉州造船廠買一艘船才能開戰';
+    if (m.def.warship.asia && !Save.flag('asShip')) return m.def.name + '：要先到泉州船行買一艘船才能開戰';
     return '按 Enter 跟' + '★★★'.slice(0, m.def.warship.rank) + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ex : '首次 +' + m.def.bossExp + ex + '、€' + m.def.bossCoins) + '）';
   }
 
@@ -569,7 +569,7 @@ const Expedition = (function () {
     const lv = shipFlag(w);
     const first = firstTime(m);
     /*
-     * v1.33.3 東方艦隊：開自己在泉州造船廠買的船，從上面往下看的海上對決（navalwar.js 的 'naval'）。
+     * v1.33.3 東方艦隊：開自己在泉州船行買的船，從上面往下看的海上對決（navalwar.js 的 'naval'）。
      * 平台的主角藏起來（hidePlayer），站在看不到的地面上不動。
      */
     if (w.asia) {

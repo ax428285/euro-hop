@@ -15,7 +15,7 @@
  *   v1.33.1：
  *   J) 亞洲地圖上有三隻海上魔王（大鵬、龍王、八岐大蛇）和東方艦隊三艘戰艦，都在海上；南海海盜船會出現
  *   K) 三隻魔王都打得倒（照牠們的破綻踩），時間到會輸；東方艦隊的海戰給亞洲 EXP
- *   L) v1.33.3 泉州造船廠：買船、換船；沒船不能跟東方艦隊開戰；開買來的船打（並排齊射打得沉、什麼都不做會被打沉）；
+ *   L) v1.33.3 泉州船行：買船、換船；沒船不能跟東方艦隊開戰；開買來的船打（並排齊射打得沉、什麼都不做會被打沉）；
  *      任務做完不再有人跟在後面（收到的徒弟先回那爛陀寺，只有護送途中才跟著走）
  *   M) v1.33.6 匈奴進攻：亞洲（不算東亞）沒破完不會觸發；破完 → 三支騎兵隊在亞洲的陸地上往長安走；長城保衛戰打得贏、放騎兵過去會輸；
  *      三支都打退 → 阿提拉出現在歐洲的陸地上；阿提拉之戰射箭打得倒、什麼都不做會輸；打倒 → 稱號
@@ -155,8 +155,8 @@ function runAsiaCheck() {
     });
     // 地圖上的劇情人物
     const yard = WorldMap.specials.filter(function (q) { return q.def.seller === 'asYard'; })[0];
-    if (!yard) issues.push('亞洲地圖上沒有泉州造船廠');
-    else if (!Voyage.isLand(yard.pin[0], yard.pin[1])) issues.push('泉州造船廠不在陸地上');
+    if (!yard) issues.push('亞洲地圖上沒有泉州船行');
+    else if (!Voyage.isLand(yard.pin[0], yard.pin[1])) issues.push('泉州船行不在陸地上');
     ['xuanzang', 'goose', 'marco', 'wukong', 'bajie', 'wujing', 'flame', 'xanadu'].forEach(function (npc) {
       const s = WorldMap.specials.filter(function (q) { return q.def.npc === npc; })[0];
       if (!s) issues.push('亞洲地圖上沒有 ' + npc);
@@ -450,17 +450,17 @@ function runAsiaCheck() {
       } catch (e) { issues.push('東方艦隊的海戰出錯：' + e.message); }
     })();
 
-    // ── L) 泉州造船廠、開買來的船打東方艦隊 ──
+    // ── L) 泉州船行、開買來的船打東方艦隊 ──
     sv.flags.asShip = 0;
     ['dhow', 'fuchuan', 'baochuan'].forEach(function (id) { sv.upgrades && delete sv.upgrades['aship_' + id]; });
-    if (Expedition.prompt({ kind: 'warZY', def: Encounter.KINDS.warZY }).indexOf('泉州造船廠') < 0) issues.push('沒有船的時候，東方艦隊的提示沒說要去買船');
+    if (Expedition.prompt({ kind: 'warZY', def: Encounter.KINDS.warZY }).indexOf('泉州船行') < 0) issues.push('沒有船的時候，東方艦隊的提示沒說要去買船');
     sv.wallet = 100000;
     if (!Shop.buy('aship_dhow') || Save.flag('asShip') !== 'dhow') issues.push('買了三角帆船沒有開這艘');
     Shop.buy('aship_baochuan');
     if (Save.flag('asShip') !== 'baochuan') issues.push('買了寶船沒有換開寶船');
     Shop.toggleWear('aship_dhow');
     if (Save.flag('asShip') !== 'dhow' || !Shop.wearing('aship_dhow')) issues.push('造船廠再按一次沒有換回三角帆船');
-    if (Shop.itemsOf('asYard').length !== 3) issues.push('泉州造船廠賣的船不是 3 艘');
+    if (Shop.itemsOf('asYard').length !== 3) issues.push('泉州船行賣的船不是 3 艘');
     function navalRun(kind, ship, act) {
       sv.flags.asShip = ship;
       const def = Encounter.makeDef({ kind: kind, def: Encounter.KINDS[kind], x: 0, y: 0 });
