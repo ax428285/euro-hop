@@ -164,6 +164,7 @@ const Levels = (function () {
     return {
       id: cfg.id, country: cfg.country, city: cfg.city, flag: cfg.flag, flagDir: cfg.flagDir,
       landmark: cfg.landmark, fact: cfg.fact, region: cfg.region || 'west', finale: !!cfg.finale,
+      gate: cfg.gate,          // v1.33 蒙古：東亞篇（要亞洲 EXP）
       sky: cfg.sky, cloud: cfg.cloud, hill: cfg.hill, groundTop: cfg.groundTop, groundBody: cfg.groundBody, deco: cfg.deco,
       intro: cfg.intro || null,
       layout: 'race',
@@ -1912,6 +1913,100 @@ const Levels = (function () {
     secretNear: 0.45,
     intro: ['烏茲別克・撒馬爾罕：護送駱駝商隊！', '戴紅頭巾的盜賊會去搶後面的駱駝，踩倒他們；駱駝被搶三次扣一條命'],
     props: []
+  }));
+
+  // ── v1.33 亞洲篇第二批：南亞（印度、尼泊爾）開通絲路就能玩；東亞（中國、蒙古）要累積亞洲 EXP（gate 'easia'）──
+
+  // ────────────────────────────────────────────────────────────
+  // 41. 印度 · 齋浦爾 —— 🐘 騎大象：太高的木頭路障只有騎著大象才撞得開
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1073,
+    id: 'IN', country: '印度', city: '齋浦爾', region: 'asia',
+    flag: ['#FF9933', '#FFFFFF', '#138808'], flagDir: 'india',
+    landmark: 'hawaMahal',
+    fact: '齋浦爾整座老城漆成粉紅色，叫「粉紅之城」；風之宮殿有九百五十三扇小窗，以前宮裡的女士從窗後看街上的遊行。',
+    sky: ['#f8b070', '#fde8c8'], hill: '#c89070',
+    groundTop: '#e0a070', groundBody: '#a0603a',
+    deco: 'palm',
+    layout: 'flat',
+    groundTypes: ['walker', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.85,
+    features: [{ type: 'elephants', at: [0.06, 0.4, 0.7] }, { type: 'barricades', at: [0.2, 0.3, 0.52, 0.6, 0.8, 0.88] }],
+    secretHint: '風之宮殿的小窗裡，有一扇的窗簾是拉下來的',
+    secretNear: 0.45,
+    intro: ['印度・齋浦爾：騎上大象！碰一下就騎上去', '太高的木頭路障跳不過去 —— 騎著大象衝過去就撞開了'],
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 42. 尼泊爾 · 聖母峰 —— 🏔 高山缺氧：頭上的氧氣條一直掉，走進雪巴人的帳篷補滿；山上颳強風
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1074,
+    id: 'NP', country: '尼泊爾', city: '聖母峰', region: 'asia',
+    flag: ['#DC143C', '#003893', '#FFFFFF'], flagDir: 'nepal',
+    landmark: 'everest',
+    fact: '聖母峰高 8848 公尺，是世界最高的山；山頂的空氣只有平地的三分之一，大部分登山客都要背氧氣瓶。',
+    sky: ['#5a90d0', '#e8f0ff'], hill: '#8a9ab0',
+    groundTop: '#f0f4f8', groundBody: '#7a7a88',
+    deco: 'pine',
+    layout: 'hills',
+    groundTypes: ['walker', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.85,
+    features: [{ type: 'thinAir', first: 800, every: 1250 }, { type: 'gusts', from: 0.45, to: 0.8 }],
+    secretKind: 'pit',
+    secretHint: '掉進了冰河的裂縫！裡面藏著以前登山隊留下來的補給',
+    secretNear: 0.5,
+    intro: ['尼泊爾・聖母峰：空氣好稀薄！', '頭上的氧氣條一直在掉（跳的時候掉更快）—— 走進雪巴人的帳篷補滿'],
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 43. 中國 · 長城 —— 🔥 烽火台：跳起來碰台頂的火盆點燃烽火，全部點燃終點的關門才打開；北方的騎兵射箭雨
+  // ────────────────────────────────────────────────────────────
+  list.push(makeLevel({
+    seed: 1075,
+    id: 'CN', country: '中國', city: '長城', region: 'asia', gate: 'easia',
+    flag: ['#DE2910', '#FFDE00', '#DE2910'], flagDir: 'china',
+    landmark: 'greatWall',
+    fact: '長城東起山海關、西到嘉峪關，蓋了兩千多年；敵人來了，烽火台白天放狼煙、晚上點火，一座接一座把消息傳到京城。',
+    sky: ['#6aa8d8', '#f4ecd8'], hill: '#7a9a70',
+    groundTop: '#b8a888', groundBody: '#7a6a54',
+    deco: 'tree',
+    layout: 'hills',
+    groundTypes: ['walker', 'guard', 'charger', 'spiker'],
+    airTypes: ['flyer', 'chaser'],
+    density: 0.9,
+    features: [{ type: 'beacons', count: 5 }, { type: 'volleys', every: 210 }],
+    secretHint: '烽火台旁的城磚上，有一塊刻著工匠的名字',
+    secretNear: 0.45,
+    intro: ['中國・長城：點燃烽火台！', '跳起來碰台頂的火盆 —— 五座全部點燃，終點的關門才會打開；地上的紅圈是箭雨'],
+    props: []
+  }));
+
+  // ────────────────────────────────────────────────────────────
+  // 44. 蒙古 · 草原 —— 🏹 騎馬射箭（往前衝的賽道，steppe.js）：按 K／丟 射吊在車道上的箭靶
+  // ────────────────────────────────────────────────────────────
+  list.push(raceLevel({
+    seed: 1076,
+    id: 'MN', country: '蒙古', city: '草原', region: 'asia', gate: 'easia',
+    flag: ['#C4272F', '#015197', '#C4272F'], flagDir: 'mongolia',
+    landmark: 'chinggis',
+    fact: '蒙古每年夏天的那達慕大會有三種比賽：摔跤、賽馬、射箭；蒙古的孩子五、六歲就會騎馬。',
+    sky: ['#4a9ae0', '#d8f0ff'], hill: '#7aa860',
+    groundTop: '#8ab860', groundBody: '#6a8a40',
+    deco: 'tree',
+    theme: 'steppe',
+    course: [[60, 0, 0], [110, 2, 400], [100, -3, -300], [120, 2, 600], [100, -2, -500], [120, 3, 300], [100, -2, -300],
+             [110, 2, 500], [100, -3, -400], [120, 0, 0], [90, 0, 0]],
+    obsEvery: 44,
+    maxSpeed: 108,
+    fences: [0.3, 0.6, 0.85],
+    targets: 10,
+    intro: ['蒙古・草原：騎馬射箭！按 K／丟 往前射箭', '射吊在同一個車道上的箭靶・←→ 閃開石頭和羊群，土撥鼠洞、圍欄按跳躍跳過去']
   }));
 
   return {

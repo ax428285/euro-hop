@@ -37,6 +37,7 @@ const Encounter = (function () {
    * 西歐篇不在這裡 = 一開始就開放。地圖鎖定、靠港、EXP 條、勝利畫面都讀這張表。
    */
   const SOUTH_EXP = 300;         // v1.31 新大陸：累積這麼多美洲 EXP 解鎖南美（哥倫比亞、巴西）
+  const EASIA_EXP = 300;         // v1.33 亞洲：累積這麼多亞洲 EXP 解鎖東亞（中國、蒙古⋯⋯）
   const REGIONS = [
     { id: 'east', name: '東歐篇', exp: EAST_EXP },
     { id: 'africa', name: '非洲篇', exp: 500 },     // v1.21.1 玩家：700 → 500
@@ -53,6 +54,11 @@ const Encounter = (function () {
      * 關卡用 gate: 'samerica' 標記（region 還是 'america'：同一張地圖、同一個謎）。
      */
     { id: 'samerica', name: '南美篇', exp: SOUTH_EXP, pool: 'am' },
+    /*
+     * v1.33 亞洲篇第二批：亞洲的海上冒險給「亞洲 EXP」（pool 'as'，Save.expAs）；
+     * 西亞、中亞、南亞（伊朗、烏茲別克、印度、尼泊爾）開通絲路就能玩，東亞（中國、蒙古）要累積 EASIA_EXP。關卡標 gate: 'easia'。
+     */
+    { id: 'easia', name: '東亞篇', exp: EASIA_EXP, pool: 'as' },
     // v1.31.2 亞特蘭提斯海底城：第一次潛到亞特蘭提斯的神殿之後開放（地圖 'sea'，見 abyss.js）
     { id: 'abyss', name: '海底城篇', quest: true }
   ];
@@ -63,6 +69,7 @@ const Encounter = (function () {
     if (!r) return true;
     if (r.quest) return typeof Quests !== 'undefined' && (id === 'america' ? Quests.americaOpen() : id === 'abyss' ? Quests.abyssOpen() : Quests.northOpen());
     if (r.pool === 'am') return typeof Quests !== 'undefined' && Quests.americaOpen() && typeof Save !== 'undefined' && Save.expAm() >= r.exp;
+    if (r.pool === 'as') return typeof Save !== 'undefined' && !!Save.flag('silkRoad') && Save.expAs() >= r.exp;
     return exp >= r.exp;
   }
   /** 要 EXP 解鎖的篇章（EXP 條、海戰勝利畫面用；劇情解鎖的不算） */
@@ -124,6 +131,20 @@ const Encounter = (function () {
   /** 這一隻用的是哪一種玩法（新大陸的怪沿用歐洲的玩法） */
   function baseOf(kind) { return (KINDS[kind] && KINDS[kind].base) || kind; }
   function inAmerica() { return typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() === 'am'; }
+  function inAsia() { return typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() === 'as'; }
+
+  /*
+   * v1.33 外掛的海上冒險（亞洲的寫在 asiasea.js，不再塞進這個檔案）：
+   *   Encounter.registerMini(kind, {
+   *     def,                                   KINDS 的那一筆（name、lv、exp、game、goal、rare、as: true⋯⋯）
+   *     weight(expAs, cargo),                  地圖上生成的權重（稀有怪不用）
+   *     drawMap(ctx, t, m),                    地圖上的圖示（已經 translate 到怪的位置）
+   *     arena(GY),                             關卡定義要蓋掉的欄位（ground、platforms、spawnX、sky⋯⋯）
+   *     init(state, mini), update(state, input, mini, events, win, fail, players), draw(ctx, state, t, GY), hud(mini, sec)
+   *   })
+   */
+  const EXTM = {};
+  function registerMini(kind, h) { EXTM[kind] = h; KINDS[kind] = h.def; DUR[kind] = h.def.duration || 40 * 60; }
 
   /*
    * 亞特蘭提斯（v1.23.1 玩家：找個海域插一個亞特蘭提斯，關卡方式是潛水）——
@@ -179,6 +200,16 @@ const Encounter = (function () {
   function pickKind(exp) {
     // v1.27 貿易：船上每有一箱貨，海盜的權重 +2（貨越多越容易被盯上）
     const cargo = typeof Save !== 'undefined' && Save.cargoCount ? Save.cargoCount() : 0;
+    // v1.33 亞洲：外掛的海上冒險（asiasea.js），強度看亞洲 EXP
+    if (inAsia()) {
+      const es = typeof Save !== 'undefined' && Save.expAs ? Save.expAs() : 0;
+      const ws = Object.keys(EXTM).filter(function (k) { return EXTM[k].def.as && !EXTM[k].def.rare; })
+        .map(function (k) { return [k, EXTM[k].weight ? EXTM[k].weight(es, cargo) : 1]; });
+      const ts = ws.reduce(function (s, x) { return s + x[1]; }, 0);
+      let rs = Math.random() * ts;
+      for (let i = 0; i < ws.length; i++) { rs -= ws[i][1]; if (rs < 0) return ws[i][0]; }
+      return ws.length ? ws[0][0] : 'gulls';
+    }
     // v1.31 新大陸：換成加勒比海的怪，強度看美洲 EXP
     if (inAmerica()) {
       const ea = typeof Save !== 'undefined' && Save.expAm ? Save.expAm() : 0;
@@ -284,13 +315,14 @@ const Encounter = (function () {
     const events = [];
     ensureBosses();
     // v1.31.2 玩家：海底城不用海上怪物（專心闖關）
-    // v1.32.1 亞洲地圖（第一批）還沒有自己的海上怪物 → 跟海底城一樣不生
-    if (--spawnTimer <= 0 && !(WorldMap.world && (WorldMap.world() === 'sea' || WorldMap.world() === 'as'))) {
+    // v1.33 亞洲地圖有自己的海上冒險了（asiasea.js）
+    if (--spawnTimer <= 0 && !(WorldMap.world && WorldMap.world() === 'sea')) {
       spawnTimer = SPAWN_EVERY;
       if (monsters.filter(function (m) { return !m.boss; }).length < MAX_ON_MAP && Math.random() < SPAWN_CHANCE) {
         const hasRare = monsters.some(function (m) { return m.def.rare; });
         const rare = !hasRare && Math.random() < RARE_CHANCE;
-        const m = spawn(ship, exp || 0, rare ? (inAmerica() ? 'goldturtle' : 'golden') : null);
+        const asRare = Object.keys(EXTM).filter(function (k) { return EXTM[k].def.as && EXTM[k].def.rare; })[0];
+        const m = spawn(ship, exp || 0, rare ? (inAsia() && asRare ? asRare : inAmerica() ? 'goldturtle' : 'golden') : null);
         if (m && rare) events.push('rare');
       }
     }
@@ -530,7 +562,8 @@ const Encounter = (function () {
           const a = t * 0.06 + k * Math.PI / 2;
           sparkle(ctx, Math.cos(a) * 22, -4 + Math.sin(a) * 22, 4 + Math.sin(t * 0.3 + k) * 1.5, 0.9);
         }
-        if (m.def.skin === 'turtle') drawTurtle(ctx, t, 1); else drawSeahorse(ctx, t, 1);
+        if (EXTM[m.kind] && EXTM[m.kind].drawMap) EXTM[m.kind].drawMap(ctx, t, m);
+        else if (m.def.skin === 'turtle') drawTurtle(ctx, t, 1); else drawSeahorse(ctx, t, 1);
         ctx.fillStyle = 'rgba(80, 50, 0, 0.9)';
         U.roundRect(ctx, -18, -40, 36, 13, 4); ctx.fill();
         U.text(ctx, '★稀有', 0, -33.5, { size: 9, color: '#ffe070', stroke: false });
@@ -644,7 +677,8 @@ const Encounter = (function () {
       ctx.beginPath(); ctx.arc(0, 0, pulse, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = 'rgba(220, 238, 255, 0.5)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.ellipse(0, 5, 12, 3, 0, 0, Math.PI * 2); ctx.stroke();
-      if (m.kind === 'piranhas') drawPiranhaMap(ctx, t);
+      if (EXTM[m.kind] && EXTM[m.kind].drawMap) EXTM[m.kind].drawMap(ctx, t, m);
+      else if (m.kind === 'piranhas') drawPiranhaMap(ctx, t);
       else if (m.def.skin === 'blackbeard') drawPirate(ctx, t, m.heading, true);
       else if (m.def.skin === 'dolphin') drawDolphinMap(ctx, t);
       else if (m.kind === 'gulls') drawGulls(ctx, t);
@@ -813,6 +847,10 @@ const Encounter = (function () {
             ? '傳說奧德修斯的船經過墨西拿海峽，被斯庫拉一口叼走六個水手。第一次打倒她可得 ' + k.bossExp + ' EXP 和 ' + k.bossCoins + ' 金幣！'
             : '再戰斯庫拉：打贏可得 ' + k.exp + ' EXP。';
         }
+        if (k.as) {
+          const es = typeof Save !== 'undefined' && Save.expAs ? Save.expAs() : 0;
+          return (k.fact ? k.fact + '　' : '') + '打贏可得 ' + k.exp + ' 亞洲 EXP' + (es < EASIA_EXP ? '，累積 ' + EASIA_EXP + ' 亞洲 EXP 解鎖東亞（中國、蒙古）。' : '。');
+        }
         if (k.am) {
           const ea = typeof Save !== 'undefined' && Save.expAm ? Save.expAm() : 0;
           return '打贏可得 ' + k.exp + ' 美洲 EXP' + (ea < SOUTH_EXP ? '，累積 ' + SOUTH_EXP + ' 美洲 EXP 解鎖南美（哥倫比亞、巴西）。' : '。');
@@ -825,6 +863,7 @@ const Encounter = (function () {
         : kind === 'golden' ? ['#6a8ad8', '#f8e0a8'] : kind === 'scylla' ? ['#3a4a78', '#c89a8a'] : ['#5fa8d8', '#f6dcae'],
       skin: k.skin || null,
       am: !!k.am,
+      as: !!k.as,          // v1.33 亞洲的海上冒險：給亞洲 EXP
       hill: kind === 'scylla' ? '#24456a' : '#2f6f9a',
       // 船的甲板：木板色
       groundTop: '#b88a58', groundBody: '#6a4a30',
@@ -858,6 +897,7 @@ const Encounter = (function () {
       exp: k.exp,
       duration: DUR[kind]
     };
+    if (EXTM[kind] && EXTM[kind].arena) Object.assign(def, EXTM[kind].arena(GY));
     if (k.boss && !(typeof Save !== 'undefined' && Save.seaBossDown(kind))) {
       def.exp = k.bossExp;
       def.bossCoins = k.bossCoins;
@@ -892,6 +932,7 @@ const Encounter = (function () {
       mini.got = 0; mini.buoy = null; mini.next = 40; mini.seq = 0; mini.junk = []; mini.junkCd = 120;
     }
     if (typeof Expedition !== 'undefined' && Expedition.has(kind)) Expedition.initMini(state, mini);
+    if (EXTM[kind] && EXTM[kind].init) EXTM[kind].init(state, mini);
     if (kind === 'scylla') {
       mini.hits = 0; mini.next = 90; mini.seq = 0; mini.waves = []; mini.waveCd = 200; mini.waveSeq = 0;
       // v1.31 玩家：攻擊模式太固定、要踩 12 次太浪費時間 → 每顆頭踩一下就倒（6 下）；出招用亂數挑（mini.rs）
@@ -973,6 +1014,8 @@ const Encounter = (function () {
 
     function win() { mini.done = true; state.cleared = true; events.push('clear'); }
     function fail() { mini.done = true; events.push('minifail'); }
+
+    if (EXTM[mini.kind]) { EXTM[mini.kind].update(state, input, mini, events, win, fail, players); return events; }
 
     if (mini.kind === 'buccaneers') {
       /*
@@ -1499,6 +1542,7 @@ const Encounter = (function () {
     const mini = state.mini;
     if (!mini) return;
     const GY = Levels.GROUND_Y;
+    if (EXTM[mini.kind]) { EXTM[mini.kind].draw(ctx, state, t, GY); return; }
     if (mini.kind === 'gulls') {
       // 麵包籃
       const bx = BASKET.x;
@@ -2003,6 +2047,7 @@ const Encounter = (function () {
     else if (mini.kind === 'charybdis') goal = '救生圈 ' + mini.got + ' / 5　剩 ' + sec + ' 秒　（別被拖進中間的漩渦眼）';
     else if (mini.kind === 'scylla') goal = '踩扁的頭 ' + mini.hits + ' / 6　剩 ' + sec + ' 秒' + (mini.hits >= 3 ? '　（發怒！小心浪）' : '　（紅圈 = 要咬下來或墨汁要落下；「！」= 要橫掃，跳起來閃）');
     else if (Expedition.has(mini.kind)) goal = Expedition.hud(mini);
+    else if (EXTM[mini.kind]) goal = EXTM[mini.kind].hud(mini, sec);
     else goal = '抓到 ' + mini.caught + ' / 3　剩 ' + sec + ' 秒';
     ctx.fillStyle = 'rgba(10, 16, 30, 0.75)';
     U.roundRect(ctx, W / 2 - 250, 52, 500, 30, 8); ctx.fill();
@@ -2014,6 +2059,10 @@ const Encounter = (function () {
     REGIONS: REGIONS,
     EXP_REGIONS: EXP_REGIONS,
     SOUTH_EXP: SOUTH_EXP,
+    EASIA_EXP: EASIA_EXP,
+    registerMini: registerMini,
+    /** 外掛的海上冒險用的小工具 */
+    helpers: { hurt: function (p, fromX, events) { hurt(p, fromX, events); }, burst: function (state, x, y, color, n) { burst(state, x, y, color, n); } },
     regionOf: regionOf,
     regionUnlocked: regionUnlocked,
     nextRegion: nextRegion,

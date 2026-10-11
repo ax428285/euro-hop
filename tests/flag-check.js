@@ -56,7 +56,12 @@ function runFlagCheck() {
     A4: { dir: 'atlantis', points: [[0.05, 0.1, 'blue']] },
     // v1.32.1 亞洲篇
     IR: { dir: 'iran', points: [[0.1, 0.15, 'green'], [0.1, 0.5, 'white'], [0.1, 0.85, 'red'], [0.5, 0.5, 'red']] },          // 綠白紅橫條＋紅色國徽
-    UZ: { dir: 'uzbekistan', points: [[0.6, 0.15, 'blue'], [0.6, 0.5, 'white'], [0.6, 0.85, 'green']] }                           // 綠底黃菱形藍球
+    UZ: { dir: 'uzbekistan', points: [[0.6, 0.15, 'blue'], [0.6, 0.5, 'white'], [0.6, 0.85, 'green']] },
+    // v1.33 亞洲篇第二批
+    IN: { dir: 'india', points: [[0.1, 0.15, 'gold'], [0.1, 0.5, 'white'], [0.1, 0.85, 'green']] },          // 番紅花、白、綠＋法輪
+    NP: { dir: 'nepal', points: [[0.08, 0.6, 'red'], [0.02, 0.5, 'blue'], [0.137, 0.75, 'white']] },                       // 兩個三角旗：紅底藍邊、白太陽
+    CN: { dir: 'china', points: [[0.8, 0.8, 'red'], [0.17, 0.27, 'gold']] },
+    MN: { dir: 'mongolia', points: [[0.5, 0.5, 'blue'], [0.85, 0.5, 'red'], [0.06, 0.94, 'red']] }                           // 綠底黃菱形藍球
   };
 
   const cv = document.createElement('canvas');

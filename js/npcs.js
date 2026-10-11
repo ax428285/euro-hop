@@ -333,6 +333,40 @@ const Npcs = (function () {
         look: { skin: '#c8946a', hair: '#2a1e18', shirt: '#a8202e', pants: '#2a6a4a', hat: 'scarf', hatColor: '#f2c230', item: 'pan' },
         lines: ['撒馬爾罕的圓麵包（non）放好幾天都不會壞，商隊帶著它走好幾個月。', '絲路上的商人在這裡換貨：中國的絲綢、波斯的銀器、印度的香料。', '聽說再往東，有人會把蠶繭織成發光的絲綢⋯⋯'] }
     ],
+    // ── 亞洲篇第二批（v1.33）──
+    IN: [
+      { at: 0.1, name: '象夫 Raju',
+        look: { skin: '#a8724a', hair: '#1e1a18', shirt: '#f2c230', pants: '#f4f0e6', hat: 'kerchief', hatColor: '#d8302a', item: null },
+        lines: ['我的大象叫 Lakshmi，力氣大得不得了 —— 碰一下就能騎上去！', '前面那些木頭路障太高了，跳不過去，騎著大象衝過去就撞開了。', '被打到的話她會嚇跑，別擔心，等一下她會自己走回你身邊。'] },
+      { at: 0.46, name: '奶茶小販 Priya',
+        look: { skin: '#b07850', hair: '#1a1418', shirt: '#2a8a8a', pants: '#d8302a', hat: 'scarf', hatColor: '#e8702a', item: 'mug' },
+        lines: ['來一杯印度奶茶（chai）吧！紅茶、牛奶、薑和香料一起煮。', '印度人喝茶用小小的陶杯，喝完就把杯子摔碎回歸大地。', '齋浦爾的房子都是粉紅色的 —— 一百多年前為了歡迎英國王子來訪漆的。'] },
+      { at: 0.84, name: '耍蛇人 Arjun',
+        look: { skin: '#a06a40', hair: '#2a2420', shirt: '#f4f0e6', pants: '#e8b830', hat: 'kerchief', hatColor: '#f4f0e6', item: null },
+        lines: ['蛇其實聽不見笛聲，牠是跟著笛子晃動的樣子在搖。', '印度的數字 0 傳到阿拉伯，再傳到歐洲 —— 所以叫「阿拉伯數字」。', '再往北走就是喜馬拉雅山了，那邊的空氣好稀薄。'] }
+    ],
+    NP: [
+      { at: 0.1, name: '雪巴嚮導 Tenzing',
+        look: { skin: '#a8724a', hair: '#1e1a18', shirt: '#d8302a', pants: '#2a2a36', hat: 'beanie', hatColor: '#f2c230', item: null },
+        lines: ['山上空氣很稀薄，頭上的氧氣條會一直掉 —— 跳得越多掉得越快。', '看到黃色的帳篷就走進去，裡面有氧氣瓶可以補滿。', '我們雪巴人住在山上好幾代了，心肺天生就比較強。'] },
+      { at: 0.46, name: '登山客 Edmund',
+        look: { skin: '#e8c4a0', hair: '#c8a060', shirt: '#2a6ab8', pants: '#3a3a44', hat: 'beanie', hatColor: '#c8302a', item: 'lamp' },
+        lines: ['1953 年，紐西蘭的希拉里和雪巴人丹增，第一次一起站上聖母峰頂。', '前面的山口風很大，颳起來的時候跳著走比較快。', '每次登頂只敢在山頂待十五分鐘 —— 氧氣不夠用。'] },
+      { at: 0.84, name: '僧侶 Lobsang',
+        look: { skin: '#b07850', hair: '#2a2420', shirt: '#a8202a', pants: '#e8b830', hat: null, item: 'book' },
+        lines: ['經幡上印著經文，風每吹一次，就等於把經文唸了一次。', '藍、白、紅、綠、黃，代表天空、雲、火、水和大地。', '尼泊爾的國旗是兩個三角形疊起來的 —— 全世界只有它不是長方形。'] }
+    ],
+    CN: [
+      { at: 0.1, name: '守城的士兵 李將軍',
+        look: { skin: '#e0b48a', hair: '#1a1418', shirt: '#c8302a', pants: '#3a3a44', hat: 'helmet', hatColor: '#6a6a74', item: 'spear' },
+        lines: ['敵人來了！快去點烽火台 —— 跳起來碰台頂的火盆就點著了。', '五座烽火台全部點燃，終點的關門才會打開。', '地上出現紅圈就是箭要射過來了，快離開那裡！'] },
+      { at: 0.46, name: '造磚的工匠 王師傅',
+        look: { skin: '#d8a880', hair: '#3a2a22', shirt: '#6a6a74', pants: '#3a2a22', hat: 'straw', hatColor: '#c8a050', item: null },
+        lines: ['長城的磚頭上常常刻著造磚人的名字，磚壞了就知道是誰偷懶。', '傳說砌牆的灰漿裡加了糯米，所以幾百年都不會倒。', '長城加起來有兩萬多公里長，可以繞地球半圈。'] },
+      { at: 0.84, name: '茶商 陳老闆',
+        look: { skin: '#e0b48a', hair: '#2a2420', shirt: '#2a6a5a', pants: '#3a2a22', hat: 'cap', hatColor: '#2a2a30', item: 'mug' },
+        lines: ['中國的茶、絲綢、瓷器，以前都是沿著絲路賣到西方去的。', '「瓷器」的英文 china，跟中國的英文一模一樣。', '往北就是蒙古的大草原了，那裡的人個個都是騎馬射箭的高手。'] }
+    ],
     // ── 亞特蘭提斯海底城（v1.31.2）──
     A1: [
       { at: 0.1, name: '珊瑚攤老闆 Nerea',

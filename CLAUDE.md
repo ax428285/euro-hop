@@ -89,5 +89,13 @@
   - 亞洲的機關寫在 `js/silkroad.js`，用 `Features.register(type, {plan, init, update, draw, solid})` 掛進 features.js（不要再把新機關塞進 features.js）；美術在 `js/asia.js`。
   - 伊朗 `def.carpet`：整關坐飛毯（entities.js 物理同潛水、不用換氣），winds（熱氣流／下沉氣流）、minarets（宣禮塔）；烏茲別克 caravan（駱駝跟在後面，盜賊 `e.bandit` 撞到扣貨，3 次 = `caravanLost` 扣命）。
   - 亞洲的紀念品標 `asia: true`，人魚只收 `Souvenirs.merDefs()`（不含亞洲，好感度上限不變）。亞洲之謎（mystery.js）主題「字母走過的路」，`wip` 到八國齊。測試 `tests/asia-check.js` 的 `runAsiaCheck`。
-  - 之後：第二批 印度、尼泊爾、中國長城、蒙古＋亞洲海上冒險＋東亞解鎖＋玄奘／馬可波羅；第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店；八岐大蛇當大地圖魔王、忍者在大地圖隨機出現。
+- v1.33.0（還沒上線，在 nordic）亞洲篇第二批：Levels.list 第 41～44 關 IN 印度、NP 尼泊爾、CN 中國（gate easia）、MN 蒙古（race，gate easia）。
+  - 新的外掛點（新內容寫在自己的檔案，不要再塞進大檔案）：Features.register（silkroad.js）、Race.registerTheme（steppe.js：蒙古騎馬射箭 theme `steppe`）、
+    Encounter.registerMini（asiasea.js：亞洲海上冒險 spices／dragonboat／typhoon／★goldkoi）、Quests.registerNpc（asiaquest.js：玄奘、大雁塔、馬可波羅，地點 push 進 AS_SPOTS）。
+  - 印度：坐騎 kind `elephant`（features.js 的 mount 照 `EXT['mount_' + kind]` 換畫法、respawn 走到玩家身邊）＋ barricades（只有騎大象撞得開）；尼泊爾 thinAir（p.o2、補給站、`hypoxia` 扣命）；
+    中國 beacons（跳起來碰火盆、全點燃 beaconGate 才開）＋ volleys 箭雨；蒙古按 K 射箭靶，全中稱號「草原神射手」（flag archer）。
+  - 亞洲 EXP：`Save.expAs`／`addExpAs`，Encounter REGIONS `easia`（pool 'as'，`EASIA_EXP` 300）；亞洲地圖的 EXP 條顯示亞洲 EXP。
+  - 玄奘（那爛陀寺）→ flag `sutra` 1 → 大雁塔 → `sutra` 2、稱號「取經人」（flag pilgrim）＋150 亞洲 EXP＋€500；馬可波羅 flag `marco`。
+  - 測試：asia-check 包含第二批；`runTraversalTest(only)` 可以只跑幾關（使用者：機器人只測新增的關卡）。
+  - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店；八岐大蛇當大地圖魔王、忍者在大地圖隨機出現。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

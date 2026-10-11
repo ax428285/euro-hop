@@ -417,6 +417,55 @@ const Music = (function () {
                1, null, 2, 1, 0, null, 1, 2, 1, null, 0, null, 0, null, null, null],
       drum:   [1, 0, 0, 1, 0, 0, 0.5, 0, 1, 0, 0, 1, 0, 0.5, 0.5, 0]
     },
+    // v1.33 印度：拉格（Raga）的味道 —— 升四級的「卡莉安」調式，塔布拉鼓的快速切分，鋸齒波像西塔琴
+    IN: {
+      bpm: 128, wave: 'sawtooth',
+      root: -3,
+      scale: [0, 2, 4, 6, 7, 9, 11],
+      bass: [0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 4, 4, 0, 0, 0, 0],
+      melody: [4, 5, 4, null, 3, 2, 3, null, 4, null, 6, 5, 4, null, null, null,
+               7, null, 6, 5, 6, null, 4, null, 5, 4, 3, null, 2, null, null, null,
+               4, 4, 5, null, 6, 7, null, 6, 5, null, 4, 3, 4, null, 2, null,
+               3, null, 2, 1, 0, null, 1, 2, 0, null, -1, null, 0, null, null, null],
+      drum:   [1, 0, 0.5, 0.5, 1, 0, 0.5, 0, 1, 0.5, 0, 0.5, 1, 0, 0.5, 0.5]
+    },
+    // v1.33 尼泊爾：慢慢的、空曠的五聲音階，三角波像竹笛在山谷裡迴盪；鼓只有遠遠的寺廟鐘
+    NP: {
+      bpm: 84, wave: 'triangle',
+      root: 0,
+      scale: [0, 2, 4, 7, 9, 12, 14],
+      bass: [0, 0, 0, 0, 3, 3, 3, 3, 4, 4, 4, 4, 0, 0, 1, 1],
+      melody: [2, null, 3, null, 4, null, null, 3, 2, null, 1, null, 0, null, null, null,
+               3, null, 4, null, 5, null, 4, 3, 4, null, null, null, 2, null, null, null,
+               5, null, 6, 5, 4, null, 3, null, 4, 3, 2, null, 3, null, 1, null,
+               2, null, 1, null, 0, null, 1, 2, 1, null, 0, null, 0, null, null, null],
+      drum:   [0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0],
+      soft: true
+    },
+    // v1.33 中國：五聲音階的進行曲 —— 戰鼓、銅鑼，方波像嗩吶
+    CN: {
+      bpm: 132, wave: 'square',
+      root: -5,
+      scale: [0, 2, 4, 7, 9, 12, 14],
+      bass: [0, 0, 3, 3, 4, 4, 0, 0, 1, 1, 3, 3, 4, 4, 0, 0],
+      melody: [4, null, 4, 3, 4, null, 5, null, 4, 3, 2, null, 3, null, null, null,
+               2, null, 2, 1, 2, null, 3, null, 2, 1, 0, null, 1, null, null, null,
+               5, null, 6, 5, 4, null, 3, 4, 5, null, 4, 3, 2, null, 3, null,
+               4, 3, 2, null, 1, 2, 3, null, 1, null, 0, null, 0, null, null, null],
+      drum:   [1, 0, 0.5, 0, 1, 0, 0.5, 0.5, 1, 0, 0.5, 0, 1, 1, 0.5, 0]
+    },
+    // v1.33 蒙古：馬蹄的三拍節奏、長調的悠長旋律（五聲音階），三角波像馬頭琴
+    MN: {
+      bpm: 144, wave: 'triangle',
+      root: -2,
+      scale: [0, 2, 5, 7, 9, 12, 14],
+      bass: [0, 0, 0, 0, 3, 3, 3, 3, 4, 4, 3, 3, 0, 0, 2, 2],
+      melody: [3, null, 4, null, 5, null, 4, 3, 2, null, 3, null, 0, null, null, null,
+               4, null, 5, null, 6, null, 5, 4, 5, null, 4, null, 3, null, null, null,
+               6, null, 5, 4, 5, null, 3, null, 4, 3, 2, null, 3, null, 1, null,
+               2, null, 3, 2, 1, null, 2, 1, 0, null, 1, null, 0, null, null, null],
+      drum:   [1, 0, 0.5, 1, 0, 0.5, 1, 0, 0.5, 1, 0, 0.5, 1, 0, 0.5, 0]
+    },
     // 匈牙利：查爾達什（吉普賽小調，增二度），先慢後快的感覺用跳音表現
     HU: {
       bpm: 140, wave: 'sawtooth',

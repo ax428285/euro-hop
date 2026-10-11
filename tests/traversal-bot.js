@@ -4,11 +4,13 @@
  *
  * 在瀏覽器 console（或 Playwright evaluate）執行 runTraversalTest()。
  */
-function runTraversalTest() {
+/** only：只測這幾關（關卡 id 陣列，例如 ['IN', 'NP']）；不給就全部 */
+function runTraversalTest(only) {
   const results = [];
 
   for (let li = 0; li < Levels.list.length; li++) {
     const def = Levels.list[li];
+    if (only && only.indexOf(def.id) < 0) continue;
     // 魔王關不是「跑到終點」的關卡，交給 runBossTest() 驗
     if (def.isBoss) {
       results.push({
@@ -162,6 +164,14 @@ function makeBot(state) {
       jumpEdge = false;
       held.right = true;
       held.left = false;
+
+      /*
+       * v1.33 長城的烽火台：火盆在台頂上方，要跳起來才碰得到 —— 走到台子前面就跳（落地前往前飄過火盆）。
+       */
+      const fire = state.features ? state.features.list.filter(function (f) { return f.type === 'beacon' && !f.lit; })
+        .map(function (f) { return SilkRoad.fireBox(f); })
+        .filter(function (b) { return b.x - (p.x + p.w) < 60 && b.x + b.w > p.x + p.w; })[0] : null;
+      if (fire && p.onGround) { jumpEdge = true; return; }
 
       /*
        * v1.31.2 整關在水裡（海底城的珊瑚市集）：一直往右游，維持在「離地面 225 高」左右 ——

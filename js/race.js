@@ -49,6 +49,26 @@ const Race = (function () {
   }
   function ease(a, b, k) { return a + (b - a) * ((-Math.cos(k * Math.PI) / 2) + 0.5); }
 
+  /*
+   * v1.33 外掛的主題（蒙古的騎馬射箭寫在 steppe.js，要在 levels.js 之前載入）：
+   *   Race.registerTheme(name, {
+   *     colors,                             跟 THEME 一樣的顏色表
+   *     deco(i, segs, r), obsKinds,         路邊裝飾、障礙種類
+   *     plan(cfg, segs, START, END, r)      額外的規劃（回傳的東西放在 pl.extra）
+   *     init(rs, def), update(state, rs, input, events, t)
+   *     tipKinds,                           第一次看到要提示的整排障礙（feature:race_<kind>）
+   *     sprites: { kind: fn(ctx, u, o, t) }, backdrop(ctx, pl, rs, t, W, H, off, hz), drawPlayer(ctx, pl, rs, t),
+   *     drawSeg(ctx, s, rs, sx, u, t)       每一段畫完東西後（sx(x) = 路寬座標換成螢幕 x、u = 路寬單位）
+   *     overlay(ctx, state, t, W, H), finish   終點線的裝飾 kind
+   *   })
+   */
+  const EXT_THEMES = {}, EXT_SPRITES = {};
+  function registerTheme(name, h) {
+    EXT_THEMES[name] = h;
+    THEME[name] = h.colors;
+    Object.keys(h.sprites || {}).forEach(function (k) { EXT_SPRITES[k] = h.sprites[k]; });
+  }
+
   // ── 規劃 ────────────────────────────────────────────────
 
   /**
@@ -85,7 +105,8 @@ const Race = (function () {
     const finish = total - 40;
 
     // 路邊的裝飾
-    const deco = cfg.theme === 'seahorse'
+    const ext = EXT_THEMES[cfg.theme];
+    const deco = ext ? function (i) { ext.deco(i, segs, r); } : cfg.theme === 'seahorse'
       ? function (i) {
           // 海馬競技場：兩旁是倒塌的石柱、海帶、看台上的海龜觀眾；拱門一道道跨過賽道
           if (i % 4 === 0) segs[i].sprites.push({ x: -1.35 - r() * 0.6, kind: r() < 0.5 ? 'kelp' : 'column' });
@@ -107,7 +128,7 @@ const Race = (function () {
     for (let i = 0; i < total; i++) deco(i);
 
     // 障礙：每隔一段距離放一個；高的（要閃）、矮的（可以跳）
-    const obsKinds = cfg.theme === 'seahorse'
+    const obsKinds = ext ? ext.obsKinds : cfg.theme === 'seahorse'
       ? [{ kind: 'urchin', low: true, w: 0.36 }, { kind: 'coralPillar', low: false, w: 0.34 }, { kind: 'jellyRoad', low: false, w: 0.3 }]
       : cfg.theme === 'chase'
       ? [{ kind: 'tumbleweed', low: true, w: 0.4 }, { kind: 'barrel', low: false, w: 0.42 }, { kind: 'cactusRoad', low: false, w: 0.3 }]
@@ -156,8 +177,9 @@ const Race = (function () {
         coins.push(c);
       }
     }
+    const extra = ext && ext.plan ? ext.plan(cfg, segs, START, END, r) : null;
     // 終點線
-    segs[finish].sprites.push({ x: 0, kind: cfg.theme === 'chase' ? 'roadblock' : cfg.theme === 'seahorse' ? 'arch' : 'finish' });
+    segs[finish].sprites.push({ x: 0, kind: ext && ext.finish ? ext.finish : cfg.theme === 'chase' ? 'roadblock' : cfg.theme === 'seahorse' ? 'arch' : 'finish' });
     return {
       theme: cfg.theme || 'car',
       segs: segs,
@@ -167,6 +189,7 @@ const Race = (function () {
       traffic: cfg.traffic || 0,
       maxSpeed: cfg.maxSpeed || 120,
       offroad: 'slow',
+      extra: extra,
       seed: cfg.seed || 1
     };
   }
@@ -185,11 +208,13 @@ const Race = (function () {
       cars.push({ z: (60 + k * (pl.total - 160) / Math.max(1, pl.traffic)) * SEG, x: LANES[Math.floor(r() * 3)],
                   speed: pl.maxSpeed * (0.32 + r() * 0.18), col: Math.floor(r() * 4) });
     }
-    return {
+    const rs = {
       pos: 0, x: 0, speed: 0, hop: 0, vh: 0, invuln: 0, skyOff: 0,
       coinsTaken: {}, cars: cars, done: false, seen: {}, scrape: 0, tilt: 0,
       equipSeg: pl.finish - 30, equipX: 0
     };
+    if (EXT_THEMES[pl.theme] && EXT_THEMES[pl.theme].init) EXT_THEMES[pl.theme].init(rs, def);
+    return rs;
   }
 
   function segAt(pl, z) { return pl.segs[Math.max(0, Math.min(pl.total - 1, Math.floor(z / SEG)))]; }
@@ -228,6 +253,8 @@ const Race = (function () {
       rs.hop += rs.vh; rs.vh -= HOP_G;
       if (rs.hop <= 0) { rs.hop = 0; rs.vh = 0; events.push('land'); }
     }
+    const ext = EXT_THEMES[pl.theme];
+    if (ext && ext.update) ext.update(state, rs, input, events, t);
     // 往前
     const before = rs.pos;
     rs.pos += rs.speed;
@@ -247,7 +274,7 @@ const Race = (function () {
       for (let d = 30; d <= 34; d++) {
         const ahead = pl.segs[i + d];
         if (ahead) ahead.obs.forEach(function (o) {
-          if ((o.kind === 'wave' || o.kind === 'crates' || o.kind === 'reefwall') && !rs.seen[o.kind]) { rs.seen[o.kind] = true; events.push('feature:race_' + o.kind); }
+          if ((o.kind === 'wave' || o.kind === 'crates' || o.kind === 'reefwall' || (ext && ext.tipKinds && ext.tipKinds.indexOf(o.kind) >= 0)) && !rs.seen[o.kind]) { rs.seen[o.kind] = true; events.push('feature:race_' + o.kind); }
         });
       }
       s.obs.forEach(function (o) {
@@ -335,7 +362,9 @@ const Race = (function () {
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     const off = rs.skyOff;
     const hz = H * 0.5;
-    if (pl.theme === 'car') {
+    if (EXT_THEMES[pl.theme] && EXT_THEMES[pl.theme].backdrop) {
+      EXT_THEMES[pl.theme].backdrop(ctx, pl, rs, t, W, H, off, hz);
+    } else if (pl.theme === 'car') {
       // 夕陽
       ctx.fillStyle = 'rgba(255, 240, 180, 0.9)';
       ctx.beginPath(); ctx.arc(W * 0.3 - off * 200, hz - 40, 38, 0, Math.PI * 2); ctx.fill();
@@ -400,6 +429,7 @@ const Race = (function () {
     const u = scale * ROAD_W * W / 2;
     ctx.save();
     ctx.translate(sx, sy);
+    if (EXT_SPRITES[kind]) { EXT_SPRITES[kind](ctx, u, o, t); ctx.restore(); return; }
     switch (kind) {
       // ── v1.31.2 海馬競技場 ──
       case 'kelp': {
@@ -669,7 +699,9 @@ const Race = (function () {
     ctx.rotate(rs.tilt * 0.06);
     const bounce = rs.hop > 0 ? 0 : Math.sin(t * 0.5) * 0.8 * (rs.speed / pl.maxSpeed);
     ctx.translate(0, bounce);
-    if (pl.theme === 'seahorse') {
+    if (EXT_THEMES[pl.theme] && EXT_THEMES[pl.theme].drawPlayer) {
+      EXT_THEMES[pl.theme].drawPlayer(ctx, pl, rs, t);
+    } else if (pl.theme === 'seahorse') {
       // 騎著海馬的背影：金黃色的海馬（捲尾巴、背鰭），上面坐著穿條紋衫的你
       const fl = Math.sin(t * 0.4) * 4;
       ctx.fillStyle = '#e8b040';
@@ -789,9 +821,13 @@ const Race = (function () {
         const ci = Math.floor(c.z / SEG);
         if (ci === s.i) drawSprite(ctx, 'car', s.p1.sx + sc * c.x * ROAD_W * W / 2, s.p1.sy, sc, W, c, t);
       });
+      if (EXT_THEMES[pl.theme] && EXT_THEMES[pl.theme].drawSeg) {
+        EXT_THEMES[pl.theme].drawSeg(ctx, s, rs, function (x) { return s.p1.sx + sc * x * ROAD_W * W / 2; }, sc * ROAD_W * W / 2, t);
+      }
       ctx.restore();
     }
     drawPlayer(ctx, pl, rs, state.player, W, H, t);
+    if (EXT_THEMES[pl.theme] && EXT_THEMES[pl.theme].overlay) EXT_THEMES[pl.theme].overlay(ctx, state, t, W, H);
     // 速度線（越快越多）
     const k = rs.speed / pl.maxSpeed;
     if (k > 0.8) {
@@ -809,6 +845,8 @@ const Race = (function () {
   }
 
   return {
+    registerTheme: registerTheme,
+    ROAD_W: ROAD_W,
     plan: plan,
     makeState: makeState,
     update: update,

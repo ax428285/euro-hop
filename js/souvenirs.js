@@ -36,7 +36,16 @@ const Souvenirs = (function () {
     { id: 'minicarpet', level: 38, country: '伊朗', icon: 'miniCarpet', name: '波斯小地毯', asia: true,
       note: '一張手織的波斯地毯，每平方公分打了上百個結；好的地毯可以用上一百年，越用越漂亮。' },
     { id: 'suzani', level: 39, country: '烏茲別克', icon: 'suzani', name: '蘇札尼刺繡',
-      asia: true, note: '蘇札尼是烏茲別克的大塊刺繡布，上面繡著石榴和太陽；以前新娘出嫁時，要帶著媽媽繡的蘇札尼。' }
+      asia: true, note: '蘇札尼是烏茲別克的大塊刺繡布，上面繡著石榴和太陽；以前新娘出嫁時，要帶著媽媽繡的蘇札尼。' },
+    // v1.33 亞洲篇第二批
+    { id: 'masala', level: 40, country: '印度', icon: 'masala', name: '印度香料盒', asia: true,
+      note: '印度的廚房都有一個圓圓的香料盒，裡面裝著薑黃、辣椒、孜然、肉桂⋯⋯每天煮咖哩都要用。' },
+    { id: 'prayerflag', level: 41, country: '尼泊爾', icon: 'prayerFlags', name: '五色經幡', asia: true,
+      note: '藍白紅綠黃的經幡掛在山口和寺廟上，風一吹，印在上面的經文就跟著吹到世界各地。' },
+    { id: 'porcelain', level: 42, country: '中國', icon: 'porcelain', name: '青花瓷瓶', asia: true,
+      note: '白底藍花的青花瓷是元朝、明朝最有名的瓷器，用波斯來的鈷藍顏料畫的，沿著海上絲路賣到全世界。' },
+    { id: 'morinkhuur', level: 43, country: '蒙古', icon: 'morinKhuur', name: '馬頭琴', asia: true,
+      note: '馬頭琴只有兩根弦，琴桿頂上雕著一個馬頭；傳說是一個牧人為了想念死去的白馬做的。' }
   ];
   const byId = {}, byLevel = {};
   defs.forEach(function (d) { byId[d.id] = d; byLevel[d.level] = d; });

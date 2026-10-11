@@ -60,6 +60,18 @@ const Quests = (function () {
   const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa', thalassa: 'Thalassa',
                   roaster: '烘豆師傅 Don Pedro', princess: '絲路公主 Roxana' };
 
+  /*
+   * v1.33 外掛的劇情人物（亞洲篇的玄奘、馬可波羅寫在 asiaquest.js）：
+   *   Quests.registerNpc(id, { names: { who: '顯示的名字' }, talk(), icon(ctx, x, y, t, near), portraits: { who: fn(ctx, t, eyes) }, panel(ctx, W, t, talk) })
+   * 地點照樣放進 AS_SPOTS（npc: id）。
+   */
+  const EXTN = {}, EXTP = {};
+  function registerNpc(id, h) {
+    EXTN[id] = h;
+    Object.keys(h.names || {}).forEach(function (k) { NAMES[k] = h.names[k]; });
+    Object.keys(h.portraits || {}).forEach(function (k) { EXTP[k] = h.portraits[k]; });
+  }
+
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
   /** v1.31 美洲篇開放了嗎：完成哥倫布的委託（他出航之後） */
@@ -164,6 +176,7 @@ const Quests = (function () {
 
   function drawMapIcon(ctx, kind, x, y, t, near) {
     ctx.save();
+    if (EXTN[kind] && EXTN[kind].icon) { EXTN[kind].icon(ctx, x, y, t, near); ctx.restore(); return; }
     if (kind === 'roastery') {
       // v1.32 烘豆場：還沒蓋 = 一塊空地插著木頭告示牌；蓋好 = 紅屋頂的小工廠，煙囪冒著烘豆的煙
       ring(ctx, x, y, t, near, 'rgba(240, 180, 120, 0.95)');
@@ -917,6 +930,7 @@ const Quests = (function () {
   }
 
   function talk(id) {
+    if (EXTN[id] && EXTN[id].talk) return EXTN[id].talk();
     if (id === 'roastery') return talkRoastery();
     if (id === 'princess') return talkPrincess();
     if (id === 'merHome') return talkMerHome();
@@ -945,6 +959,7 @@ const Quests = (function () {
       if (blink) { ctx.fillRect(-gap - 3, y, 6, 1.5); ctx.fillRect(gap - 3, y, 6, 1.5); }
       else { ctx.fillRect(-gap - 2, y - 2, 4, 5); ctx.fillRect(gap - 2, y - 2, 4, 5); }
     }
+    if (EXTP[who]) { EXTP[who](ctx, t, eyes); ctx.restore(); return; }
     if (who === 'thor') {
       ctx.fillStyle = '#c0281e'; ctx.fillRect(-34, 10, 68, 40);                       // 紅披風
       ctx.fillStyle = '#3a5aa0'; ctx.fillRect(-22, 14, 44, 36);
@@ -1327,6 +1342,7 @@ const Quests = (function () {
   }
 
   function drawPanel(ctx, kind, W, t, tk) {
+    if (EXTN[kind] && EXTN[kind].panel) { EXTN[kind].panel(ctx, W, t, tk); return; }
     if (kind === 'merHome') { drawMerHome(ctx, W, t, tk); return; }
     if (kind === 'eiffel') { drawEiffel(ctx, W, t, tk); return; }
     if (kind !== 'zoo' || typeof Expedition === 'undefined') return;
@@ -1352,6 +1368,9 @@ const Quests = (function () {
   return {
     SPOTS: SPOTS,
     NAMES: NAMES,
+    registerNpc: registerNpc,
+    /** 外掛的人物用的小工具（對話一句、地圖圖示的光圈、小人） */
+    helpers: { L: function (w, s) { return L(w, s); }, ring: function (c, x, y, t, n, col) { ring(c, x, y, t, n, col); }, tinyPerson: function (c, x, y, b, s) { tinyPerson(c, x, y, b, s); } },
     ANIMALS: ANIMALS,
     northOpen: northOpen,
     americaOpen: americaOpen,

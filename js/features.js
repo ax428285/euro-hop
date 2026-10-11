@@ -792,7 +792,7 @@ const Features = (function () {
       // 第一次接近時發一個事件，game.js 顯示提示
       const near = f.x0 != null ? lead.x > f.x0 - 300 && lead.x < (f.x1 || f.x0) : Math.abs(lead.x - f.x) < 420;
       // 鹽湖跟流沙同一套機制，提示分開；v1.31 牙買加音響、哥倫比亞海盜砲、巴拿馬閘門也各有自己的提示
-      const tipKey = f.brine ? 'brine' : f.type === 'lockGate' ? 'lock' : f.type;
+      const tipKey = f.brine ? 'brine' : f.type === 'lockGate' ? 'lock' : f.type === 'mount' && f.kind ? 'mount_' + f.kind : f.type;
       if (near && !fs.seen[tipKey]) { fs.seen[tipKey] = true; events.push('feature:' + tipKey); }
 
       if (EXT[f.type]) { if (EXT[f.type].update) EXT[f.type].update(state, f, players, lead, events, t); return; }
@@ -888,13 +888,20 @@ const Features = (function () {
           const box = { x: f.x + 10, y: f.y - 44, w: f.w - 20, h: 44 };
           players.forEach(function (p, i) {
             if (f.state !== 'wait' || p.mount || !U.overlap(p, box)) return;
-            p.mount = { kind: 'camel', from: f };
+            // v1.33 坐騎的種類（f.kind；沒寫 = 駱駝）。lift = 玩家本人往上畫幾 px（坐在鞍上）
+            const mk = EXT['mount_' + f.kind];
+            p.mount = { kind: f.kind || 'camel', from: f, lift: (mk && mk.lift) || 14 };
             f.state = 'gone';
             events.push('p' + pidOf(p, i) + ':mount');
           });
         } else if (!players.some(function (p) { return p.mount && p.mount.from === f; })) {
           // 沒人騎了（被打到嚇跑）：等一下回到原地
-          if (++f.timer >= MOUNT_RESPAWN) { f.state = 'wait'; f.timer = 0; }
+          if (++f.timer >= MOUNT_RESPAWN) {
+            f.state = 'wait'; f.timer = 0;
+            // v1.33 大象：不回原地，走到玩家前面等（見 silkroad.js）
+            const mk = EXT['mount_' + f.kind];
+            if (mk && mk.respawn) mk.respawn(state, f, players);
+          }
         }
       } else if (f.type === 'runaway') {
         f.x += f.dir * 3.2;
@@ -1516,6 +1523,7 @@ const Features = (function () {
         if (f.state !== 'wait') return;
         const sx = f.x - camX;
         if (sx > 1040 || sx < -120) return;
+        if (EXT['mount_' + f.kind] && EXT['mount_' + f.kind].drawIdle) { EXT['mount_' + f.kind].drawIdle(ctx, f, sx, t); return; }
         drawCamel(ctx, sx, f.y, 1, 0);
         // 頭上一個上下飄的鞍形記號：「可以騎」
         const by = f.y - HUMP_Y - 22 + Math.sin(t * 0.1) * 3;
@@ -1527,7 +1535,8 @@ const Features = (function () {
         if (sx > 1040 || sx < -120) return;
         ctx.save();
         ctx.globalAlpha = Math.min(1, f.life / 30);
-        drawCamel(ctx, sx, f.y, f.dir, t * 2);
+        if (EXT['mount_' + f.kind] && EXT['mount_' + f.kind].drawRun) EXT['mount_' + f.kind].drawRun(ctx, f, sx, t);
+        else drawCamel(ctx, sx, f.y, f.dir, t * 2);
         ctx.restore();
       } else if (f.type === 'camel') {
         const sx = f.cx - camX;
@@ -2223,9 +2232,10 @@ const Features = (function () {
   /** 被打到：駱駝嚇跑（往玩家面向的反方向跑出畫面），人留在原地 */
   function dismount(state, p) {
     if (!p.mount) return;
+    const kind = p.mount.kind === 'camel' ? undefined : p.mount.kind;
     p.mount = null;
     if (state.features) {
-      state.features.list.push({ type: 'runaway', x: p.x + p.w / 2 - CAMEL_W / 2, y: p.y + p.h, dir: -(p.facing || 1), life: 110 });
+      state.features.list.push({ type: 'runaway', kind: kind, x: p.x + p.w / 2 - CAMEL_W / 2, y: p.y + p.h, dir: -(p.facing || 1), life: 110 });
     }
   }
 
@@ -2235,6 +2245,8 @@ const Features = (function () {
    */
   function drawMount(ctx, p, sx, t) {
     if (!p.mount) return;
+    const mk = EXT['mount_' + p.mount.kind];
+    if (mk && mk.drawRide) { mk.drawRide(ctx, p, sx, t); return; }
     ctx.save();
     ctx.translate(sx + p.w / 2, p.y + p.h);      // 腳踩地；玩家本人在 game.js 往上畫 14px（坐在鞍上）
     ctx.scale(p.facing < 0 ? -1 : 1, 1);

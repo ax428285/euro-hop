@@ -935,6 +935,7 @@ const Game = (function () {
     ['thorAsked', 'loki', 'north'].forEach(function (k) { if (!Save.flag(k)) Save.setFlag(k, 1); });
     if (Save.flag('columbus') < 2) Save.setFlag('columbus', 2);
     if (Save.expAm() < Encounter.SOUTH_EXP) { sv.expAm = Encounter.SOUTH_EXP; Save.touch(); }
+    if (Save.expAs() < Encounter.EASIA_EXP) { sv.expAs = Encounter.EASIA_EXP; Save.touch(); }     // v1.33 東亞
     sv.unlocked = Levels.count;
     Save.touch();
     Sfx.fanfare();
@@ -1183,6 +1184,8 @@ const Game = (function () {
         const reg = Encounter.regionOf(rg);
         toast = rg === 'samerica'
           ? { text: '南美篇還沒解鎖', sub: '在新大陸打海上怪物累積美洲 EXP：' + Save.expAm() + ' / ' + reg.exp, life: 170 }
+          : rg === 'easia'
+          ? { text: '東亞篇還沒解鎖', sub: '在亞洲的海上冒險累積亞洲 EXP：' + Save.expAs() + ' / ' + reg.exp, life: 170 }
           : rg === 'america'
           ? { text: reg.name + '還沒開放', sub: '先完成塞維亞哥倫布的委託', life: 170 }
           : reg.quest
@@ -1238,6 +1241,13 @@ const Game = (function () {
     wind: ['波斯的熱風', '金色的熱氣流會把飛毯往上托、藍色的下沉氣流往下壓 —— 進去之前先調好高度'],
     minaret: ['宣禮塔', '塔頂會痛 —— 坐飛毯從塔的上面飛過去，或從旁邊繞'],
     camelTrain: ['護送駱駝商隊', '駱駝跟在你後面走 —— 戴紅頭巾的盜賊會往回走去搶牠，先把他們踩倒'],
+    // v1.33 亞洲篇第二批
+    mount_elephant: ['騎大象', '碰一下就騎上去 —— 被打到大象會跑掉（不扣血），等一下牠會走到你身邊'],
+    barricade: ['木頭路障', '太高了跳不過去 —— 騎著大象衝過去就撞開了'],
+    oxygen: ['高山缺氧', '頭上的氧氣條一直在掉（跳的時候掉更快）—— 走進雪巴人的帳篷補滿，用完會扣一條命'],
+    beacon: ['長城的烽火台', '跳起來碰台頂的火盆就點燃烽火 —— 終點前的關門要全部點燃才會打開'],
+    volley: ['箭雨', '地上出現紅圈就是箭要落下來了 —— 快離開紅圈'],
+    race_fence: ['木頭圍欄！', '一整排圍欄擋住整條路 —— 按跳躍跳過去'],
     // v1.31 東歐換新玩法：塞爾維亞滑雪、保加利亞羽球
     ski: ['科帕奧尼克滑雪場', '按住 ↓ 壓低滑得更快、按 ← 剎車；石頭、雪人、樹幹要跳過去'],
     ski_kick: ['跳台！', '衝上跳台會飛起來 —— 空中的金幣只有飛過去才拿得到'],
@@ -1450,6 +1460,34 @@ const Game = (function () {
         return;
       }
       if (ev === 'caravan:bandit') return;
+      // v1.33 印度：騎大象撞開路障
+      if (ev === 'barricade:smash') { Sfx.clang(); shake = 12; runScore += 50; return; }
+      if (ev === 'barricade:need') { Sfx.clang(); toast = { text: '路障太高了，推不動⋯⋯', sub: '騎著大象衝過去才撞得開', life: 150 }; return; }
+      if (ev === 'barricade:elephant') { Sfx.equip(); toast = { text: '大象走過來了！', sub: '騎上去，衝過去撞開路障', life: 150 }; return; }
+      // v1.33 長城：點燃烽火台（'beacon:lit:2' = 還剩 2 座）、關門打開、還沒點完就走到關門
+      if (ev.indexOf && ev.indexOf('beacon:lit:') === 0) {
+        const left = parseInt(ev.slice(11), 10);
+        Sfx.secret(); runScore += 100;
+        toast = left ? { text: '烽火點燃了！', sub: '還有 ' + left + ' 座烽火台沒點', life: 140 } : { text: '烽火全部點燃！', sub: '終點的關門打開了', life: 180 };
+        return;
+      }
+      if (ev === 'beacon:open') { Sfx.fanfare(); shake = 6; return; }
+      if (ev.indexOf && ev.indexOf('beacon:need:') === 0) {
+        Sfx.clang();
+        toast = { text: '關門關著！', sub: '還有 ' + ev.slice(12) + ' 座烽火台沒點 —— 回頭跳起來碰台頂的火盆', life: 200 };
+        return;
+      }
+      if (ev === 'volley:warn') return;
+      if (ev === 'volley:land') { Sfx.stomp(); return; }
+      // v1.33 蒙古：射中箭靶、一趟全中
+      if (ev === 'archery:hit') { Sfx.coin(); runScore += 100; return; }
+      if (ev === 'archery:all') {
+        Sfx.fanfare();
+        const first = !Save.flag('archer');
+        Save.setFlag('archer', 1);
+        toast = { text: '箭靶全部射中！', sub: first ? '獲得稱號「草原神射手」' : '草原神射手寶刀未老', life: 260 };
+        return;
+      }
       switch (ev) {
         case 'jump': Sfx.jump(); break;
         case 'doublejump': Sfx.doubleJump(); break;
@@ -1498,6 +1536,16 @@ const Game = (function () {
         // 潛水（亞特蘭提斯）
         case 'swim': break;
         // v1.32.1 烏茲別克：駱駝的貨被搶光了
+        // v1.33 尼泊爾：走進氧氣補給站、氧氣用完
+        case 'o2': Sfx.coin(); break;
+        case 'hypoxia': {
+          Sfx.hurt(); shake = 8;
+          toast = { text: '氧氣用完了！', sub: '扣一條命 —— 氧氣條快沒了就趕快走進雪巴人的帳篷', life: 160 };
+          const hp = state.players[pid || 0];
+          if (hp) hp.invuln = 90 + stats.invulnBonus;
+          loseLife(false, pid);
+          break;
+        }
         case 'caravanLost': {
           Sfx.hurt(); shake = 10;
           toast = { text: '駱駝的貨被搶光了！', sub: '扣一條命 —— 商隊重新裝好貨繼續走，盜賊靠近駱駝前就要踩倒', life: 160 };
@@ -2353,8 +2401,9 @@ const Game = (function () {
       // v1.31 新大陸的怪給「美洲 EXP」（跟歐洲的分開累積，解鎖南美用）
       // v1.31 葡萄牙商店的航海家星盤：EXP 加成
       const expGain = Math.round(state.def.exp * (1 + (Shop.resolve().expBonus || 0)));
-      const r = state.def.am ? Save.addExpAm(expGain) : Save.addExp(expGain);
-      expResult = { gain: expGain, before: r.before, after: r.after, costume: null, am: !!state.def.am };
+      // v1.33 亞洲的海上冒險給「亞洲 EXP」（解鎖東亞）
+      const r = state.def.am ? Save.addExpAm(expGain) : state.def.as ? Save.addExpAs(expGain) : Save.addExp(expGain);
+      expResult = { gain: expGain, before: r.before, after: r.after, costume: null, am: !!state.def.am, as: !!state.def.as };
       netProgress({ t: 'exp', n: expGain, gain: gain });
       // 海上魔王：第一次打倒加送金幣（之後再打只給一般 EXP）
       if ((skirmish.def.boss || skirmish.def.dive || skirmish.def.fixed || skirmish.def.duo || skirmish.def.quest) && Save.markSeaBoss(skirmish.kind)) {
@@ -3083,7 +3132,7 @@ const Game = (function () {
     state.players.forEach(function (p, i) {
       if (downed[i]) return;
       Sprites.player(ctx, {
-        x: p.x - camX, y: p.y - (p.mount ? 14 : 0), w: p.w, h: p.h,
+        x: p.x - camX, y: p.y - (p.mount ? (p.mount.lift || 14) : 0), w: p.w, h: p.h,
         facing: p.facing, onGround: p.onGround, vx: p.vx,
         invuln: p.invuln, equipped: p.equipped,
         pid: i, costume: Save.get().costume   // 時裝（只換外觀）
@@ -3510,9 +3559,9 @@ const Game = (function () {
      * 進度是「上一篇門檻 → 下一篇門檻」這一段，不是從 0 算（不然解鎖東歐後條子一開始就快滿）。
      */
     // v1.31.2 海底城：沒有海上怪物，EXP 條換成「四區破了幾區」
-    if (WorldMap.world() === 'sea' || WorldMap.world() === 'as') {
+    if (WorldMap.world() === 'sea') {
       const bx = 160, by = 14, bw = 160, bh = 12;
-      const reg = WorldMap.world() === 'as' ? 'asia' : 'abyss';
+      const reg = 'abyss';
       const ab = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === reg; });
       const got = ab.filter(function (o) { return Save.isCleared(o.i); }).length;
       U.text(ctx, '探索', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
@@ -3524,8 +3573,10 @@ const Game = (function () {
     } else {
       const bx = 160, by = 14, bw = 160, bh = 12;   // v1.25.1 標題只剩「世界地圖」，EXP 條往左靠
       // v1.31 新大陸：EXP 條換成美洲 EXP（解鎖南美）
-      const amW = WorldMap.world() === 'am';
-      const sr = Encounter.regionOf('samerica'), ea = Save.expAm();
+      const amW = WorldMap.world() === 'am' || WorldMap.world() === 'as';
+      // v1.33 亞洲：EXP 條換成亞洲 EXP（解鎖東亞）
+      const asW = WorldMap.world() === 'as';
+      const sr = Encounter.regionOf(asW ? 'easia' : 'samerica'), ea = asW ? Save.expAs() : Save.expAm();
       const nx = amW ? (ea < sr.exp ? sr : null) : Encounter.nextRegion(sv.exp);
       const done = !nx;
       // v1.30 北歐篇是劇情解鎖，不在 EXP 條上
@@ -3534,12 +3585,12 @@ const Game = (function () {
       const from = !amW && idx > 0 ? XR[idx - 1].exp : 0;
       const cur = amW ? ea : sv.exp;
       const prog = done ? 1 : U.clamp((cur - from) / (nx.exp - from), 0, 1);
-      U.text(ctx, amW ? '美洲 EXP' : 'EXP', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
+      U.text(ctx, asW ? '亞洲 EXP' : amW ? '美洲 EXP' : 'EXP', bx - 6, 20, { size: 12, color: '#e8c27a', align: 'right' });
       ctx.fillStyle = 'rgba(255, 230, 180, 0.15)';
       U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
       ctx.fillStyle = done ? '#8fe3a0' : '#d4a23a';
       if (prog > 0) { U.roundRect(ctx, bx, by, Math.max(bh, bw * prog), bh, 6); ctx.fill(); }
-      U.text(ctx, done ? (amW ? '南美已解鎖' : Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${cur}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
+      U.text(ctx, done ? (asW ? '東亞已解鎖' : amW ? '南美已解鎖' : Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${cur}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
         { size: 12, color: done ? '#8fe3a0' : '#f0dcb0', align: 'left' });
     }
     U.text(ctx, (coop ? '2P　' : '') +
@@ -3629,7 +3680,7 @@ const Game = (function () {
         ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP・神殿大門的封印還沒解開）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : mon.def.boss
         ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
-        : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} EXP）`;
+        : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} ${mon.def.as ? '亞洲 ' : mon.def.am ? '美洲 ' : ''}EXP）`;
       U.text(ctx, blink ? bossTxt : '　',
         W / 2, H - 15, { size: 14, color: '#ff9aa8' });
     } else if (spot) {
@@ -3802,6 +3853,8 @@ const Game = (function () {
     const t = [];
     if (Save.flag('godHand')) t.push('「神之手」');
     if (Save.flag('sheep')) t.push('「比利時肥羊」');
+    if (Save.flag('archer')) t.push('「草原神射手」');        // v1.33 蒙古：一趟射中全部的箭靶
+    if (Save.flag('pilgrim')) t.push('「取經人」');           // v1.33 幫玄奘把經書送回長安
     return t.join('');
   }
   let journalPage = 0;
@@ -3821,7 +3874,7 @@ const Game = (function () {
     side.push({ head: '地圖上的冒險' });
     Object.keys(Encounter.KINDS).forEach(function (k) {
       const d = Encounter.KINDS[k];
-      if (k === 'herd' || d.am) return;
+      if (k === 'herd' || d.am || d.as) return;
       if (!(d.boss || d.dive || d.duo || d.fixed || d.quest || d.knight || d.desert)) return;
       side.push({ name: d.name, done: Save.seaBossDown(k) });
     });
@@ -3832,6 +3885,7 @@ const Game = (function () {
      ['人魚的好感度 ♥ ' + Quests.merLove() + ' / ' + Quests.merLoveMax(), Quests.merLove() >= Quests.merLoveMax()],
      ['巴黎鐵塔的夜景（人魚變成人類）', Quests.merHuman()], ['瑞士銀行開戶', !!Save.bank().open],
      ['咖啡烘豆場（新大陸）', !!Save.flag('roastery')], ['絲路公主的委託（開通絲路）', !!Save.flag('silkRoad')],
+     ['玄奘的經書（送回長安）', Save.flag('sutra') >= 2], ['遇見馬可波羅', !!Save.flag('marco')],
      ['收養黃金獵犬', Save.pet() === 'dog'], ['埃及豔后的聖蛇', !!Save.flag('asp')], ['聖誕老人的禮物', !!Save.flag('gift')]
     ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
     side.push({ head: '收集' });
@@ -3850,6 +3904,8 @@ const Game = (function () {
       side.push({ name: c.name + ' ' + cn(pr.got, pr.total), done: !!pr.complete });
     });
     side.push({ name: '稱號「神之手」（打倒暗夜騎士）', done: !!Save.flag('godHand') });
+    side.push({ name: '稱號「草原神射手」（蒙古一趟射中全部箭靶）', done: !!Save.flag('archer') });
+    side.push({ name: '稱號「取經人」（玄奘的經書）', done: !!Save.flag('pilgrim') });
     side.push({ name: '稱號「比利時肥羊」（被扒手偷 ' + Math.min(Save.flag('robbedTimes') || 0, Quests.ROB_TITLE) + ' / ' + Quests.ROB_TITLE + ' 次）', done: !!Save.flag('sheep') });
     return [{ title: '主線關卡', items: main, cols: 3 }, { title: '支線與收集', items: side, cols: 3 }];
   }
@@ -3960,7 +4016,8 @@ const Game = (function () {
       ['海上', sv.seaWins + ' 場勝利　EXP ' + sv.exp +
         (Encounter.nextRegion(sv.exp) ? ' / ' + Encounter.nextRegion(sv.exp).exp + '（' + Encounter.nextRegion(sv.exp).name + '）' : '（EXP 篇章都解鎖了）') +
         // v1.31 新大陸另外累積的美洲 EXP
-        (Quests.americaOpen() ? '　美洲 EXP ' + Save.expAm() + (Save.expAm() < Encounter.SOUTH_EXP ? ' / ' + Encounter.SOUTH_EXP + '（南美篇）' : '（南美已解鎖）') : '')],
+        (Quests.americaOpen() ? '　美洲 EXP ' + Save.expAm() + (Save.expAm() < Encounter.SOUTH_EXP ? ' / ' + Encounter.SOUTH_EXP + '（南美篇）' : '（南美已解鎖）') : '') +
+        (Save.flag('silkRoad') ? '　亞洲 EXP ' + Save.expAs() + (Save.expAs() < Encounter.EASIA_EXP ? ' / ' + Encounter.EASIA_EXP + '（東亞篇）' : '（東亞已解鎖）') : '')],
       ['總分', String(sv.score) + (titleText() ? '　稱號：' + titleText() : '')]
     ];
 
@@ -4271,12 +4328,13 @@ const Game = (function () {
   /** 遭遇戰勝利畫面：重點是 EXP 與下一篇的解鎖進度（東歐 → 非洲） */
   function drawSeaClear() {
     const def = state.def;
-    const r = expResult || { gain: def.exp, before: 0, after: def.am ? Save.expAm() : Save.get().exp, am: !!def.am };
+    const r = expResult || { gain: def.exp, before: 0, after: def.am ? Save.expAm() : def.as ? Save.expAs() : Save.get().exp, am: !!def.am, as: !!def.as };
+    const poolName = r.as ? '亞洲 EXP' : r.am ? '美洲 EXP' : 'EXP';
     // 這一場剛好跨過門檻的篇章；沒有的話就看下一個還沒解鎖的
     // v1.30：北歐篇改成劇情解鎖，只看要 EXP 的篇章；v1.31 新大陸只看南美篇（美洲 EXP）
-    const XR = r.am ? [Encounter.regionOf('samerica')] : Encounter.EXP_REGIONS;
+    const XR = r.as ? [Encounter.regionOf('easia')] : r.am ? [Encounter.regionOf('samerica')] : Encounter.EXP_REGIONS;
     const opened = XR.filter(function (g) { return r.before < g.exp && r.after >= g.exp; })[0];
-    const target = opened || (r.am ? XR[0] : Encounter.nextRegion(r.after)) || XR[XR.length - 1];
+    const target = opened || (r.am || r.as ? XR[0] : Encounter.nextRegion(r.after)) || XR[XR.length - 1];
     const need = target.exp;
     const justOpened = !!opened;
     const tall = (justOpened ? 280 : 240) + (r.ally || r.relics ? 70 : r.costume ? 50 : 0) + (r.ally && r.relics ? 50 : 0) + (r.note ? 46 : 0);
@@ -4316,7 +4374,7 @@ const Game = (function () {
       U.text(ctx, '獲得時裝：' + r.costume.name + '（已穿上，按 I 可以換）', W / 2, top + tall - 76,
         { size: 15, color: '#ffe070' });
     }
-    U.text(ctx, `經驗值 +${r.gain} ${r.am ? '美洲 EXP' : 'EXP'}`, W / 2, top + 84, { size: 22, color: '#d8ccff' });
+    U.text(ctx, `經驗值 +${r.gain} ${poolName}`, W / 2, top + 84, { size: 22, color: '#d8ccff' });
 
     // EXP 條（從 before 長到 after 的動畫）
     const k = U.clamp((45 - sceneTimer) / 45, 0, 1);
@@ -4343,7 +4401,7 @@ const Game = (function () {
       U.text(ctx, names.slice(0, 4).join('、') + (names.length > 4 ? '⋯⋯' : '') + '，開船過去吧', W / 2, y + 30,
         { size: 13, color: '#dce5f5' });
     } else if (r.after < need) {
-      U.text(ctx, `再 ${need - r.after} ${r.am ? '美洲 EXP' : 'EXP'} 解鎖${target.name}`, W / 2, y + 4, { size: 14, color: '#c6d2e8' });
+      U.text(ctx, `再 ${need - r.after} ${poolName} 解鎖${target.name}`, W / 2, y + 4, { size: 14, color: '#c6d2e8' });
     }
     if (sceneTimer === 0 && Math.floor(t / 28) % 2 === 0) {
       U.text(ctx, '按 Enter 回到海上', W / 2, top + tall - 22, { size: 18, color: '#ffffff' });
@@ -5083,7 +5141,8 @@ const Game = (function () {
    */
   function abilities() {
     const s = stats || {};
-    const cannon = scene === 'play' && !!(state && state.mini && state.mini.kind === 'pirates');
+    const cannon = scene === 'play' && !!(state && state.mini && (state.mini.kind === 'pirates' || (Encounter.KINDS[state.mini.kind] || {}).usesThrow) ||
+      state && state.def && state.def.race && state.def.race.theme === 'steppe');       // v1.33 蒙古的騎馬射箭：丟 = 射箭
     return { throw: !!s.ranged || cannon };
   }
 
