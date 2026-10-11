@@ -180,7 +180,7 @@ function runAsiaCheck() {
       const def = lvOf('IN'), st = mkState(def), p = st.player, L = st.features.list;
       const eles = L.filter(function (f) { return f.type === 'mount' && f.kind === 'elephant'; });
       const bars = L.filter(function (f) { return f.type === 'barricade'; });
-      if (eles.length < 2) issues.push('印度的大象少於 2 隻（' + eles.length + '）');
+      if (eles.length !== 1) issues.push('印度的大象不是 1 隻（' + eles.length + '）');
       if (bars.length < 4) issues.push('印度的路障少於 4 個（' + bars.length + '）');
       if (!bars.length || !eles.length) return;
       if (bars.some(function (b) { return b.x < eles[0].x; })) issues.push('印度：第一隻大象前面就有路障');

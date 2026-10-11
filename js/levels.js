@@ -1933,7 +1933,8 @@ const Levels = (function () {
     groundTypes: ['walker', 'charger', 'spiker'],
     airTypes: ['flyer', 'chaser'],
     density: 0.85,
-    features: [{ type: 'elephants', at: [0.06, 0.4, 0.7] }, { type: 'barricades', at: [0.2, 0.3, 0.52, 0.6, 0.8, 0.88] }],
+    // v1.33.9 玩家：大象給太多隻 → 一關一隻（被打到跑掉會自己走回來找你）
+    features: [{ type: 'elephants', at: [0.06] }, { type: 'barricades', at: [0.2, 0.3, 0.52, 0.6, 0.8, 0.88] }],
     secretHint: '風之宮殿的小窗裡，有一扇的窗簾是拉下來的',
     secretNear: 0.45,
     intro: ['印度・齋浦爾：騎上大象！碰一下就騎上去', '太高的木頭路障跳不過去 —— 騎著大象衝過去就撞開了'],

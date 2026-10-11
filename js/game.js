@@ -1477,7 +1477,7 @@ const Game = (function () {
       // v1.33 印度：騎大象撞開路障
       if (ev === 'barricade:smash') { Sfx.clang(); shake = 12; runScore += 50; return; }
       if (ev === 'barricade:need') { Sfx.clang(); toast = { text: '路障太高了，推不動⋯⋯', sub: '騎著大象衝過去才撞得開', life: 150 }; return; }
-      if (ev === 'barricade:elephant') { Sfx.equip(); toast = { text: '大象走過來了！', sub: '騎上去，衝過去撞開路障', life: 150 }; return; }
+      if (ev === 'barricade:elephant') { Sfx.equip(); toast = { text: '大象從後面走過來了！', sub: '等牠走到身邊，騎上去衝過去撞開路障', life: 170 }; return; }
       // v1.33 長城：點燃烽火台（'beacon:lit:2' = 還剩 2 座）、關門打開、還沒點完就走到關門
       if (ev.indexOf && ev.indexOf('beacon:lit:') === 0) {
         const left = parseInt(ev.slice(11), 10);
@@ -1525,9 +1525,12 @@ const Game = (function () {
           // 騎駱駝時被打到：駱駝嚇跑，人不扣血（無敵帧照樣給）
           const rider = state.players[pid || 0];
           if (rider && rider.mount) {
+            const ridingKind = rider.mount.kind;     // v1.33.9 大象、駱駝的提示分開
             Features.dismount(state, rider);
             Sfx.clang(); shake = 6;
-            toast = { text: '駱駝嚇跑了！', sub: '這一下沒有扣血 —— 牠等一下會回到原本的地方', life: 140 };
+            toast = (ridingKind === 'elephant'
+              ? { text: '大象嚇跑了！', sub: '這一下沒有扣血 —— 過一下牠會從後面走回來找你', life: 160 }
+              : { text: '駱駝嚇跑了！', sub: '這一下沒有扣血 —— 牠等一下會回到原本的地方', life: 140 });
             break;
           }
           Sfx.hurt(); shake = 10; loseLife(false, pid); break;

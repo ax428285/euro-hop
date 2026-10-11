@@ -203,15 +203,30 @@ const SilkRoad = (function () {
   }
   Features.register('mount_elephant', {
     lift: 66,            // 人坐在大象背上的坐墊（象背最高到離地 78）
-    /** 大象跑掉之後：走到帶頭的玩家身邊等（不回原地，免得要走回頭路） */
-    respawn: function (state, f, players) {
+    /*
+     * 大象跑掉之後：從畫面左邊走回來找你（不回原地，免得要走回頭路）。
+     * v1.33.9 玩家：大象跑回原本的地方但看不到他、大象給太多隻 → 一關只有一隻；不再瞬移到腳下，改成看得到牠一路走過來。
+     */
+    respawn: function (state, f, players) { callElephant(state, f, players); },
+    update: function (state, f, players) {
+      if (!f.walking) return;
       const lead = players.reduce(function (a, p) { return !a || p.x > a.x ? p : a; }, null);
       if (!lead) return;
-      const at = groundNear(state.def, lead.x - 40);
-      if (at) { f.x = at.x; f.y = at.y; }
+      const tx = lead.x - 55, dx = tx - f.x;
+      if (Math.abs(dx) < 4) { f.walking = false; return; }
+      const nx = f.x + Math.sign(dx) * Math.min(3.4, Math.abs(dx));
+      const gy = Features.helpers.groundTop(state.def, nx + ELE_W / 2);
+      if (gy == null) {
+        // 前面是斷崖：大象跨不過去 → 直接到對岸（斷崖都不寬）
+        const at = groundNear(state.def, tx);
+        if (at) { f.x = at.x; f.y = at.y; }
+        f.walking = false; return;
+      }
+      f.x = nx; f.y = gy; f.dir = Math.sign(dx) || 1; f.step = (f.step || 0) + 1;
     },
     drawIdle: function (ctx, f, sx, t) {
-      drawElephant(ctx, sx + ELE_W / 2, f.y, t, 1, false);
+      drawElephant(ctx, sx + ELE_W / 2, f.y, f.walking ? f.step : t, f.walking ? f.dir : 1, false);
+      if (f.walking) return;
       const by = f.y - 104 + Math.sin(t * 0.1) * 3;
       ctx.fillStyle = 'rgba(20, 16, 30, 0.75)';
       U.roundRect(ctx, sx + ELE_W / 2 - 22, by - 9, 44, 18, 6); ctx.fill();
@@ -225,6 +240,15 @@ const SilkRoad = (function () {
       ctx.restore();
     }
   });
+  /** 叫大象過來：從帶頭的玩家左邊（畫面外）一路走過來 */
+  function callElephant(state, f, players) {
+    const lead = players.reduce(function (a, p) { return !a || p.x > a.x ? p : a; }, null);
+    if (!lead) return false;
+    const at = groundNear(state.def, Math.max(20, lead.x - 420)) || groundNear(state.def, lead.x - 40);
+    if (!at) return false;
+    f.x = at.x; f.y = at.y; f.walking = true; f.dir = 1;
+    return true;
+  }
   Features.register('barricades', {
     plan: function (c, ctx, list) {
       const W = ctx.width, F = Features.helpers;
@@ -268,9 +292,7 @@ const SilkRoad = (function () {
           const ele = state.features.list.filter(function (q) {
             return q.type === 'mount' && q.kind === 'elephant' && q.state === 'wait';
           }).sort(function (a, b) { return Math.abs(a.x - f.x) - Math.abs(b.x - f.x); })[0];
-          const p = lead;
-          const at = ele && p ? groundNear(state.def, p.x - 40) : null;
-          if (at) { ele.x = at.x; ele.y = at.y; events.push('barricade:elephant'); }
+          if (ele && !ele.walking && Math.abs(ele.x - f.x) > 300 && callElephant(state, ele, players)) events.push('barricade:elephant');
           f.push = 0;
         }
       } else f.push = 0;

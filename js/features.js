@@ -885,6 +885,8 @@ const Features = (function () {
         }
       } else if (f.type === 'mount') {
         if (f.state === 'wait') {
+          // v1.33.9 坐騎自己的動作（大象走回來找你）
+          if (EXT['mount_' + f.kind] && EXT['mount_' + f.kind].update) EXT['mount_' + f.kind].update(state, f, players);
           const box = { x: f.x + 10, y: f.y - 44, w: f.w - 20, h: 44 };
           players.forEach(function (p, i) {
             if (f.state !== 'wait' || p.mount || !U.overlap(p, box)) return;
