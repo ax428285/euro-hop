@@ -465,9 +465,9 @@ const Huns = (function () {
   }
 
   /*
-   * v2.0.5 玩家：台灣改成漂亮的寶島圖案 —— Formosa（福爾摩沙，「美麗之島」）。
-   * 照地圖上台灣的形狀塗成翠綠到青綠的漸層，中間一條中央山脈、玉山頂上一點白雪，北端一座小小的台北 101，
-   * 島的四周一圈會閃的浪花；旁邊（東邊的太平洋上）用金色斜體寫 Formosa。
+   * v2.0.5 玩家：台灣改成漂亮的寶島圖案；v2.0.6 玩家：Formosa 字拿掉、留中文，維持古代羊皮紙風，周圍星星拿掉 →
+   * 跟整張地圖一樣是手繪墨線的感覺：島塗一層淡淡的墨綠、褐色墨線描邊，中央山脈用墨線畫一排小山（玉山留白），
+   * 北端一座墨線畫的台北 101，旁邊寫「福爾摩沙」（跟「萬里長城」一樣的褐色字）。
    */
   function drawFormosa(ctx, t) {
     const tw = typeof AsiaBackdrop !== 'undefined' && AsiaBackdrop.TW;
@@ -475,49 +475,28 @@ const Huns = (function () {
     const sh = tw.shapes[0];
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     sh.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const cy = (y0 + y1) / 2;
     function path() { ctx.beginPath(); sh.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); }
+    const INK = 'rgba(90, 62, 36, 0.9)';
     ctx.save();
-    // 外面一圈淡淡的光、閃亮的浪花
-    ctx.strokeStyle = 'rgba(160, 230, 255, ' + (0.35 + Math.sin(t * 0.05) * 0.15).toFixed(2) + ')'; ctx.lineWidth = 5;
-    path(); ctx.stroke();
-    for (let k = 0; k < 6; k++) {
-      const a = t * 0.02 + k * Math.PI / 3, r = 24 + Math.sin(t * 0.07 + k) * 2;
-      const sx = cx + Math.cos(a) * r * 0.75, sy = cy + Math.sin(a) * r;
-      const tw2 = (Math.sin(t * 0.15 + k * 1.7) + 1) / 2;
-      ctx.fillStyle = 'rgba(255, 255, 240, ' + (0.3 + tw2 * 0.6).toFixed(2) + ')';
-      ctx.beginPath(); ctx.moveTo(sx, sy - 2.4); ctx.lineTo(sx + 0.7, sy); ctx.lineTo(sx, sy + 2.4); ctx.lineTo(sx - 0.7, sy); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(sx - 2.4, sy); ctx.lineTo(sx, sy + 0.7); ctx.lineTo(sx + 2.4, sy); ctx.lineTo(sx, sy - 0.7); ctx.closePath(); ctx.fill();
-    }
-    // 島：翠綠到青綠的漸層
-    const g = ctx.createLinearGradient(x1, y0, x0, y1);
-    g.addColorStop(0, '#2f9a5a'); g.addColorStop(0.6, '#4ab86a'); g.addColorStop(1, '#7ad0a0');
-    ctx.fillStyle = g; path(); ctx.fill();
-    ctx.strokeStyle = '#1e6a44'; ctx.lineWidth = 1.2; path(); ctx.stroke();
-    ctx.save(); path(); ctx.clip();
-    // 中央山脈：沿著島的長軸偏東，一排三角山
-    const top = [x0 + (x1 - x0) * 0.72, y0 + 3], bot = [x0 + (x1 - x0) * 0.35, y1 - 6];
+    ctx.fillStyle = 'rgba(110, 140, 80, 0.45)'; path(); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.1; path(); ctx.stroke();
+    // 中央山脈：墨線的小山（玉山最高、山頂留白）
+    const top = [x0 + (x1 - x0) * 0.72, y0 + 4], bot = [x0 + (x1 - x0) * 0.36, y1 - 7];
+    ctx.lineWidth = 0.9; ctx.lineJoin = 'round';
     for (let k = 0; k <= 5; k++) {
-      const u = k / 5, mx = top[0] + (bot[0] - top[0]) * u, my = top[1] + (bot[1] - top[1]) * u, h = k === 3 ? 7 : 4.5;
-      ctx.fillStyle = '#1e6a44'; ctx.beginPath(); ctx.moveTo(mx - 3.6, my + 2); ctx.lineTo(mx, my - h); ctx.lineTo(mx + 3.6, my + 2); ctx.closePath(); ctx.fill();
-      if (k === 3) { ctx.fillStyle = '#f4f8ff'; ctx.beginPath(); ctx.moveTo(mx - 1.4, my - h + 2.6); ctx.lineTo(mx, my - h); ctx.lineTo(mx + 1.4, my - h + 2.6); ctx.closePath(); ctx.fill(); }   // 玉山的雪
+      const u = k / 5, mx = top[0] + (bot[0] - top[0]) * u, my = top[1] + (bot[1] - top[1]) * u, h = k === 3 ? 6.5 : 4;
+      ctx.fillStyle = k === 3 ? 'rgba(244, 236, 214, 0.95)' : 'rgba(90, 110, 60, 0.6)';
+      ctx.beginPath(); ctx.moveTo(mx - 3.2, my + 1.6); ctx.lineTo(mx, my - h); ctx.lineTo(mx + 3.2, my + 1.6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = INK; ctx.stroke();
     }
-    ctx.restore();
-    // 北端：台北 101（一節一節往上收的塔）
-    const bx = x0 + (x1 - x0) * 0.78, by = y0 + 6;
-    ctx.fillStyle = '#d8e4ec';
-    for (let k = 0; k < 4; k++) ctx.fillRect(bx - 1.6 + k * 0.2, by - 3 - k * 2.6, 3.2 - k * 0.4, 2.4);
-    ctx.fillRect(bx - 0.3, by - 15, 0.6, 4);
-    ctx.fillStyle = 'rgba(120, 200, 255, 0.9)'; ctx.fillRect(bx - 1.4, by - 1, 2.8, 1.2);
-    // Formosa
-    ctx.font = 'italic 700 13px Georgia, "Times New Roman", serif';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(40, 30, 20, 0.55)';
-    ctx.strokeText('Formosa', x1 + 8, cy - 4);
-    const tg = ctx.createLinearGradient(x1 + 8, cy - 12, x1 + 8, cy + 4);
-    tg.addColorStop(0, '#ffe9a0'); tg.addColorStop(1, '#d8a030');
-    ctx.fillStyle = tg; ctx.fillText('Formosa', x1 + 8, cy - 4);
-    U.text(ctx, '福爾摩沙', x1 + 30, cy + 9, { size: 9, color: 'rgba(90, 60, 30, 0.9)', stroke: false });
+    // 北端：墨線的台北 101
+    const bx = x0 + (x1 - x0) * 0.8, by = y0 + 6;
+    ctx.strokeStyle = INK; ctx.lineWidth = 0.8;
+    for (let k = 0; k < 4; k++) ctx.strokeRect(bx - 1.6 + k * 0.2, by - 3 - k * 2.6, 3.2 - k * 0.4, 2.4);
+    ctx.beginPath(); ctx.moveTo(bx, by - 13.4); ctx.lineTo(bx, by - 17); ctx.stroke();
+    // 島名
+    U.text(ctx, '福爾摩沙', x1 + 26, cy - 2, { size: 11, color: 'rgba(110, 80, 50, 0.9)', stroke: false });
     ctx.restore();
   }
 
