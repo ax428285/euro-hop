@@ -174,7 +174,54 @@ const Quests = (function () {
     ctx.beginPath(); ctx.arc(x, y - 18, 4.5, 0, Math.PI * 2); ctx.fill();
   }
 
+  /*
+   * v1.33.5 玩家：為何地圖上有些地方有驚嘆號、有的沒有？→ 補齊：有事情可以做（接委託、交東西、領錢、開打）的地點頭上冒金色的「！」。
+   * 亞洲的人物在 asiaquest.js 自己畫；這裡管歐洲、新大陸、海底城的。
+   */
+  function todo(kind) {
+    if (typeof Save === 'undefined') return false;
+    const sv = Save.get();
+    const africa = typeof Encounter !== 'undefined' && Encounter.regionUnlocked('africa', sv.exp);
+    switch (kind) {
+      case 'thor': return !northOpen() && (!flag('thorAsked') || !!flag('loki'));          // 還沒聽過委託／找到洛基回來回報
+      case 'columbus': {
+        const st = flag('columbus');
+        const ships = typeof Expedition !== 'undefined' ? Expedition.WARSHIPS : [];
+        return st === 0 || (st === 1 && ships.every(function (w) { return Save.seaBossDown(w.kind); }));
+      }
+      case 'bank': {
+        const b = Save.bank();
+        if (!b.open) { const pr = coinProgress(); return pr.got >= pr.need; }                // 可以開戶
+        return b.bal > 0 || (b.last && Date.now() - b.last >= 60000);                        // 有利息可以領
+      }
+      case 'zoo': return zooCount() > 0 && sv.day > sv.zooDay;                               // 有門票收入
+      case 'cleopatra': return !hasAsp() && sv.wallet >= ASP_COST;                            // 買得起聖蛇護身符
+      case 'pyramid': return africa && !Save.seaBossDown('pyramid');
+      case 'sahara': return africa && !Save.seaBossDown('sahara');
+      case 'princess': return !flag('silkRoad') && (!flag('princessAsked') || (sv.cargo.coffee || 0) >= PRINCESS_NEED);
+      case 'roastery':
+        if (!flag('roastery')) return sv.wallet >= ROAST_COST;
+        return (flag('cherries') || 0) >= ROAST_PER && Save.cargoCount() < Trade.capacity(Save.ship()) + (Shop.resolve().hold || 0);
+      case 'mermaid': {
+        const lv = Levels.list.map(function (l, i) { return { l: l, i: i }; }).filter(function (o) { return o.l.region === 'abyss'; });
+        return !flag('mermaid') && lv.every(function (o) { return Save.isCleared(o.i); });   // 海底城全破、可以帶她走
+      }
+      case 'merHome': return Souvenirs.merDefs().some(function (d) { return Save.hasSouvenir(d.id) && !merGifted(d.id); });   // 有紀念品可以送
+      default: return false;
+    }
+  }
+  /** 金色的「！」（亞洲的 asiaquest.js 用同樣的樣子） */
+  function questMark(ctx, x, y, t) {
+    const by = y - 34 + Math.sin(t * 0.12) * 2;
+    ctx.fillStyle = 'rgba(255, 209, 102, ' + (0.75 + Math.sin(t * 0.2) * 0.25).toFixed(2) + ')';
+    ctx.beginPath(); ctx.arc(x + 12, by, 7, 0, Math.PI * 2); ctx.fill();
+    U.text(ctx, '！', x + 12, by, { size: 10, weight: 800, color: '#5a2a0a', stroke: false });
+  }
   function drawMapIcon(ctx, kind, x, y, t, near) {
+    drawMapIconBase(ctx, kind, x, y, t, near);
+    if (!(EXTN[kind] && EXTN[kind].icon) && todo(kind)) { ctx.save(); questMark(ctx, x, y, t); ctx.restore(); }
+  }
+  function drawMapIconBase(ctx, kind, x, y, t, near) {
     ctx.save();
     if (EXTN[kind] && EXTN[kind].icon) { EXTN[kind].icon(ctx, x, y, t, near); ctx.restore(); return; }
     if (kind === 'roastery') {
@@ -1369,6 +1416,8 @@ const Quests = (function () {
     SPOTS: SPOTS,
     NAMES: NAMES,
     registerNpc: registerNpc,
+    /** v1.33.5 這個地點現在有沒有事情可以做（地圖上的「！」） */
+    todo: todo,
     /** 外掛的人物用的小工具（對話一句、地圖圖示的光圈、小人） */
     helpers: { L: function (w, s) { return L(w, s); }, ring: function (c, x, y, t, n, col) { ring(c, x, y, t, n, col); }, tinyPerson: function (c, x, y, b, s) { tinyPerson(c, x, y, b, s); } },
     ANIMALS: ANIMALS,

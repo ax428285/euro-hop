@@ -340,7 +340,8 @@ const WorldMap = (function () {
            * v1.30：狹長的國家（挪威）外框中心離圖釘很遠，字會被拉到看不出是誰的地方 →
            * 離自己的圖釘超過 100px 就大幅扣分（map-check 要求 110 以內）。
            */
-          const farPin = Math.max(0, Math.hypot(x - fallbackPin[0], y - fallbackPin[1]) - 100);
+          // v1.33.5 玩家：中國兩個字不見了 —— 亞洲的國家國土很大、圖釘在邊邊（長城、聖母峰），字被拉到國土中間 → 亞洲地圖要貼近圖釘（35px 以內）
+          const farPin = Math.max(0, Math.hypot(x - fallbackPin[0], y - fallbackPin[1]) - (WD.id === 'as' ? 35 : 100));
           const base = insideFrac(b, n.shapes) * 100 - Math.hypot(x - mx, y - my) * 0.15 - farPin * 2;
           if (clash === 0 && base > bestScore) { bestScore = base; best = [x, y]; }
           if (base - clash * 3 > softScore) { softScore = base - clash * 3; soft = [x, y]; }
