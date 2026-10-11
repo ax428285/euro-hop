@@ -1199,7 +1199,7 @@ const Game = (function () {
         toast = rg === 'samerica'
           ? { text: '南美篇還沒解鎖', sub: '在新大陸打海上怪物累積美洲 EXP：' + Save.expAm() + ' / ' + reg.exp, life: 170 }
           : rg === 'easia'
-          ? { text: '東亞篇還沒解鎖', sub: '在亞洲的海上冒險累積亞洲 EXP：' + Save.expAs() + ' / ' + reg.exp, life: 170 }
+          ? { text: '東亞篇（開發中）還沒解鎖', sub: '在亞洲的海上冒險累積亞洲 EXP：' + Save.expAs() + ' / ' + reg.exp, life: 170 }
           : rg === 'america'
           ? { text: reg.name + '還沒開放', sub: '先完成塞維亞哥倫布的委託', life: 170 }
           : reg.quest
@@ -3610,7 +3610,7 @@ const Game = (function () {
       U.roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
       ctx.fillStyle = done ? '#8fe3a0' : '#d4a23a';
       if (prog > 0) { U.roundRect(ctx, bx, by, Math.max(bh, bw * prog), bh, 6); ctx.fill(); }
-      U.text(ctx, done ? (asW ? '東亞已解鎖' : amW ? '南美已解鎖' : Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${cur}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
+      U.text(ctx, done ? (asW ? '東亞已解鎖（開發中）' : amW ? '南美已解鎖' : Quests.northOpen() ? '全部篇章已解鎖' : '東歐、非洲已解鎖') : `${cur}/${nx.exp} 解鎖${nx.name.replace('篇', '')}`, bx + bw + 8, 20,
         { size: 12, color: done ? '#8fe3a0' : '#f0dcb0', align: 'left' });
     }
     U.text(ctx, (coop ? '2P　' : '') +

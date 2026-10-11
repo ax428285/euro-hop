@@ -454,6 +454,10 @@ const Huns = (function () {
     // 名字（城牆中段的北邊，鄂爾多斯一帶）
     const lp = WorldMap.project(109.0, 40.6);
     U.text(ctx, '萬 里 長 城', lp[0], lp[1], { size: 11, color: 'rgba(110, 80, 50, 0.85)', stroke: false });
+    // v2.0.3 東亞還在開發中：韓國、日本那一帶寫上「開發中」
+    const kp = WorldMap.project(138.6, 36.6);     // 日本本州（避開東海、日本海的魔王和艦隊）
+    ctx.fillStyle = 'rgba(40, 30, 20, 0.55)'; U.roundRect(ctx, kp[0] - 46, kp[1] - 10, 92, 20, 6); ctx.fill();
+    U.text(ctx, '韓國・日本 開發中', kp[0], kp[1], { size: 10, color: '#ffe9c8', stroke: false });
     ctx.restore();
   }
 

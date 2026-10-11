@@ -58,7 +58,7 @@ const Expedition = (function () {
    *   atake  日本安宅船（船上蓋了一整座木頭城樓、四面都是砲窗）★★★
    */
   const ASIA_WARSHIPS = [
-    { id: 'DH', country: '阿拉伯海盜', label: '阿拉伯海盜船', ship: '「沙漠之鷹號」', lon: 62.0, lat: 20.5, hp: 90, rank: 1, tier: 1, style: 'dhow',
+    { id: 'DH', country: '阿拉伯海盜', label: '阿拉伯海盜船', ship: '「沙漠之鷹號」', lon: 58.6, lat: 24.0, hp: 90, rank: 1, tier: 1, style: 'dhow',
       flag: ['#1a1a1a', '#1a1a1a', '#1a1a1a'], flagDir: 'h',
       fact: '阿拉伯的三角帆船（dhow）乘著季風航行，一千年前就來回在阿拉伯、印度和東非之間做生意。' },
     { id: 'ZY', country: '鄭一嫂', label: '鄭一嫂的旗艦', ship: '的紅旗號', lon: 113.5, lat: 16.0, hp: 170, rank: 2, tier: 3, style: 'junk',
@@ -223,7 +223,9 @@ const Expedition = (function () {
     if (!m.wandered) { m.wandered = true; m.heading = Math.random() * Math.PI * 2; }
     m.heading += (Math.random() - 0.5) * 0.06;
     const nx = m.x + Math.cos(m.heading) * WANDER_SPEED, ny = m.y + Math.sin(m.heading) * WANDER_SPEED;
-    if (Math.hypot(nx - m.home.x, ny - m.home.y) < WANDER_HOME && Voyage.isNavigable(nx, ny)) { m.x = nx; m.y = ny; }
+    // v2.0.3 玩家：阿拉伯船常會跟大鵬金翅鳥重疊 → 繞的時候不靠近海上魔王（80px 以內就掉頭）
+    const nearBoss = Encounter.monsters().some(function (b) { return b.boss && Math.hypot(nx - b.x, ny - b.y) < 80; });
+    if (!nearBoss && Math.hypot(nx - m.home.x, ny - m.home.y) < WANDER_HOME && Voyage.isNavigable(nx, ny)) { m.x = nx; m.y = ny; }
     else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
   }
 

@@ -58,7 +58,8 @@ const Encounter = (function () {
      * v1.33 亞洲篇第二批：亞洲的海上冒險給「亞洲 EXP」（pool 'as'，Save.expAs）；
      * 西亞、中亞、南亞（伊朗、烏茲別克、印度、尼泊爾）開通絲路就能玩，東亞（中國、蒙古）要累積 EASIA_EXP。關卡標 gate: 'easia'。
      */
-    { id: 'easia', name: '東亞篇', exp: EASIA_EXP, pool: 'as' },
+    // v2.0.3 玩家：東亞記得標註開發中（韓國、日本還沒做）
+    { id: 'easia', name: '東亞篇（開發中）', exp: EASIA_EXP, pool: 'as' },
     // v1.31.2 亞特蘭提斯海底城：第一次潛到亞特蘭提斯的神殿之後開放（地圖 'sea'，見 abyss.js）
     { id: 'abyss', name: '海底城篇', quest: true }
   ];
