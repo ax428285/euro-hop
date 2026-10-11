@@ -38,7 +38,7 @@ const AsiaQuest = (function () {
 
   Quests.AS_SPOTS.push(
     // 那爛陀寺：七世紀全世界最大的佛學院，玄奘在這裡讀了五年書
-    { id: 'Q_xuanzang', npc: 'xuanzang', name: '玄奘', lon: 85.4, lat: 25.1, prompt: '按 Enter 拜見玄奘法師' },
+    { id: 'Q_xuanzang', npc: 'xuanzang', name: '玄奘', lon: 85.4, lat: 25.1, prompt: '按 Enter 拜見玄奘法師', gone: function () { const s = Save.flag('sutra') || 0; return s === 2 || s === 3; } },
     // 大雁塔：玄奘回到長安後，為了收藏帶回來的經書蓋的塔
     { id: 'Q_goose', npc: 'goose', name: '長安・大雁塔', lon: 108.9, lat: 34.2, prompt: '按 Enter 走進長安的大雁塔' },
     // 《西遊記》的地方（照小說大概的方向擺：五行山在大唐邊境、高老莊在烏斯藏、流沙河、火焰山在吐魯番）
@@ -47,7 +47,7 @@ const AsiaQuest = (function () {
     { id: 'Q_wujing', npc: 'wujing', name: '流沙河', lon: 92.5, lat: 40.6, prompt: '按 Enter 走到流沙河邊' },
     { id: 'Q_flame', npc: 'flame', name: '火焰山', lon: 89.0, lat: 43.6, prompt: '按 Enter 走向火焰山' },
     // 喀什：絲路南北兩條路在這裡會合；上都：忽必烈的夏宮（馬可波羅寫的 Xanadu）
-    // v1.33.4 玩家：馬可波羅跟在後面時，地圖原本的位置還寫著他的名字 → 跟你走之後（marco ≥ 1）這個地點就收起來
+    // v1.33.4 玩家：馬可波羅跟在後面時，地圖原本的位置還寫著他的名字 → 出發去上都之後（marco ≥ 1）這個地點就收起來
     { id: 'Q_marco', npc: 'marco', name: '馬可波羅', lon: 76.0, lat: 39.5, prompt: '按 Enter 跟馬可波羅說話', gone: function () { return (Save.flag('marco') || 0) >= 1; } },
     { id: 'Q_xanadu', npc: 'xanadu', name: '上都', lon: 120.0, lat: 44.6, prompt: '按 Enter 走進忽必烈的上都' },
     // v1.33.3 玩家：亞洲新增一個地方可以買船 → 泉州（馬可波羅說它是世界最大的港口「刺桐」），東方艦隊的海戰要開買來的船
@@ -64,7 +64,7 @@ const AsiaQuest = (function () {
       if (s >= 4) return { who: 'xuanzang', lines: [L('xuanzang', '經書平安回到長安了。阿彌陀佛，你是我們師徒的大恩人。')] };
       if (s >= 2) {
         return { who: 'xuanzang', lines: [
-          L('xuanzang', s === 2 ? '回長安的路上要經過火焰山 —— 八百里的火焰，連鐵都會燒紅。' : '過了火焰山，長安就不遠了。'),
+          L('xuanzang', s === 2 ? '我們在火焰山腳下等你 —— 八百里的火焰，連鐵都會燒紅。' : '我們在長安的大雁塔等你。'),
           L('wukong', s === 2 ? '師父別怕，有俺老孫在！火焰山就在西邊的吐魯番。' : '走走走，大雁塔就在東邊！')
         ] };
       }
@@ -80,11 +80,12 @@ const AsiaQuest = (function () {
           L('wukong', '師父！俺老孫來了！'),
           L('bajie', '師父～我們什麼時候吃飯？'),
           L('wujing', '師父，行李我來挑。'),
-          L('xuanzang', '好，好！徒兒們都到齊了。施主，請你帶我們回長安吧 —— 經書要送到大雁塔。')
+          L('xuanzang', '好，好！徒兒們都到齊了。我們回長安 —— 經書要送到大雁塔。'),
+          L('xuanzang', '路上要過西邊的火焰山，我們先往那裡走，在山腳下等你，一起過山。')
         ], end: function (complete) {
           if (!complete || flag('sutra') !== 1) return null;
           Save.setFlag('sutra', 2);
-          return { sfx: 'fanfare', toast: { text: '師徒四人跟著你出發了！', sub: '回長安要先過西邊的火焰山', life: 260 } };
+          return { sfx: 'fanfare', toast: { text: '師徒四人出發了！', sub: '他們先到西邊的火焰山腳下等你', life: 260 } };
         } };
       }
       return { who: 'xuanzang', lines: [
@@ -290,6 +291,7 @@ const AsiaQuest = (function () {
         ctx.fillStyle = k % 2 ? '#ffa030' : '#ff5a2a';
         ctx.beginPath(); ctx.moveTo(x - 8 + k * 7, y - 8); ctx.quadraticCurveTo(x - 6 + k * 7 + fl, y - 20, x - 4 + k * 7, y - 8); ctx.fill();
       }
+      if (flag('sutra') === 2) waiting(ctx, PARTY, x, y, t);
       questMark(ctx, x, y, t, flag('sutra') === 2);
     }
   });
@@ -333,6 +335,7 @@ const AsiaQuest = (function () {
         ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x - w / 2 - 1.5, yy - 4.8, w + 3, 1.2);
       }
       ctx.fillStyle = '#8a6a4a'; ctx.fillRect(x - 1, y - 32, 2, 6);
+      if (flag('sutra') === 3) waiting(ctx, PARTY, x, y, t);
       questMark(ctx, x, y - 8, t, flag('sutra') === 3);
     }
   });
@@ -351,16 +354,17 @@ const AsiaQuest = (function () {
       if (m >= 2) {
         return { who: 'marco', lines: [L('marco', m >= 3 ? '回到威尼斯以後，我要把這一路寫成一本書 ——《東方見聞錄》！' : '我還在上都等你！大汗想看的寶物找到了嗎？')] };
       }
-      if (m === 1) return { who: 'marco', lines: [L('marco', '走吧！上都在東邊的草原上，大汗的夏宮就在那裡。')] };
+      if (m === 1) return { who: 'marco', lines: [L('marco', '我在上都等你！大汗的夏宮在中國北邊的草原上。')] };
       return { who: 'marco', lines: [
         L('marco', 'Buongiorno！我是威尼斯的馬可波羅，跟著爸爸和叔叔沿著絲路往東走。'),
         L('marco', '我們要去上都見蒙古的大汗忽必烈。聽說他的宮殿是用大理石和金子蓋的！'),
-        L('marco', '可是路好遠，又有盜賊⋯⋯你能帶我去嗎？上都在中國北邊的草原上。'),
-        L('me', '好，跟我來！')
+        L('marco', '大汗只見有人引薦的客人。你走遍了絲路，能不能跟我一起去見他？'),
+        L('marco', '我先跟著商隊出發，在上都的城門口等你 —— 上都在中國北邊的草原上。'),
+        L('me', '好，上都見！')
       ], end: function (complete) {
         if (!complete || flag('marco')) return null;
         Save.setFlag('marco', 1);
-        return { sfx: 'equip', toast: { text: '馬可波羅跟著你走了！', sub: '帶他到上都見忽必烈（要先解鎖東亞）', life: 260 } };
+        return { sfx: 'equip', toast: { text: '馬可波羅先去上都了！', sub: '到上都跟他會合，一起見忽必烈（要先解鎖東亞）', life: 260 } };
       } };
     },
     icon: function (ctx, x, y, t, near) {
@@ -423,6 +427,7 @@ const AsiaQuest = (function () {
       ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(x, y - 20, 3, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#c8302a'; ctx.fillRect(x - 3, y - 7, 6, 7);
       const m = flag('marco');
+      if (m >= 1) waiting(ctx, ['marco'], x, y, t);
       questMark(ctx, x, y, t, easiaOpen() && (m === 1 || (m === 2 && haveAll())));
     }
   });
@@ -431,14 +436,16 @@ const AsiaQuest = (function () {
   // 地圖上跟在後面走的人（亞洲地圖）
   // ════════════════════════════════════════════════════════
   const trail = [];
-  function followers() {
-    const out = [];
-    const s = flag('sutra');
-    // 只有護送途中（師徒四人出發後、送到長安前）才跟著走；收到的徒弟先回那爛陀寺等，任務完成就各自散了
-    if (s === 2 || s === 3) { out.push('xuanzang'); DISCIPLES.forEach(function (d) { out.push(d.id); }); }
-    if (flag('marco') === 1) out.push('marco');
-    return out;
+  /*
+   * v1.33.11 玩家：除了人魚和黃金獵犬，其他 NPC 不要跟在我後面（隊伍太長）→ 沒有人跟著走了：
+   * 師徒四人先去下一站等（出發後在火焰山腳下、過了火焰山在長安的大雁塔），馬可波羅先去上都等。地點的圖示旁邊畫出等你的人。
+   */
+  function followers() { return []; }
+  /** 在地點的圖示旁邊畫一排等你的人 */
+  function waiting(ctx, list, x, y, t) {
+    list.forEach(function (who, i) { drawChibi(ctx, who, x + 14 + i * 7, y + 2, t + i * 9); });
   }
+  const PARTY = ['xuanzang', 'wukong', 'bajie', 'wujing'];
   /** game.js 畫地圖時呼叫（在主角之前畫） */
   function drawFollowers(ctx, t) {
     if (WorldMap.world() !== 'as') { trail.length = 0; return; }
@@ -750,7 +757,7 @@ const AsiaQuest = (function () {
   Encounter.registerMini('xyFlame', {
     def: Object.assign({}, base, {
       name: '火焰山', game: '過火焰山', duration: 120 * 60, bossExp: 250, bossCoins: 250, clearTitle: '過了火焰山！',
-      onWin: function () { if (Save.flag('sutra') === 2) Save.setFlag('sutra', 3); return '師徒四人過了火焰山！接下來把經書送到長安的大雁塔'; },
+      onWin: function () { if (Save.flag('sutra') === 2) Save.setFlag('sutra', 3); return '師徒四人過了火焰山！他們先去長安，到大雁塔找他們'; },
       fact: '吐魯番的火焰山是紅色的砂岩山，夏天地表可以熱到七十幾度；《西遊記》說孫悟空向鐵扇公主借芭蕉扇才搧熄了火。',
       goal: '一直往右走過火焰山・地上的裂縫冒煙就要噴火了'
     }),

@@ -332,7 +332,7 @@ function runAsiaCheck() {
     if (AsiaQuest.followers().length) issues.push('收到的徒弟還跟在後面（應該先回那爛陀寺等）：' + AsiaQuest.followers().join('、'));
     tk = Quests.talk('xuanzang'); if (tk.end) tk.end(true);
     if (Save.flag('sutra') !== 2) issues.push('徒弟收齊了，玄奘沒有出發');
-    if (AsiaQuest.followers().length !== 4) issues.push('護送途中師徒四人沒有跟著走（' + AsiaQuest.followers().join('、') + '）');
+    if (AsiaQuest.followers().length) issues.push('師徒四人跟在後面了（應該先去火焰山等）');
     tk = Quests.talk('goose');
     if (tk.end && tk.end(true)) issues.push('還沒過火焰山就到大雁塔完成了');
     tk = Quests.talk('flame');
@@ -350,7 +350,7 @@ function runAsiaCheck() {
     const souv0 = sv.souvenirs.slice();
     sv.souvenirs = sv.souvenirs.filter(function (id) { return AsiaQuest.KHAN_WANTS.indexOf(id) < 0; });
     tk = Quests.talk('marco'); if (tk.end) tk.end(true);
-    if (Save.flag('marco') !== 1 || AsiaQuest.followers().indexOf('marco') < 0) issues.push('馬可波羅沒有跟著走');
+    if (Save.flag('marco') !== 1 || AsiaQuest.followers().length) issues.push('馬可波羅應該先去上都等，不是跟在後面');
     const mq = Quests.AS_SPOTS.filter(function (q) { return q.npc === 'marco'; })[0];
     if (!(mq && mq.gone && mq.gone())) issues.push('馬可波羅跟著走了，喀什還留著他的名字');
     sv.expAs = 0;
