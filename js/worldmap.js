@@ -488,7 +488,7 @@ const WorldMap = (function () {
       specials.push({
         id: q.id, name: q.name, shapes: [], pin: pin, label: [pin[0], pin[1] + 16],
         def: q.seller ? { role: '商店', scene: 'shop', seller: q.seller, merchant: true, stall: q.seller, prompt: q.prompt }
-                      : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt }
+                      : { role: q.name, scene: 'talk', npc: q.npc, prompt: q.prompt, gone: q.gone || null }   // v1.33.4 gone()：人走了（跟著你走），地點連名字一起不畫
       });
     });
   }

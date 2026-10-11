@@ -47,7 +47,8 @@ const AsiaQuest = (function () {
     { id: 'Q_wujing', npc: 'wujing', name: '流沙河', lon: 92.5, lat: 40.6, prompt: '按 Enter 走到流沙河邊' },
     { id: 'Q_flame', npc: 'flame', name: '火焰山', lon: 89.0, lat: 43.6, prompt: '按 Enter 走向火焰山' },
     // 喀什：絲路南北兩條路在這裡會合；上都：忽必烈的夏宮（馬可波羅寫的 Xanadu）
-    { id: 'Q_marco', npc: 'marco', name: '馬可波羅', lon: 76.0, lat: 39.5, prompt: '按 Enter 跟馬可波羅說話' },
+    // v1.33.4 玩家：馬可波羅跟在後面時，地圖原本的位置還寫著他的名字 → 跟你走之後（marco ≥ 1）這個地點就收起來
+    { id: 'Q_marco', npc: 'marco', name: '馬可波羅', lon: 76.0, lat: 39.5, prompt: '按 Enter 跟馬可波羅說話', gone: function () { return (Save.flag('marco') || 0) >= 1; } },
     { id: 'Q_xanadu', npc: 'xanadu', name: '上都', lon: 116.2, lat: 43.2, prompt: '按 Enter 走進忽必烈的上都' },
     // v1.33.3 玩家：亞洲新增一個地方可以買船 → 泉州（馬可波羅說它是世界最大的港口「刺桐」），東方艦隊的海戰要開買來的船
     { id: 'M_asYard', seller: 'asYard', name: '泉州造船廠', lon: 118.6, lat: 25.0, prompt: '按 Enter 進泉州造船廠買船' }

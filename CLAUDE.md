@@ -110,5 +110,6 @@
   - 泉州造船廠（AS_SPOTS `M_asYard`、shop.js seller `asYard`，商品 `aship_dhow/fuchuan/baochuan`）：買船，旗標 `asShip` = 開哪一艘（再按一次換船）。
   - 東方艦隊的海戰改成 js/navalwar.js 的 `naval`（俯瞰海面，←→ 轉舵、↑ 加速、K 兩側齊射；船的性能 NavalWar.SHIPS；歐洲造船廠的 cannon、hull 等級有加成）；沒船不能開戰；關卡 def `hidePlayer` 不畫平台主角。
   - 西遊記：收到的徒弟先回那爛陀寺（站在玄奘旁邊），只有護送途中（sutra 2～3）師徒四人才跟著走；馬可波羅只有 marco 1（護送去上都）時跟著走。
+- v1.33.4（還沒上線）：AS_SPOTS 可以有 `gone()`（馬可波羅跟你走之後喀什的地點收起來）；entities.js 的丟在 `def.hidePlayer` 的關卡不作用（海戰按 J／K 不會丟出平台的子彈）。
   - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店、忍者在大地圖隨機出現（八岐大蛇已經在 v1.33.1 做了）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

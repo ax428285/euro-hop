@@ -349,6 +349,8 @@ function runAsiaCheck() {
     sv.souvenirs = sv.souvenirs.filter(function (id) { return AsiaQuest.KHAN_WANTS.indexOf(id) < 0; });
     tk = Quests.talk('marco'); if (tk.end) tk.end(true);
     if (Save.flag('marco') !== 1 || AsiaQuest.followers().indexOf('marco') < 0) issues.push('馬可波羅沒有跟著走');
+    const mq = Quests.AS_SPOTS.filter(function (q) { return q.npc === 'marco'; })[0];
+    if (!(mq && mq.gone && mq.gone())) issues.push('馬可波羅跟著走了，喀什還留著他的名字');
     sv.expAs = 0;
     tk = Quests.talk('xanadu');
     if (tk.end && tk.end(true)) issues.push('東亞還沒解鎖就進了上都');
@@ -486,6 +488,15 @@ function runAsiaCheck() {
       });
       if (r.res !== 'win') issues.push(kind + '：並排齊射打不沉（' + r.res + '）');
     });
+    // 海戰按丟：只有船開砲，藏起來的平台主角不會丟出子彈（v1.33.4）
+    (function () {
+      sv.flags.asShip = 'dhow';
+      const def = Encounter.makeDef({ kind: 'warDH', def: Encounter.KINDS.warDH, x: 0, y: 0 });
+      const st = buildLevelState(def, -1, [], Object.assign(Equipment.resolve([]), { ranged: true }));
+      const inp = { isDown: function () { return false; }, once: function (a) { return a === 'throw'; } };
+      for (let f = 0; f < 120; f++) { Encounter.updateSkirmish(st, inp); updatePlayer(st, inp, f); }
+      if ((st.pshots || []).length) issues.push('海戰按丟，藏起來的主角也丟出子彈了');
+    })();
     const idle = navalRun('warAT', 'dhow');
     if (idle.res !== 'lose') issues.push('東方艦隊：什麼都不做也不會輸');
     const slow = navalRun('warDH', 'baochuan'), fast = navalRun('warDH', 'dhow');
