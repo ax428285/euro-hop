@@ -31,7 +31,7 @@
 - 已知：`runBossFightTest()` 的義大利、羅馬尼亞打不贏是機器人的老限制，不是 bug。
 - 本機預覽：`.claude/launch.json` 平常只有 python 的 `euro-hop`（port 8765）一項；若為了測試暫時加別的設定，用完要改回只有 python 那一項。
 
-## 目前進度（2026-10-09）
+## 目前進度（2026-10-11：v2.0.3 已上線）
 
 - v1.30.0 北歐篇（索爾、洛基、冥界、金字塔鑰匙、哥倫布戰艦、瑞士銀行、動物園、比利時扒手、埃及豔后、聖誕老人）已上線。
 - v1.31.0 美洲篇（新大陸地圖：古巴、牙買加、墨西哥、巴拿馬、哥倫比亞、巴西魔王巨人守門員）＋塞爾維亞滑雪、保加利亞羽球、紀念品、外觀商店、地圖全開密技，2026-10-09 已上線（`nordic:live`）。
@@ -89,7 +89,7 @@
   - 亞洲的機關寫在 `js/silkroad.js`，用 `Features.register(type, {plan, init, update, draw, solid})` 掛進 features.js（不要再把新機關塞進 features.js）；美術在 `js/asia.js`。
   - 伊朗 `def.carpet`：整關坐飛毯（entities.js 物理同潛水、不用換氣），winds（熱氣流／下沉氣流）、minarets（宣禮塔）；烏茲別克 caravan（駱駝跟在後面，盜賊 `e.bandit` 撞到扣貨，3 次 = `caravanLost` 扣命）。
   - 亞洲的紀念品標 `asia: true`，人魚只收 `Souvenirs.merDefs()`（不含亞洲，好感度上限不變）。亞洲之謎（mystery.js）主題「字母走過的路」，`wip` 到八國齊。測試 `tests/asia-check.js` 的 `runAsiaCheck`。
-- v1.33.0（還沒上線，在 nordic）亞洲篇第二批：Levels.list 第 41～44 關 IN 印度、NP 尼泊爾、CN 中國（gate easia）、MN 蒙古（race，gate easia）。
+- v1.33.0（2026-10-11 已上線）亞洲篇第二批：Levels.list 第 41～44 關 IN 印度、NP 尼泊爾、CN 中國（gate easia）、MN 蒙古（race，gate easia）。
   - 新的外掛點（新內容寫在自己的檔案，不要再塞進大檔案）：Features.register（silkroad.js）、Race.registerTheme（steppe.js：蒙古騎馬射箭 theme `steppe`）、
     Encounter.registerMini（asiasea.js：亞洲海上冒險 spices／dragonboat／typhoon／★goldkoi）、Quests.registerNpc（asiaquest.js：玄奘、大雁塔、馬可波羅，地點 push 進 AS_SPOTS）。
   - 印度：坐騎 kind `elephant`（features.js 的 mount 照 `EXT['mount_' + kind]` 換畫法、respawn 走到玩家身邊）＋ barricades（只有騎大象撞得開）；尼泊爾 thinAir（p.o2、補給站、`hypoxia` 扣命）；
@@ -97,27 +97,27 @@
   - 亞洲 EXP：`Save.expAs`／`addExpAs`，Encounter REGIONS `easia`（pool 'as'，`EASIA_EXP` 300）；亞洲地圖的 EXP 條顯示亞洲 EXP。
   - 玄奘（那爛陀寺）→ flag `sutra` 1 → 大雁塔 → `sutra` 2、稱號「取經人」（flag pilgrim）＋150 亞洲 EXP＋€500；馬可波羅 flag `marco`。
   - 測試：asia-check 包含第二批；`runTraversalTest(only)` 可以只跑幾關（使用者：機器人只測新增的關卡）。
-- v1.33.1（還沒上線，在 nordic）亞洲的海上更熱鬧：
+- v1.33.1（2026-10-11 已上線）亞洲的海上更熱鬧：
   - 大地圖魔王（asiaboss.js，registerMini 的 `at` = 經緯度、def.boss）：roc 大鵬金翅鳥（阿拉伯海）、dragon 東海龍王（東海）、orochi 八岐大蛇（日本海，酒罈灌醉再踩）；Encounter.ensureBosses 在亞洲地圖時放這些＋東方艦隊。
   - 東方艦隊（expedition.js `ASIA_WARSHIPS`、`ensureAsia`、`wanderAsia`）：warDH 阿拉伯海盜船（dhow）、warZY 鄭一嫂紅旗號（junk）、warAT 鐵甲安宅船（atake），戰艦海戰、給亞洲 EXP。
   - 亂數的南海海盜船 `asPirates`（base pirates，艦砲對決）。稀有怪的提示照實際生出來的名字（亞洲是黃金錦鯉）。
-- v1.33.2（還沒上線，在 nordic）亞洲的劇情（全部在 js/asiaquest.js，載入在 asiaboss.js 之後）：
+- v1.33.2（2026-10-11 已上線）亞洲的劇情（全部在 js/asiaquest.js，載入在 asiaboss.js 之後）：
   - 西天取經 flag `sutra`：0 → 玄奘委託 1 → 三個徒弟各一個小遊戲（xyWukong 三打白骨精、xyBajie 吃西瓜比賽、xyWujing 渡流沙河；收到 = Save.seaBossDown）→ 玄奘出發 2 → 火焰山 xyFlame 3 → 大雁塔 4（稱號 pilgrim、時裝 `wukong` 齊天大聖）。
   - 大汗的寶物 flag `marco`：0 → 馬可波羅跟著走 1 → 上都（要解鎖東亞）忽必烈委託 2 → 帶齊紀念品 minicarpet、masala、porcelain → 3（稱號 envoy）。
   - 對話的 end 可以回傳 `{ fight: kind }` 直接開小遊戲；小遊戲的 def 可以有 `winTalk`（打贏接對話）、`onWin()`、`loseNote`。地圖上跟著走的人：AsiaQuest.drawFollowers。
   - 時裝 `wukong`（costumes.js special、sprites.js costumeBody/Hat、voyage.js WALK_LOOK hat band）。
-- v1.33.3（還沒上線，在 nordic）：
+- v1.33.3（2026-10-11 已上線）：
   - 泉州船行（AS_SPOTS `M_asYard`、shop.js seller `asYard`，商品 `aship_dhow/fuchuan/baochuan`）：買船，旗標 `asShip` = 開哪一艘（再按一次換船）。
   - 東方艦隊的海戰改成 js/navalwar.js 的 `naval`（俯瞰海面，←→ 轉舵、↑ 加速、K 兩側齊射；船的性能 NavalWar.SHIPS；歐洲造船廠的 cannon、hull 等級有加成）；沒船不能開戰；關卡 def `hidePlayer` 不畫平台主角。
   - 西遊記：收到的徒弟先回那爛陀寺（站在玄奘旁邊），只有護送途中（sutra 2～3）師徒四人才跟著走；馬可波羅只有 marco 1（護送去上都）時跟著走。
-- v1.33.4（還沒上線）：AS_SPOTS 可以有 `gone()`（馬可波羅跟你走之後喀什的地點收起來）；entities.js 的丟在 `def.hidePlayer` 的關卡不作用（海戰按 J／K 不會丟出平台的子彈）。
-- v1.33.5（還沒上線）：地圖上的「！」= 有事情可以做（quests.js 的 `todo(kind)`，歐洲、新大陸、海底城；亞洲的在 asiaquest.js 的 questMark）。新增劇情人物時要記得補 todo。亞洲地圖的國名貼近圖釘（worldmap.js placeOne：as 地圖 35px）；上都搬到 (120.0, 44.6)。
-- v2.0.1（還沒上線）：泉州造船廠改名「泉州船行」（買船），worldmap.js drawShipDealer 畫它的圖示；歐洲的瓦倫西亞造船廠是升級。
-- **v2.0.0（還沒上線）「東方的開始」**：使用者要求主版號進到 2（亞洲篇起算）。v1.33.x 的內容都在 2.0 裡，之後從 2.0.x／2.1 繼續進版。
-- v1.33.11（還沒上線）：玩家：除了人魚和黃金獵犬，其他 NPC 不要跟在後面 → AsiaQuest.followers() 永遠是空的；馬可波羅畫在上都旁邊等（waiting）；v1.33.12 徒弟不畫在地圖上；v1.33.14 玄奘出發後畫在火焰山旁（sutra 2）、大雁塔旁（sutra 3）。
-- v1.33.9（還沒上線）：印度一關一隻大象（mount_elephant 的 update：被打跑後 callElephant 從左邊畫面外走回來；barricade 推不動也會叫牠）。
-- v1.33.7（還沒上線）：亞洲地圖畫萬里長城（huns.js 的 WALL、drawWall，由 worldmap.js 在 as 地圖呼叫）。
-- v1.33.6（還沒上線）匈奴進攻（js/huns.js）：flag `huns` 0 → 亞洲關卡（不含東亞 gate easia）全破、人在亞洲地圖 → 1（talk hunsAlarm，長城守將）→ 三支騎兵隊 hun0～2（陸地上往長安走，registerMini 的 mapNear）
+- v1.33.4（2026-10-11 已上線）：AS_SPOTS 可以有 `gone()`（馬可波羅跟你走之後喀什的地點收起來）；entities.js 的丟在 `def.hidePlayer` 的關卡不作用（海戰按 J／K 不會丟出平台的子彈）。
+- v1.33.5（2026-10-11 已上線）：地圖上的「！」= 有事情可以做（quests.js 的 `todo(kind)`，歐洲、新大陸、海底城；亞洲的在 asiaquest.js 的 questMark）。新增劇情人物時要記得補 todo。亞洲地圖的國名貼近圖釘（worldmap.js placeOne：as 地圖 35px）；上都搬到 (120.0, 44.6)。
+- v2.0.1（2026-10-11 已上線）：泉州造船廠改名「泉州船行」（買船），worldmap.js drawShipDealer 畫它的圖示；歐洲的瓦倫西亞造船廠是升級。
+- **v2.0.0～v2.0.3（2026-10-11 已上線，`nordic:live`）「東方的開始」**：使用者要求主版號進到 2（亞洲篇起算）。v1.33.x 的內容都在 2.0 裡，之後從 2.0.x／2.1 繼續進版。
+- v1.33.11（2026-10-11 已上線）：玩家：除了人魚和黃金獵犬，其他 NPC 不要跟在後面 → AsiaQuest.followers() 永遠是空的；馬可波羅畫在上都旁邊等（waiting）；v1.33.12 徒弟不畫在地圖上；v1.33.14 玄奘出發後畫在火焰山旁（sutra 2）、大雁塔旁（sutra 3）。
+- v1.33.9（2026-10-11 已上線）：印度一關一隻大象（mount_elephant 的 update：被打跑後 callElephant 從左邊畫面外走回來；barricade 推不動也會叫牠）。
+- v1.33.7（2026-10-11 已上線）：亞洲地圖畫萬里長城（huns.js 的 WALL、drawWall，由 worldmap.js 在 as 地圖呼叫）。
+- v1.33.6（2026-10-11 已上線）匈奴進攻（js/huns.js）：flag `huns` 0 → 亞洲關卡（不含東亞 gate easia）全破、人在亞洲地圖 → 1（talk hunsAlarm，長城守將）→ 三支騎兵隊 hun0～2（陸地上往長安走，registerMini 的 mapNear）
   長城保衛戰（踩騎兵下馬、衝過長城太多會輸）→ 全打退 → 2（hunsFlee）→ 歐洲喀爾巴阡山下的魔王 `attila`（沙隆平原之戰：小遊戲自己的弓、木盾牌擋平射的箭；def.noThrow）→ 3、稱號 hunbane。
   Encounter.registerEnsure(fn(monsters, world)) 每帧補地圖上的怪；game.js 地圖畫面每帧問 Huns.check()。v1.33.8 起觸發條件不含東亞；第三批的韓國、日本如果標 gate easia 也不算。
   - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店、忍者在大地圖隨機出現（八岐大蛇已經在 v1.33.1 做了）。
