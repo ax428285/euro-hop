@@ -1335,6 +1335,8 @@ const WorldMap = (function () {
     if (PAL.paper) { drawPaperGrain(ctx); drawCompass(ctx); }
     // v1.30：北歐的雷電結界（還沒解開時）、哥倫布出航後的美洲預告
     if (typeof Quests !== 'undefined' && WD.id === 'eu') { Quests.drawShield(ctx, t); Quests.drawMapExtras(ctx, t); }
+    // v1.33.7 亞洲地圖：萬里長城（huns.js）
+    if (WD.id === 'as' && typeof Huns !== 'undefined') Huns.drawWall(ctx, t);
     drawPaintedNations(ctx, true);
     // 呼叫端要夾在「國土」與「國名」之間畫的東西（航海模式的運河）
     if (opts.afterLand) opts.afterLand();

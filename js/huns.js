@@ -408,5 +408,53 @@ const Huns = (function () {
     }
   });
 
-  return { check: check, HORDES: HORDES, ATTILA_AT: ATTILA_AT, ATT_HP: ATT_HP, asiaDone: asiaDone, hordesDown: hordesDown };
+  // ════════════════════════════════════════════════════════
+  // v1.33.7 玩家：大地圖把萬里長城畫出來 —— 明長城的走向（東起山海關、西到嘉峪關），一路上一座座烽火台；
+  // 匈奴打過來的時候（huns 1）烽火台點著、冒狼煙。
+  // ════════════════════════════════════════════════════════
+  const WALL = [[119.8, 40.0], [118.6, 40.3], [117.2, 40.7], [116.0, 40.4], [114.9, 40.8], [113.3, 40.3], [111.5, 39.4],
+                [109.7, 38.3], [107.6, 37.6], [106.2, 38.5], [105.2, 37.5], [103.6, 37.3], [102.6, 37.9], [100.4, 38.9], [98.3, 39.8]];
+  const TOWERS = [0, 3, 5, 7, 9, 12, 14];      // 哪幾個點有烽火台（山海關、八達嶺、大同、榆林、銀川、武威、嘉峪關）
+  function drawWall(ctx, t) {
+    const pts = WALL.map(function (q) { return WorldMap.project(q[0], q[1]); });
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(70, 50, 30, 0.45)'; ctx.lineWidth = 6;
+    ctx.beginPath(); pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1] + 1); else ctx.moveTo(p[0], p[1] + 1); }); ctx.stroke();
+    ctx.strokeStyle = '#a89070'; ctx.lineWidth = 3.4;
+    ctx.beginPath(); pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
+    // 城垛：沿著城牆每 6px 一個小方塊（在城牆的北邊，朝著草原）
+    ctx.fillStyle = '#8a7458';
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const nx = (b[1] - a[1]) / len, ny = -(b[0] - a[0]) / len;
+      const ox = ny > 0 ? -nx : nx, oy = ny > 0 ? -ny : ny;      // 往北（畫面上方）的法線
+      for (let d = 3; d < len; d += 6) {
+        const x = a[0] + (b[0] - a[0]) * d / len + ox * 2, y = a[1] + (b[1] - a[1]) * d / len + oy * 2;
+        ctx.fillRect(x - 1, y - 1, 2, 2);
+      }
+    }
+    const fire = flag('huns') === 1;
+    TOWERS.forEach(function (k, n) {
+      const p = pts[k];
+      ctx.fillStyle = '#8a7458'; ctx.fillRect(p[0] - 3, p[1] - 6, 6, 6);
+      ctx.fillStyle = '#6a5a44'; ctx.fillRect(p[0] - 3.5, p[1] - 7, 7, 1.6);
+      if (fire) {
+        // 烽火＋狼煙
+        ctx.fillStyle = 'rgba(255, 120, 40, ' + (0.7 + Math.sin(t * 0.3 + n) * 0.3).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(p[0], p[1] - 8, 2.4, 0, Math.PI * 2); ctx.fill();
+        for (let s = 0; s < 3; s++) {
+          const ph = ((t * 0.3 + s * 20 + n * 9) % 60) / 60;
+          ctx.fillStyle = 'rgba(80, 70, 70, ' + (0.45 - ph * 0.4).toFixed(2) + ')';
+          ctx.beginPath(); ctx.arc(p[0] - ph * 6, p[1] - 10 - ph * 22, 1.6 + ph * 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    });
+    // 名字（城牆中段的北邊，鄂爾多斯一帶）
+    const lp = WorldMap.project(109.0, 40.6);
+    U.text(ctx, '萬 里 長 城', lp[0], lp[1], { size: 11, color: 'rgba(110, 80, 50, 0.85)', stroke: false });
+    ctx.restore();
+  }
+
+  return { drawWall: drawWall, WALL: WALL, check: check, HORDES: HORDES, ATTILA_AT: ATTILA_AT, ATT_HP: ATT_HP, asiaDone: asiaDone, hordesDown: hordesDown };
 })();
