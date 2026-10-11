@@ -34,6 +34,8 @@ const Quests = (function () {
     { id: 'Q_pyramid', npc: 'pyramid', name: '失落的金字塔', lon: 32.5, lat: 24.5, prompt: '按 Enter 走進失落的金字塔' },
     // v1.31.2 玩家：新增撒哈拉沙漠關卡（待超過 5 分鐘才會發現綠洲）→ 撒哈拉正中間（expedition.js 的 K.sahara）
     { id: 'Q_sahara', npc: 'sahara', name: '撒哈拉沙漠', lon: 9, lat: 25.5, prompt: '按 Enter 走進撒哈拉沙漠' },
+    // v1.32 玩家：咖啡豆是解開絲路的條件，絲路公主要求的 → 絲路的起點（安納托利亞西北，伊斯坦堡東南邊）
+    { id: 'Q_princess', npc: 'princess', name: '絲路公主', lon: 30.4, lat: 40.0, prompt: '按 Enter 晉見絲路公主' },
     // v1.30 玩家：增加埃及豔后 NPC（用途自由發揮）→ 西奈半島的金色遊船上，賣嚇跑比利時扒手的聖蛇護身符
     { id: 'Q_cleopatra', npc: 'cleopatra', name: '埃及豔后', lon: CLEO_AT[0], lat: CLEO_AT[1], prompt: '按 Enter 晉見埃及豔后' }
   ];
@@ -47,10 +49,13 @@ const Quests = (function () {
     { id: 'Q_columbusAm', npc: 'columbusAm', name: '哥倫布', lon: -77.95, lat: 24.4, prompt: '按 Enter 跟哥倫布說話' },
     // v1.31 玩家：除了能力想想還能買甚麼 → 兩家只賣外觀的店（shop.js 的 boutique / petshop）
     { id: 'M_boutique', seller: 'boutique', name: '聖胡安服裝店', lon: -66.1, lat: 18.4, prompt: '按 Enter 逛聖胡安服裝店' },
-    { id: 'M_petshop', seller: 'petshop', name: '千里達寵物用品店', lon: -61.3, lat: 10.6, prompt: '按 Enter 逛千里達寵物用品店' }
+    { id: 'M_petshop', seller: 'petshop', name: '千里達寵物用品店', lon: -61.3, lat: 10.6, prompt: '按 Enter 逛千里達寵物用品店' },
+    // v1.32 玩家：新增一個烘豆場建築物，要花錢蓋 → 哥斯大黎加的中央谷地（有名的咖啡產區）
+    { id: 'Q_roastery', npc: 'roastery', name: '咖啡烘豆場', lon: -84.1, lat: 10.0, prompt: '按 Enter 到咖啡烘豆場' }
   ];
 
-  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa', thalassa: 'Thalassa' };
+  const NAMES = { thor: '雷神索爾', loki: '洛基', me: '你', columbus: '哥倫布', banker: '銀行家', keeper: '動物園園長', cleopatra: '埃及豔后', mermaid: '人魚 Thalassa', thalassa: 'Thalassa',
+                  roaster: '烘豆師傅 Don Pedro', princess: '絲路公主 Roxana' };
 
   function flag(k) { return typeof Save !== 'undefined' ? Save.flag(k) : 0; }
   function northOpen() { return !!flag('north'); }
@@ -156,6 +161,42 @@ const Quests = (function () {
 
   function drawMapIcon(ctx, kind, x, y, t, near) {
     ctx.save();
+    if (kind === 'roastery') {
+      // v1.32 烘豆場：還沒蓋 = 一塊空地插著木頭告示牌；蓋好 = 紅屋頂的小工廠，煙囪冒著烘豆的煙
+      ring(ctx, x, y, t, near, 'rgba(240, 180, 120, 0.95)');
+      if (!flag('roastery')) {
+        ctx.fillStyle = '#8a6a3a'; ctx.fillRect(x - 1, y - 14, 2, 14);
+        ctx.fillStyle = '#c8a060'; ctx.fillRect(x - 9, y - 20, 18, 9);
+        ctx.fillStyle = '#5a3a1a'; ctx.fillRect(x - 6, y - 17, 12, 1.4); ctx.fillRect(x - 6, y - 14.5, 8, 1.4);
+        ctx.strokeStyle = 'rgba(90, 60, 30, 0.6)'; ctx.setLineDash([2, 2]); ctx.strokeRect(x - 12, y - 6, 24, 8); ctx.setLineDash([]);
+      } else {
+        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(x - 10, y - 12, 20, 12);
+        ctx.fillStyle = '#b8402a'; ctx.beginPath(); ctx.moveTo(x - 12, y - 12); ctx.lineTo(x, y - 20); ctx.lineTo(x + 12, y - 12); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#5a3a1a'; ctx.fillRect(x - 3, y - 7, 6, 7);
+        ctx.fillStyle = '#8a8a8a'; ctx.fillRect(x + 5, y - 24, 4, 9);
+        for (let k = 0; k < 3; k++) {
+          const p = ((t * 0.4 + k * 12) % 36) / 36;
+          ctx.fillStyle = 'rgba(200, 190, 180, ' + (0.6 - p * 0.5).toFixed(2) + ')';
+          ctx.beginPath(); ctx.arc(x + 7 + p * 6, y - 26 - p * 12, 2 + p * 3, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.restore();
+      return;
+    }
+    if (kind === 'princess') {
+      // v1.32 絲路公主：坐在駱駝旁的紅衣公主，頭上一頂小金冠
+      ring(ctx, x, y, t, near, 'rgba(255, 210, 110, 0.95)');
+      ctx.fillStyle = '#c89a5a';
+      ctx.beginPath(); ctx.ellipse(x + 7, y - 7, 6, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 6, y - 11, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(x + 11, y - 13, 2, 7); ctx.fillRect(x + 11, y - 15, 5, 2.4);
+      ctx.fillRect(x + 3, y - 4, 1.6, 4); ctx.fillRect(x + 10, y - 4, 1.6, 4);
+      tinyPerson(ctx, x - 4, y, '#b0202e', '#d8a882');
+      ctx.fillStyle = '#e8b830';
+      ctx.beginPath(); ctx.moveTo(x - 8, y - 21); ctx.lineTo(x - 6, y - 25); ctx.lineTo(x - 4, y - 22); ctx.lineTo(x - 2, y - 25); ctx.lineTo(x, y - 21); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      return;
+    }
     if (kind === 'sahara') {
       // 撒哈拉沙漠：兩座沙丘＋一顆會發熱光的太陽（找到綠洲之後多一棵椰棗樹）
       ring(ctx, x, y, t, near, 'rgba(255, 200, 110, 0.95)');
@@ -350,7 +391,7 @@ const Quests = (function () {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(200, 150, 60, 0.35)'; ctx.lineWidth = 7;
     ctx.beginPath(); pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
-    ctx.strokeStyle = 'rgba(150, 80, 30, 0.85)'; ctx.lineWidth = 2.2;
+    ctx.strokeStyle = flag('silkRoad') ? 'rgba(230, 170, 40, 0.95)' : 'rgba(150, 80, 30, 0.85)'; ctx.lineWidth = 2.2;
     ctx.setLineDash([7, 5]); ctx.lineDashOffset = -t * 0.3;
     ctx.beginPath(); pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.stroke();
     ctx.setLineDash([]);
@@ -377,9 +418,11 @@ const Quests = (function () {
     }
     // 字
     const lp = EuropeWorld.project(38.0, 42.0);
-    const rc = 'rgba(120, 60, 30, 0.7)';
+    const open = !!flag('silkRoad');
+    const rc = open ? 'rgba(170, 110, 20, 0.9)' : 'rgba(120, 60, 30, 0.7)';
     U.text(ctx, '絲　路　→', lp[0], lp[1], { size: 20, weight: 800, color: rc, stroke: false });
-    U.text(ctx, '（取經中⋯⋯）', lp[0] + 4, lp[1] + 20, { size: 12, color: rc, stroke: false });
+    // v1.32 交 3 箱咖啡豆給絲路公主 → 開通（亞洲篇還在做）
+    U.text(ctx, open ? '（已開通・亞洲篇製作中）' : '（取經中⋯⋯）', lp[0] + 4, lp[1] + 20, { size: 12, color: rc, stroke: false });
     ctx.restore();
   }
 
@@ -782,7 +825,94 @@ const Quests = (function () {
     } };
   }
 
+  /*
+   * v1.32 咖啡：中南美洲關卡撿到的是咖啡果實（Save.flag('cherries')）→ 烘豆場（要先花 ROAST_COST 蓋）把 ROAST_PER 顆烘成一箱「烘焙咖啡豆」（Trade 的 coffee，放船艙）
+   * → 拿去碼頭（四個貿易港）賣，或交 PRINCESS_NEED 箱給絲路公主，開通絲路（flag silkRoad）。
+   */
+  const ROAST_COST = 2500, ROAST_PER = 10, PRINCESS_NEED = 3;
+  function holdFree() {
+    const cap = Trade.capacity(Save.ship()) + ((typeof Shop !== 'undefined' && Shop.resolve().hold) || 0);
+    return Math.max(0, cap - Save.cargoCount());
+  }
+  function talkRoastery() {
+    const cherries = flag('cherries') || 0;
+    if (!flag('roastery')) {
+      const wallet = Save.get().wallet;
+      const lines = [
+        L('roaster', '¡Hola! 這裡是哥斯大黎加的中央谷地，火山灰的土種出來的咖啡全世界最香。'),
+        L('roaster', '你在中南美洲那些國家摘到的紅色果子，就是咖啡果實。可是果實要烘過，才會變成香噴噴的咖啡豆。'),
+        L('roaster', '我想在這裡蓋一座烘豆場，只差一筆錢：€ ' + ROAST_COST + '。蓋好以後，每 ' + ROAST_PER + ' 顆果實就幫你烘一箱咖啡豆。')
+      ];
+      if (wallet < ROAST_COST) {
+        lines.push(L('roaster', '你現在錢包只有 € ' + wallet + '⋯⋯存夠了再來找我吧！'));
+        return { who: 'roaster', lines: lines };
+      }
+      lines.push(L('me', '好，這筆錢我出！'));
+      lines.push(L('roaster', '¡Gracias! 烘豆場馬上開工 —— 下次帶果實來，我幫你烘。'));
+      return { who: 'roaster', lines: lines, end: function (complete) {
+        if (!complete || flag('roastery') || !Save.spendCoins(ROAST_COST)) return null;
+        Save.setFlag('roastery', 1);
+        return { sfx: 'fanfare', toast: { text: '咖啡烘豆場蓋好了！-€ ' + ROAST_COST, sub: '每 ' + ROAST_PER + ' 顆咖啡果實烘成一箱烘焙咖啡豆（現在有 ' + cherries + ' 顆果實）', life: 280 } };
+      } };
+    }
+    const free = holdFree();
+    const crates = Math.min(Math.floor(cherries / ROAST_PER), free);
+    if (cherries < ROAST_PER) {
+      return { who: 'roaster', lines: [
+        L('roaster', '烘豆機已經熱好了！可是你只帶了 ' + cherries + ' 顆果實，要 ' + ROAST_PER + ' 顆才烘得出一箱。'),
+        L('roaster', '古巴、牙買加、墨西哥、巴拿馬、哥倫比亞、巴西的關卡裡都長著咖啡果實，多摘一點再來！')
+      ] };
+    }
+    if (crates <= 0) {
+      return { who: 'roaster', lines: [L('roaster', '你的船艙已經塞滿了，裝不下咖啡豆啦！先去碼頭賣掉一些貨再來。')] };
+    }
+    return { who: 'roaster', lines: [
+      L('roaster', '來來來，' + (crates * ROAST_PER) + ' 顆果實倒進去 —— 劈哩啪啦，聞到了嗎？'),
+      L('roaster', '烘好了，' + crates + ' 箱烘焙咖啡豆！幫你搬上船了。'),
+      L('roaster', '咖啡豆拿到碼頭（熱那亞、羅德島、迦太基、亞歷山卓）賣得很好；聽說絲路上的公主也在找它呢。')
+    ], end: function () {
+      const n = Math.min(Math.floor((flag('cherries') || 0) / ROAST_PER), holdFree());
+      if (n <= 0) return null;
+      Save.setFlag('cherries', (flag('cherries') || 0) - n * ROAST_PER);
+      Save.moveCargo('coffee', n, 0);
+      return { sfx: 'equip', toast: { text: '烘好 ' + n + ' 箱烘焙咖啡豆！', sub: '已經搬上船（剩 ' + flag('cherries') + ' 顆果實）', life: 240 } };
+    } };
+  }
+  function talkPrincess() {
+    const have = Save.get().cargo.coffee || 0;
+    if (flag('silkRoad')) {
+      return { who: 'princess', lines: [
+        L('princess', '駱駝商隊已經帶著你的咖啡往東方出發了。'),
+        L('princess', '絲路的另一頭還有好多國家在等你⋯⋯等商隊回來，我再帶你去。（亞洲篇製作中）')
+      ] };
+    }
+    if (have < PRINCESS_NEED) {
+      return { who: 'princess', lines: [
+        L('princess', '旅行者，你好。我是絲路的公主 Roxana，這條路從這裡一直通到遙遠的東方。'),
+        L('princess', '可是商隊的駱駝都不肯出發 —— 他們說，要帶著西方最香的禮物，東方的國王才肯開城門。'),
+        L('princess', '聽說大海的另一邊，有一種紅色的果子，烘過以後會變成黑黑的豆子，香得連駱駝都會停下腳步。'),
+        L('princess', '替我帶 ' + PRINCESS_NEED + ' 箱烘焙咖啡豆來好嗎？我就替你打開絲路。（現在船上 ' + have + ' 箱）')
+      ], end: function () {
+        Save.setFlag('princessAsked', 1);
+        return { toast: { text: '絲路公主的委託：' + PRINCESS_NEED + ' 箱烘焙咖啡豆', sub: '中南美洲的關卡摘咖啡果實 → 新大陸的烘豆場烘成咖啡豆 → 裝船帶來', life: 300 } };
+      } };
+    }
+    return { who: 'princess', lines: [
+      L('me', '公主，這是您要的 ' + PRINCESS_NEED + ' 箱烘焙咖啡豆。'),
+      L('princess', '⋯⋯好香！就是這個味道！'),
+      L('princess', '商隊！把駱駝牽出來 —— 絲路，開通！'),
+      L('princess', '謝謝你，旅行者。等商隊從東方回來，我第一個帶你去看看那邊的世界。')
+    ], end: function (complete) {
+      if (!complete || flag('silkRoad') || (Save.get().cargo.coffee || 0) < PRINCESS_NEED) return null;
+      Save.moveCargo('coffee', -PRINCESS_NEED, 0);
+      Save.setFlag('silkRoad', 1);
+      return { sfx: 'fanfare', shake: 8, toast: { text: '絲路開通了！', sub: '駱駝商隊帶著咖啡往東方出發了（亞洲篇製作中）', life: 300 } };
+    } };
+  }
+
   function talk(id) {
+    if (id === 'roastery') return talkRoastery();
+    if (id === 'princess') return talkPrincess();
     if (id === 'merHome') return talkMerHome();
     if (id === 'eiffel') return talkEiffel();
     if (id === 'mermaid') return talkMermaid();
@@ -1017,6 +1147,37 @@ const Quests = (function () {
       ctx.beginPath(); ctx.ellipse(-9.5, 1.4, 3.4, 1.8, 0, 0, Math.PI * 2); ctx.ellipse(9.5, 1.4, 3.4, 1.8, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#d07a80';
       ctx.beginPath(); ctx.moveTo(-3, 7); ctx.quadraticCurveTo(0, 6, 3, 7); ctx.quadraticCurveTo(0, 9, -3, 7); ctx.fill();
+    } else if (who === 'roaster') {
+      // 烘豆師傅 Don Pedro：草帽、大鬍子、咖啡色圍裙
+      ctx.fillStyle = '#e8e0d0'; ctx.fillRect(-26, 14, 52, 36);
+      ctx.fillStyle = '#6a4a2a'; ctx.fillRect(-16, 18, 32, 32);
+      ctx.fillStyle = '#c8946a'; ctx.beginPath(); ctx.arc(0, -2, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a1a10'; ctx.beginPath(); ctx.moveTo(-12, 6); ctx.quadraticCurveTo(0, 2, 12, 6); ctx.quadraticCurveTo(0, 12, -12, 6); ctx.fill();
+      eyes(-4, 7);
+      ctx.fillStyle = '#e8c870'; ctx.beginPath(); ctx.ellipse(0, -16, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(-14, -30, 28, 15);
+      ctx.fillStyle = '#5a3a1a'; ctx.fillRect(-14, -19, 28, 3);
+    } else if (who === 'princess') {
+      // 絲路公主 Roxana：黑色長髮、金色頭冠＋垂下來的薄紗、紅色和青綠色的絲綢長袍、金耳環
+      ctx.fillStyle = '#1a1418'; ctx.beginPath(); ctx.moveTo(-20, -14); ctx.quadraticCurveTo(-28, 20, -22, 50); ctx.lineTo(22, 50); ctx.quadraticCurveTo(28, 20, 20, -14); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#b0202e'; ctx.beginPath(); ctx.moveTo(-26, 50); ctx.quadraticCurveTo(-22, 18, -8, 14); ctx.lineTo(8, 14); ctx.quadraticCurveTo(22, 18, 26, 50); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#1a8a8a'; ctx.beginPath(); ctx.moveTo(-8, 14); ctx.lineTo(0, 34); ctx.lineTo(8, 14); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(-20, 30, 40, 3);
+      ctx.fillStyle = '#d8a882'; ctx.beginPath(); ctx.ellipse(0, -2, 15, 18, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a1418'; ctx.beginPath(); ctx.arc(0, -10, 16, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+      eyes(-3, 6);
+      ctx.strokeStyle = '#1a1418'; ctx.lineWidth = 1.2;
+      [-1, 1].forEach(function (s) { ctx.beginPath(); ctx.moveTo(s * 3, -5); ctx.lineTo(s * 11, -6); ctx.stroke(); });
+      ctx.fillStyle = '#c8303a'; ctx.fillRect(-3, 7, 6, 2);
+      // 金色頭冠＋紅寶石
+      ctx.fillStyle = '#e8b830';
+      ctx.beginPath(); ctx.moveTo(-14, -18); ctx.lineTo(-10, -28); ctx.lineTo(-5, -20); ctx.lineTo(0, -32); ctx.lineTo(5, -20); ctx.lineTo(10, -28); ctx.lineTo(14, -18); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#d8203a'; ctx.beginPath(); ctx.arc(0, -22, 2.4, 0, Math.PI * 2); ctx.fill();
+      // 垂到肩上的薄紗
+      ctx.fillStyle = 'rgba(255, 220, 230, 0.35)';
+      ctx.beginPath(); ctx.moveTo(-16, -18); ctx.quadraticCurveTo(-34, 10, -26, 40); ctx.lineTo(-18, 40); ctx.quadraticCurveTo(-24, 10, -12, -16); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(16, -18); ctx.quadraticCurveTo(34, 10, 26, 40); ctx.lineTo(18, 40); ctx.quadraticCurveTo(24, 10, 12, -16); ctx.fill();
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(-15, 4, 2, 0, Math.PI * 2); ctx.arc(15, 4, 2, 0, Math.PI * 2); ctx.fill();
     } else if (who === 'cleopatra') {
       ctx.fillStyle = '#f4efe2'; ctx.fillRect(-26, 14, 52, 36);                                           // 白袍
       ctx.fillStyle = '#2a7ab0'; ctx.fillRect(-24, 14, 48, 6);                                            // 寬領圈（青金石）
@@ -1205,6 +1366,9 @@ const Quests = (function () {
     coinProgress: coinProgress,
     tick: tick,
     ASP_COST: ASP_COST,
+    ROAST_COST: ROAST_COST,
+    ROAST_PER: ROAST_PER,
+    PRINCESS_NEED: PRINCESS_NEED,
     pickpocket: pickpocket,
     PICK_COINS: PICK_COINS,
     ROB_TITLE: ROB_TITLE,

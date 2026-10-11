@@ -67,6 +67,19 @@ const Game = (function () {
 
   // ── 場景切換 ──────────────────────────────────────────
 
+  /*
+   * v1.32 玩家：中南美洲關卡的金幣改成收集咖啡果實。
+   * 新大陸（region 'america'）的關卡裡撿到的「金幣」都是咖啡果實：畫成咖啡果實、入帳時存進 Save.flag('cherries')（不進錢包）；
+   * 拿去新大陸的烘豆場（quests.js 的 roastery）烘成咖啡豆，裝船拿去賣，或交給絲路公主開通絲路。
+   */
+  function cherryMode() { return !!state && !skirmish && !!state.def && state.def.region === 'america'; }
+  /** 關卡的收穫入帳：一般關卡進錢包，中南美洲的進咖啡果實 */
+  function bankCoins(n) {
+    if (n <= 0) return;
+    if (cherryMode()) Save.setFlag('cherries', (Save.flag('cherries') || 0) + n);
+    else Save.addCoins(n);
+  }
+
   function startLevel(i) {
     const sv = Save.get();
     levelIndex = i;
@@ -1828,7 +1841,7 @@ const Game = (function () {
     }
   }
 
-  const MK_TOP = 168, MK_ROW = 52;
+  const MK_TOP = 166, MK_ROW = 50;      // v1.32 多了烘焙咖啡豆（5 列）
   /** 今天的委託（已經接下的那張不再列出來） */
   function mkOffers() {
     const sv = Save.get();
@@ -1840,7 +1853,7 @@ const Game = (function () {
     const g = Trade.GOODS[row];
     const pr = Trade.price(mkPort, g.id, sv.day);
     if (col === 0) {
-      if (pr.buy == null) { mkMsg = { text: '這裡不產' + g.name + '：要到產地' + Trade.port(g.home).name + '買', color: '#9aa7c7', life: 130 }; Sfx.clang(); return; }
+      if (pr.buy == null) { mkMsg = { text: g.home ? '這裡不產' + g.name + '：要到產地' + Trade.port(g.home).name + '買' : g.name + '買不到：要拿咖啡果實到新大陸的烘豆場烘', color: '#9aa7c7', life: 150 }; Sfx.clang(); return; }
       if (Save.cargoCount() >= holdCap()) { mkMsg = { text: '船艙滿了（造船廠加厚船身、葡萄牙商店的大船艙可以多放）', color: '#ff9aa8', life: 130 }; Sfx.clang(); return; }
       if (sv.wallet < pr.buy) { mkMsg = { text: '金幣不足（還差 ' + (pr.buy - sv.wallet) + '）', color: '#ff9aa8', life: 120 }; Sfx.clang(); return; }
       Save.moveCargo(g.id, 1, -pr.buy);
@@ -1948,7 +1961,7 @@ const Game = (function () {
         U.roundRect(ctx, 150, y, W - 300, MK_ROW - 6, 8); ctx.fill();
         drawCrate(178, cy, g.color);
         U.text(ctx, g.name, 204, cy - 8, { size: 15, color: '#ffffff', align: 'left' });
-        U.text(ctx, '產地：' + Trade.port(g.home).name + (g.home === mkPort ? '（這裡）' : ''), 204, cy + 11, { size: 11, color: '#9fb4d8', align: 'left' });
+        U.text(ctx, g.home ? '產地：' + Trade.port(g.home).name + (g.home === mkPort ? '（這裡）' : '') : '產地：新大陸的烘豆場（用咖啡果實烘）', 204, cy + 11, { size: 11, color: '#9fb4d8', align: 'left' });
         U.text(ctx, '船上 ' + (sv.cargo[g.id] || 0) + ' 箱', 420, cy, { size: 13, color: sv.cargo[g.id] ? '#ffe070' : '#7d88a6', align: 'left' });
         const pr = Trade.price(mkPort, g.id, sv.day);
         [[0, '買', pr.buy], [1, '賣', pr.sell]].forEach(function (bt) {
@@ -2194,8 +2207,8 @@ const Game = (function () {
       // 死掉也保留撿到的金幣（否則練習關卡完全沒收益，玩家會覺得白跑）
       // 但只給一半，死亡仍有代價。
       const keep = Math.floor(runCoins / 2);
-      if (keep > 0) Save.addCoins(keep);
-      netProgress({ t: 'coins', n: keep });
+      bankCoins(keep);
+      netProgress({ t: 'coins', n: keep, cherry: cherryMode() });
       coinsBanked = keep;
       runCoins = 0;
       Music.stop();
@@ -2264,7 +2277,7 @@ const Game = (function () {
     if (state.coinsTotal > 0 && state.coinsGot === state.coinsTotal) {
       gain += Math.ceil(runCoins * 0.5);
     }
-    if (gain > 0) Save.addCoins(gain);
+    bankCoins(gain);
     coinsBanked = gain;
     runCoins = 0;
     if (skirmish) {
@@ -2332,7 +2345,7 @@ const Game = (function () {
       // 世界之謎：第一次通關這一國 = 拿到它的線索（線索就是「已通關」，不另外存）
       const first = !Save.isCleared(levelIndex);
       Save.markCleared(levelIndex, state.coinsGot, state.coinsTotal, runScore);
-      netProgress({ t: 'clear', li: levelIndex, cg: state.coinsGot, ct: state.coinsTotal, score: runScore, gain: gain });
+      netProgress({ t: 'clear', li: levelIndex, cg: state.coinsGot, ct: state.coinsTotal, score: runScore, gain: gain, cherry: cherryMode() });
       const clue = Mystery.clueFor(levelIndex);
       const cont = Mystery.continentOf(levelIndex);
       if (first && clue && cont) {
@@ -3063,7 +3076,10 @@ const Game = (function () {
     U.text(ctx, title, 60, 23,
       { size: 16, align: 'left', color: def.isBoss || def.skirmish ? '#ffc0c8' : '#ffffff' });
 
-    U.text(ctx, `\u20AC ${state.coinsGot}/${state.coinsTotal}`, 400, 23,
+    if (cherryMode()) {
+      Sprites.cherry(ctx, 408, 23, 7, t);
+      U.text(ctx, `果實 ${state.coinsGot}/${state.coinsTotal}`, 418, 23, { size: 15, align: 'left', color: '#ffb0a0' });
+    } else U.text(ctx, `\u20AC ${state.coinsGot}/${state.coinsTotal}`, 400, 23,
       { size: 15, align: 'left', color: '#f6d98a' });
 
     // 密道計數（有密道的關卡才顯示）
@@ -3745,6 +3761,7 @@ const Game = (function () {
      ['海神的封印', Quests.abyssOpen()], ['人魚 Thalassa 同行', Quests.mermaidJoined()],
      ['人魚的好感度 ♥ ' + Quests.merLove() + ' / ' + Quests.merLoveMax(), Quests.merLove() >= Quests.merLoveMax()],
      ['巴黎鐵塔的夜景（人魚變成人類）', Quests.merHuman()], ['瑞士銀行開戶', !!Save.bank().open],
+     ['咖啡烘豆場（新大陸）', !!Save.flag('roastery')], ['絲路公主的委託（開通絲路）', !!Save.flag('silkRoad')],
      ['收養黃金獵犬', Save.pet() === 'dog'], ['埃及豔后的聖蛇', !!Save.flag('asp')], ['聖誕老人的禮物', !!Save.flag('gift')]
     ].forEach(function (q) { side.push({ name: q[0], done: q[1] }); });
     side.push({ head: '收集' });
@@ -4278,7 +4295,7 @@ const Game = (function () {
 
     U.text(ctx, '關卡完成！', W / 2, top + 44, { size: 36, color: '#8fe3a0' });
     U.text(ctx, `${def.country} · ${def.city}`, W / 2, top + 86, { size: 21, color: '#ffd166' });
-    U.text(ctx, `金幣 ${state.coinsGot}/${state.coinsTotal}　　剩餘命 ${livesTotal()}　　本關 ${runScore} 分`,
+    U.text(ctx, `${cherryMode() ? '咖啡果實' : '金幣'} ${state.coinsGot}/${state.coinsTotal}　　剩餘命 ${livesTotal()}　　本關 ${runScore} 分`,
       W / 2, top + 118, { size: 16, color: '#ffffff' });
 
     let y = top + 136;
@@ -4286,8 +4303,9 @@ const Game = (function () {
     // 入帳金額（含全收集的 50% 獎勵）——讓玩家知道錢包多了多少
     if (bankLine) {
       const full = state.coinsTotal > 0 && state.coinsGot >= state.coinsTotal;
-      U.text(ctx, `錢包 +\u20AC ${coinsBanked}` + (full ? '（全收集 +50%）' : '') +
-        `　餘額 \u20AC ${Save.get().wallet}`,
+      U.text(ctx, cherryMode()
+        ? `咖啡果實 +${coinsBanked}` + (full ? '（全收集 +50%）' : '') + `　共 ${Save.flag('cherries')} 顆（拿去烘豆場烘）`
+        : `錢包 +\u20AC ${coinsBanked}` + (full ? '（全收集 +50%）' : '') + `　餘額 \u20AC ${Save.get().wallet}`,
         W / 2, y + 8, { size: 14, color: '#ffd166' });
       y += 26;
     }
@@ -4339,9 +4357,11 @@ const Game = (function () {
     ctx.fillRect(0, 0, W, H);
     panel(230, 134, 500, 222);
     U.text(ctx, '旅程中斷', W / 2, 182, { size: 38, color: '#ff8a9c' });
-    U.text(ctx, `這關拿到 ${state.coinsGot} 枚金幣`, W / 2, 224, { size: 17, color: '#ffffff' });
+    U.text(ctx, cherryMode() ? `這關摘到 ${state.coinsGot} 顆咖啡果實` : `這關拿到 ${state.coinsGot} 枚金幣`, W / 2, 224, { size: 17, color: '#ffffff' });
     // 死亡只保住一半金幣，講清楚才不會覺得被偷
-    U.text(ctx, coinsBanked > 0
+    U.text(ctx, cherryMode()
+        ? (coinsBanked > 0 ? `咖啡果實 +${coinsBanked}（死亡只保留一半）　共 ${Save.flag('cherries')} 顆` : `咖啡果實沒有帶回來　共 ${Save.flag('cherries')} 顆`)
+        : coinsBanked > 0
         ? `錢包 +\u20AC ${coinsBanked}（死亡只保留一半）　餘額 \u20AC ${Save.get().wallet}`
         : `錢包沒有進帳　餘額 \u20AC ${Save.get().wallet}`,
       W / 2, 252, { size: 13, color: '#ffd166' });
@@ -4729,7 +4749,10 @@ const Game = (function () {
         const first = !Save.isCleared(msg.li);
         Save.markCleared(msg.li, msg.cg, msg.ct, msg.score);
         Save.addScore(msg.score);
-        if (msg.gain > 0) Save.addCoins(msg.gain);
+        if (msg.gain > 0) {
+          if (msg.cherry) Save.setFlag('cherries', (Save.flag('cherries') || 0) + msg.gain);
+          else Save.addCoins(msg.gain);
+        }
         const clue = Mystery.clueFor(msg.li);
         const cont = Mystery.continentOf(msg.li);
         newClue = null;
@@ -4751,7 +4774,7 @@ const Game = (function () {
         Save.addExp(msg.n);
         if (msg.gain > 0) Save.addCoins(msg.gain);
         break;
-      case 'coins': if (msg.n > 0) Save.addCoins(msg.n); break;
+      case 'coins': if (msg.n > 0) { if (msg.cherry) Save.setFlag('cherries', (Save.flag('cherries') || 0) + msg.n); else Save.addCoins(msg.n); } break;
     }
   }
 
@@ -5043,6 +5066,8 @@ const Game = (function () {
     /** 目前在哪個畫面（手機按鈕依畫面顯示/隱藏） */
     scene: function () { return scene; },
     /** 測試用 */
+    /** v1.32 這一關的「金幣」是不是咖啡果實（中南美洲的關卡）—— Sprites.coin、race.js、topdown.js 照它換畫法 */
+    cherryMode: cherryMode,
     debug: {
       getScene: function () { return scene; },
       setScene: function (s) { scene = s; sceneTimer = 0; },

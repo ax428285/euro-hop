@@ -2890,7 +2890,33 @@ const Sprites = (function () {
     ctx.restore();
   }
 
+  /*
+   * v1.32 玩家：中南美洲關卡的金幣改成收集咖啡果實 → 兩顆紅紫色的咖啡果實＋一片綠葉（中心在 x, y，r = 果實半徑）。
+   * 關卡裡、賽道上、上帝視角賽車都用這個（Game.cherryMode() 為真時）。
+   */
+  function cherry(ctx, x, y, r, t) {
+    const bob = Math.sin((t || 0) * 0.08 + x * 0.05) * r * 0.12;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.fillStyle = '#3f8a3a';
+    ctx.beginPath(); ctx.ellipse(r * 0.55, -r * 1.05, r * 0.75, r * 0.32, -0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = Math.max(1, r * 0.14);
+    ctx.beginPath(); ctx.moveTo(-r * 0.45, -r * 0.4); ctx.quadraticCurveTo(0, -r * 1.25, r * 0.4, -r * 0.45); ctx.stroke();
+    [[-r * 0.48, 0.05, '#c8202e'], [r * 0.45, -0.05, '#9a1a3a']].forEach(function (b) {
+      const g = ctx.createRadialGradient(b[0] - r * 0.25, -r * 0.25, r * 0.1, b[0], 0, r * 0.75);
+      g.addColorStop(0, '#ff6a6a'); g.addColorStop(1, b[2]);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(b[0], b[1] * r, r * 0.72, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(60, 10, 20, 0.6)';
+      ctx.beginPath(); ctx.arc(b[0] + r * 0.25, b[1] * r + r * 0.3, r * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.beginPath(); ctx.arc(b[0] - r * 0.25, b[1] * r - r * 0.25, r * 0.15, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
+  }
+
   function coin(ctx, c, t) {
+    if (typeof Game !== 'undefined' && Game.cherryMode && Game.cherryMode()) { cherry(ctx, c.x + 12, c.y + 13, 9, t); return; }
     const ph = Math.cos((t * 0.09) + c.x * 0.01);
     const rw = Math.max(2.5, 11 * Math.abs(ph));
     ctx.save();
@@ -7075,6 +7101,7 @@ const Sprites = (function () {
     shot: shot,
     secretRoom: secretRoom,
     coin: coin,
+    cherry: cherry,
     flagFace: flagFace,
     flagDirs: flagDirs,
     goalFlag: goalFlag

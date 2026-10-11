@@ -33,7 +33,9 @@ const Trade = (function () {
     { id: 'sausage', name: '臘腸',   home: 'genoa',      base: 46, color: '#a8423a' },
     { id: 'wine',    name: '葡萄酒', home: 'rhodes',     base: 52, color: '#8a2a4a' },
     { id: 'dates',   name: '椰棗',   home: 'carthage',   base: 40, color: '#8a5a2a' },
-    { id: 'papyrus', name: '莎草紙', home: 'alexandria', base: 58, color: '#d8c890' }
+    { id: 'papyrus', name: '莎草紙', home: 'alexandria', base: 58, color: '#d8c890' },
+    // v1.32 玩家：咖啡果實放進烘豆場可以變成碼頭物資交易 → 烘焙咖啡豆：沒有產地港口（home = null，只能在新大陸的烘豆場烘），四個港口都收、賣得比別的貨貴
+    { id: 'coffee', name: '烘焙咖啡豆', home: null, base: 110, color: '#4a2a14' }
   ];
   /** 貿易港（lon/lat 放在外海，靠岸不會跟關卡城市的圖釘搶） */
   const PORTS = [
@@ -70,6 +72,7 @@ const Trade = (function () {
     const g = good(goodId);
     const pi = PORTS.indexOf(port(portId)), gi = GOODS.indexOf(g);
     const mood = 0.75 + noise(day, pi, gi) * 0.55;
+    if (!g.home) return { buy: null, sell: Math.round(g.base * (0.8 + mood * 0.4)) };   // 烘焙咖啡豆：哪裡都不賣，只收
     if (g.home === portId) {
       const buy = Math.round(g.base * 0.45 * (0.85 + noise(day + 7, pi, gi) * 0.3));
       return { buy: buy, sell: Math.round(buy * 0.8) };
@@ -95,7 +98,7 @@ const Trade = (function () {
       if (type === 'letter') { b.to = to; b.time = 60 * 75; b.reward = 120; b.exp = 40; }
       if (type === 'cargo') {
         b.to = to;
-        b.good = GOODS.filter(function (g) { return g.home !== to; })[Math.floor(noise(seed, k, 4) * 3)].id;
+        b.good = GOODS.filter(function (g) { return g.home && g.home !== to; })[Math.floor(noise(seed, k, 4) * 3)].id;
         b.n = 2; b.reward = 220; b.exp = 60;
       }
       if (type === 'golden') { b.reward = 180; b.exp = 60; }

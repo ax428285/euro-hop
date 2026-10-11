@@ -309,6 +309,7 @@ function runEncounterCheck() {
    */
   (function () {
     Trade.GOODS.forEach(function (g) {
+      if (!g.home) return;     // v1.32 烘焙咖啡豆沒有產地港口（烘豆場烘的），coffee-check 另外檢查
       let profitable = 0;
       for (let d = 0; d < 30; d++) {
         const home = Trade.price(g.home, g.id, d);
