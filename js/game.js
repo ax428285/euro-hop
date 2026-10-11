@@ -1089,8 +1089,9 @@ const Game = (function () {
     }
     if (mapEv.indexOf('rare') >= 0) {
       Sfx.equip();
-      // v1.31 新大陸的稀有怪是黃金海龜（玩家：提示還寫海馬）
-      toast = { text: '稀有怪出現了！', sub: (WorldMap.world() === 'am' ? '閃金光的黃金海龜' : '閃金光的黃金海馬') + ' —— 抓到會掉時裝', life: 200 };
+      // v1.31 新大陸的稀有怪是黃金海龜（玩家：提示還寫海馬）；v1.33.1 亞洲是黃金錦鯉（玩家：明明是錦鯉，提示卻說是海馬）
+      const rareM = Encounter.monsters().filter(function (m) { return m.def.rare; })[0];
+      toast = { text: '稀有怪出現了！', sub: '閃金光的' + (rareM ? rareM.def.name : '黃金海馬') + ' —— 抓到會掉時裝', life: 200 };
     }
     const near = Voyage.nearbyLevel();
 
@@ -3679,7 +3680,7 @@ const Game = (function () {
         : mon.def.custom ? Expedition.prompt(mon) : mon.def.dive
         ? '按 Enter 潛入亞特蘭提斯（' + (Save.seaBossDown(mon.kind) ? `再潛一次 +${mon.def.exp} EXP・神殿大門的封印還沒解開）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
         : mon.def.boss
-        ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} EXP）` : `首次 +${mon.def.bossExp} EXP、€${mon.def.bossCoins}）`)
+        ? `按 Enter 挑戰魔王 ${mon.def.name}（` + (Save.seaBossDown(mon.kind) ? `再戰 +${mon.def.exp} ${mon.def.as ? '亞洲 ' : ''}EXP）` : `首次 +${mon.def.bossExp} ${mon.def.as ? '亞洲 ' : ''}EXP、€${mon.def.bossCoins}）`)
         : `按 Enter 挑戰 ${mon.def.name} Lv${mon.def.lv}（+${mon.def.exp} ${mon.def.as ? '亞洲 ' : mon.def.am ? '美洲 ' : ''}EXP）`;
       U.text(ctx, blink ? bossTxt : '　',
         W / 2, H - 15, { size: 14, color: '#ff9aa8' });
@@ -3874,7 +3875,7 @@ const Game = (function () {
     side.push({ head: '地圖上的冒險' });
     Object.keys(Encounter.KINDS).forEach(function (k) {
       const d = Encounter.KINDS[k];
-      if (k === 'herd' || d.am || d.as) return;
+      if (k === 'herd' || d.am || (d.as && !d.boss)) return;
       if (!(d.boss || d.dive || d.duo || d.fixed || d.quest || d.knight || d.desert)) return;
       side.push({ name: d.name, done: Save.seaBossDown(k) });
     });

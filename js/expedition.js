@@ -51,6 +51,34 @@ const Expedition = (function () {
   });
 
   /*
+   * v1.33.1 玩家：亞洲的海上有點空虛，加些之前的海戰（不然強化砲台都沒用到）→「東方艦隊」三艘戰艦，
+   * 一直停在亞洲地圖的海上（在出發的地方附近繞），玩法跟哥倫布的戰艦一樣（造船廠的船首砲、火藥庫、船身、船帆都有用），給亞洲 EXP。
+   *   dhow   阿拉伯三角帆船（低矮、一面大三角帆）           ★
+   *   junk   中國帆船（一片片竹條撐開的紅色硬帆、高高的船尾） ★★
+   *   atake  日本安宅船（船上蓋了一整座木頭城樓、四面都是砲窗）★★★
+   */
+  const ASIA_WARSHIPS = [
+    { id: 'DH', country: '阿拉伯海盜', label: '阿拉伯海盜船', ship: '「沙漠之鷹號」', lon: 62.0, lat: 20.5, hp: 90, rank: 1, tier: 1, style: 'dhow',
+      flag: ['#1a1a1a', '#1a1a1a', '#1a1a1a'], flagDir: 'h',
+      fact: '阿拉伯的三角帆船（dhow）乘著季風航行，一千年前就來回在阿拉伯、印度和東非之間做生意。' },
+    { id: 'ZY', country: '鄭一嫂', label: '鄭一嫂的旗艦', ship: '的紅旗號', lon: 116.0, lat: 20.0, hp: 170, rank: 2, tier: 3, style: 'junk',
+      flag: ['#c8202a', '#c8202a', '#c8202a'], flagDir: 'h',
+      fact: '鄭一嫂是歷史上最強的海盜之一：她的紅旗幫有七萬多個海盜，最後還跟清朝談判、帶著船隊全身而退。' },
+    { id: 'AT', country: '安宅船', label: '鐵甲安宅船', ship: '「日本丸」', lon: 127.5, lat: 32.0, hp: 280, rank: 3, tier: 5, style: 'atake',
+      flag: ['#f4f4f0', '#c8202a', '#f4f4f0'], flagDir: 'h',
+      fact: '日本戰國時代的安宅船是一座會浮在海上的木頭城堡；織田信長還造過外面包著鐵板的「鐵甲船」。' }
+  ];
+  ASIA_WARSHIPS.forEach(function (w) {
+    w.asia = true;
+    w.kind = 'war' + w.id;
+    K[w.kind] = { name: w.country + w.ship, lv: '戰艦', exp: 90, bossExp: 200, bossCoins: 200, game: '戰艦海戰',
+                  goal: '站在砲旁按 K／Enter 開砲！紅圈是敵艦砲彈的落點・踩扁跳上船的水兵', custom: true, warship: w, fixed: true,
+                  clearTitle: '擊沉了' + w.label + '！' };
+  });
+  /** 戰艦掛的旗子：歐洲的用那一國的國旗；亞洲的東方艦隊用自己的旗 */
+  function shipFlag(w) { return Levels.list.filter(function (l) { return l.id === w.id && !w.asia; })[0] || (w.flag ? w : null); }
+
+  /*
    * v1.30 玩家：動物園每種動物一隻就好、每次遷徙只會出一種 →
    * 一群只有一種動物（優先出動物園還沒有的），其中每隔幾隻有一隻頭上發光的「落單小動物」：
    * 跳到牠背上就抓到、這場就結束；踩到其他隻只會彈起來，被側面撞到會痛。
@@ -176,6 +204,29 @@ const Expedition = (function () {
     }
   }
 
+  /** v1.33.1 亞洲地圖：東方艦隊三艘戰艦不在清單上就補（Encounter.ensureBosses 在亞洲地圖時呼叫） */
+  function ensureAsia(monsters) {
+    ASIA_WARSHIPS.forEach(function (w) {
+      if (monsters.some(function (m) { return m.kind === w.kind; })) return;
+      const p = WorldMap.project(w.lon, w.lat);
+      let at = null;
+      for (let r = 0; r <= 80 && !at; r += 4) for (let k = 0; k < 16 && !at; k++) {
+        const x = p[0] + Math.cos(k * Math.PI / 8) * r, y = p[1] + Math.sin(k * Math.PI / 8) * r;
+        if (Voyage.isNavigable(x, y)) at = { x: x, y: y };
+      }
+      if (at) monsters.push({ kind: w.kind, def: K[w.kind], x: at.x, y: at.y, home: at, heading: Math.PI, life: Infinity, appear: 1, custom: true });
+    });
+  }
+  /** 東方艦隊在出發的地方附近（WANDER_HOME 以內的海面）繞 */
+  const WANDER_HOME = 90;
+  function wanderAsia(m) {
+    if (!m.wandered) { m.wandered = true; m.heading = Math.random() * Math.PI * 2; }
+    m.heading += (Math.random() - 0.5) * 0.06;
+    const nx = m.x + Math.cos(m.heading) * WANDER_SPEED, ny = m.y + Math.sin(m.heading) * WANDER_SPEED;
+    if (Math.hypot(nx - m.home.x, ny - m.home.y) < WANDER_HOME && Voyage.isNavigable(nx, ny)) { m.x = nx; m.y = ny; }
+    else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
+  }
+
   /** 每帧：動物群在撒哈拉北緣慢慢走；回傳船（人）是不是夠近、可以按 Enter */
   function mapNear(m, ship, d) {
     if (m.kind === 'darkKnight') {
@@ -195,7 +246,7 @@ const Expedition = (function () {
       else m.heading += Math.PI * (0.6 + Math.random() * 0.8);
       return d < 26 && Voyage.mode() === 'land';
     }
-    if (m.def.warship) wander(m);
+    if (m.def.warship) { if (m.def.warship.asia) wanderAsia(m); else wander(m); }
     return d < 34;
   }
 
@@ -286,7 +337,7 @@ const Expedition = (function () {
       return;
     }
     const down = Save.seaBossDown(m.kind);
-    const lv = Levels.list.filter(function (l) { return l.id === w.id; })[0];
+    const lv = shipFlag(w);
     const sz = [0, 0.8, 1, 1.25][w.rank];          // 等級越高，地圖上的船越大
     if (near) {
       ctx.strokeStyle = 'rgba(255, 120, 110, 0.95)'; ctx.lineWidth = 2.4;
@@ -299,7 +350,7 @@ const Expedition = (function () {
     if (lv) Sprites.flagFace(ctx, 0.7, top - 8, 11, 7, lv.flag, lv.flagDir);
     ctx.restore();
     const tagY = -46 * sz - 4;
-    const label = '★★★'.slice(0, w.rank) + ' ' + w.country + '戰艦' + (down ? '（已擊沉）' : '');
+    const label = '★★★'.slice(0, w.rank) + ' ' + (w.label || w.country + '戰艦') + (down ? '（已擊沉）' : '');
     ctx.fillStyle = down ? 'rgba(50, 40, 40, 0.9)' : 'rgba(110, 20, 20, 0.92)';
     U.roundRect(ctx, -40, tagY, 80, 13, 4); ctx.fill();
     U.text(ctx, label, 0, tagY + 6.5, { size: 9, color: down ? '#c8bcb0' : '#ffd0c8', stroke: false });
@@ -308,6 +359,36 @@ const Expedition = (function () {
   /** 地圖上的小戰艦（船型見 STYLE）；回傳主桅頂端的 y（國旗插在那裡） */
   function drawMapShip(ctx, style, down, t) {
     const sail = down ? '#bcb4a8' : '#f4efe2';
+    if (style === 'dhow') {
+      ctx.fillStyle = down ? '#5a5048' : '#7a5030';
+      ctx.beginPath(); ctx.moveTo(-16, -2); ctx.lineTo(18, -4); ctx.lineTo(12, 4); ctx.lineTo(-12, 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-0.7, -20, 1.4, 18);
+      ctx.fillStyle = sail;
+      ctx.beginPath(); ctx.moveTo(-12, -6); ctx.lineTo(10, -22); ctx.lineTo(4, -3); ctx.closePath(); ctx.fill();
+      return -20;
+    }
+    if (style === 'junk') {
+      ctx.fillStyle = down ? '#5a5048' : '#6a3a1a';
+      ctx.beginPath(); ctx.moveTo(-16, -6); ctx.lineTo(16, -3); ctx.lineTo(12, 4); ctx.lineTo(-12, 4); ctx.closePath(); ctx.fill();
+      ctx.fillRect(-17, -11, 8, 6);                                   // 高高的船尾樓
+      ctx.fillStyle = '#d8d0bc'; ctx.fillRect(-4.7, -26, 1.4, 21); ctx.fillRect(5.3, -20, 1.4, 16);
+      [[-4, -25, 12, 17], [6, -19, 9, 12]].forEach(function (q) {
+        ctx.fillStyle = down ? '#9a8a80' : '#c0402a'; ctx.fillRect(q[0] - q[2] / 2, q[1], q[2], q[3]);
+        ctx.fillStyle = 'rgba(60, 20, 10, 0.6)';
+        for (let k = 1; k < 4; k++) ctx.fillRect(q[0] - q[2] / 2, q[1] + k * q[3] / 4, q[2], 0.8);   // 竹條
+      });
+      return -26;
+    }
+    if (style === 'atake') {
+      ctx.fillStyle = down ? '#5a5048' : '#3a2a20';
+      ctx.beginPath(); ctx.moveTo(-18, -4); ctx.lineTo(18, -4); ctx.lineTo(14, 4); ctx.lineTo(-14, 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = down ? '#7a7070' : '#5a4a3a'; ctx.fillRect(-14, -14, 28, 10);   // 船上的木頭城樓
+      ctx.fillStyle = down ? '#8a8080' : '#7a6a5a'; ctx.fillRect(-7, -22, 14, 8);
+      ctx.fillStyle = down ? '#6a6060' : '#2a2a30';
+      ctx.beginPath(); ctx.moveTo(-10, -22); ctx.lineTo(0, -28); ctx.lineTo(10, -22); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#120c06'; for (let k = 0; k < 5; k++) ctx.fillRect(-12 + k * 5.5, -11, 2, 2);
+      return -28;
+    }
     const hull = down ? '#5a5048' : style === 'galley' ? '#8a2a20' : style === 'liner3' ? '#1e1e22' : '#4a2c1a';
     if (style === 'trireme' || style === 'galley') {
       // 低矮的長船身＋一排排的槳
@@ -371,7 +452,8 @@ const Expedition = (function () {
       return '按 Enter 去抓' + nm + '（' + K.herd.exp + ' EXP' + (Save.zoo()[m.species] ? '・動物園已經有了' : '，抓到的送進阿爾及爾動物園') + '）';
     }
     const down = Save.seaBossDown(m.kind);
-    return '按 Enter 跟' + '★★★'.slice(0, m.def.warship.rank) + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ' EXP' : '首次 +' + m.def.bossExp + ' EXP、€' + m.def.bossCoins) + '）';
+    const ex = m.def.warship.asia ? ' 亞洲 EXP' : ' EXP';
+    return '按 Enter 跟' + '★★★'.slice(0, m.def.warship.rank) + m.def.name + '開戰（' + (down ? '再戰 +' + m.def.exp + ex : '首次 +' + m.def.bossExp + ex + '、€' + m.def.bossCoins) + '）';
   }
 
   // ── 關卡定義 ─────────────────────────────────────────
@@ -385,7 +467,7 @@ const Expedition = (function () {
     return Object.assign({
       // 左上角的標題（country　city）要短，不然會壓到旁邊的金幣數
       // 戰艦海戰用 'WAR'：跳上船的小怪畫成水兵（見下面 Sprites.countryEnemies.WAR）
-      id: m.def.warship ? 'WAR' : 'SEA', country: m.def.game, city: m.def.warship ? m.def.warship.country + '戰艦' : '撒哈拉',
+      id: m.def.warship ? 'WAR' : 'SEA', country: m.def.game, city: m.def.warship ? (m.def.warship.label || m.def.warship.country + '戰艦') : '撒哈拉',
       flag: ['#1d3a5c', '#e8e2d2', '#1d3a5c'], flagDir: 'h', landmark: null,
       sky: ['#5fa8d8', '#f6dcae'], hill: '#2f6f9a', groundTop: '#b88a58', groundBody: '#6a4a30',
       deco: null, width: 960, height: 480, layout: 'boss', skirmish: true, spawnX: 120, isBoss: false,
@@ -481,7 +563,7 @@ const Expedition = (function () {
       });
     }
     const w = m.def.warship;
-    const lv = Levels.list.filter(function (l) { return l.id === w.id; })[0];
+    const lv = shipFlag(w);
     const first = firstTime(m);
     return arena(m, {
       minigame: 'warship', duration: 120 * 60,
@@ -490,7 +572,8 @@ const Expedition = (function () {
       bossArena: { x: 0, y: 0, w: DECK_W, h: 480 },
       ground: [{ x: 0, y: G, w: DECK_W, h: Levels.GROUND_H }],
       exp: first ? m.def.bossExp : m.def.exp, bossCoins: first ? m.def.bossCoins : 0, firstBoss: first,
-      fact: w.fact + (first ? '　第一次擊沉：' + m.def.bossExp + ' EXP＋' + m.def.bossCoins + ' 金幣' : '　再戰：' + m.def.exp + ' EXP')
+      as: !!w.asia,       // v1.33.1 東方艦隊給亞洲 EXP
+      fact: w.fact + (first ? '　第一次擊沉：' + m.def.bossExp + (w.asia ? ' 亞洲' : '') + ' EXP＋' + m.def.bossCoins + ' 金幣' : '　再戰：' + m.def.exp + (w.asia ? ' 亞洲' : '') + ' EXP')
     });
   }
 
@@ -701,7 +784,10 @@ const Expedition = (function () {
         out.costume = Costumes.get('pharaoh');
       }
     }
-    if (skirmish.def.warship) {
+    if (skirmish.def.warship && skirmish.def.warship.asia) {
+      const left = ASIA_WARSHIPS.filter(function (w) { return !Save.seaBossDown(w.kind); }).length;
+      out.note = left ? '東方艦隊：還剩 ' + left + ' 艘戰艦' : '東方艦隊三艘全部擊沉了！';
+    } else if (skirmish.def.warship) {
       const left = WARSHIPS.filter(function (w) { return !Save.seaBossDown(w.kind); }).length;
       out.note = left ? '哥倫布的委託：還剩 ' + left + ' 艘戰艦' : '五國戰艦全部擊沉！回塞維亞找哥倫布吧';
     }
@@ -807,6 +893,10 @@ const Expedition = (function () {
       }
     }
     let flagAt = null;
+    if (style === 'dhow' || style === 'junk' || style === 'atake') {
+      drawAsiaShip(ctx, mini, x0, G, t, lv, style, sailCol, flashSide);
+      return;
+    }
     if (style === 'trireme') {
       mast(170, G - 230, 1, 120);
       ctx.fillStyle = '#c0281e'; ctx.fillRect(x0 + 120, G - 190, 100, 8);        // 帆上的紅條
@@ -883,6 +973,66 @@ const Expedition = (function () {
     U.text(ctx, '★★★'.slice(0, mini.w.rank), x0 + 170, G + 50, { size: 18, color: '#ffd166' });
   }
 
+  /** v1.33.1 東方艦隊的大船（海戰的右邊）：阿拉伯三角帆船、中國帆船、日本安宅船 */
+  function drawAsiaShip(ctx, mini, x0, G, t, lv, style, sailCol, flashSide) {
+    const hullTop = style === 'dhow' ? G - 60 : style === 'junk' ? G - 90 : G - 80;
+    const hullCol = style === 'dhow' ? '#7a5030' : style === 'junk' ? '#6a3a1a' : '#3a2a20';
+    let flagAt;
+    if (style === 'dhow') {
+      // 一根往前斜的桅杆＋一面大大的三角帆
+      ctx.fillStyle = '#5a3a24';
+      ctx.save(); ctx.translate(x0 + 170, hullTop); ctx.rotate(0.12); ctx.fillRect(-3, -230, 6, 230); ctx.restore();
+      ctx.fillStyle = sailCol;
+      ctx.beginPath(); ctx.moveTo(x0 + 30, hullTop - 30); ctx.lineTo(x0 + 220, hullTop - 240); ctx.quadraticCurveTo(x0 + 250, hullTop - 120, x0 + 230, hullTop - 14); ctx.closePath(); ctx.fill();
+      flagAt = [218, hullTop - 262];
+    } else if (style === 'junk') {
+      // 三面竹條撐開的紅色硬帆（像一把把扇子）
+      [[90, 210, 110], [200, 250, 130], [290, 170, 80]].forEach(function (m) {
+        ctx.fillStyle = '#5a3a24'; ctx.fillRect(x0 + m[0] - 3, hullTop - m[1], 6, m[1]);
+        const top = hullTop - m[1] + 10, w = m[2], h = m[1] - 30;
+        ctx.fillStyle = mini.flash > 0 ? '#ff9a7a' : '#c0402a';
+        ctx.beginPath(); ctx.moveTo(x0 + m[0] - w * 0.3, top); ctx.lineTo(x0 + m[0] + w * 0.5, top + 6); ctx.lineTo(x0 + m[0] + w * 0.55, top + h); ctx.lineTo(x0 + m[0] - w * 0.45, top + h); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(60, 20, 10, 0.6)'; ctx.lineWidth = 2;
+        for (let k = 1; k < 6; k++) { const y = top + h * k / 6; ctx.beginPath(); ctx.moveTo(x0 + m[0] - w * 0.4, y); ctx.lineTo(x0 + m[0] + w * 0.53, y); ctx.stroke(); }
+      });
+      flagAt = [203, hullTop - 262];
+    } else {
+      // 安宅船：船上一整座木頭城樓（兩層、黑瓦屋頂），四面都是砲窗
+      ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x0 + 30, hullTop - 90, 280, 90);
+      ctx.fillStyle = '#7a6a5a'; ctx.fillRect(x0 + 100, hullTop - 160, 140, 70);
+      ctx.fillStyle = '#2a2a30';
+      ctx.beginPath(); ctx.moveTo(x0 + 10, hullTop - 90); ctx.lineTo(x0 + 170, hullTop - 120); ctx.lineTo(x0 + 330, hullTop - 90); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x0 + 80, hullTop - 160); ctx.lineTo(x0 + 170, hullTop - 196); ctx.lineTo(x0 + 260, hullTop - 160); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8c040'; ctx.beginPath(); ctx.arc(x0 + 170, hullTop - 196, 6, 0, Math.PI * 2); ctx.fill();
+      for (let r = 0; r < 2; r++) for (let k = 0; k < 8; k++) {
+        const gx = x0 + 44 + k * 34, gy = hullTop - 76 + r * 34;
+        ctx.fillStyle = '#120c06'; ctx.fillRect(gx, gy, 14, 12);
+        if (flashSide && (r + k) % 2 === 0) { ctx.fillStyle = 'rgba(255, 190, 90, 0.9)'; ctx.beginPath(); ctx.arc(gx + 7, gy + 6, 9, 0, Math.PI * 2); ctx.fill(); }
+      }
+      flagAt = [146, hullTop - 240];
+      ctx.fillStyle = '#5a3a24'; ctx.fillRect(x0 + 168, hullTop - 236, 4, 40);
+    }
+    // 船身
+    ctx.fillStyle = hullCol;
+    ctx.beginPath();
+    ctx.moveTo(x0 - 10, hullTop); ctx.lineTo(x0 + 350, hullTop - (style === 'junk' ? 30 : 10)); ctx.lineTo(x0 + 330, G + 10); ctx.lineTo(x0 + 20, G + 10); ctx.closePath(); ctx.fill();
+    if (style === 'junk') { ctx.fillRect(x0 + 270, hullTop - 70, 80, 44); ctx.fillStyle = '#e8c060'; ctx.fillRect(x0 + 270, hullTop - 30, 80, 4); }
+    ctx.fillStyle = '#e8c060'; ctx.fillRect(x0, hullTop + 2, 340, 4);
+    if (style !== 'atake') {
+      for (let k = 0; k < 6; k++) {
+        const gx = x0 + 30 + k * 50, gy = hullTop + 16;
+        ctx.fillStyle = '#1a1008'; ctx.fillRect(gx, gy, 16, 12);
+        if (flashSide && k % 2 === 0) { ctx.fillStyle = 'rgba(255, 190, 90, 0.9)'; ctx.beginPath(); ctx.arc(gx, gy + 6, 9, 0, Math.PI * 2); ctx.fill(); }
+      }
+    }
+    if (lv) Sprites.flagFace(ctx, x0 + flagAt[0], flagAt[1], 48, 32, lv.flag, lv.flagDir);
+    if (style === 'atake' && lv) { ctx.fillStyle = '#c8202a'; ctx.beginPath(); ctx.arc(x0 + flagAt[0] + 24, flagAt[1] + 16, 8, 0, Math.PI * 2); ctx.fill(); }
+    const holes = Math.min(14, Math.floor((mini.hpMax - mini.hp) / 12));
+    ctx.fillStyle = '#120c06';
+    for (let i = 0; i < holes; i++) { ctx.beginPath(); ctx.arc(x0 + 40 + (i * 53) % 280, G - 14 - (i % 3) * ((G - hullTop) / 4), 7, 0, Math.PI * 2); ctx.fill(); }
+    U.text(ctx, '★★★'.slice(0, mini.w.rank), x0 + 170, G + 50, { size: 18, color: '#ffd166' });
+  }
+
   function drawWarship(ctx, state, mini, t) {
     const G = GY();
     const W = 960;
@@ -895,7 +1045,7 @@ const Expedition = (function () {
     const sh = mini.shake > 0 ? Math.sin(t * 2) * 4 : 0;
     const sink = mini.done && mini.hp <= 0 ? Math.min(60, (mini.sinkT = (mini.sinkT || 0) + 1)) : 0;
     const x0 = ENEMY_X + sh, bob = Math.sin(t * 0.05) * 3 + sink;
-    const lv = Levels.list.filter(function (l) { return l.id === mini.w.id; })[0];
+    const lv = shipFlag(mini.w);
     ctx.save();
     ctx.translate(0, bob);
     drawBigShip(ctx, mini, x0, G, t, lv);
@@ -1643,6 +1793,8 @@ const Expedition = (function () {
 
   return {
     WARSHIPS: WARSHIPS,
+    ASIA_WARSHIPS: ASIA_WARSHIPS,
+    ensureAsia: ensureAsia,
     has: has,
     ensure: ensure,
     mapNear: mapNear,

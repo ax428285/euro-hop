@@ -11,12 +11,16 @@
  *   G) 印度：騎大象才撞得開路障；尼泊爾：氧氣會掉、帳篷補滿、用完扣命；中國：烽火全點燃關門才開、箭雨會痛；蒙古：射中箭靶
  *   H) 亞洲的海上冒險：四種都生得出來、跑得動；龍舟照鼓點打會贏、不打會輸；香料接得到
  *   I) 玄奘的委託：接下 → 經書送到大雁塔 → 稱號「取經人」、亞洲 EXP；玄奘、大雁塔、馬可波羅都在陸地上
+ *   v1.33.1：
+ *   J) 亞洲地圖上有三隻海上魔王（大鵬、龍王、八岐大蛇）和東方艦隊三艘戰艦，都在海上；南海海盜船會出現
+ *   K) 三隻魔王都打得倒（照牠們的破綻踩），時間到會輸；東方艦隊的海戰給亞洲 EXP
  * 會暫時改存檔，結束前還原。
  */
 function runAsiaCheck() {
   const issues = [];
   const sv = Save.get(), keep = JSON.stringify(sv);
   const startWorld = WorldMap.world();
+  const cur0 = Game.debug.getCursor();       // 測試會進亞洲的關卡、換地圖，結束前把地圖游標放回來（不然世界之謎會打開亞洲的那一頁）
   const AS = Levels.list.map(function (lv, i) { return lv.region === 'asia' ? i : -1; }).filter(function (i) { return i >= 0; });
   try {
     if (AS.length < 2) issues.push('亞洲的關卡少於 2 關（' + AS.length + '）');
@@ -312,6 +316,84 @@ function runAsiaCheck() {
     if (sv.expAs !== e0 + AsiaQuest.SUTRA_EXP) issues.push('經書送到沒有加亞洲 EXP');
     tk = Quests.talk('marco');
     if (!tk || !tk.lines.length) issues.push('馬可波羅不會說話');
+
+    // ── J) 亞洲地圖上的魔王、艦隊 ──
+    WorldMap.useWorld('as'); Voyage.rebuild(); Encounter.clear();
+    Encounter.updateMap(Voyage.shipPos(), 0);
+    const mons = Encounter.monsters();
+    ['roc', 'dragon', 'orochi', 'warDH', 'warZY', 'warAT'].forEach(function (k) {
+      const m = mons.filter(function (q) { return q.kind === k; })[0];
+      if (!m) issues.push('亞洲地圖上沒有 ' + k);
+      else if (!Voyage.isNavigable(m.x, m.y)) issues.push(k + ' 不在海上');
+    });
+    if (mons.some(function (m) { return m.kind === 'scylla' || m.kind === 'warFR'; })) issues.push('歐洲的魔王、戰艦跑到亞洲地圖上了');
+    const sea2 = WorldMap.project(88, 14); Voyage.placeShip(sea2[0], sea2[1]);
+    let pir = false;
+    for (let k = 0; k < 300 && !pir; k++) { const m = Encounter.spawn(Voyage.shipPos(), 0); if (m) { if (m.kind === 'asPirates') pir = true; Encounter.remove(m); } }
+    if (!pir) issues.push('亞洲地圖上不會出現南海海盜船');
+    Encounter.clear();
+    WorldMap.useWorld('eu'); Voyage.rebuild();
+    // 東方艦隊：海戰給亞洲 EXP
+    (function () {
+      const k = Encounter.KINDS.warZY, def = Encounter.makeDef({ kind: 'warZY', def: k, x: 0, y: 0 });
+      if (def.minigame !== 'warship' || !def.as) issues.push('鄭一嫂的紅旗號不是給亞洲 EXP 的戰艦海戰');
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      try {
+        for (let f = 0; f < 300; f++) Encounter.updateSkirmish(st, { isDown: function () { return false; }, once: function () { return false; } });
+        const cv = document.createElement('canvas'); cv.width = 960; cv.height = 480;
+        ['warDH', 'warZY', 'warAT'].forEach(function (kk) {
+          const d2 = Encounter.makeDef({ kind: kk, def: Encounter.KINDS[kk], x: 0, y: 0 });
+          const s2 = buildLevelState(d2, -1, [], Equipment.resolve([]));
+          Encounter.updateSkirmish(s2, { isDown: function () { return false; }, once: function () { return false; } });
+          Encounter.drawWorld(cv.getContext('2d'), s2, 10);
+        });
+      } catch (e) { issues.push('東方艦隊的海戰出錯：' + e.message); }
+    })();
+
+    // ── K) 三隻魔王打得倒 ──
+    const NOIN = { isDown: function () { return false; }, once: function () { return false; } };
+    function bossRun(kind, act) {
+      const k = Encounter.KINDS[kind], def = Encounter.makeDef({ kind: kind, def: k, x: 0, y: 0 });
+      if (!def.as || !def.firstBoss && !Save.seaBossDown(kind)) issues.push(kind + '：魔王的定義不對（亞洲 EXP、第一次的獎勵）');
+      const st = buildLevelState(def, -1, [], Equipment.resolve([]));
+      const p = st.player;
+      let res = null, f = 0;
+      try {
+        for (; f < def.duration + 10 && !res; f++) {
+          p.invuln = 999;
+          if (act && st.mini) act(st, st.mini, p);
+          const ev = Encounter.updateSkirmish(st, NOIN);
+          if (ev.indexOf('clear') >= 0) res = 'win';
+          if (ev.indexOf('minifail') >= 0) res = 'lose';
+        }
+        const cv = document.createElement('canvas'); cv.width = 960; cv.height = 480;
+        Encounter.drawWorld(cv.getContext('2d'), st, f); Encounter.drawHud(cv.getContext('2d'), st, 960);
+      } catch (e) { issues.push(kind + ' 出錯：' + e.message); }
+      return { res: res, frames: f };
+    }
+    const GYc = Levels.GROUND_Y;
+    // 大鵬：停在甲板上時從頭上踩
+    let r = bossRun('roc', function (st, mini, p) {
+      if (mini.phase === 'perch' && mini.hurtT === 0) { p.x = mini.bx + mini.face * 34 - p.w / 2; p.y = GYc - 124 - p.h + 6; p.vy = 4; }
+    });
+    if (r.res !== 'win') issues.push('大鵬金翅鳥：照破綻踩也打不倒（' + r.res + '）');
+    if (bossRun('roc').res !== 'lose') issues.push('大鵬金翅鳥：什麼都不做也不會輸');
+    // 龍王：頭靠在甲板上時踩龍珠
+    r = bossRun('dragon', function (st, mini, p) {
+      if (mini.phase === 'rest' && mini.hurtT === 0) { p.x = mini.hx - p.w / 2; p.y = GYc - 76 - p.h + 6; p.vy = 4; }
+    });
+    if (r.res !== 'win') issues.push('東海龍王：照破綻踩也打不倒（' + r.res + '）');
+    if (bossRun('dragon').res !== 'lose') issues.push('東海龍王：什麼都不做也不會輸');
+    // 八岐大蛇：一個一個打開酒罈，醉倒了就踩
+    r = bossRun('orochi', function (st, mini, p) {
+      const drunk = mini.heads.filter(function (h) { return h.alive && h.state === 'drunk'; })[0];
+      if (drunk) { p.x = drunk.x - p.w / 2; p.y = GYc - 38 - p.h + 6; p.vy = 4; return; }
+      const v = mini.vats.filter(function (q) { return !q.open && !q.empty; })[0];
+      if (v && !mini.vats.some(function (q) { return q.open; })) { p.x = v.x - p.w / 2; p.y = GYc - p.h; p.vy = 0; }
+      else { p.x = 470; p.y = GYc - p.h; }
+    });
+    if (r.res !== 'win') issues.push('八岐大蛇：打開酒罈、踩醉倒的頭也打不倒（' + r.res + '）');
+    if (bossRun('orochi').res !== 'lose') issues.push('八岐大蛇：什麼都不做也不會輸');
     Game.debug.setScene('map');
   } catch (e) {
     issues.push('出錯：' + e.message);
@@ -321,5 +403,6 @@ function runAsiaCheck() {
   Object.keys(back).forEach(function (k) { sv[k] = back[k]; });
   Save.touch();
   if (WorldMap.world() !== startWorld) { WorldMap.useWorld(startWorld); Voyage.rebuild(); }
+  Game.debug.setCursor(cur0);
   return { issueCount: issues.length, issues: issues };
 }

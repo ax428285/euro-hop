@@ -386,6 +386,10 @@ const Voyage = (function () {
     // 靠近的城市：腳下一圈虛線（入口範圍）
     if (nearIdx >= 0) {
       const p = ports.filter(function (q) { return q.idx === nearIdx; })[0];
+      if (!p) nearIdx = -1;      // 剛換到別張地圖：上一張的入口不在這張上
+    }
+    if (nearIdx >= 0) {
+      const p = ports.filter(function (q) { return q.idx === nearIdx; })[0];
       ctx.save();
       ctx.strokeStyle = 'rgba(255, 209, 102, 0.75)';
       ctx.lineWidth = 2;

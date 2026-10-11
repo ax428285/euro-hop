@@ -128,6 +128,13 @@ const Encounter = (function () {
   KINDS.buccaneers = { name: '黑鬍子海盜船', lv: 2, exp: 90, game: '火藥桶', goal: '黑鬍子丟過來的火藥桶燒完引信就會爆炸 —— 趁還沒爆，把它踢下海！', skin: 'blackbeard', mapMove: 'pirates', am: true };
   KINDS.dolphins   = { name: '頑皮海豚',   lv: 3, exp: 130, game: '踩海豚摘星星', goal: '海豚跳過船的時候，跳到牠背上會被彈上天 —— 去搶天上的星星', skin: 'dolphin', am: true };
   KINDS.goldturtle = { name: '黃金海龜',   lv: '★', exp: 60, game: '追浪海龜', goal: '黃金海龜站在浪頭上衝浪！被浪撞到會被推回去，跳起來碰牠 3 次就抓到了', rare: true, skin: 'turtle', mapMove: 'golden', am: true };
+  /*
+   * v1.33.1 玩家：亞洲的海上有點空虛，加些之前的海戰（不然強化砲台都沒用到）→
+   * 南海海盜船：沿用歐洲的艦砲對決（base 'pirates'，造船廠的船首砲、裝填速度都有用），打贏給亞洲 EXP。
+   */
+  KINDS.asPirates = { name: '南海海盜船', lv: 2, exp: 90, game: '艦砲對決', base: 'pirates', mapMove: 'pirates', as: true,
+                      fact: '十九世紀初，鄭一嫂率領的紅旗幫在南中國海有上千艘海盜船，連清朝和英國的海軍都拿她沒辦法。',
+                      goal: '抓準砲口角度，命中海盜船 5 次' };
   /** 這一隻用的是哪一種玩法（新大陸的怪沿用歐洲的玩法） */
   function baseOf(kind) { return (KINDS[kind] && KINDS[kind].base) || kind; }
   function inAmerica() { return typeof WorldMap !== 'undefined' && WorldMap.world && WorldMap.world() === 'am'; }
@@ -203,8 +210,9 @@ const Encounter = (function () {
     // v1.33 亞洲：外掛的海上冒險（asiasea.js），強度看亞洲 EXP
     if (inAsia()) {
       const es = typeof Save !== 'undefined' && Save.expAs ? Save.expAs() : 0;
-      const ws = Object.keys(EXTM).filter(function (k) { return EXTM[k].def.as && !EXTM[k].def.rare; })
+      const ws = Object.keys(EXTM).filter(function (k) { return EXTM[k].def.as && !EXTM[k].def.rare && !EXTM[k].def.boss; })
         .map(function (k) { return [k, EXTM[k].weight ? EXTM[k].weight(es, cargo) : 1]; });
+      ws.push(['asPirates', (es >= 30 ? 3 : 1) + cargo * 2]);
       const ts = ws.reduce(function (s, x) { return s + x[1]; }, 0);
       let rs = Math.random() * ts;
       for (let i = 0; i < ws.length; i++) { rs -= ws[i][1]; if (rs < 0) return ws[i][0]; }
@@ -275,6 +283,18 @@ const Encounter = (function () {
     return atlClock % (ATL_UP + ATL_DOWN) < ATL_UP;
   }
 
+  /** 目前這張地圖上，某一點附近最近的一塊能航行的海面 */
+  function seaSpot(p) {
+    for (let r = 0; r <= 80; r += 4) {
+      for (let k = 0; k < 16; k++) {
+        const a = k * Math.PI / 8;
+        const x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r;
+        if (Voyage.isNavigable(x, y)) return { x: x, y: y };
+        if (r === 0) break;
+      }
+    }
+    return null;
+  }
   /** 海上魔王一直待在固定位置：不在清單上就補回來（打完、clear() 之後） */
   /** 海上魔王待的位置：設定的經緯度附近最近的一塊能航行的海面 */
   function bossSpot(b) {
@@ -292,6 +312,18 @@ const Encounter = (function () {
 
   function ensureBosses() {
     if (typeof EuropeWorld === 'undefined') return;
+    // v1.33.1 亞洲地圖：外掛的海上魔王（asiaboss.js，h.at = 經緯度）＋東方艦隊（expedition.js）
+    if (WorldMap.world && WorldMap.world() === 'as') {
+      Object.keys(EXTM).forEach(function (k) {
+        const h = EXTM[k];
+        if (!h.def.boss || !h.at || monsters.some(function (m) { return m.boss && m.kind === k; })) return;
+        const p = WorldMap.project(h.at[0], h.at[1]);
+        const at = seaSpot(p);
+        if (at) monsters.push({ kind: k, def: h.def, x: at.x, y: at.y, heading: 0, life: Infinity, appear: 1, boss: true });
+      });
+      if (typeof Expedition !== 'undefined' && Expedition.ensureAsia) Expedition.ensureAsia(monsters);
+      return;
+    }
     // v1.31：海上魔王、哥倫布的戰艦、動物大遷徙都在歐洲地圖上（新大陸地圖目前只有一般的海上怪）
     if (WorldMap.world && WorldMap.world() !== 'eu') return;
     atlClock++;
@@ -662,7 +694,7 @@ const Encounter = (function () {
         ctx.strokeStyle = near ? 'rgba(255, 90, 100, 1)' : 'rgba(255, 90, 100, 0.6)';
         ctx.lineWidth = near ? 2.6 : 1.8;
         ctx.beginPath(); ctx.arc(0, -2, pulse, 0, Math.PI * 2); ctx.stroke();
-        drawScyllaMap(ctx, t);
+        if (EXTM[m.kind] && EXTM[m.kind].drawMap) EXTM[m.kind].drawMap(ctx, t, m); else drawScyllaMap(ctx, t);
         ctx.fillStyle = beaten ? 'rgba(50, 40, 60, 0.9)' : 'rgba(120, 10, 24, 0.92)';
         // v1.25.2 玩家：魔王用本名顯示（原本只寫「魔王」）；打倒過的牌子變灰
         U.roundRect(ctx, -32, -46, 64, 14, 4); ctx.fill();
@@ -682,7 +714,7 @@ const Encounter = (function () {
       else if (m.def.skin === 'blackbeard') drawPirate(ctx, t, m.heading, true);
       else if (m.def.skin === 'dolphin') drawDolphinMap(ctx, t);
       else if (m.kind === 'gulls') drawGulls(ctx, t);
-      else if (m.kind === 'pirates') drawPirate(ctx, t, m.heading);
+      else if (m.kind === 'pirates' || m.def.base === 'pirates') drawPirate(ctx, t, m.heading);
       else drawSerpent(ctx, t);
       ctx.fillStyle = 'rgba(40, 10, 18, 0.85)';
       U.roundRect(ctx, -11, -31, 22, 12, 4); ctx.fill();
@@ -841,6 +873,10 @@ const Encounter = (function () {
       flagDir: 'h',
       landmark: null,
       fact: (function () {
+        if (k.boss && k.as) {
+          const first = !(typeof Save !== 'undefined' && Save.seaBossDown(m.kind));
+          return (k.fact || '') + (first ? '　第一次打倒：' + k.bossExp + ' 亞洲 EXP＋' + k.bossCoins + ' 金幣' : '　再戰：' + k.exp + ' 亞洲 EXP');
+        }
         if (k.boss) {
           const first = !(typeof Save !== 'undefined' && Save.seaBossDown(kind));
           return first

@@ -97,5 +97,9 @@
   - 亞洲 EXP：`Save.expAs`／`addExpAs`，Encounter REGIONS `easia`（pool 'as'，`EASIA_EXP` 300）；亞洲地圖的 EXP 條顯示亞洲 EXP。
   - 玄奘（那爛陀寺）→ flag `sutra` 1 → 大雁塔 → `sutra` 2、稱號「取經人」（flag pilgrim）＋150 亞洲 EXP＋€500；馬可波羅 flag `marco`。
   - 測試：asia-check 包含第二批；`runTraversalTest(only)` 可以只跑幾關（使用者：機器人只測新增的關卡）。
-  - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店；八岐大蛇當大地圖魔王、忍者在大地圖隨機出現。
+- v1.33.1（還沒上線，在 nordic）亞洲的海上更熱鬧：
+  - 大地圖魔王（asiaboss.js，registerMini 的 `at` = 經緯度、def.boss）：roc 大鵬金翅鳥（阿拉伯海）、dragon 東海龍王（東海）、orochi 八岐大蛇（日本海，酒罈灌醉再踩）；Encounter.ensureBosses 在亞洲地圖時放這些＋東方艦隊。
+  - 東方艦隊（expedition.js `ASIA_WARSHIPS`、`ensureAsia`、`wanderAsia`）：warDH 阿拉伯海盜船（dhow）、warZY 鄭一嫂紅旗號（junk）、warAT 鐵甲安宅船（atake），戰艦海戰、給亞洲 EXP。
+  - 亂數的南海海盜船 `asPirates`（base pirates，艦砲對決）。稀有怪的提示照實際生出來的名字（亞洲是黃金錦鯉）。
+  - 之後：第三批 韓國、日本相撲魔王、絲綢工坊、亞洲服裝店、忍者在大地圖隨機出現（八岐大蛇已經在 v1.33.1 做了）。
 - 芬蘭聖誕老人送的「聖誕禮物」只記在存檔（`Save.flag('gift')`），用途還沒開發。

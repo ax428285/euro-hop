@@ -40,7 +40,7 @@ const AsiaSea = (function () {
   Encounter.registerMini('spices', {
     def: { name: '翻覆的香料船', lv: 1, exp: 70, game: '接香料', as: true, duration: 40 * 60,
            fact: '一千年前，印度洋上的商船乘著季風來回，把胡椒、肉桂、番紅花運到阿拉伯和歐洲，香料比黃金還貴。',
-           goal: '香料罐從天上掉下來（甲板上先出現影子）—— 跑過去接住！紅色的辣椒罐會燙，別碰' },
+           goal: '跑到影子底下接住香料罐・紅色的辣椒罐會燙，別碰' },
     weight: function () { return 5; },
     arena: function (GY) { return { sky: ['#4ab0d8', '#f8e0b0'], spawnX: 460 }; },
     init: function (state, mini) { seed(mini); mini.caught = 0; mini.jars = []; mini.next = 40; mini.seq = 0; },
@@ -112,7 +112,7 @@ const AsiaSea = (function () {
   Encounter.registerMini('dragonboat', {
     def: { name: '龍舟競渡', lv: 2, exp: 90, game: '划龍舟', as: true, duration: 45 * 60, usesThrow: true,
            fact: '端午節划龍舟是為了紀念兩千三百年前投江的詩人屈原；鼓手坐在船頭打鼓，全船的槳手跟著鼓聲一起划。',
-           goal: '按 K／丟 打鼓：鼓上的圈縮到跟鼓一樣大的那一下打，龍舟就衝得快；比對手先到終點！' },
+           goal: '圈縮到跟鼓一樣大時按 K／丟 打鼓，比對手先到終點' },
     weight: function (es, cargo) { return es >= 30 ? 3 : 1; },
     arena: function (GY) { return { sky: ['#6ab8e0', '#f0f4d8'], spawnX: 470, groundTop: '#b8302a', groundBody: '#7a2a1a' }; },
     init: function (state, mini) { mini.prog = 0; mini.rival = 0; mini.boost = 0; mini.stun = 0; mini.judge = null; mini.judgeT = 0; mini.combo = 0; mini.hits = 0; },
@@ -226,7 +226,7 @@ const AsiaSea = (function () {
   Encounter.registerMini('typhoon', {
     def: { name: '颱風', lv: 3, exp: 130, game: '颱風天', as: true, duration: 45 * 60,
            fact: '「颱風」可能來自廣東話的「大風」；夏天到秋天，太平洋上的颱風會一路吹到臺灣、中國、日本和菲律賓。',
-           goal: '強風一陣陣吹過甲板（桅杆上的旗子先往那邊飄）—— 頂著風，收集飄在空中的紙燈籠；被吹下船會痛' },
+           goal: '旗子往哪飄，風就往哪吹・頂著風收集 6 盞紙燈籠' },
     weight: function (es) { return es >= 90 ? 2 : 0; },
     arena: function (GY) {
       return { sky: ['#3a4a5a', '#8a9aa8'], spawnX: 460, groundTop: '#8a6a44', groundBody: '#4a3420',
@@ -329,7 +329,7 @@ const AsiaSea = (function () {
   Encounter.registerMini('goldkoi', {
     def: { name: '黃金錦鯉', lv: '★', exp: 60, game: '抓錦鯉', as: true, rare: true, duration: 25 * 60,
            fact: '傳說黃河的鯉魚只要逆流跳過「龍門」，就會變成一條龍 ——「鯉躍龍門」。',
-           goal: '黃金錦鯉從水裡躍出來，在空中劃一道弧線 —— 跳起來碰牠 3 次就抓到了！' },
+           goal: '錦鯉躍出水面時跳起來碰牠，碰 3 次就抓到了' },
     arena: function (GY) {
       return { sky: ['#5a9ad8', '#fff0c0'], spawnX: 460,
                ground: [{ x: POND0, y: GY, w: POND1 - POND0, h: Levels.GROUND_H }],
